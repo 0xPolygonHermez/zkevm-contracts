@@ -1,36 +1,20 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const {
-  createPermitSignature
-} = require("./helpers/erc2612");
-
 describe("HezMaticMerge", function () {
-  const ABIbid = [
-    "function permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
-  ];
-  const iface = new ethers.utils.Interface(ABIbid);
+  let deployer;
+  let userAWallet;
+  let userBWallet;
 
-  const swapRatio = 3500; // 3.5 factor
-  const duration = 3600; // 1 hour
-
-  const hermezTokenName = "Hermez Network Token";
-  const hermezTokenSymbol = "HEZ";
-  const hermezTokenInitialBalance = ethers.utils.parseEther("100000000");
+  let verifierContract;
+  let bridgeContract;
+  let proofOfEfficiencyContract;
+  let maticTokenContract;
 
   const maticTokenName = "Matic Token";
   const maticTokenSymbol = "MATIC";
   const decimals = 18;
   const maticTokenInitialBalance = ethers.utils.parseEther("20000000");
-
-  let deployer;
-  let governance;
-  let userAWallet;
-  let userBWallet;
-
-  let hezMaticMergeContract;
-  let hermezTokenContract;
-  let maticTokenContract;
 
   beforeEach("Deploy contract", async () => {
     // load signers
@@ -38,346 +22,171 @@ describe("HezMaticMerge", function () {
 
     // assign signers
     deployer = signers[0];
-    governance = signers[1];
-    userAWallet = signers[2];
-    userBWallet = signers[3];
+    aggregator = signers[1];
+    sequencer = signers[2];
 
-    // deploy ERC20 tokens
-    const hezTokenFactory = await ethers.getContractFactory("HEZ");
-    const maticTokenFactory = await ethers.getContractFactory("MaticToken");
-
-    hermezTokenContract = await hezTokenFactory.deploy(
-      deployer.address
+    // deploy mock verifier
+    const VerifierRollupHelperFactory = await ethers.getContractFactory(
+      "VerifierRollupHelper"
     );
+    verifierContract = await VerifierRollupHelperFactory.deploy();
 
+    // deploy MATIC
+    const maticTokenFactory = await ethers.getContractFactory("ERC20PermitMock");
     maticTokenContract = await maticTokenFactory.deploy(
       maticTokenName,
       maticTokenSymbol,
-      decimals,
+      deployer.address,
       maticTokenInitialBalance
     );
-
-    await hermezTokenContract.deployed();
     await maticTokenContract.deployed();
 
-    // deploy hezMaticMergeContract
-    const HezMaticMergeFactory = await ethers.getContractFactory("HezMaticMerge");
-    hezMaticMergeContract = await HezMaticMergeFactory.deploy(
-      hermezTokenContract.address,
+    // deploy bridge
+    const precalculatePoEAddress = await ethers.utils.getContractAddress(
+      { "from": deployer.address, "nonce": (await ethers.provider.getTransactionCount(deployer.address)) + 1 });
+    const BridgeFactory = await ethers.getContractFactory("BridgeMock");
+    bridgeContract = await BridgeFactory.deploy(precalculatePoEAddress);
+    await bridgeContract.deployed();
+
+    // deploy proof of efficiency
+    const ProofOfEfficiencyFactory = await ethers.getContractFactory("ProofOfEfficiency");
+    proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
+      bridgeContract.address,
       maticTokenContract.address,
-      duration
+      verifierContract.address
+    );
+    await proofOfEfficiencyContract.deployed();
+    expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
+
+    // fund sequencer address with Matic tokens
+    await maticTokenContract.transfer(sequencer.address, ethers.utils.parseEther("100"));
+  });
+
+  it("should check the constructor parameters", async () => {
+    expect(await bridgeContract.rollupAddress()).to.be.equal(proofOfEfficiencyContract.address);
+    expect(await bridgeContract.rollupExitRoot()).to.be.equal(ethers.BigNumber.from(0));
+    expect(await bridgeContract.mainnetExitRoot()).to.be.equal(ethers.BigNumber.from(0));
+
+    expect(await proofOfEfficiencyContract.bridge()).to.be.equal(bridgeContract.address);
+    expect(await proofOfEfficiencyContract.matic()).to.be.equal(maticTokenContract.address);
+    expect(await proofOfEfficiencyContract.rollupVerifier()).to.be.equal(verifierContract.address);
+  });
+
+  it("should register a sequencer", async () => {
+    // register a sequencer
+    const sequencerURL = "http://exampleURL"
+    const sequencerAddress = deployer.address;
+    await expect(proofOfEfficiencyContract.registerSequencer(sequencerURL))
+      .to.emit(proofOfEfficiencyContract, "SetSequencer")
+      .withArgs(sequencerAddress, sequencerURL);
+
+    // check the stored sequencer struct
+    const sequencerStruct = await proofOfEfficiencyContract.sequencers(sequencerAddress)
+    expect(sequencerStruct.sequencerURL).to.be.equal(sequencerURL);
+    expect(sequencerStruct.chainID).to.be.equal(ethers.BigNumber.from(1));
+
+    // update the sequencer URL
+    const sequencerURL2 = "http://exampleURL2"
+    await expect(proofOfEfficiencyContract.registerSequencer(sequencerURL2))
+      .to.emit(proofOfEfficiencyContract, "SetSequencer")
+      .withArgs(sequencerAddress, sequencerURL2);
+
+    // check the stored sequencer struct
+    const sequencerStruct2 = await proofOfEfficiencyContract.sequencers(sequencerAddress)
+    expect(sequencerStruct2.sequencerURL).to.be.equal(sequencerURL2);
+    expect(sequencerStruct2.chainID).to.be.equal(ethers.BigNumber.from(1));
+  });
+
+  it("should send batch of transactions", async () => {
+    const l2tx = "0x123456"
+    const maticAmount = ethers.utils.parseEther(((l2tx.length - 2) / 2).toString()) // for now the price depends on the bytes
+    const sequencerAddress = deployer.address
+
+    expect(maticAmount.toString()).to.be.equal((await proofOfEfficiencyContract.calculateSequencerCollateral(l2tx.length - 2) / 2).toString());
+
+    // revert because the maxMatic amount is less than the necessary to pay
+    await expect(proofOfEfficiencyContract.sendBatch(l2tx, maticAmount.sub(1)))
+      .to.be.revertedWith("ProofOfEfficiency::sendBatch: NOT_ENOUGH_MATIC");
+
+    // revert because tokens were not approved
+    await expect(proofOfEfficiencyContract.sendBatch(l2tx, maticAmount))
+      .to.be.revertedWith("ERC20: transfer amount exceeds allowance");
+
+
+    const initialOwnerBalance = await maticTokenContract.balanceOf(
+      await deployer.getAddress()
     );
 
-    await hezMaticMergeContract.deployed();
+    await expect(
+      maticTokenContract.approve(proofOfEfficiencyContract.address, maticAmount)
+    ).to.emit(maticTokenContract, "Approval");
+
+    const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
+
+    await expect(proofOfEfficiencyContract.sendBatch(l2tx, maticAmount))
+      .to.emit(proofOfEfficiencyContract, "SendBatch")
+      .withArgs(lastBatchSent.add(1), sequencerAddress);
+
+    const finalOwnerBalance = await maticTokenContract.balanceOf(
+      await deployer.getAddress()
+    );
+    expect(finalOwnerBalance).to.equal(
+      ethers.BigNumber.from(initialOwnerBalance).sub(ethers.BigNumber.from(maticAmount))
+    );
   });
 
-  it("should check the constructor", async () => {
-    expect(await hezMaticMergeContract.hez()).to.be.equal(hermezTokenContract.address);
-    expect(await hezMaticMergeContract.matic()).to.be.equal(maticTokenContract.address);
-    expect(await hezMaticMergeContract.SWAP_RATIO()).to.be.equal(swapRatio);
+  it("should forge the batch", async () => {
+    const l2tx = "0x123456"
+    const maticAmount = ethers.utils.parseEther(((l2tx.length - 2) / 2).toString()) // for now the price depends on the bytes
 
-    const deployedTimestamp = (await ethers.provider.getBlock(hezMaticMergeContract.deployTransaction.blockNumber)).timestamp;
-    expect(await hezMaticMergeContract.withdrawTimeout()).to.be.equal(deployedTimestamp + duration);
-  });
+    const aggregatorAddress = aggregator.address
+    const sequencerAddress = sequencer.address
 
-  it("shouldn't be able to swap HEZ for MATIC", async () => {
-    // distribute tokens
-    const hezMaticMergeAmount = ethers.utils.parseEther("100");
-    const userWalletAmount = ethers.utils.parseEther("1");
+    // sequencer send the batch
+    await expect(
+      maticTokenContract.connect(sequencer).approve(proofOfEfficiencyContract.address, maticAmount)
+    ).to.emit(maticTokenContract, "Approval");
 
-    await maticTokenContract.connect(deployer).transfer(hezMaticMergeContract.address, hezMaticMergeAmount);
-    await hermezTokenContract.connect(deployer).transfer(userAWallet.address, userWalletAmount);
-    await hermezTokenContract.connect(deployer).transfer(userBWallet.address, userWalletAmount);
+    const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
 
-    // assert token amounts
-    expect(await maticTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(hezMaticMergeAmount);
-    expect(await hermezTokenContract.balanceOf(userAWallet.address)).to.be.equal(userWalletAmount);
-    expect(await hermezTokenContract.balanceOf(userBWallet.address)).to.be.equal(userWalletAmount);
-    expect(await maticTokenContract.balanceOf(userAWallet.address)).to.be.equal(0);
-    expect(await maticTokenContract.balanceOf(userBWallet.address)).to.be.equal(0);
+    await expect(proofOfEfficiencyContract.connect(sequencer).sendBatch(l2tx, maticAmount))
+      .to.emit(proofOfEfficiencyContract, "SendBatch")
+      .withArgs(lastBatchSent.add(1), sequencerAddress);
 
-    // try to swap 10 HEZ for 35 MATIC
-    const amountToBridgeInt = 10;
-    const amountToBridge = ethers.utils.parseEther(amountToBridgeInt.toString());
+    // aggregator forge the batch
+    const newLocalExitRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    const newStateRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    const batchNum = (await proofOfEfficiencyContract.lastVerifiedBatch()).add(1);
+    const proofA = ["0", "0"];
+    const proofB = [
+      ["0", "0"],
+      ["0", "0"],
+    ];
+    const proofC = ["0", "0"];
 
-    const deadline = ethers.constants.MaxUint256;
-    const value = amountToBridge;
-    const nonce = await hermezTokenContract.nonces(userAWallet.address);
-    const { v, r, s } = await createPermitSignature(
-      hermezTokenContract,
-      userAWallet,
-      hezMaticMergeContract.address,
-      value,
-      nonce,
-      deadline
+
+    const initialAggregatorMatic = await maticTokenContract.balanceOf(
+      await aggregator.getAddress()
     );
 
-    const dataPermit = iface.encodeFunctionData("permit", [
-      userAWallet.address,
-      hezMaticMergeContract.address,
-      value,
-      deadline,
-      v,
-      r,
-      s
-    ]);
+    await expect(
+      proofOfEfficiencyContract.connect(aggregator).verifyBatch(
+        newLocalExitRoot, newStateRoot, batchNum.sub(1), proofA, proofB, proofC
+      )
+    ).to.be.revertedWith("ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH");
 
-    await expect(hezMaticMergeContract.connect(userAWallet).hezToMatic(amountToBridge, dataPermit)
-    ).to.be.revertedWith("MATH:SUB_UNDERFLOW");
-  });
+    await expect(
+      proofOfEfficiencyContract.connect(aggregator).verifyBatch(
+        newLocalExitRoot, newStateRoot, batchNum, proofA, proofB, proofC
+      )
+    ).to.emit(proofOfEfficiencyContract, "VerifyBatch")
+      .withArgs(batchNum, aggregatorAddress);
 
-  it("should be able to swap HEZ for MATIC", async () => {
-    // distribute tokens
-    const hezMaticMergeAmount = ethers.utils.parseEther("100");
-    const userWalletAmount = ethers.utils.parseEther("10");
-
-    await maticTokenContract.connect(deployer).transfer(hezMaticMergeContract.address, hezMaticMergeAmount);
-    await hermezTokenContract.connect(deployer).transfer(userAWallet.address, userWalletAmount);
-    await hermezTokenContract.connect(deployer).transfer(userBWallet.address, userWalletAmount);
-
-    // assert token amounts
-    expect(await maticTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(hezMaticMergeAmount);
-    expect(await hermezTokenContract.balanceOf(userAWallet.address)).to.be.equal(userWalletAmount);
-    expect(await hermezTokenContract.balanceOf(userBWallet.address)).to.be.equal(userWalletAmount);
-    expect(await maticTokenContract.balanceOf(userAWallet.address)).to.be.equal(0);
-    expect(await maticTokenContract.balanceOf(userBWallet.address)).to.be.equal(0);
-
-    // swap 1 HEZ for 3.5 MATIC
-    const amountToBridgeInt = 1;
-    const amountBridgedInt = amountToBridgeInt * swapRatio / 1000;
-    const amountToBridge = ethers.utils.parseEther(amountToBridgeInt.toString());
-    const amountBridged = amountToBridge.mul(swapRatio).div(1000);
-
-    const deadline = ethers.constants.MaxUint256;
-    const value = amountToBridge;
-    const nonce = await hermezTokenContract.nonces(userAWallet.address);
-    const { v, r, s } = await createPermitSignature(
-      hermezTokenContract,
-      userAWallet,
-      hezMaticMergeContract.address,
-      value,
-      nonce,
-      deadline
+    const finalAggregatorMatic = await maticTokenContract.balanceOf(
+      await aggregator.getAddress()
     );
-
-    const dataPermit = iface.encodeFunctionData("permit", [
-      userAWallet.address,
-      hezMaticMergeContract.address,
-      value,
-      deadline,
-      v,
-      r,
-      s
-    ]);
-
-    const txSwap = await hezMaticMergeContract.connect(userAWallet).hezToMatic(amountToBridge, dataPermit);
-    const receiptSwap = await txSwap.wait();
-
-    // approve event
-    const approveEvent = hermezTokenContract.interface.parseLog(receiptSwap.events[0]);
-    expect(approveEvent.name).to.be.equal("Approval");
-    expect(approveEvent.args.owner).to.be.equal(userAWallet.address);
-    expect(approveEvent.args.spender).to.be.equal(hezMaticMergeContract.address);
-    expect(approveEvent.args.value).to.be.equal(amountToBridge);
-
-    // transferFrom event
-    const transferFromEvent = hermezTokenContract.interface.parseLog(receiptSwap.events[1]);
-    expect(transferFromEvent.name).to.be.equal("Transfer");
-    expect(transferFromEvent.args.from).to.be.equal(userAWallet.address);
-    expect(transferFromEvent.args.to).to.be.equal(hezMaticMergeContract.address);
-    expect(transferFromEvent.args.value).to.be.equal(amountToBridge);
-
-    // burn event
-    const burnEvent = hermezTokenContract.interface.parseLog(receiptSwap.events[2]);
-    expect(burnEvent.name).to.be.equal("Transfer");
-    expect(burnEvent.args.from).to.be.equal(hezMaticMergeContract.address);
-    expect(burnEvent.args.to).to.be.equal("0x0000000000000000000000000000000000000000");
-    expect(burnEvent.args.value).to.be.equal(amountToBridge);
-
-    // transfer matic token Event
-    const transfermaticTokenEvent = maticTokenContract.interface.parseLog(receiptSwap.events[3]);
-    expect(transfermaticTokenEvent.name).to.be.equal("Transfer");
-    expect(transfermaticTokenEvent.args.from).to.be.equal(hezMaticMergeContract.address);
-    expect(transfermaticTokenEvent.args.to).to.be.equal(userAWallet.address);
-    expect(transfermaticTokenEvent.args.value).to.be.equal(amountBridged);
-
-    // HezToMatic event
-    const granteeEvent = receiptSwap.events[4];
-    expect(granteeEvent.event).to.be.equal("HezToMatic");
-    expect(granteeEvent.args.grantee).to.be.equal(userAWallet.address);
-    expect(granteeEvent.args.hezAmount).to.be.equal(amountToBridge);
-    expect(granteeEvent.args.maticAmount).to.be.equal(amountBridged);
-
-    // check balances
-    expect(await hermezTokenContract.balanceOf(userAWallet.address)).to.be.equal(userWalletAmount.sub(amountToBridge));
-    expect(await hermezTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(0);
-    expect(await maticTokenContract.balanceOf(userAWallet.address)).to.be.equal(amountBridged);
-    expect(await maticTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(hezMaticMergeAmount.sub(amountBridged));
-    expect(amountBridged).to.be.equal(ethers.utils.parseEther(amountBridgedInt.toString()));
-  });
-
-  it("shouldn't be able to withdrawTokens if is not the owner, or the timeout is not reached for MATIC", async () => {
-
-    await expect(
-      hezMaticMergeContract.connect(userAWallet).withdrawTokens(maticTokenContract.address, 1)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
-
-    await expect(
-      hezMaticMergeContract.connect(userAWallet).withdrawTokens("0x0000000000000000000000000000000000000000", 1)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).withdrawTokens(maticTokenContract.address, 1)
-    ).to.be.revertedWith("HezMaticMerge::withdrawTokens: TIMEOUT_NOT_REACHED");
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).withdrawTokens("0x0000000000000000000000000000000000000000", 1)
-    ).to.be.revertedWith("Address: call to non-contract");
-  });
-
-  it("should be able to withdrawTokens ", async () => {
-    // send tokens to HezMaticMerge contract
-    await maticTokenContract.connect(deployer).transfer(hezMaticMergeContract.address, maticTokenInitialBalance);
-    await hermezTokenContract.connect(deployer).transfer(hezMaticMergeContract.address, hermezTokenInitialBalance);
-
-    // assert balances HezMaticMerge
-    expect(await maticTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(maticTokenInitialBalance);
-    expect(await hermezTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(hermezTokenInitialBalance);
-
-    // assert balances deployer
-    expect(await hermezTokenContract.balanceOf(deployer.address)).to.be.equal(0);
-    expect(await maticTokenContract.balanceOf(deployer.address)).to.be.equal(0);
-
-    // assert withdraw of MATIC can't be done until timeout is reached
-    const withdrawTimeout = (await hezMaticMergeContract.withdrawTimeout()).toNumber();
-    let currentTimestamp = (await ethers.provider.getBlock()).timestamp;
-
-    expect(withdrawTimeout).to.be.greaterThan(currentTimestamp);
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).withdrawTokens(maticTokenContract.address, maticTokenInitialBalance)
-    ).to.be.revertedWith("HezMaticMerge::withdrawTokens: TIMEOUT_NOT_REACHED");
-
-    // withdraw HEZ tokens without timeout restrictions
-
-    // assert only owner can withdraw the tokens
-    await expect(
-      hezMaticMergeContract.connect(governance).withdrawTokens(hermezTokenContract.address, hermezTokenInitialBalance)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
-
-    await expect(hezMaticMergeContract.connect(deployer).withdrawTokens(hermezTokenContract.address, hermezTokenInitialBalance)
-    ).to.emit(hezMaticMergeContract, "WithdrawTokens")
-      .withArgs(hermezTokenContract.address, hermezTokenInitialBalance);
-
-    // assert balances HezMaticMerge
-    expect(await maticTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(maticTokenInitialBalance);
-    expect(await hermezTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(0);
-
-    // assert balances deployer
-    expect(await hermezTokenContract.balanceOf(deployer.address)).to.be.equal(hermezTokenInitialBalance);
-    expect(await maticTokenContract.balanceOf(deployer.address)).to.be.equal(0);
-
-    // assert no more tokens can be withdrawed if there's no balance
-    await expect(
-      hezMaticMergeContract.connect(deployer).withdrawTokens(hermezTokenContract.address, 1)
-    ).to.be.revertedWith("MATH:SUB_UNDERFLOW");
-
-    // advance time and withdraw MATIC
-    currentTimestamp = (await ethers.provider.getBlock()).timestamp;
-    await ethers.provider.send("evm_increaseTime", [withdrawTimeout - currentTimestamp + 1]);
-    await ethers.provider.send("evm_mine");
-
-    currentTimestamp = (await ethers.provider.getBlock()).timestamp;
-    expect(withdrawTimeout).to.be.lessThan(currentTimestamp);
-
-    await expect(hezMaticMergeContract.connect(deployer).withdrawTokens(maticTokenContract.address, maticTokenInitialBalance)
-    ).to.emit(hezMaticMergeContract, "WithdrawTokens")
-      .withArgs(maticTokenContract.address, maticTokenInitialBalance);
-
-    // assert balances HezMaticMerge
-    expect(await maticTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(0);
-    expect(await hermezTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(0);
-
-    // assert balances deployer
-    expect(await hermezTokenContract.balanceOf(deployer.address)).to.be.equal(hermezTokenInitialBalance);
-    expect(await maticTokenContract.balanceOf(deployer.address)).to.be.equal(maticTokenInitialBalance);
-  });
-
-  it("should be able to update withdrawLeftOver ", async () => {
-    // send tokens to HezMaticMerge contract
-    await maticTokenContract.connect(deployer).transfer(hezMaticMergeContract.address, maticTokenInitialBalance);
-
-    // assert balances
-    expect(await maticTokenContract.balanceOf(hezMaticMergeContract.address)).to.be.equal(maticTokenInitialBalance);
-    expect(await maticTokenContract.balanceOf(deployer.address)).to.be.equal(0);
-
-    // assert withdraw can't be done until timeout is reached
-    const withdrawTimeout = (await hezMaticMergeContract.withdrawTimeout()).toNumber();
-    let currentTimestamp = (await ethers.provider.getBlock()).timestamp;
-
-    expect(withdrawTimeout).to.be.greaterThan(currentTimestamp);
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).withdrawTokens(maticTokenContract.address, maticTokenInitialBalance)
-    ).to.be.revertedWith("HezMaticMerge::withdrawTokens: TIMEOUT_NOT_REACHED");
-
-    // advance time and withdraw leftovers
-    await ethers.provider.send("evm_increaseTime", [withdrawTimeout - currentTimestamp + 1]);
-    await ethers.provider.send("evm_mine");
-
-    currentTimestamp = (await ethers.provider.getBlock()).timestamp;
-    expect(withdrawTimeout).to.be.lessThan(currentTimestamp);
-
-    await expect(
-      hezMaticMergeContract.connect(governance).setWithdrawTimeout(withdrawTimeout)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).setWithdrawTimeout(withdrawTimeout)
-    ).to.be.revertedWith("HezMaticMerge::setWithdrawTimeout: NEW_TIMEOUT_MUST_BE_HIGHER");
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).setWithdrawTimeout(currentTimestamp)
-    ).to.emit(hezMaticMergeContract, "NewWithdrawTimeout")
-      .withArgs(currentTimestamp);
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).setWithdrawTimeout(currentTimestamp + 3000)
-    ).to.emit(hezMaticMergeContract, "NewWithdrawTimeout")
-      .withArgs(currentTimestamp + 3000);
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).withdrawTokens(maticTokenContract.address, maticTokenInitialBalance)
-    ).to.be.revertedWith("HezMaticMerge::withdrawTokens: TIMEOUT_NOT_REACHED");
-  });
-
-  it("should be able to transfer ownership", async () => {
-    // send tokens to HezMaticMerge contract
-    await maticTokenContract.connect(deployer).transfer(hezMaticMergeContract.address, maticTokenInitialBalance);
-    await hermezTokenContract.connect(deployer).transfer(hezMaticMergeContract.address, hermezTokenInitialBalance);
-
-    // check current owner
-    expect(await hezMaticMergeContract.owner()).to.be.equal(deployer.address);
-
-    // transfer ownership
-    await expect(
-      hezMaticMergeContract.connect(governance).transferOwnership(governance.address)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
-
-    await expect(hezMaticMergeContract.connect(deployer).transferOwnership(governance.address)
-    ).to.emit(hezMaticMergeContract, "OwnershipTransferred")
-      .withArgs(deployer.address, governance.address);
-
-    // check new owner premissions
-    expect(await hezMaticMergeContract.owner()).to.be.equal(governance.address);
-
-    await expect(
-      hezMaticMergeContract.connect(deployer).withdrawTokens(hermezTokenContract.address, 0)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
-
-    await expect(
-      hezMaticMergeContract.connect(governance).withdrawTokens(hermezTokenContract.address, hermezTokenInitialBalance)
-    ).to.emit(hezMaticMergeContract, "WithdrawTokens")
-      .withArgs(hermezTokenContract.address, hermezTokenInitialBalance);
+    expect(finalAggregatorMatic).to.equal(
+      ethers.BigNumber.from(initialAggregatorMatic).add(ethers.BigNumber.from(maticAmount))
+    );
   });
 });

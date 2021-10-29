@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
-
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./interfaces/VerifierRollupInterface.sol";
+import "./interfaces/BridgeInterface.sol";
 
 /**
  * Contract responsible for managing the state and the updates of it of the L2 Hermez network.
@@ -53,16 +53,16 @@ contract ProofOfEfficiency is Ownable {
     uint256 public lastVerifiedBatch;
 
     // Bridge address
-    address public bridgeAddress;
+    BridgeInterface public bridge;
 
     // Current state root
-    uint256 public currentStateRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
+    bytes32 public currentStateRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
 
     // Current local exit root
-    uint256 public currentLocalExitRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
+    bytes32 public currentLocalExitRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
 
     // Last fetched global exit root, this will be updated every time a batch is verified
-    uint256 public lastGlobalExitRoot;
+    bytes32 public lastGlobalExitRoot;
 
     VerifierRollupInterface public rollupVerifier;
 
@@ -77,25 +77,26 @@ contract ProofOfEfficiency is Ownable {
     event SendBatch(uint256 indexed batchNum, address indexed sequencer);
 
     /**
-     * @dev Emitted when the owner increases the timeout
+     * @dev Emitted when a aggregator verifies a new batch
      */
-    event NewWithdrawTimeout(uint256 newWithdrawTimeout);
+    event VerifyBatch(uint256 indexed batchNum, address indexed aggregator);
 
     /**
-     * @param _bridgeAddress Bridge contract address
+     * @param _bridge Bridge contract address
+     * @param _matic MATIC token address
+     * @param _rollupVerifier rollup verifier address
      */
     constructor(
-        address _bridgeAddress,
+        BridgeInterface _bridge,
         IERC20 _matic,
         VerifierRollupInterface _rollupVerifier
     ) {
-        bridgeAddress = _bridgeAddress;
+        bridge = _bridge;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
 
         // register this rollup and update the global exit root
-        // Bridge.registerRollup(currentLocalExitRoot)
-        // lastGlobalExitRoot = Bridge.globalExitRoot
+        lastGlobalExitRoot = bridge.currentGlobalExitRoot();
     }
 
     /**
@@ -125,16 +126,11 @@ contract ProofOfEfficiency is Ownable {
      * @param transactions L2 ethereum transactions EIP-155 with signature:
      * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0, v, r, s)
      * @param maticAmount Max amount of MATIC tokens that the sequencer is willing to pay
-     * @param _permitData Raw data of the call `permit` of the token
      */
-    function sendBatch(
-        bytes memory transactions,
-        uint256 maticAmount,
-        bytes calldata _permitData
-    ) public {
+    function sendBatch(bytes memory transactions, uint256 maticAmount) public {
         // calculate matic collateral
         uint256 maticCollateral = calculateSequencerCollateral(
-            transactions.length //TODO   how many transactions are here¿?¿?¿??¿?¿¿?¿?
+            transactions.length //TODO how many transactions are here¿?¿?¿??¿?¿¿?¿?
         );
 
         require(
@@ -142,10 +138,6 @@ contract ProofOfEfficiency is Ownable {
             "ProofOfEfficiency::sendBatch: NOT_ENOUGH_MATIC"
         );
 
-        // receive MATIC tokens
-        if (_permitData.length != 0) {
-            _permit(address(matic), maticAmount, _permitData);
-        }
         matic.safeTransferFrom(msg.sender, address(this), maticCollateral);
 
         // Update sentBatches mapping
@@ -153,7 +145,7 @@ contract ProofOfEfficiency is Ownable {
         sentBatches[lastBatchSent].batchL2HashData = keccak256(transactions);
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
 
-        // check if the sequencer is registered, if not, no one will claim the fees
+        // Check if the sequencer is registered, if not, no one will claim the fees
         if (sequencers[msg.sender].chainID != 0) {
             sentBatches[lastBatchSent].sequencerAddress = msg.sender;
         }
@@ -171,8 +163,8 @@ contract ProofOfEfficiency is Ownable {
      * @param proofC zk-snark input
      */
     function verifyBatch(
-        uint256 newLocalExitRoot,
-        uint256 newStateRoot,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
         uint256 batchNum,
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
@@ -184,9 +176,10 @@ contract ProofOfEfficiency is Ownable {
             "ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH"
         );
 
+        // Calculate Circuit Input
         BatchData memory currentBatch = sentBatches[batchNum];
-        address sequencerAddress = currentBatch.sequencerAddress;
-        uint256 batchChainID = sequencers[sequencerAddress].chainID;
+        address sequencerAddress = currentBatch.sequencerAddress; // could be 0, if sequencer is not registered
+        uint256 batchChainID = sequencers[sequencerAddress].chainID; // could be 0, if sequencer is not registered
         uint256 input = uint256(
             sha256(
                 abi.encodePacked(
@@ -197,23 +190,30 @@ contract ProofOfEfficiency is Ownable {
                     newLocalExitRoot,
                     sequencerAddress,
                     currentBatch.batchL2HashData,
-                    batchChainID // could be 0, is that alright?
+                    batchChainID
                 )
             )
         ) % _RFIELD;
 
-        // verify proof
+        // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [input]),
             "ProofOfEfficiency::verifyBatch: INVALID_PROOF"
         );
-        // update state
+
+        // Update state
         lastVerifiedBatch++;
         currentStateRoot = newStateRoot;
         currentLocalExitRoot = newLocalExitRoot;
 
-        // Bridge.updateExitRoot(currentLocalExitRoot)
-        // lastGlobalExitRoot = Bridge.globalExitRoot
+        // Interact with bridge
+        bridge.updateRollupExitRoot(currentLocalExitRoot);
+        lastGlobalExitRoot = bridge.currentGlobalExitRoot();
+
+        // Get MATIC reward
+        matic.safeTransfer(msg.sender, currentBatch.maticCollateral);
+
+        emit VerifyBatch(batchNum, msg.sender);
     }
 
     /**
@@ -227,80 +227,5 @@ contract ProofOfEfficiency is Ownable {
         returns (uint256)
     {
         return transactionNum * 1 ether;
-    }
-
-    /**
-     * @notice Function to extract the selector of a bytes calldata
-     * @param _data The calldata bytes
-     */
-    function _getSelector(bytes memory _data)
-        private
-        pure
-        returns (bytes4 sig)
-    {
-        /* solhint-disable no-inline-assembly*/
-        assembly {
-            sig := mload(add(_data, 32))
-        }
-    }
-
-    /**
-     * @notice Function to call token permit method of extended ERC20
-     + @param token ERC20 token address
-     * @param _amount Quantity that is expected to be allowed
-     * @param _permitData Raw data of the call `permit` of the token
-     */
-    function _permit(
-        address token,
-        uint256 _amount,
-        bytes calldata _permitData
-    ) internal returns (bool success, bytes memory returndata) {
-        bytes4 sig = _getSelector(_permitData);
-        require(
-            sig == _PERMIT_SIGNATURE,
-            "HezMaticMerge::_permit: NOT_VALID_CALL"
-        );
-        (
-            address owner,
-            address spender,
-            uint256 value,
-            uint256 deadline,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = abi.decode(
-                _permitData[4:],
-                (address, address, uint256, uint256, uint8, bytes32, bytes32)
-            );
-        require(
-            owner == msg.sender,
-            "HezMaticMerge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
-        );
-        require(
-            spender == address(this),
-            "HezMaticMerge::_permit: SPENDER_MUST_BE_THIS"
-        );
-        require(
-            value == _amount,
-            "HezMaticMerge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
-        );
-
-        // we call without checking the result, in case it fails and he doesn't have enough balance
-        // the following transferFrom should be fail. This prevents DoS attacks from using a signature
-        // before the smartcontract call
-        /* solhint-disable avoid-low-level-calls*/
-        return
-            address(token).call(
-                abi.encodeWithSelector(
-                    _PERMIT_SIGNATURE,
-                    owner,
-                    spender,
-                    value,
-                    deadline,
-                    v,
-                    r,
-                    s
-                )
-            );
     }
 }

@@ -64,10 +64,6 @@ module.exports = {
         count: 20,
       },
     },
-    mainnet: {
-      url: "http://geth.dappnode:8545",
-      accounts: [`${process.env.PRIVATE_KEY}`]
-    },
   },
   gasReporter: {
     currency: "USD",
