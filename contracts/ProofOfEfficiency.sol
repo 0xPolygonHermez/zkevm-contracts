@@ -140,7 +140,9 @@ contract ProofOfEfficiency is Ownable {
 
         // Update sentBatches mapping
         lastBatchSent++;
-        sentBatches[lastBatchSent].batchL2HashData = keccak256(transactions);
+        sentBatches[lastBatchSent].batchL2HashData = keccak256(
+            abi.encodePacked(transactions, bridge.getLastGlobalExitRoot())
+        );
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
 
         // Check if the sequencer is registered, if not, no one will claim the fees
@@ -183,7 +185,6 @@ contract ProofOfEfficiency is Ownable {
                 abi.encodePacked(
                     currentStateRoot,
                     currentLocalExitRoot,
-                    lastGlobalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
                     sequencerAddress,
