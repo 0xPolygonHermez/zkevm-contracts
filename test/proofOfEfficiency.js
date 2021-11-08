@@ -99,10 +99,10 @@ describe("HezMaticMerge", function () {
 
   it("should send batch of transactions", async () => {
     const l2tx = "0x123456"
-    const maticAmount = ethers.utils.parseEther(((l2tx.length - 2) / 2).toString()) // for now the price depends on the bytes
+    const maticAmount = ethers.utils.parseEther("1"); // for now the price depends on the bytes
     const sequencerAddress = deployer.address
 
-    expect(maticAmount.toString()).to.be.equal((await proofOfEfficiencyContract.calculateSequencerCollateral(l2tx.length - 2) / 2).toString());
+    expect(maticAmount.toString()).to.be.equal((await proofOfEfficiencyContract.calculateSequencerCollateral()).toString());
 
     // revert because the maxMatic amount is less than the necessary to pay
     await expect(proofOfEfficiencyContract.sendBatch(l2tx, maticAmount.sub(1)))
@@ -137,7 +137,7 @@ describe("HezMaticMerge", function () {
 
   it("should forge the batch", async () => {
     const l2tx = "0x123456"
-    const maticAmount = ethers.utils.parseEther(((l2tx.length - 2) / 2).toString()) // for now the price depends on the bytes
+    const maticAmount = ethers.utils.parseEther("1"); // for now the price depends on the bytes
 
     const aggregatorAddress = aggregator.address
     const sequencerAddress = sequencer.address

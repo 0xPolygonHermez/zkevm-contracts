@@ -129,9 +129,7 @@ contract ProofOfEfficiency is Ownable {
      */
     function sendBatch(bytes memory transactions, uint256 maticAmount) public {
         // calculate matic collateral
-        uint256 maticCollateral = calculateSequencerCollateral(
-            transactions.length //TODO how many transactions are here¿?¿?¿??¿?¿¿?¿?
-        );
+        uint256 maticCollateral = calculateSequencerCollateral();
 
         require(
             maticCollateral <= maticAmount,
@@ -217,15 +215,10 @@ contract ProofOfEfficiency is Ownable {
     }
 
     /**
-     * @notice Function to calculate the sequencer collateral depending on how many transactions are sent 
+     * @notice Function to calculate the sequencer collateral depending on the congestion of the batches
      // TODO
-     * @param transactionNum Number of transactions
      */
-    function calculateSequencerCollateral(uint256 transactionNum)
-        public
-        pure
-        returns (uint256)
-    {
-        return transactionNum * 1 ether;
+    function calculateSequencerCollateral() public pure returns (uint256) {
+        return 1 ether;
     }
 }
