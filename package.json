@@ -21,7 +21,8 @@
     "solidity-coverage": "^0.7.17",
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
-    "solidity-docgen": "^0.5.16"
+    "solidity-docgen": "^0.5.16",
+    "ffjavascript": "^0.2.39"
   },
   "license": "GPL-3.0",
   "scripts": {
