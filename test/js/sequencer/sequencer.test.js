@@ -94,7 +94,7 @@ describe("Sequencer test", async function () {
     });
 
     it("SendBatch 3 tx", async function () {
-        const wallet = ethers.Wallet.createRandom();
+        const wallet = new ethers.Wallet("0x4646464646464646464646464646464646464646464646464646464646464646");
         const tx0 = {
             to: userAWallet.address,
             nonce: 0,

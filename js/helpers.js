@@ -45,6 +45,17 @@ function encodeSignedTx(tx) {
 }
 
 /**
+ * This function returns the address of the signer, from the hash and the signature.
+ * @param {HexString} hash - signed hash
+ * @param {HexString} signature - signature from hash
+ * @returns hexString
+ */
+function returnFrom(hash, signature) {
+    const from = ethers.utils.recoverAddress(hash, signature);
+    return from;
+}
+
+/**
  * Function to get an even hexString that starts with "0x" from a number or a hexString of another format
  * @param { Number | String } num Number
  * @returns hexString
@@ -63,5 +74,6 @@ function toHexString(num) {
 module.exports = {
     encodeTx,
     encodeSignedTx,
-    toHexString
+    toHexString,
+    returnFrom
 };
