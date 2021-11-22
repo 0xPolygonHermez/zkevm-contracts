@@ -4,10 +4,11 @@ const poeABI = require("../../artifacts/contracts/ProofOfEfficiency.sol/ProofOfE
 const helpers = require("../helpers")
 
 module.exports = class SequencerInterface {
-    constructor(sequencer, proofOfEfficiencyContract, sequencerURL) {
+    constructor(sequencer, proofOfEfficiencyContract, sequencerURL, aggregator) {
         this.sequencer = sequencer;
         this.sequencerURL = sequencerURL;
         this.proofOfEfficiencyContract = proofOfEfficiencyContract;
+        this.aggregator = aggregator;
         this.txs = [];
     }
 
@@ -39,6 +40,8 @@ module.exports = class SequencerInterface {
         }
         const tx = await this.proofOfEfficiencyContract.connect(this.sequencer).sendBatch(l2txsData, maticAmount);
         await tx.wait();
+        if (this.aggregator)
+            this.aggregator.setTx(this.txs);
         this.txs = [];
     }
 }

@@ -1,8 +1,10 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const AggregatorInterface = require("../../../js/aggregator/aggregator");
 const SequencerInterface = require("../../../js/sequencer/sequencer");
+const Scalar = require("ffjavascript").Scalar;
 
-describe("Sequencer test", async function () {
+describe("Aggregator test", async function () {
     let deployer;
     let userAWallet;
     let userBWallet;
@@ -13,6 +15,8 @@ describe("Sequencer test", async function () {
     let maticTokenContract;
     let sequencer;
     let sequencerInterface;
+    let aggregator;
+    let aggregatorInterface;
 
     const maticTokenName = "Matic Token";
     const maticTokenSymbol = "MATIC";
@@ -68,88 +72,83 @@ describe("Sequencer test", async function () {
         await maticTokenContract.transfer(sequencer.address, ethers.utils.parseEther("100"));
     });
 
-    it("Initialize Sequencer", async function () {
-        sequencerInterface = new SequencerInterface(sequencer, proofOfEfficiencyContract, "URL");
-    });
-    it("Register Sequencer", async function () {
-        await sequencerInterface.registerSequencer();
-    });
-    it("SendBatch 1 tx", async function () {
-        // create wallet
-        const wallet = ethers.Wallet.createRandom();
-        // transaction
-        const tx = {
-            from: wallet.address,
-            to: userAWallet.address,
-            nonce: 0,
-            data: '',
-            value: 0,
-            gasLimit: 2100,
-            gasPrice: 2000000000,
-            chainId: 1,
-        }
-        // sign transaction
-        const txB = await wallet.signTransaction(tx);
-        const signedTx = ethers.utils.parseTransaction(txB);
-        // add tx to sequencer
-        await sequencerInterface.addTx(signedTx);
-        // approve matic tokens
-        maticTokenContract.connect(sequencer).approve(proofOfEfficiencyContract.address, maticAmount);
-        // send batch with previous transaction
-        await sequencerInterface.sendBatch(maticAmount);
+    // Wallets
+    const wallet1 = new ethers.Wallet("0x1111111111111111111111111111111111111111111111111111111111111111");
+    const wallet2 = new ethers.Wallet("0x2222222222222222222222222222222222222222222222222222222222222222");
+    const wallet3 = new ethers.Wallet("0x3333333333333333333333333333333333333333333333333333333333333333");
+
+    it("Initialize Aggregator", async function () {
+        // set initial rollupDB
+        const rollupDB = {};
+        rollupDB[`${wallet1.address}`] = {
+            "nonce": 1,
+            "balance": "0x" + Scalar.e(111).toString(16),
+        };
+        rollupDB[`${wallet2.address}`] = {
+            "nonce": 22,
+            "balance": "0x" + Scalar.e(222222222222222222222222222).toString(16),
+        };
+        rollupDB[`${wallet3.address}`] = {
+            "nonce": 3,
+            "balance": "0x" + Scalar.e(3333333333333333).toString(16),
+        };
+        // initialize aggregator interface
+        aggregatorInterface = new AggregatorInterface(aggregator, proofOfEfficiencyContract, rollupDB);
     });
 
-    it("SendBatch 3 tx", async function () {
-        // create wallet
-        const wallet = new ethers.Wallet("0x4646464646464646464646464646464646464646464646464646464646464646");
-        // transaction
+    it("Initialize Sequencer & sendBatch", async function () {
+        // initialize sequencer interface
+        sequencerInterface = new SequencerInterface(sequencer, proofOfEfficiencyContract, "URL", aggregatorInterface);
+        // register sequencer
+        await sequencerInterface.registerSequencer();
+
+        // a new batch is prepared
         const tx0 = {
-            to: userAWallet.address,
-            nonce: 0,
+            to: wallet2.address,
+            nonce: 1,
             data: '',
-            value: 0,
+            value: "0x01",
             gasLimit: 2100,
             gasPrice: 2000000000,
             chainId: 1,
         }
-        // sign transaction
-        const txA = await wallet.signTransaction(tx0);
+        const txA = await wallet1.signTransaction(tx0);
         const signedTxA = ethers.utils.parseTransaction(txA);
-        // add tx to sequencer
         await sequencerInterface.addTx(signedTxA);
-        // transaction
+
         const tx1 = {
-            to: "0x1111111111111111111111111111111111111111",
-            nonce: 8,
+            to: wallet3.address,
+            nonce: 22,
             data: '',
             value: "0x2C68AF0BB140000",
             gasLimit: 21000,
             gasPrice: 20000000000,
             chainId: 1,
         }
-        // sign transaction
-        const txB = await wallet.signTransaction(tx1);
+        const txB = await wallet2.signTransaction(tx1);
         const signedTxB = ethers.utils.parseTransaction(txB);
-        // add tx to sequencer
         await sequencerInterface.addTx(signedTxB);
-        // transaction
+
         const tx2 = {
-            to: "0x1212121212121212121212121212121212121212",
-            nonce: 2,
+            to: wallet1.address,
+            nonce: 3,
             data: '',
             value: "0x6FC23AC00",
             gasLimit: 21000,
             gasPrice: 20000000000,
             chainId: 1,
         }
-        // sign transaction
-        const txC = await wallet.signTransaction(tx2);
+        const txC = await wallet3.signTransaction(tx2)
         const signedTxC = ethers.utils.parseTransaction(txC);
-        // add tx to sequencer
         await sequencerInterface.addTx(signedTxC);
+
         // approve matic tokens
-        await maticTokenContract.connect(sequencer).approve(proofOfEfficiencyContract.address, maticAmount);
-        // send batch with previous transaction
+        maticTokenContract.connect(sequencer).approve(proofOfEfficiencyContract.address, maticAmount);
+        // send batch
         await sequencerInterface.sendBatch(maticAmount);
+    });
+
+    it("Validate Batch", async function () {
+        await aggregatorInterface.verifyBatch();
     });
 });
