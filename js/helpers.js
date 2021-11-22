@@ -1,5 +1,21 @@
-const ethers = require("ethers");
-const Scalar = require("ffjavascript").Scalar;
+const ethers = require('ethers');
+const { Scalar } = require('ffjavascript');
+
+/**
+ * Function to get an even hexString that starts with "0x" from a number or a hexString of another format
+ * @param { Number | String } num Number
+ * @returns hexString
+ */
+function toHexString(num) {
+    let numHex;
+    if (typeof num === 'number') {
+        numHex = Scalar.toString(Scalar.e(num), 16);
+    } else if (typeof num === 'string') {
+        numHex = num.startsWith('0x') ? num.slice(2) : num;
+    }
+    numHex = (numHex.length % 2 === 1) ? (`0x0${numHex}`) : (`0x${numHex}`);
+    return numHex;
+}
 
 /**
  * Function to get an RLP encode: rlp(nonce, gasprice, startgas, to, value, data, chainid, 0, 0)
@@ -14,8 +30,8 @@ function encodeTx(tx) {
         tx.value._isBigNumber ? tx.value.toHexString(16) : toHexString(tx.value),
         toHexString(tx.data),
         toHexString(tx.chainId),
-        "0x",
-        "0x"
+        '0x',
+        '0x',
     ]);
     return signedTx;
 }
@@ -39,7 +55,7 @@ function encodeSignedTx(tx) {
         // "0x",
         toHexString(tx.v),
         toHexString(tx.r),
-        toHexString(tx.s)
+        toHexString(tx.s),
     ]);
     return signedTx;
 }
@@ -55,25 +71,9 @@ function returnFrom(hash, signature) {
     return from;
 }
 
-/**
- * Function to get an even hexString that starts with "0x" from a number or a hexString of another format
- * @param { Number | String } num Number
- * @returns hexString
- */
-function toHexString(num) {
-    let numHex;
-    if (typeof num == "number") {
-        numHex = Scalar.toString(Scalar.e(num), 16);
-    } else if (typeof num == "string") {
-        numHex = num.startsWith("0x") ? num.slice(2) : num;
-    }
-    numHex = (numHex.length % 2 == 1) ? ("0x0" + numHex) : ("0x" + numHex);
-    return numHex;
-}
-
 module.exports = {
     encodeTx,
     encodeSignedTx,
     toHexString,
-    returnFrom
+    returnFrom,
 };

@@ -1,8 +1,5 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
-const Scalar = require("ffjavascript").Scalar;
-const poeABI = require("../../artifacts/contracts/ProofOfEfficiency.sol/ProofOfEfficiency.json").abi;
-const helpers = require("../helpers");
+const { ethers } = require('hardhat');
+const { Scalar } = require('ffjavascript');
 
 module.exports = class AggregatorInterface {
     constructor(aggregator, proofOfEfficiencyContract, rollupDB) {
@@ -10,9 +7,9 @@ module.exports = class AggregatorInterface {
         this.proofOfEfficiencyContract = proofOfEfficiencyContract;
         this.txs = [];
         this.state = {
-            newLocalExitRoot: "0x",
-            newStateRoot: "0x"
-        }
+            newLocalExitRoot: '0x',
+            newStateRoot: '0x',
+        };
         this.rollupDB = rollupDB;
     }
 
@@ -29,13 +26,13 @@ module.exports = class AggregatorInterface {
      * @returns proof (As it is an aggregator mock, it will always be 0)
      */
     async calculateProof() {
-        const proofA = ["0", "0"];
+        const proofA = ['0', '0'];
         const proofB = [
-            ["0", "0"],
-            ["0", "0"],
+            ['0', '0'],
+            ['0', '0'],
         ];
-        const proofC = ["0", "0"];
-        const proof = { proofA, proofB, proofC }
+        const proofC = ['0', '0'];
+        const proof = { proofA, proofB, proofC };
         return proof;
     }
 
@@ -43,20 +40,20 @@ module.exports = class AggregatorInterface {
      * Function to calculate and update the new state: as it is an aggregator mock, just update the balance and nonce in rollupDB
      */
     async calculateNewState() {
-        const newLocalExitRoot = ethers.utils.keccak256("0x");
+        const newLocalExitRoot = ethers.utils.keccak256('0x');
         this.state.newLocalExitRoot = newLocalExitRoot;
         // Only transfers
         for (let i = 0; i < this.txs.length; i++) {
             const stateFrom = this.rollupDB[`${this.txs[i].from}`];
-            if (stateFrom.nonce == this.txs[i].nonce) {
+            if (stateFrom.nonce === this.txs[i].nonce) {
                 // Mock aggregator --> fees 0
                 const fee = Scalar.e(0);
                 const stateFromBalance = Scalar.fromString(stateFrom.balance);
                 if (stateFromBalance > Scalar.add(this.txs[i].value, fee)) {
-                    this.rollupDB[`${this.txs[i].from}`].nonce++;
-                    this.rollupDB[`${this.txs[i].from}`].balance = "0x" + Scalar.sub(stateFromBalance, Scalar.add(this.txs[i].value, fee)).toString(16);
+                    this.rollupDB[`${this.txs[i].from}`].nonce = this.rollupDB[`${this.txs[i].from}`].nonce + 1;
+                    this.rollupDB[`${this.txs[i].from}`].balance = `0x${Scalar.sub(stateFromBalance, Scalar.add(this.txs[i].value, fee)).toString(16)}`;
                     const stateTo = this.rollupDB[`${this.txs[i].to}`];
-                    this.rollupDB[`${this.txs[i].to}`].balance = "0x" + Scalar.add(stateTo.balance, this.txs[i].value).toString(16);
+                    this.rollupDB[`${this.txs[i].to}`].balance = `0x${Scalar.add(stateTo.balance, this.txs[i].value).toString(16)}`;
                 }
             }
         }
@@ -77,9 +74,9 @@ module.exports = class AggregatorInterface {
             batchNum,
             proof.proofA,
             proof.proofB,
-            proof.proofC
+            proof.proofC,
         );
         await tx.wait();
         this.txs = [];
     }
-}
+};
