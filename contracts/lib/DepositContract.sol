@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 /**
- * This contract will be used as a herlper for all the sparse merkle tree related functions
+ * This contract will be used as a helper for all the sparse merkle tree related functions
  * Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
  */
 contract DepositContract {
@@ -56,7 +56,7 @@ contract DepositContract {
 
     /**
      * @notice Add a new leaf to the merkle tree
-     * @param token Token address, 0 address is reserved for ehter
+     * @param token Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination

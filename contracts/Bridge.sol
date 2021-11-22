@@ -7,7 +7,7 @@ import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
- * This is totally a mock contract, there's jsut enough to test the proof of efficiency contract
+ * This is totally a mock contract, there's just enough to test the proof of efficiency contract
  */
 contract Bridge is Ownable, DepositContract {
     using SafeERC20 for IERC20;
@@ -67,7 +67,7 @@ contract Bridge is Ownable, DepositContract {
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
-     * @param token Token address, 0 address is reserved for ehter
+     * @param token Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
@@ -116,7 +116,7 @@ contract Bridge is Ownable, DepositContract {
 
     /**
      * @notice Verify merkle proof and withdraw tokens/ether
-     * @param token  Token address, 0 address is reserved for ehter
+     * @param token  Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param originalNetwork original network
      * @param destinationNetwork Network destination, must be 0 ( mainnet)

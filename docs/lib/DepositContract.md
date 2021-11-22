@@ -1,4 +1,4 @@
-This contract will be used as a herlper for all the sparse merkle tree related functions
+This contract will be used as a helper for all the sparse merkle tree related functions
 Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
 
 
@@ -27,7 +27,7 @@ Add a new leaf to the merkle tree
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | address | Token address, 0 address is reserved for ehter
+|`token` | address | Token address, 0 address is reserved for ether
 |`amount` | uint256 | Amount of tokens
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination

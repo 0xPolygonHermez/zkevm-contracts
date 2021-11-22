@@ -10,4 +10,3 @@ coverage
 .coverage_*
 .openzeppelin
 artifacts/
-.eslintrc.js

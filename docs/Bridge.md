@@ -1,4 +1,4 @@
-This is totally a mock contract, there's jsut enough to test the proof of efficiency contract
+This is totally a mock contract, there's just enough to test the proof of efficiency contract
 
 
 ## Functions
@@ -30,7 +30,7 @@ Deposit add a new leaf to the merkle tree
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | contract IERC20 | Token address, 0 address is reserved for ehter
+|`token` | contract IERC20 | Token address, 0 address is reserved for ether
 |`amount` | uint256 | Amount of tokens
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
@@ -56,7 +56,7 @@ Verify merkle proof and withdraw tokens/ether
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | address |  Token address, 0 address is reserved for ehter
+|`token` | address |  Token address, 0 address is reserved for ether
 |`amount` | uint256 | Amount of tokens
 |`originalNetwork` | uint32 | original network
 |`destinationNetwork` | uint32 | Network destination, must be 0 ( mainnet)
