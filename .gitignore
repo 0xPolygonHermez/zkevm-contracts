@@ -10,3 +10,5 @@ coverage
 .coverage_*
 .openzeppelin
 artifacts/
+docs/interfaces
+docs/mocks

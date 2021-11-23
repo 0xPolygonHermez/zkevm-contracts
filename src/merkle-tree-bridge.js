@@ -4,7 +4,7 @@ const {
     generateZeroHashes,
     verifyMerkleProof,
     calculateLeafValue,
-} = require('./utils-merkleTreeBridge');
+} = require('./utils-merkle-tree-bridge');
 
 class MerkleTreeBridge {
     constructor(height) {

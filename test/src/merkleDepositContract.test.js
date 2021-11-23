@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 const {
     MerkleTreeBridge,
     verifyMerkleProof,
-} = require('../../src/merkleTreeBridge');
+} = require('../../src/merkle-tree-bridge');
 
 describe('Merkle Test', () => {
     it('Check merkle tree', async () => {

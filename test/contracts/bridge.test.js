@@ -4,7 +4,7 @@ const {
     MerkleTreeBridge,
     verifyMerkleProof,
     calculateLeafValue,
-} = require('../../src/merkleTreeBridge');
+} = require('../../src/merkle-tree-bridge');
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);

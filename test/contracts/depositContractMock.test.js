@@ -4,7 +4,7 @@ const {
     MerkleTreeBridge,
     verifyMerkleProof,
     calculateLeafValue,
-} = require('../../src/merkleTreeBridge');
+} = require('../../src/merkle-tree-bridge');
 
 describe('Deposit Contract', () => {
     let deployer;
