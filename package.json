@@ -1,6 +1,6 @@
 {
   "name": "poe-draft",
-  "devDependencies": {
+  "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^2.1.7",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
@@ -10,15 +10,25 @@
     "@openzeppelin/test-helpers": "^0.5.15",
     "chai": "^4.3.4",
     "dotenv": "^8.2.0",
+    "eslint": "^8.3.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-mocha": "^9.0.0",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.5.1",
     "hardhat": "^2.6.7",
     "hardhat-gas-reporter": "^1.0.4",
-    "solidity-coverage": "^0.7.17"
+    "solc-0.8": "npm:solc@0.8.9",
+    "solidity-coverage": "^0.7.17",
+    "prettier": "^2.4.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.18",
+    "solidity-docgen": "^0.5.16"
   },
   "license": "GPL-3.0",
-  "dependencies": {
-    "prettier": "^2.4.1",
-    "prettier-plugin-solidity": "^1.0.0-beta.18"
+  "scripts": {
+    "test": "npx hardhat test",
+    "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates",
+    "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
+    "lint": "npx eslint ./test && npx eslint ./src",
+    "lintFix": "npx eslint ./test --fix && npx eslint ./src --fix"
   }
 }

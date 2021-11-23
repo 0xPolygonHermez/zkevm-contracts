@@ -1,0 +1,12 @@
+#!/bin/bash
+
+## To use this hook execute in the project root:
+## git config --local core.hooksPath .githooks/
+if npm run lint; then
+    npm run docgen
+    git add docs
+    exit 0
+else
+    exit 1
+fi
+

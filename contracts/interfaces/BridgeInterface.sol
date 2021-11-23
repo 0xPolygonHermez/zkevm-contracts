@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 interface BridgeInterface {
-    function currentGlobalExitRoot() external view returns (bytes32);
+    function getLastGlobalExitRoot() external view returns (bytes32);
 
     function updateRollupExitRoot(bytes32 newRollupExitRoot) external;
 }

@@ -61,9 +61,6 @@ contract ProofOfEfficiency is Ownable {
     // Current local exit root
     bytes32 public currentLocalExitRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
 
-    // Last fetched global exit root, this will be updated every time a batch is verified
-    bytes32 public lastGlobalExitRoot;
-
     VerifierRollupInterface public rollupVerifier;
 
     /**
@@ -96,7 +93,6 @@ contract ProofOfEfficiency is Ownable {
         rollupVerifier = _rollupVerifier;
 
         // register this rollup and update the global exit root
-        lastGlobalExitRoot = bridge.currentGlobalExitRoot();
     }
 
     /**
@@ -128,7 +124,7 @@ contract ProofOfEfficiency is Ownable {
      * @param maticAmount Max amount of MATIC tokens that the sequencer is willing to pay
      */
     function sendBatch(bytes memory transactions, uint256 maticAmount) public {
-        // calculate matic collateral
+        // Calculate matic collateral
         uint256 maticCollateral = calculateSequencerCollateral();
 
         require(
@@ -140,7 +136,9 @@ contract ProofOfEfficiency is Ownable {
 
         // Update sentBatches mapping
         lastBatchSent++;
-        sentBatches[lastBatchSent].batchL2HashData = keccak256(transactions);
+        sentBatches[lastBatchSent].batchL2HashData = keccak256(
+            abi.encodePacked(transactions, bridge.getLastGlobalExitRoot())
+        );
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
 
         // Check if the sequencer is registered, if not, no one will claim the fees
@@ -183,7 +181,6 @@ contract ProofOfEfficiency is Ownable {
                 abi.encodePacked(
                     currentStateRoot,
                     currentLocalExitRoot,
-                    lastGlobalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
                     sequencerAddress,
@@ -206,7 +203,6 @@ contract ProofOfEfficiency is Ownable {
 
         // Interact with bridge
         bridge.updateRollupExitRoot(currentLocalExitRoot);
-        lastGlobalExitRoot = bridge.currentGlobalExitRoot();
 
         // Get MATIC reward
         matic.safeTransfer(msg.sender, currentBatch.maticCollateral);

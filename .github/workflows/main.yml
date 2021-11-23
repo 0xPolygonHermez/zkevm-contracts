@@ -25,6 +25,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: setup
-        run: npm install -g npm@latest && npm run setup
+        run: npm install -g npm@latest && npm i
+      - name: linter
+        run: npm run lint
       - name: test
         run: npm run test
