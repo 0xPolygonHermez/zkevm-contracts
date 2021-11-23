@@ -2,8 +2,10 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const {
     MerkleTreeBridge,
-    verifyMerkleProof,
 } = require('../../src/merkle-tree-bridge');
+const {
+    verifyMerkleProof,
+} = require('../../src/utils-merkle-tree-bridge');
 
 describe('Merkle Test', () => {
     it('Check merkle tree', async () => {

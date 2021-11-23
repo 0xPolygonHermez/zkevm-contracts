@@ -2,9 +2,11 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const {
     MerkleTreeBridge,
+} = require('../../src/merkle-tree-bridge');
+const {
     verifyMerkleProof,
     calculateLeafValue,
-} = require('../../src/merkle-tree-bridge');
+} = require('../../src/utils-merkle-tree-bridge');
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
@@ -45,9 +47,13 @@ describe('Bridge Contract', () => {
         const lastRollupExitRoot = await bridgeContract.lastRollupExitRoot();
         const lastMainnetExitRoot = await bridgeContract.lastMainnetExitRoot();
 
+        const height = 32;
+        const merkleTree = new MerkleTreeBridge(height);
+        const rootJS = merkleTree.getRoot();
+
         expect(await bridgeContract.rollupAddress()).to.be.equal(rollup.address);
         expect(lastRollupExitRoot).to.be.equal(ethers.BigNumber.from(0));
-        expect(lastMainnetExitRoot).to.be.equal(ethers.BigNumber.from(0));
+        expect(lastMainnetExitRoot).to.be.equal(rootJS);
         expect(await bridgeContract.lastGlobalExitRootNum()).to.be.equal(1);
         expect(await bridgeContract.getLastGlobalExitRoot()).to.be.equal(calculateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot));
     });

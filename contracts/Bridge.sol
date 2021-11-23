@@ -18,7 +18,7 @@ contract Bridge is Ownable, DepositContract {
     // Rollup exit root, this will be updated every time a deposit is made in mainnet
     bytes32 public lastMainnetExitRoot;
 
-    // Store every global exit root, could be stored every X blocks to save gas
+    // Store every global exit root
     mapping(uint256 => bytes32) public globalExitRootMap;
 
     // Current global exit roots stored
@@ -62,6 +62,7 @@ contract Bridge is Ownable, DepositContract {
      */
     constructor(address _rollupAddress) {
         rollupAddress = _rollupAddress;
+        lastMainnetExitRoot = getDepositRoot();
         _updateGlobalExitRoot();
     }
 
@@ -157,11 +158,11 @@ contract Bridge is Ownable, DepositContract {
             "Bridge:withdraw: ORIGIN_NETWORK_NOT_MAINNET"
         );
 
-        // Comprove that the rollup exit root belongs to some global exit root
+        // Check that the rollup exit root belongs to some global exit root
         require(
             keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot)) ==
                 globalExitRootMap[globalExitRootNum],
-            "Bridge:withdraw: ORIGIN_NETWORK_NOT_MAINNET"
+            "Bridge:withdraw: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
         );
 
         require(

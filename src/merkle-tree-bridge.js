@@ -2,8 +2,6 @@ const { ethers } = require('hardhat');
 const { expect } = require('chai');
 const {
     generateZeroHashes,
-    verifyMerkleProof,
-    calculateLeafValue,
 } = require('./utils-merkle-tree-bridge');
 
 class MerkleTreeBridge {
@@ -56,6 +54,10 @@ class MerkleTreeBridge {
     }
 
     getRoot() {
+        if (this.tree[0][0] === undefined) {
+            // No leafs in the tree, calculate root with all leafs to 0
+            return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [this.zeroHashes[this.height - 1], this.zeroHashes[this.height - 1]]);
+        }
         if (this.dirty) this.calcBranches();
         return this.tree[this.height][0];
     }
@@ -63,7 +65,4 @@ class MerkleTreeBridge {
 
 module.exports = {
     MerkleTreeBridge,
-    generateZeroHashes,
-    verifyMerkleProof,
-    calculateLeafValue,
 };
