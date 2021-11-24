@@ -104,8 +104,8 @@ describe('Deposit Contract', () => {
     });
 
     it('should create a more exhaustive merkle tree test', async () => {
-        //Different deposits will be created and verified one by one
-        //Deposit 1
+        // Different deposits will be created and verified one by one
+        // Deposit 1
         let originalNetwork = 0; // mainnet
         let tokenAddress = deployer.address;
         let amount = ethers.utils.parseEther('10');
@@ -142,8 +142,7 @@ describe('Deposit Contract', () => {
             rootSC,
         )).to.be.equal(true);
 
-
-        //Deposit 2 - different address and amount
+        // Deposit 2 - different address and amount
         originalNetwork = 0; // mainnet
         tokenAddress = deployer.address;
         amount = ethers.utils.parseEther('1');
@@ -162,7 +161,7 @@ describe('Deposit Contract', () => {
         expect(rootSC).to.be.equal(rootJS);
 
         // check merkle proof
-        index++;
+        index += 1;
         proof = merkleTree.getProofTreeByIndex(index);
 
         // verify merkle proof
@@ -178,9 +177,9 @@ describe('Deposit Contract', () => {
             rootSC,
         )).to.be.equal(true);
 
-        //Deposit 3 - deposit ether
+        // Deposit 3 - deposit ether
         originalNetwork = 0; // mainnet
-        tokenAddress = ethers.constants.AddressZero; //ether
+        tokenAddress = ethers.constants.AddressZero; // ether
         amount = ethers.utils.parseEther('100');
         destinationNetwork = 1;
         destinationAddress = acc2.address;
@@ -196,7 +195,7 @@ describe('Deposit Contract', () => {
         expect(rootSC).to.be.equal(rootJS);
 
         // check merkle proof
-        index++;
+        index += 1;
         proof = merkleTree.getProofTreeByIndex(index);
 
         // verify merkle proof
@@ -212,18 +211,20 @@ describe('Deposit Contract', () => {
             rootSC,
         )).to.be.equal(true);
 
-        //Deposit lots of transactions
-        const txCount = 100
-        const depositCount = Number(await depositContractMock.depositCount())
+        // Deposit lots of transactions
+        const txCount = 100;
+        const depositCount = Number(await depositContractMock.depositCount());
         amount = ethers.utils.parseEther('0.01');
         leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
-
-        for(let i = 0; i < txCount; i++) {
-            await depositContractMock.connect(acc2).deposit(tokenAddress, amount, destinationNetwork, destinationAddress);
-            merkleTree.add(leafValue);
+        const results = [];
+        for (let i = 0; i < txCount; i++) {
+            const p = depositContractMock.connect(acc2).deposit(tokenAddress, amount, destinationNetwork, destinationAddress).then(() => {
+                merkleTree.add(leafValue);
+            });
+            results.push(p);
         }
-
-        //Check roots
+        await Promise.all(results);
+        // Check roots
         rootSC = await depositContractMock.getDepositRoot();
         rootJS = merkleTree.getRoot();
 
@@ -231,7 +232,7 @@ describe('Deposit Contract', () => {
 
         // Check merkle proof
         // Check random index from the ones generated in the loop
-        index = Math.floor(Math.random() * (txCount - depositCount + 1) + depositCount)
+        index = Math.floor(Math.random() * (txCount - depositCount + 1) + depositCount);
         proof = merkleTree.getProofTreeByIndex(index);
 
         // verify merkle proof
@@ -247,6 +248,4 @@ describe('Deposit Contract', () => {
             rootSC,
         )).to.be.equal(true);
     });
-
-
 });

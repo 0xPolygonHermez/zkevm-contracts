@@ -227,21 +227,21 @@ describe('Bridge Contract', () => {
     });
 
     it('should add a deposit and rollup roots and sync the current root with events', async () => {
-        //create a new deposit to rollup tree
+        // create a new deposit to rollup tree
         const originalNetwork = 0; // mainnet
         const tokenAddress = tokenContract.address;
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = 0;
         const destinationAddress = deployer.address;
         const rollupDestinationNetwork = 1;
-        
+
         // compute root merkle tree in Js
         const height = 32;
         const merkleTreeRollup = new MerkleTreeBridge(height);
         const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
         const leafValue2 = calculateLeafValue(originalNetwork, tokenAddress, ethers.utils.parseEther('10'), destinationNetwork, rollup.address);
         merkleTreeRollup.add(leafValue);
-        merkleTreeRollup.add(leafValue2)
+        merkleTreeRollup.add(leafValue2);
         // check merkle root with SC
         const rootJS = merkleTreeRollup.getRoot();
         // add rollup Merkle root
@@ -258,7 +258,7 @@ describe('Bridge Contract', () => {
 
         expect(computedGlobalExitRoot).to.be.equal(await bridgeContract.getLastGlobalExitRoot());
 
-        //Create a new despoit at Mainnet tree
+        // Create a new despoit at Mainnet tree
         const depositCount = await bridgeContract.depositCount();
 
         await expect(tokenContract.approve(bridgeContract.address, amount))
@@ -268,7 +268,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.deposit(tokenAddress, amount, rollupDestinationNetwork, destinationAddress))
             .to.emit(bridgeContract, 'DepositEvent')
             .withArgs(tokenAddress, amount, rollupDestinationNetwork, destinationAddress, depositCount);
-            
+
         const merkleTreeMainnet = new MerkleTreeBridge(height);
         const leafValueMainnet = calculateLeafValue(originalNetwork, tokenAddress, amount, rollupDestinationNetwork, destinationAddress);
         merkleTreeMainnet.add(leafValueMainnet);
@@ -278,15 +278,13 @@ describe('Bridge Contract', () => {
 
         expect(rootSCMainnet).to.be.equal(rootJSMainnet);
 
-        //Compare global roots
+        // Compare global roots
         const computedGlobalExitRootFinal = calculateGlobalExitRoot(rootJSMainnet, rootJS);
-        const as = await bridgeContract.getLastGlobalExitRoot()
         expect(computedGlobalExitRootFinal).to.be.equal(await bridgeContract.getLastGlobalExitRoot());
     });
 
     it('should add a withdraw function in the bridge smart contract testing all the asserts', async () => {
-
-        //Add a withdraw leaf to rollup exit tree
+        // Add a withdraw leaf to rollup exit tree
         const originalNetwork = 0; // mainnet
         const tokenAddress = tokenContract.address;
         const amount = ethers.utils.parseEther('10');
@@ -360,7 +358,7 @@ describe('Bridge Contract', () => {
             tokenAddress,
             amount,
             originalNetwork,
-            1, //Set wrong destination network
+            1, // Set wrong destination network
             destinationAddress,
             proof,
             index,
@@ -373,7 +371,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.withdraw(
             tokenAddress,
             amount,
-            1, //Set wrong origin network
+            1, // Set wrong origin network
             destinationNetwork,
             destinationAddress,
             proof,
@@ -394,7 +392,7 @@ describe('Bridge Contract', () => {
             index,
             lastGlobalExitRootNum,
             mainnetExitRoot,
-            mainnetExitRoot, //wrong rollup root
+            mainnetExitRoot, // wrong rollup root
         )).to.be.revertedWith('Bridge::withdraw: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH');
 
         // Check SMT_INVALID assert
@@ -405,7 +403,7 @@ describe('Bridge Contract', () => {
             destinationNetwork,
             destinationAddress,
             proof,
-            index + 1, //Wrong index
+            index + 1, // Wrong index
             lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
@@ -445,11 +443,9 @@ describe('Bridge Contract', () => {
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::withdraw: ALREADY_CLAIMED_WITHDRAW');
-
     });
 
     it('should add a withdraw function in the bridge smart contract with ether', async () => {
-
         const originalNetwork = 0; // mainnet
         const tokenAddress = ethers.constants.AddressZero;
         const amount = ethers.utils.parseEther('10');
@@ -513,17 +509,17 @@ describe('Bridge Contract', () => {
             rollupExitRootSC,
         )).to.be.revertedWith('ETH_TRANSFER_FAILED');
 
-        const balanceDeployer = await ethers.provider.getBalance(deployer.address)
+        const balanceDeployer = await ethers.provider.getBalance(deployer.address);
         // Create a deposit to add ether to the Bridge
-        //Check deposit amount ether asserts
+        // Check deposit amount ether asserts
         await expect(bridgeContract.deposit(tokenAddress, amount, 1, destinationAddress, { value: ethers.utils.parseEther('100') })).to.be.revertedWith('Bridge::deposit: NOT_ENOUGH_MSG_VALUE');
-        
-        //Cehck mannet destination assert
-        await expect(bridgeContract.deposit(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount })).to.be.revertedWith('Bridge::deposit: DESTINATION_CANT_BE_MAINNET');
-        
-        expect(await bridgeContract.deposit(tokenAddress, amount, 1, destinationAddress, { value: amount }))
 
-        //Check balances before withdraw
+        // Cehck mannet destination assert
+        await expect(bridgeContract.deposit(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount })).to.be.revertedWith('Bridge::deposit: DESTINATION_CANT_BE_MAINNET');
+
+        expect(await bridgeContract.deposit(tokenAddress, amount, 1, destinationAddress, { value: amount }));
+
+        // Check balances before withdraw
         expect(await ethers.provider.getBalance(bridgeContract.address)).to.be.equal(amount);
         expect(await ethers.provider.getBalance(deployer.address)).to.be.lte(balanceDeployer.sub(amount));
 
@@ -548,7 +544,7 @@ describe('Bridge Contract', () => {
                 destinationAddress,
             );
 
-        //Check balances after withdraw
+        // Check balances after withdraw
         expect(await ethers.provider.getBalance(bridgeContract.address)).to.be.equal(ethers.utils.parseEther('0'));
         expect(await ethers.provider.getBalance(deployer.address)).to.be.lte(balanceDeployer);
 
@@ -565,6 +561,5 @@ describe('Bridge Contract', () => {
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::withdraw: ALREADY_CLAIMED_WITHDRAW');
-
     });
 });
