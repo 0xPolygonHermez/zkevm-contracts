@@ -1,26 +1,27 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
-const SequencerInterface = require('../../../js/sequencer/sequencer');
+const Sequencer = require('../../../js/sequencer/sequencer');
 
 describe('Sequencer test', async () => {
     let deployer;
-    let sequencer;
+    let sequencerSigner;
     let userAWallet;
 
     let verifierContract;
     let bridgeContract;
     let proofOfEfficiencyContract;
     let maticTokenContract;
-    let sequencerInterface;
+    let sequencer;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
     const maticAmount = ethers.utils.parseEther('1');
+    const sequencerURL = 'URL';
 
     before('Deploy contract', async () => {
         // load signers
-        [deployer, sequencer, userAWallet] = await ethers.getSigners();
+        [deployer, sequencerSigner, userAWallet] = await ethers.getSigners();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
@@ -57,14 +58,18 @@ describe('Sequencer test', async () => {
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(sequencer.address, ethers.utils.parseEther('100'));
+        await maticTokenContract.transfer(sequencerSigner.address, ethers.utils.parseEther('100'));
     });
 
     it('Initialize Sequencer', async () => {
-        sequencerInterface = new SequencerInterface(sequencer, proofOfEfficiencyContract, 'URL');
+        sequencer = new Sequencer(sequencerSigner, proofOfEfficiencyContract, sequencerURL);
     });
     it('Register Sequencer', async () => {
-        await sequencerInterface.registerSequencer();
+        const tx = await sequencer.registerSequencer();
+        // check SC
+        expect(tx.events[0].event).to.be.equal('SetSequencer');
+        const sequencer1 = await proofOfEfficiencyContract.sequencers(sequencerSigner.address);
+        expect(sequencer1.sequencerURL).to.be.equal(sequencerURL);
     });
     it('SendBatch 1 tx', async () => {
         // create wallet
@@ -81,14 +86,27 @@ describe('Sequencer test', async () => {
             chainId: 1,
         };
         // sign transaction
-        const txB = await wallet.signTransaction(tx);
-        const signedTx = ethers.utils.parseTransaction(txB);
+        const signedTx = await wallet.signTransaction(tx);
         // add tx to sequencer
-        await sequencerInterface.addTx(signedTx);
+        await sequencer.addTx(signedTx);
         // approve matic tokens
-        maticTokenContract.connect(sequencer).approve(proofOfEfficiencyContract.address, maticAmount);
+        maticTokenContract.connect(sequencerSigner).approve(proofOfEfficiencyContract.address, maticAmount);
+        // calculate l2txsData
+        let l2txsData = '0x';
+        for (let i = 0; i < sequencer.txs.length; i++) {
+            const txData = sequencer.txs[i].slice(2);
+            l2txsData += txData;
+        }
+        // getLastGlobalExitRoot from bridge
+        const lastGlobalExitRoot = await bridgeContract.getLastGlobalExitRoot();
         // send batch with previous transaction
-        await sequencerInterface.sendBatch(maticAmount);
+        const txSendBatch = await sequencer.sendBatch(maticAmount);
+        // checks SC
+        expect(txSendBatch.events.some((event) => event.event === 'SendBatch')).to.be.equal(true);
+        const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
+        const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent);
+        expect(sentBatch.sequencerAddress).to.be.equal(sequencerSigner.address);
+        expect(sentBatch.batchL2HashData).to.be.equal(ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txsData, lastGlobalExitRoot]));
     });
 
     it('SendBatch 3 tx', async () => {
@@ -105,10 +123,9 @@ describe('Sequencer test', async () => {
             chainId: 1,
         };
         // sign transaction
-        const txA = await wallet.signTransaction(tx0);
-        const signedTxA = ethers.utils.parseTransaction(txA);
+        const signedTxA = await wallet.signTransaction(tx0);
         // add tx to sequencer
-        await sequencerInterface.addTx(signedTxA);
+        await sequencer.addTx(signedTxA);
         // transaction
         const tx1 = {
             to: '0x1111111111111111111111111111111111111111',
@@ -120,10 +137,9 @@ describe('Sequencer test', async () => {
             chainId: 1,
         };
         // sign transaction
-        const txB = await wallet.signTransaction(tx1);
-        const signedTxB = ethers.utils.parseTransaction(txB);
+        const signedTxB = await wallet.signTransaction(tx1);
         // add tx to sequencer
-        await sequencerInterface.addTx(signedTxB);
+        await sequencer.addTx(signedTxB);
         // transaction
         const tx2 = {
             to: '0x1212121212121212121212121212121212121212',
@@ -135,13 +151,26 @@ describe('Sequencer test', async () => {
             chainId: 1,
         };
         // sign transaction
-        const txC = await wallet.signTransaction(tx2);
-        const signedTxC = ethers.utils.parseTransaction(txC);
+        const signedTxC = await wallet.signTransaction(tx2);
         // add tx to sequencer
-        await sequencerInterface.addTx(signedTxC);
+        await sequencer.addTx(signedTxC);
         // approve matic tokens
-        await maticTokenContract.connect(sequencer).approve(proofOfEfficiencyContract.address, maticAmount);
+        await maticTokenContract.connect(sequencerSigner).approve(proofOfEfficiencyContract.address, maticAmount);
+        // calculate l2txsData
+        let l2txsData = '0x';
+        for (let i = 0; i < sequencer.txs.length; i++) {
+            const txData = sequencer.txs[i].slice(2);
+            l2txsData += txData;
+        }
+        // getLastGlobalExitRoot from bridge
+        const lastGlobalExitRoot = await bridgeContract.getLastGlobalExitRoot();
         // send batch with previous transaction
-        await sequencerInterface.sendBatch(maticAmount);
+        const txSendBatch = await sequencer.sendBatch(maticAmount);
+        // checks SC
+        expect(txSendBatch.events[2].event).to.be.equal('SendBatch');
+        const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
+        const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent);
+        expect(sentBatch.sequencerAddress).to.be.equal(sequencerSigner.address);
+        expect(sentBatch.batchL2HashData).to.be.equal(ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txsData, lastGlobalExitRoot]));
     });
 });

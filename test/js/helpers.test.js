@@ -38,7 +38,7 @@ describe('toHexString', () => {
     });
 });
 
-describe('encondeTx', () => {
+describe('encodeTx', () => {
     it('encodeTx', async () => {
         const tx = {
             to: '0x3535353535353535353535353535353535353535',
@@ -100,219 +100,34 @@ describe('encondeTx', () => {
         testVector = JSON.parse(fs.readFileSync(path.join(__dirname, '../test-vectors/helpers.json')));
     });
 
-    it('encodeSignedTx and test-vector[0] check', async () => {
-        const tx = {
-            to: '0x1111111111111111111111111111111111111111',
-            nonce: 8,
-            data: '',
-            value: '0x2C68AF0BB140000',
-            gasLimit: 21000,
-            gasPrice: 20000000000,
-            chainId: 1,
-        };
-        const wallet = new ethers.Wallet('0x2323232323232323232323232323232323232323232323232323232323232323');
-        const txSigned = await wallet.signTransaction(tx);
-        const txSignedStruct = ethers.utils.parseTransaction(txSigned);
-        const encodedTx = helpers.encodeSignedTx(txSignedStruct);
-        expect(encodedTx.toLocaleLowerCase()).to.be.equal(txSigned.toLocaleLowerCase());
+    it('encodeSignedTx and test-vectors check', async () => {
+        for (let i = 0; i < testVector.length; i++) {
+            const wallet = new ethers.Wallet(testVector[i].privateKey);
+            // eslint-disable-next-line no-await-in-loop
+            const txSigned = await wallet.signTransaction(testVector[i].tx);
+            const txSignedStruct = ethers.utils.parseTransaction(txSigned);
+            const encodedTx = helpers.encodeSignedTx(txSignedStruct);
+            expect(encodedTx.toLocaleLowerCase()).to.be.equal(txSigned.toLocaleLowerCase());
+            expect(testVector[i].calldata).to.be.equal(encodedTx);
 
-        expect(testVector[0].tx.chainId).to.be.equal(tx.chainId);
-        expect(testVector[0].calldata).to.be.equal(encodedTx);
-
-        const decodedTx = ethers.utils.RLP.decode(testVector[0].calldata);
-        expect(testVector[0].tx.nonce.toString()).to.be.equal(Scalar.fromString(decodedTx[0], 16).toString());
-        expect(testVector[0].tx.gasPrice.toString()).to.be.equal(Scalar.fromString(decodedTx[1], 16).toString());
-        expect(testVector[0].tx.gasLimit.toString()).to.be.equal(Scalar.fromString(decodedTx[2], 16).toString());
-        expect(testVector[0].tx.to).to.be.equal(decodedTx[3]);
-        expect(Scalar.fromString(testVector[0].tx.value)).to.be.equal(Scalar.fromString(decodedTx[4]));
-        expect(testVector[0].tx.data).to.be.equal('');
-
-        const hash = ethers.utils.keccak256(helpers.encodeTx(tx));
-        const from = helpers.returnFrom(hash, {
-            r: txSignedStruct.r,
-            s: txSignedStruct.s,
-            v: txSignedStruct.v,
-        });
-        expect(testVector[0].expectedAddr.toLocaleLowerCase()).to.be.equal(from.toLocaleLowerCase());
-    });
-
-    it('encodeSignedTx and test-vector[1] check', async () => {
-        const tx = {
-            to: '0x1212121212121212121212121212121212121212',
-            nonce: 2,
-            data: '',
-            value: '0x6FC23AC00',
-            gasLimit: 21000,
-            gasPrice: 20000000000,
-            chainId: 257,
-        };
-        const wallet = new ethers.Wallet('0x1111111111111111111111111111111222222222222222222222222222222222');
-        const txSigned = await wallet.signTransaction(tx);
-        const txSignedStruct = ethers.utils.parseTransaction(txSigned);
-        const encodedTx = helpers.encodeSignedTx(txSignedStruct);
-        expect(encodedTx.toLocaleLowerCase()).to.be.equal(txSigned.toLocaleLowerCase());
-
-        expect(testVector[1].tx.chainId).to.be.equal(tx.chainId);
-        expect(testVector[1].calldata).to.be.equal(encodedTx);
-
-        const decodedTx = ethers.utils.RLP.decode(testVector[1].calldata);
-        expect(testVector[1].tx.nonce.toString()).to.be.equal(Scalar.fromString(decodedTx[0], 16).toString());
-        expect(testVector[1].tx.gasPrice.toString()).to.be.equal(Scalar.fromString(decodedTx[1], 16).toString());
-        expect(testVector[1].tx.gasLimit.toString()).to.be.equal(Scalar.fromString(decodedTx[2], 16).toString());
-        expect(testVector[1].tx.to).to.be.equal(decodedTx[3]);
-        expect(Scalar.fromString(testVector[1].tx.value)).to.be.equal(Scalar.fromString(decodedTx[4]));
-        expect(testVector[1].tx.data).to.be.equal('');
-
-        const hash = ethers.utils.keccak256(helpers.encodeTx(tx));
-        const from = helpers.returnFrom(hash, {
-            r: txSignedStruct.r,
-            s: txSignedStruct.s,
-            v: txSignedStruct.v,
-        });
-        expect(testVector[1].expectedAddr.toLocaleLowerCase()).to.be.equal(from.toLocaleLowerCase());
-    });
-
-    it('encodeSignedTx and test-vector[2] check', async () => {
-        const tx = {
-            to: '0x1234123412341234123412341234123412341234',
-            nonce: 90,
-            data: '0x1234',
-            value: '0x214E8348C4F0000',
-            gasLimit: 23000,
-            gasPrice: 10000000000,
-            chainId: 15,
-        };
-        const wallet = new ethers.Wallet('0x1234123412341234123412341234123412341234123412341234123412341234');
-        const txSigned = await wallet.signTransaction(tx);
-        const txSignedStruct = ethers.utils.parseTransaction(txSigned);
-        const encodedTx = helpers.encodeSignedTx(txSignedStruct);
-        expect(encodedTx.toLocaleLowerCase()).to.be.equal(txSigned.toLocaleLowerCase());
-
-        expect(testVector[2].tx.chainId).to.be.equal(tx.chainId);
-        expect(testVector[2].calldata).to.be.equal(encodedTx);
-
-        const decodedTx = ethers.utils.RLP.decode(testVector[2].calldata);
-        expect(testVector[2].tx.nonce.toString()).to.be.equal(Scalar.fromString(decodedTx[0], 16).toString());
-        expect(testVector[2].tx.gasPrice.toString()).to.be.equal(Scalar.fromString(decodedTx[1], 16).toString());
-        expect(testVector[2].tx.gasLimit.toString()).to.be.equal(Scalar.fromString(decodedTx[2], 16).toString());
-        expect(testVector[2].tx.to).to.be.equal(decodedTx[3]);
-        expect(Scalar.fromString(testVector[2].tx.value)).to.be.equal(Scalar.fromString(decodedTx[4]));
-        expect(Scalar.fromString(testVector[2].tx.data)).to.be.equal(Scalar.fromString(decodedTx[5]));
-
-        const hash = ethers.utils.keccak256(helpers.encodeTx(tx));
-        const from = helpers.returnFrom(hash, {
-            r: txSignedStruct.r,
-            s: txSignedStruct.s,
-            v: txSignedStruct.v,
-        });
-        expect(testVector[2].expectedAddr.toLocaleLowerCase()).to.be.equal(from.toLocaleLowerCase());
-    });
-
-    it('encodeSignedTx and test-vector[3] check', async () => {
-        const tx = {
-            to: '0x9876987698769876987698769876987698769876',
-            nonce: 28,
-            data: '0x5678',
-            value: '0x11C37937E080000',
-            gasLimit: 15000,
-            gasPrice: 10000000000,
-            chainId: 350,
-        };
-        const wallet = new ethers.Wallet('0x9876987698769876987698769876987698769876987698769876987698769876');
-        const txSigned = await wallet.signTransaction(tx);
-        const txSignedStruct = ethers.utils.parseTransaction(txSigned);
-        const encodedTx = helpers.encodeSignedTx(txSignedStruct);
-        expect(encodedTx.toLocaleLowerCase()).to.be.equal(txSigned.toLocaleLowerCase());
-
-        expect(testVector[3].tx.chainId).to.be.equal(tx.chainId);
-        expect(testVector[3].calldata).to.be.equal(encodedTx);
-
-        const decodedTx = ethers.utils.RLP.decode(testVector[3].calldata);
-        expect(testVector[3].tx.nonce.toString()).to.be.equal(Scalar.fromString(decodedTx[0], 16).toString());
-        expect(testVector[3].tx.gasPrice.toString()).to.be.equal(Scalar.fromString(decodedTx[1], 16).toString());
-        expect(testVector[3].tx.gasLimit.toString()).to.be.equal(Scalar.fromString(decodedTx[2], 16).toString());
-        expect(testVector[3].tx.to).to.be.equal(decodedTx[3]);
-        expect(Scalar.fromString(testVector[3].tx.value)).to.be.equal(Scalar.fromString(decodedTx[4]));
-        expect(Scalar.fromString(testVector[3].tx.data)).to.be.equal(Scalar.fromString(decodedTx[5]));
-
-        const hash = ethers.utils.keccak256(helpers.encodeTx(tx));
-        const from = helpers.returnFrom(hash, {
-            r: txSignedStruct.r,
-            s: txSignedStruct.s,
-            v: txSignedStruct.v,
-        });
-        expect(testVector[3].expectedAddr.toLocaleLowerCase()).to.be.equal(from.toLocaleLowerCase());
-    });
-
-    it('encodeSignedTx and test-vector[4] check', async () => {
-        const tx = {
-            to: '0x8080808080808080808080808080808080808080',
-            nonce: 82,
-            data: '0x1234567890',
-            value: '0x2C68AF0BB140000',
-            gasLimit: 19000,
-            gasPrice: 20000000000,
-            chainId: 1400,
-        };
-        const wallet = new ethers.Wallet('0x1234567890123456789012345678901234567890123456789012345678901234');
-        const txSigned = await wallet.signTransaction(tx);
-        const txSignedStruct = ethers.utils.parseTransaction(txSigned);
-        const encodedTx = helpers.encodeSignedTx(txSignedStruct);
-        expect(encodedTx.toLocaleLowerCase()).to.be.equal(txSigned.toLocaleLowerCase());
-
-        expect(testVector[4].tx.chainId).to.be.equal(tx.chainId);
-        expect(testVector[4].calldata).to.be.equal(encodedTx);
-
-        const decodedTx = ethers.utils.RLP.decode(testVector[4].calldata);
-        expect(testVector[4].tx.nonce.toString()).to.be.equal(Scalar.fromString(decodedTx[0], 16).toString());
-        expect(testVector[4].tx.gasPrice.toString()).to.be.equal(Scalar.fromString(decodedTx[1], 16).toString());
-        expect(testVector[4].tx.gasLimit.toString()).to.be.equal(Scalar.fromString(decodedTx[2], 16).toString());
-        expect(testVector[4].tx.to).to.be.equal(decodedTx[3]);
-        expect(Scalar.fromString(testVector[4].tx.value)).to.be.equal(Scalar.fromString(decodedTx[4]));
-        expect(Scalar.fromString(testVector[4].tx.data)).to.be.equal(Scalar.fromString(decodedTx[5]));
-
-        const hash = ethers.utils.keccak256(helpers.encodeTx(tx));
-        const from = helpers.returnFrom(hash, {
-            r: txSignedStruct.r,
-            s: txSignedStruct.s,
-            v: txSignedStruct.v,
-        });
-        expect(testVector[4].expectedAddr.toLocaleLowerCase()).to.be.equal(from.toLocaleLowerCase());
-    });
-
-    it('encodeSignedTx and test-vector[5] check', async () => {
-        const tx = {
-            to: '0x1111111111222222222233333333334444444444',
-            nonce: 47,
-            data: '0x11223344',
-            value: '0xCC47F20295C0000',
-            gasLimit: 25000,
-            gasPrice: 23000000000,
-            chainId: 2,
-        };
-        const wallet = new ethers.Wallet('0x8888888888777777777766666666666555555555544444444443333333333322');
-        const txSigned = await wallet.signTransaction(tx);
-        const txSignedStruct = ethers.utils.parseTransaction(txSigned);
-        const encodedTx = helpers.encodeSignedTx(txSignedStruct);
-        expect(encodedTx.toLocaleLowerCase()).to.be.equal(txSigned.toLocaleLowerCase());
-
-        expect(testVector[5].tx.chainId).to.be.equal(tx.chainId);
-        expect(testVector[5].calldata).to.be.equal(encodedTx);
-
-        const decodedTx = ethers.utils.RLP.decode(testVector[5].calldata);
-        expect(testVector[5].tx.nonce.toString()).to.be.equal(Scalar.fromString(decodedTx[0], 16).toString());
-        expect(testVector[5].tx.gasPrice.toString()).to.be.equal(Scalar.fromString(decodedTx[1], 16).toString());
-        expect(testVector[5].tx.gasLimit.toString()).to.be.equal(Scalar.fromString(decodedTx[2], 16).toString());
-        expect(testVector[5].tx.to).to.be.equal(decodedTx[3]);
-        expect(Scalar.fromString(testVector[5].tx.value)).to.be.equal(Scalar.fromString(decodedTx[4]));
-        expect(Scalar.fromString(testVector[5].tx.data)).to.be.equal(Scalar.fromString(decodedTx[5]));
-
-        const hash = ethers.utils.keccak256(helpers.encodeTx(tx));
-        const from = helpers.returnFrom(hash, {
-            r: txSignedStruct.r,
-            s: txSignedStruct.s,
-            v: txSignedStruct.v,
-        });
-        expect(testVector[5].expectedAddr.toLocaleLowerCase()).to.be.equal(from.toLocaleLowerCase());
+            const decodedTx = ethers.utils.RLP.decode(testVector[i].calldata);
+            expect(testVector[i].tx.nonce.toString()).to.be.equal(Scalar.fromString(decodedTx[0], 16).toString());
+            expect(testVector[i].tx.gasPrice.toString()).to.be.equal(Scalar.fromString(decodedTx[1], 16).toString());
+            expect(testVector[i].tx.gasLimit.toString()).to.be.equal(Scalar.fromString(decodedTx[2], 16).toString());
+            expect(testVector[i].tx.to).to.be.equal(decodedTx[3]);
+            expect(Scalar.fromString(testVector[i].tx.value)).to.be.equal(Scalar.fromString(decodedTx[4]));
+            if (testVector[i].tx.data === '') {
+                expect('0x').to.be.equal(decodedTx[5]);
+            } else {
+                expect(Scalar.fromString(testVector[i].tx.data)).to.be.equal(Scalar.fromString(decodedTx[5]));
+            }
+            const hash = ethers.utils.keccak256(helpers.encodeTx(testVector[i].tx));
+            const from = helpers.returnFrom(hash, {
+                r: txSignedStruct.r,
+                s: txSignedStruct.s,
+                v: txSignedStruct.v,
+            });
+            expect(testVector[i].expectedAddr.toLocaleLowerCase()).to.be.equal(from.toLocaleLowerCase());
+        }
     });
 });

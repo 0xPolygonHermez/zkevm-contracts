@@ -22,7 +22,7 @@ function toHexString(num) {
  * @param {Object} tx = { nonce, gasPrice, gasLimit, to, value, data, chainId}
 */
 function encodeTx(tx) {
-    const signedTx = ethers.utils.RLP.encode([
+    const encodedTx = ethers.utils.RLP.encode([
         toHexString(tx.nonce),
         tx.gasPrice._isBigNumber ? tx.gasPrice.toHexString(16) : toHexString(tx.gasPrice),
         tx.gasLimit._isBigNumber ? tx.gasLimit.toHexString(16) : toHexString(tx.gasLimit),
@@ -33,13 +33,11 @@ function encodeTx(tx) {
         '0x',
         '0x',
     ]);
-    return signedTx;
+    return encodedTx;
 }
 
 /**
- * Function to get an RLP encode: rlp(nonce, gasprice, startgas, to, value, data, chainid, 0, 0, v, r, s)
- * Gas cost is saved by not adding chainID to the calldata since it is inferred from the V.
- * Furthermore, we do not include the last two empty transactions parameters
+ * Function to get an RLP encode: rlp(nonce, gasprice, startgas, to, value, data, v, r, s)
  * @param {Object} tx = { nonce, gasPrice, gasLimit, to, value, data, chainId, v, r, s}
  */
 function encodeSignedTx(tx) {
@@ -50,9 +48,6 @@ function encodeSignedTx(tx) {
         tx.to,
         tx.value._isBigNumber ? tx.value.toHexString(16) : toHexString(tx.value),
         toHexString(tx.data),
-        // toHexString(tx.chainId),
-        // "0x",
-        // "0x",
         toHexString(tx.v),
         toHexString(tx.r),
         toHexString(tx.s),

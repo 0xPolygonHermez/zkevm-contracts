@@ -29,8 +29,8 @@
     "test": "npx hardhat test",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates",
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
-    "lint": "npx eslint ./test && npx eslint ./src",
-    "lintFix": "npx eslint ./test --fix && npx eslint ./src --fix",
+    "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./js",
+    "lintFix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./js --fix",
     "compile": "npx hardhat compile"
   }
 }

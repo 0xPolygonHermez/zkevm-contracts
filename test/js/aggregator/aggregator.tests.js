@@ -1,8 +1,8 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const { Scalar } = require('ffjavascript');
-const AggregatorInterface = require('../../../js/aggregator/aggregator');
-const SequencerInterface = require('../../../js/sequencer/sequencer');
+const Aggregator = require('../../../js/aggregator/aggregator');
+const Sequencer = require('../../../js/sequencer/sequencer');
 
 describe('Aggregator test', async () => {
     let deployer;
@@ -10,10 +10,10 @@ describe('Aggregator test', async () => {
     let bridgeContract;
     let proofOfEfficiencyContract;
     let maticTokenContract;
+    let sequencerSigner;
     let sequencer;
-    let sequencerInterface;
+    let aggregatorSigner;
     let aggregator;
-    let aggregatorInterface;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
@@ -22,7 +22,7 @@ describe('Aggregator test', async () => {
 
     before('Deploy contract', async () => {
         // load signers
-        [deployer, aggregator, sequencer] = await ethers.getSigners();
+        [deployer, aggregatorSigner, sequencerSigner] = await ethers.getSigners();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
@@ -59,7 +59,7 @@ describe('Aggregator test', async () => {
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(sequencer.address, ethers.utils.parseEther('100'));
+        await maticTokenContract.transfer(sequencerSigner.address, ethers.utils.parseEther('100'));
     });
 
     // Wallets
@@ -83,14 +83,14 @@ describe('Aggregator test', async () => {
             balance: `0x${Scalar.e(3333333333333333).toString(16)}`,
         };
         // initialize aggregator interface
-        aggregatorInterface = new AggregatorInterface(aggregator, proofOfEfficiencyContract, rollupDB);
+        aggregator = new Aggregator(aggregatorSigner, proofOfEfficiencyContract, rollupDB);
     });
 
     it('Initialize Sequencer & sendBatch', async () => {
         // initialize sequencer interface
-        sequencerInterface = new SequencerInterface(sequencer, proofOfEfficiencyContract, 'URL', aggregatorInterface);
+        sequencer = new Sequencer(sequencerSigner, proofOfEfficiencyContract, 'URL', aggregator);
         // register sequencer
-        await sequencerInterface.registerSequencer();
+        await sequencer.registerSequencer();
 
         // a new batch is prepared
         const tx0 = {
@@ -102,9 +102,8 @@ describe('Aggregator test', async () => {
             gasPrice: 2000000000,
             chainId: 1,
         };
-        const txA = await wallet1.signTransaction(tx0);
-        const signedTxA = ethers.utils.parseTransaction(txA);
-        await sequencerInterface.addTx(signedTxA);
+        const signedTxA = await wallet1.signTransaction(tx0);
+        await sequencer.addTx(signedTxA);
 
         const tx1 = {
             to: wallet3.address,
@@ -115,9 +114,8 @@ describe('Aggregator test', async () => {
             gasPrice: 20000000000,
             chainId: 1,
         };
-        const txB = await wallet2.signTransaction(tx1);
-        const signedTxB = ethers.utils.parseTransaction(txB);
-        await sequencerInterface.addTx(signedTxB);
+        const signedTxB = await wallet2.signTransaction(tx1);
+        await sequencer.addTx(signedTxB);
 
         const tx2 = {
             to: wallet1.address,
@@ -128,17 +126,21 @@ describe('Aggregator test', async () => {
             gasPrice: 20000000000,
             chainId: 1,
         };
-        const txC = await wallet3.signTransaction(tx2);
-        const signedTxC = ethers.utils.parseTransaction(txC);
-        await sequencerInterface.addTx(signedTxC);
+        const signedTxC = await wallet3.signTransaction(tx2);
+        await sequencer.addTx(signedTxC);
 
         // approve matic tokens
-        maticTokenContract.connect(sequencer).approve(proofOfEfficiencyContract.address, maticAmount);
+        maticTokenContract.connect(sequencerSigner).approve(proofOfEfficiencyContract.address, maticAmount);
         // send batch
-        await sequencerInterface.sendBatch(maticAmount);
+        await sequencer.sendBatch(maticAmount);
     });
 
     it('Validate Batch', async () => {
-        await aggregatorInterface.verifyBatch();
+        const txVerifyBatch = await aggregator.verifyBatch();
+        expect(txVerifyBatch.events.some((event) => event.event === 'VerifyBatch')).to.be.equal(true);
+        const newLocalExitRoot = await bridgeContract.lastRollupExitRoot();
+        expect(newLocalExitRoot).to.be.equal(aggregator.state.newLocalExitRoot);
+        const currentStateRoot = await proofOfEfficiencyContract.currentStateRoot();
+        expect(currentStateRoot).to.be.equal(aggregator.state.newStateRoot);
     });
 });

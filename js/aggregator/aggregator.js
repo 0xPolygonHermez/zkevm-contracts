@@ -1,9 +1,9 @@
 const { ethers } = require('hardhat');
 const { Scalar } = require('ffjavascript');
 
-module.exports = class AggregatorInterface {
-    constructor(aggregator, proofOfEfficiencyContract, rollupDB) {
-        this.aggregator = aggregator;
+module.exports = class Aggregator {
+    constructor(signer, proofOfEfficiencyContract, rollupDB) {
+        this.signer = signer;
         this.proofOfEfficiencyContract = proofOfEfficiencyContract;
         this.txs = [];
         this.state = {
@@ -15,7 +15,7 @@ module.exports = class AggregatorInterface {
 
     /**
      * Function to set the necessary transactions to calculate the new state
-     * @param txs - transactions in the batch to verify
+     * @param Array{Object} txs - transactions in the batch to verify
      */
     setTx(txs) {
         this.txs = txs;
@@ -44,16 +44,17 @@ module.exports = class AggregatorInterface {
         this.state.newLocalExitRoot = newLocalExitRoot;
         // Only transfers
         for (let i = 0; i < this.txs.length; i++) {
-            const stateFrom = this.rollupDB[`${this.txs[i].from}`];
-            if (stateFrom.nonce === this.txs[i].nonce) {
+            const tx = ethers.utils.parseTransaction(this.txs[i]);
+            const stateFrom = this.rollupDB[`${tx.from}`];
+            if (stateFrom.nonce === tx.nonce) {
                 // Mock aggregator --> fees 0
                 const fee = Scalar.e(0);
                 const stateFromBalance = Scalar.fromString(stateFrom.balance);
-                if (stateFromBalance > Scalar.add(this.txs[i].value, fee)) {
-                    this.rollupDB[`${this.txs[i].from}`].nonce = this.rollupDB[`${this.txs[i].from}`].nonce + 1;
-                    this.rollupDB[`${this.txs[i].from}`].balance = `0x${Scalar.sub(stateFromBalance, Scalar.add(this.txs[i].value, fee)).toString(16)}`;
-                    const stateTo = this.rollupDB[`${this.txs[i].to}`];
-                    this.rollupDB[`${this.txs[i].to}`].balance = `0x${Scalar.add(stateTo.balance, this.txs[i].value).toString(16)}`;
+                if (stateFromBalance > Scalar.add(tx.value, fee)) {
+                    this.rollupDB[`${tx.from}`].nonce = this.rollupDB[`${tx.from}`].nonce + 1;
+                    this.rollupDB[`${tx.from}`].balance = `0x${Scalar.sub(stateFromBalance, Scalar.add(tx.value, fee)).toString(16)}`;
+                    const stateTo = this.rollupDB[`${tx.to}`];
+                    this.rollupDB[`${tx.to}`].balance = `0x${Scalar.add(stateTo.balance, tx.value).toString(16)}`;
                 }
             }
         }
@@ -68,7 +69,7 @@ module.exports = class AggregatorInterface {
         await this.calculateNewState();
         const batchNum = Scalar.e(await this.proofOfEfficiencyContract.lastBatchSent());
         const proof = await this.calculateProof();
-        const tx = await this.proofOfEfficiencyContract.connect(this.aggregator).verifyBatch(
+        const tx = await this.proofOfEfficiencyContract.connect(this.signer).verifyBatch(
             this.state.newLocalExitRoot,
             this.state.newStateRoot,
             batchNum,
@@ -76,7 +77,8 @@ module.exports = class AggregatorInterface {
             proof.proofB,
             proof.proofC,
         );
-        await tx.wait();
+        const receipt = await tx.wait();
         this.txs = [];
+        return receipt;
     }
 };
