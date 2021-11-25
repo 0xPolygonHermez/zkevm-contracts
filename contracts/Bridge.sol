@@ -83,7 +83,7 @@ contract Bridge is Ownable, DepositContract {
         if (address(token) == address(0)) {
             require(
                 msg.value == amount,
-                "Bridge::deposit: NOT_ENOUGH_MSG_VALUE"
+                "Bridge::deposit: AMOUNT_DOES_NOT_MATCH_MSG_VALUE"
             );
         } else {
             token.safeTransferFrom(msg.sender, address(this), amount);

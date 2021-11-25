@@ -232,20 +232,28 @@ describe('Deposit Contract', () => {
 
         // Check merkle proof
         // Check random index from the ones generated in the loop
-        index = Math.floor(Math.random() * (txCount - depositCount + 1) + depositCount);
-        proof = merkleTree.getProofTreeByIndex(index);
+        const promises = [];
+        for (let i = 0; i < 10; i++) {
+            index = Math.floor(Math.random() * (txCount - depositCount) + depositCount);
+            proof = merkleTree.getProofTreeByIndex(index);
 
-        // verify merkle proof
-        expect(verifyMerkleProof(leafValue, proof, index, rootSC)).to.be.equal(true);
-        expect(await depositContractMock.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originalNetwork,
-            destinationNetwork,
-            destinationAddress,
-            proof,
-            index,
-            rootSC,
-        )).to.be.equal(true);
+            // verify merkle proof
+            expect(verifyMerkleProof(leafValue, proof, index, rootSC)).to.be.equal(true);
+            const p = depositContractMock.verifyMerkleProof(
+                tokenAddress,
+                amount,
+                originalNetwork,
+                destinationNetwork,
+                destinationAddress,
+                proof,
+                index,
+                rootSC,
+            ).then((res) => {
+                expect(res).to.be.equal(true);
+            });
+            promises.push(p);
+        }
+
+        await Promise.all(promises);
     });
 });
