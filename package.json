@@ -21,15 +21,16 @@
     "solidity-coverage": "^0.7.17",
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
-    "solidity-docgen": "^0.5.16"
+    "solidity-docgen": "^0.5.16",
+    "ffjavascript": "^0.2.39"
   },
   "license": "GPL-3.0",
   "scripts": {
     "test": "npx hardhat test",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates",
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
-    "lint": "npx eslint ./test && npx eslint ./src",
-    "lintFix": "npx eslint ./test --fix && npx eslint ./src --fix",
+    "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./js",
+    "lintFix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./js --fix",
     "compile": "npx hardhat compile"
   }
 }
