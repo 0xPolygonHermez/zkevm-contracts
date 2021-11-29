@@ -43,7 +43,7 @@ class MerkleTreeBridge {
             currentIndex = currentIndex % 2 === 1 ? currentIndex - 1 : currentIndex + 1;
             if (currentIndex < this.tree[i].length) proof.push(this.tree[i][currentIndex]);
             else proof.push(this.zeroHashes[i]);
-            currentIndex /= 2;
+            currentIndex = Math.floor(currentIndex / 2);
         }
         return proof;
     }

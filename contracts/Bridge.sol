@@ -83,7 +83,7 @@ contract Bridge is Ownable, DepositContract {
         if (address(token) == address(0)) {
             require(
                 msg.value == amount,
-                "Bridge:deposit: NOT_ENOUGH_MSG_VALUE"
+                "Bridge::deposit: AMOUNT_DOES_NOT_MATCH_MSG_VALUE"
             );
         } else {
             token.safeTransferFrom(msg.sender, address(this), amount);
@@ -91,7 +91,7 @@ contract Bridge is Ownable, DepositContract {
 
         require(
             destinationNetwork != 0,
-            "Bridge:deposit: DESTINATION_CANT_BE_MAINNET"
+            "Bridge::deposit: DESTINATION_CANT_BE_MAINNET"
         );
 
         emit DepositEvent(
@@ -143,26 +143,26 @@ contract Bridge is Ownable, DepositContract {
         // Check nullifier
         require(
             withdrawNullifier[index] == false,
-            "Bridge:withdraw: ALREADY_CLAIMED_WITHDRAW"
+            "Bridge::withdraw: ALREADY_CLAIMED_WITHDRAW"
         );
 
         // Destination network must be mainnet
         require(
             destinationNetwork == 0,
-            "Bridge:withdraw: DESTINATION_NETWORK_NOT_MAINNET"
+            "Bridge::withdraw: DESTINATION_NETWORK_NOT_MAINNET"
         );
 
         // This should create wrapped erc20 tokens, for now not supported
         require(
             originalNetwork == 0,
-            "Bridge:withdraw: ORIGIN_NETWORK_NOT_MAINNET"
+            "Bridge::withdraw: ORIGIN_NETWORK_NOT_MAINNET"
         );
 
         // Check that the rollup exit root belongs to some global exit root
         require(
             keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot)) ==
                 globalExitRootMap[globalExitRootNum],
-            "Bridge:withdraw: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
+            "Bridge::withdraw: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
         );
 
         require(
@@ -188,7 +188,7 @@ contract Bridge is Ownable, DepositContract {
             (bool success, ) = destinationAddress.call{value: amount}(
                 new bytes(0)
             );
-            require(success, "Bridge:withdraw: ETH_TRANSFER_FAILED");
+            require(success, "Bridge::withdraw: ETH_TRANSFER_FAILED");
         } else {
             IERC20(token).safeTransfer(destinationAddress, amount);
         }
