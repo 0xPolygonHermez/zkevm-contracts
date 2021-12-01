@@ -2,11 +2,11 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const {
     MerkleTreeBridge,
-} = require('../../src/merkle-tree-bridge');
+} = require('../../src/bridge-merkle-tree/merkle-tree-bridge');
 const {
     verifyMerkleProof,
     calculateLeafValue,
-} = require('../../src/utils-merkle-tree-bridge');
+} = require('../../src/bridge-merkle-tree/utils-merkle-tree-bridge');
 
 describe('Deposit Contract', () => {
     let deployer;

@@ -1,8 +1,8 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const { Scalar } = require('ffjavascript');
-const Aggregator = require('../../../js/aggregator/aggregator');
-const Sequencer = require('../../../js/sequencer/sequencer');
+const Aggregator = require('../../../../src/js/aggregator/aggregator');
+const Sequencer = require('../../../../src/js/sequencer/sequencer');
 
 describe('Aggregator test', async () => {
     let deployer;

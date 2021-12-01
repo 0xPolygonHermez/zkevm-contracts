@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
-const Sequencer = require('../../../js/sequencer/sequencer');
+const Sequencer = require('../../../../src/js/sequencer/sequencer');
 
 describe('Sequencer test', async () => {
     let deployer;
