@@ -22,9 +22,9 @@ To enter and exit of the L2 network will be used a Bridge smart contract
 |`_matic` | contract IERC20 | MATIC token address
 |`_rollupVerifier` | contract VerifierRollupInterface | rollup verifier address
 
-### registerSequencer
+### setSequencer
 ```solidity
-  function registerSequencer(
+  function setSequencer(
     string sequencerURL
   ) public
 ```
