@@ -80,6 +80,9 @@ async function main() {
         deployerAddress: deployer.address,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
+
+    // Test
+    expect(await proofOfEfficiencyContract.matic()).to.equal(maticTokenContract.address);
 }
 
 main().catch((e) => {
