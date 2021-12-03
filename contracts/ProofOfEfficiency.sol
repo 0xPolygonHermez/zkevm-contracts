@@ -69,7 +69,7 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @dev Emitted when a sequencer is registered or updated
      */
-    event SetSequencer(address sequencerAddress, string sequencerURL, uint256 chainID);
+    event RegisterSequencer(address sequencerAddress, string sequencerURL, uint256 chainID);
 
     /**
      * @dev Emitted when a sequencer sends a new batch of transactions
@@ -100,10 +100,10 @@ contract ProofOfEfficiency is Ownable {
      * @notice Allows to register a new sequencer or update the sequencer URL
      * @param sequencerURL sequencer RPC URL
      */
-    function setSequencer(string memory sequencerURL) public {
+    function registerSequencer(string memory sequencerURL) public {
         require(
             bytes(sequencerURL).length != 0,
-            "ProofOfEfficiency::setSequencer: NOT_VALID_URL"
+            "ProofOfEfficiency::registerSequencer: NOT_VALID_URL"
         );
 
         if (sequencers[msg.sender].chainID == 0) {
@@ -115,7 +115,7 @@ contract ProofOfEfficiency is Ownable {
             // Sequencer already exist, update the URL
             sequencers[msg.sender].sequencerURL = sequencerURL;
         }
-        emit SetSequencer(msg.sender, sequencerURL, sequencers[msg.sender].chainID);
+        emit RegisterSequencer(msg.sender, sequencerURL, sequencers[msg.sender].chainID);
     }
 
     /**

@@ -19,7 +19,7 @@ module.exports = class Sequencer {
      * Register sequencer to proof of efficiency contract
      */
     async registerSequencer() {
-        const tx = await this.proofOfEfficiencyContract.connect(this.signer).setSequencer(this.sequencerURL);
+        const tx = await this.proofOfEfficiencyContract.connect(this.signer).registerSequencer(this.sequencerURL);
         const receipt = await tx.wait();
         return receipt;
     }
