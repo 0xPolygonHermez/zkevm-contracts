@@ -34,6 +34,9 @@ contract ProofOfEfficiency is Ownable {
     uint256 private constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
+    // Default chainID
+    uint256 public constant CHAIN_ID_DEFAULT = 10000;
+
     // MATIC token address
     IERC20 public immutable matic;
 
@@ -66,7 +69,7 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @dev Emitted when a sequencer is registered or updated
      */
-    event SetSequencer(address sequencerAddress, string sequencerURL);
+    event RegisterSequencer(address sequencerAddress, string sequencerURL, uint256 chainID);
 
     /**
      * @dev Emitted when a sequencer sends a new batch of transactions
@@ -91,8 +94,6 @@ contract ProofOfEfficiency is Ownable {
         bridge = _bridge;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
-
-        // register this rollup and update the global exit root
     }
 
     /**
@@ -109,12 +110,12 @@ contract ProofOfEfficiency is Ownable {
             // New sequencer is registered
             numSequencers++;
             sequencers[msg.sender].sequencerURL = sequencerURL;
-            sequencers[msg.sender].chainID = numSequencers;
+            sequencers[msg.sender].chainID = CHAIN_ID_DEFAULT + numSequencers;
         } else {
             // Sequencer already exist, update the URL
             sequencers[msg.sender].sequencerURL = sequencerURL;
         }
-        emit SetSequencer(msg.sender, sequencerURL);
+        emit RegisterSequencer(msg.sender, sequencerURL, sequencers[msg.sender].chainID);
     }
 
     /**

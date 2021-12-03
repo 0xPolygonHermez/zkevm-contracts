@@ -88,9 +88,9 @@ Function to calculate the sequencer collateral depending on the congestion of th
 
 
 ## Events
-### SetSequencer
+### RegisterSequencer
 ```solidity
-  event SetSequencer(
+  event RegisterSequencer(
   )
 ```
 

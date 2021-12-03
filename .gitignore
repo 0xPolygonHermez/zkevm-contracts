@@ -12,3 +12,4 @@ coverage
 artifacts/
 docs/interfaces
 docs/mocks
+.vscode/launch.json

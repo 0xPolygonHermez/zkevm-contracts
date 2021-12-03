@@ -67,7 +67,7 @@ describe('Sequencer test', async () => {
     it('Register Sequencer', async () => {
         const tx = await sequencer.registerSequencer();
         // check SC
-        expect(tx.events[0].event).to.be.equal('SetSequencer');
+        expect(tx.events[0].event).to.be.equal('RegisterSequencer');
         const sequencer1 = await proofOfEfficiencyContract.sequencers(sequencerSigner.address);
         expect(sequencer1.sequencerURL).to.be.equal(sequencerURL);
     });

@@ -64,28 +64,30 @@ describe('Proof of efficiency', () => {
     });
 
     it('should register a sequencer', async () => {
-    // register a sequencer
+        // register a sequencer
         const sequencerURL = 'http://exampleURL';
         const sequencerAddress = deployer.address;
+        const defaultChainId = Number(await proofOfEfficiencyContract.CHAIN_ID_DEFAULT());
+
         await expect(proofOfEfficiencyContract.registerSequencer(sequencerURL))
-            .to.emit(proofOfEfficiencyContract, 'SetSequencer')
-            .withArgs(sequencerAddress, sequencerURL);
+            .to.emit(proofOfEfficiencyContract, 'RegisterSequencer')
+            .withArgs(sequencerAddress, sequencerURL, ethers.BigNumber.from(defaultChainId + 1));
 
         // check the stored sequencer struct
         const sequencerStruct = await proofOfEfficiencyContract.sequencers(sequencerAddress);
         expect(sequencerStruct.sequencerURL).to.be.equal(sequencerURL);
-        expect(sequencerStruct.chainID).to.be.equal(ethers.BigNumber.from(1));
+        expect(sequencerStruct.chainID).to.be.equal(ethers.BigNumber.from(defaultChainId + 1));
 
         // update the sequencer URL
         const sequencerURL2 = 'http://exampleURL2';
         await expect(proofOfEfficiencyContract.registerSequencer(sequencerURL2))
-            .to.emit(proofOfEfficiencyContract, 'SetSequencer')
-            .withArgs(sequencerAddress, sequencerURL2);
+            .to.emit(proofOfEfficiencyContract, 'RegisterSequencer')
+            .withArgs(sequencerAddress, sequencerURL2, ethers.BigNumber.from(defaultChainId + 1));
 
         // check the stored sequencer struct
         const sequencerStruct2 = await proofOfEfficiencyContract.sequencers(sequencerAddress);
         expect(sequencerStruct2.sequencerURL).to.be.equal(sequencerURL2);
-        expect(sequencerStruct2.chainID).to.be.equal(ethers.BigNumber.from(1));
+        expect(sequencerStruct2.chainID).to.be.equal(ethers.BigNumber.from(defaultChainId + 1));
     });
 
     it('should send batch of transactions', async () => {
