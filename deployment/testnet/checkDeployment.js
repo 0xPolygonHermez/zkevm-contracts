@@ -1,19 +1,14 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
-const fs = require('fs');
-const path = require('path');
+const output = require('./deploy_output.json');
 
 async function checkDeployment() {
-    // load signers
-    const [sequencer] = await ethers.getSigners();
-    const output = JSON.parse(fs.readFileSync(path.join(__dirname, '/deploy_output.json')));
     // get mock verifier
     const VerifierRollupHelperFactory = await ethers.getContractFactory(
         'VerifierRollupHelperMock',
     );
     const verifierContract = await VerifierRollupHelperFactory.attach(output.verifierMockAddress);
-
-    // get MATIC
+    // get MATIC contract
     const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
     const maticTokenContract = await maticTokenFactory.attach(output.maticTokenAddress);
 
@@ -24,10 +19,6 @@ async function checkDeployment() {
     // get proof of efficiency
     const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiency');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.attach(output.proofOfEfficiencyAddress);
-    await proofOfEfficiencyContract.deployed();
-
-    // fund sequencer address with Matic tokens
-    await maticTokenContract.transfer(sequencer.address, ethers.utils.parseEther('100'));
 
     // Check public constants
     expect(await proofOfEfficiencyContract.matic()).to.equal(maticTokenContract.address);

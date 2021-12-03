@@ -34,7 +34,7 @@ contract ProofOfEfficiency is Ownable {
     uint256 private constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
-    // First sequencer id
+    // Default chainID
     uint256 public constant CHAIN_ID_DEFAULT = 10000;
 
     // MATIC token address
