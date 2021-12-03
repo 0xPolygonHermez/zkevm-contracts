@@ -32,6 +32,7 @@
     "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./js",
     "lintFix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./js --fix",
     "compile": "npx hardhat compile",
-    "checkDeploy:PoE" :"npx hardhat node > /dev/null 2>&1 & npx hardhat run --network localhost deployment/testnet/deployPoETestnet.js && npx hardhat run --network localhost deployment/testnet/checkDeployment.js && pkill -f 'npm exec hardhat node'"
+    "checkDeploy:PoE" :"npx hardhat node > /dev/null 2>&1 & npx hardhat run --network localhost deployment/testnet/deployPoETestnet.js && npx hardhat run --network localhost deployment/testnet/checkDeployment.js && pkill -f 'hardhat'",
+    "dockerContracts": "./docker/scripts/deployDocker.sh"
   }
 }

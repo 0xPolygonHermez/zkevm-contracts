@@ -58,7 +58,7 @@ rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0, v, r, s)
   function verifyBatch(
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint256 batchNum,
+    uint32 batchNum,
     uint256[2] proofA,
     uint256[2][2] proofB,
     uint256[2] proofC
@@ -72,7 +72,7 @@ Allows an aggregator to verify a batch
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`batchNum` | uint256 | Batch number that the aggregator intends to verify, used as a sanity check
+|`batchNum` | uint32 | Batch number that the aggregator intends to verify, used as a sanity check
 |`proofA` | uint256[2] | zk-snark input
 |`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input

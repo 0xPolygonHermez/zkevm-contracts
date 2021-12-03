@@ -1,6 +1,8 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
+const { calculateCircuitInput } = require('./helpers/contractsHelpers');
+
 describe('Proof of efficiency', () => {
     let deployer;
     let aggregator;
@@ -44,7 +46,7 @@ describe('Proof of efficiency', () => {
         await bridgeContract.deployed();
 
         // deploy proof of efficiency
-        const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiency');
+        const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
         proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
             bridgeContract.address,
             maticTokenContract.address,
@@ -67,7 +69,7 @@ describe('Proof of efficiency', () => {
         // register a sequencer
         const sequencerURL = 'http://exampleURL';
         const sequencerAddress = deployer.address;
-        const defaultChainId = Number(await proofOfEfficiencyContract.CHAIN_ID_DEFAULT());
+        const defaultChainId = Number(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID());
 
         await expect(proofOfEfficiencyContract.registerSequencer(sequencerURL))
             .to.emit(proofOfEfficiencyContract, 'RegisterSequencer')
@@ -91,18 +93,18 @@ describe('Proof of efficiency', () => {
     });
 
     it('should send batch of transactions', async () => {
-        const l2tx = '0x123456';
+        const l2txData = '0x123456';
         const maticAmount = ethers.utils.parseEther('1'); // for now the price depends on the bytes
         const sequencerAddress = deployer.address;
 
         expect(maticAmount.toString()).to.be.equal((await proofOfEfficiencyContract.calculateSequencerCollateral()).toString());
 
         // revert because the maxMatic amount is less than the necessary to pay
-        await expect(proofOfEfficiencyContract.sendBatch(l2tx, maticAmount.sub(1)))
+        await expect(proofOfEfficiencyContract.sendBatch(l2txData, maticAmount.sub(1)))
             .to.be.revertedWith('ProofOfEfficiency::sendBatch: NOT_ENOUGH_MATIC');
 
         // revert because tokens were not approved
-        await expect(proofOfEfficiencyContract.sendBatch(l2tx, maticAmount))
+        await expect(proofOfEfficiencyContract.sendBatch(l2txData, maticAmount))
             .to.be.revertedWith('ERC20: transfer amount exceeds allowance');
 
         const initialOwnerBalance = await maticTokenContract.balanceOf(
@@ -115,9 +117,9 @@ describe('Proof of efficiency', () => {
 
         const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
 
-        await expect(proofOfEfficiencyContract.sendBatch(l2tx, maticAmount))
+        await expect(proofOfEfficiencyContract.sendBatch(l2txData, maticAmount))
             .to.emit(proofOfEfficiencyContract, 'SendBatch')
-            .withArgs(lastBatchSent.add(1), sequencerAddress);
+            .withArgs(lastBatchSent + 1, sequencerAddress);
 
         const finalOwnerBalance = await maticTokenContract.balanceOf(
             await deployer.getAddress(),
@@ -128,8 +130,8 @@ describe('Proof of efficiency', () => {
     });
 
     it('should forge the batch', async () => {
-        const l2tx = '0x123456';
-        const maticAmount = ethers.utils.parseEther('1'); // for now the price depends on the bytes
+        const l2txData = '0x123456';
+        const maticAmount = ethers.utils.parseEther('1');
 
         const aggregatorAddress = aggregator.address;
         const sequencerAddress = sequencer.address;
@@ -141,14 +143,14 @@ describe('Proof of efficiency', () => {
 
         const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
 
-        await expect(proofOfEfficiencyContract.connect(sequencer).sendBatch(l2tx, maticAmount))
+        await expect(proofOfEfficiencyContract.connect(sequencer).sendBatch(l2txData, maticAmount))
             .to.emit(proofOfEfficiencyContract, 'SendBatch')
-            .withArgs(lastBatchSent.add(1), sequencerAddress);
+            .withArgs(lastBatchSent + 1, sequencerAddress);
 
         // aggregator forge the batch
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const batchNum = (await proofOfEfficiencyContract.lastVerifiedBatch()).add(1);
+        const batchNum = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
         const proofA = ['0', '0'];
         const proofB = [
             ['0', '0'],
@@ -164,7 +166,7 @@ describe('Proof of efficiency', () => {
             proofOfEfficiencyContract.connect(aggregator).verifyBatch(
                 newLocalExitRoot,
                 newStateRoot,
-                batchNum.sub(1),
+                batchNum - 1,
                 proofA,
                 proofB,
                 proofC,
@@ -182,5 +184,73 @@ describe('Proof of efficiency', () => {
         expect(finalAggregatorMatic).to.equal(
             ethers.BigNumber.from(initialAggregatorMatic).add(ethers.BigNumber.from(maticAmount)),
         );
+    });
+    it('Should match the computed SC input with the Js input', async () => {
+        const l2txData = '0x0123456789';
+        const maticAmount = ethers.utils.parseEther('1');
+        const sequencerAddress = sequencer.address;
+        const defaultChainId = Number(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID());
+
+        // sequencer send the batch
+        await expect(
+            maticTokenContract.connect(sequencer).approve(proofOfEfficiencyContract.address, maticAmount),
+        ).to.emit(maticTokenContract, 'Approval');
+
+        let lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
+
+        await expect(proofOfEfficiencyContract.connect(sequencer).sendBatch(l2txData, maticAmount))
+            .to.emit(proofOfEfficiencyContract, 'SendBatch')
+            .withArgs(lastBatchSent + 1, sequencerAddress);
+
+        // calculate all the input parameters
+
+        // calculate l2HashData
+        const lastGlobalExitRoot = await bridgeContract.getLastGlobalExitRoot();
+
+        lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
+        const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent);
+
+        const batchL2HashData = ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txData, lastGlobalExitRoot]);
+        expect(sentBatch.batchL2HashData).to.be.equal(batchL2HashData);
+
+        // Compute circuit input with the SC function
+        const currentStateRoot = await proofOfEfficiencyContract.currentStateRoot();
+        const currentLocalExitRoot = await proofOfEfficiencyContract.currentLocalExitRoot();
+        const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
+        const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
+        const batchChainID = defaultChainId;
+        const batchNum = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
+
+        const circuitInputSC = await proofOfEfficiencyContract.calculateCircuitInput(
+            currentStateRoot,
+            currentLocalExitRoot,
+            newStateRoot,
+            newLocalExitRoot,
+            sequencerAddress,
+            batchL2HashData,
+            batchChainID,
+            batchNum,
+        );
+
+        // Compute Js input
+        const circuitInputJS = calculateCircuitInput(
+            currentStateRoot,
+            currentLocalExitRoot,
+            newStateRoot,
+            newLocalExitRoot,
+            sequencerAddress,
+            batchL2HashData,
+            batchChainID,
+            batchNum,
+        );
+        expect(circuitInputSC).to.be.equal(circuitInputJS);
+
+        // Check the input parameters are correct
+        const circuitNextInputSC = await proofOfEfficiencyContract.getNextCircuitInput(
+            newStateRoot,
+            newLocalExitRoot,
+            batchNum,
+        );
+        expect(circuitNextInputSC).to.be.equal(circuitInputSC);
     });
 });

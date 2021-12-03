@@ -18,7 +18,7 @@ contract ProofOfEfficiency is Ownable {
 
     struct Sequencer {
         string sequencerURL;
-        uint256 chainID;
+        uint32 chainID;
     }
 
     struct BatchData {
@@ -30,12 +30,8 @@ contract ProofOfEfficiency is Ownable {
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
     bytes4 private constant _PERMIT_SIGNATURE = 0xd505accf;
 
-    // Modulus zkSNARK
-    uint256 private constant _RFIELD =
-        21888242871839275222246405745257275088548364400416034343698204186575808495617;
-
     // Default chainID
-    uint256 public constant CHAIN_ID_DEFAULT = 10000;
+    uint32 public constant DEFAULT_CHAIN_ID = 10000;
 
     // MATIC token address
     IERC20 public immutable matic;
@@ -44,16 +40,16 @@ contract ProofOfEfficiency is Ownable {
     mapping(address => Sequencer) public sequencers;
 
     // Current registered sequencers
-    uint256 public numSequencers;
+    uint32 public numSequencers;
 
     // Last batch sent by the sequencers
-    uint256 public lastBatchSent;
+    uint32 public lastBatchSent;
 
     // Mapping of sent batches with their associated data
-    mapping(uint256 => BatchData) public sentBatches;
+    mapping(uint32 => BatchData) public sentBatches;
 
     // Last batch verified by the aggregators
-    uint256 public lastVerifiedBatch;
+    uint32 public lastVerifiedBatch;
 
     // Bridge address
     BridgeInterface public bridge;
@@ -69,17 +65,21 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @dev Emitted when a sequencer is registered or updated
      */
-    event RegisterSequencer(address sequencerAddress, string sequencerURL, uint256 chainID);
+    event RegisterSequencer(
+        address sequencerAddress,
+        string sequencerURL,
+        uint32 chainID
+    );
 
     /**
      * @dev Emitted when a sequencer sends a new batch of transactions
      */
-    event SendBatch(uint256 indexed batchNum, address indexed sequencer);
+    event SendBatch(uint32 indexed batchNum, address indexed sequencer);
 
     /**
      * @dev Emitted when a aggregator verifies a new batch
      */
-    event VerifyBatch(uint256 indexed batchNum, address indexed aggregator);
+    event VerifyBatch(uint32 indexed batchNum, address indexed aggregator);
 
     /**
      * @param _bridge Bridge contract address
@@ -110,12 +110,16 @@ contract ProofOfEfficiency is Ownable {
             // New sequencer is registered
             numSequencers++;
             sequencers[msg.sender].sequencerURL = sequencerURL;
-            sequencers[msg.sender].chainID = CHAIN_ID_DEFAULT + numSequencers;
+            sequencers[msg.sender].chainID = DEFAULT_CHAIN_ID + numSequencers;
         } else {
             // Sequencer already exist, update the URL
             sequencers[msg.sender].sequencerURL = sequencerURL;
         }
-        emit RegisterSequencer(msg.sender, sequencerURL, sequencers[msg.sender].chainID);
+        emit RegisterSequencer(
+            msg.sender,
+            sequencerURL,
+            sequencers[msg.sender].chainID
+        );
     }
 
     /**
@@ -141,11 +145,7 @@ contract ProofOfEfficiency is Ownable {
             abi.encodePacked(transactions, bridge.getLastGlobalExitRoot())
         );
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
-
-        // Check if the sequencer is registered, if not, no one will claim the fees
-        if (sequencers[msg.sender].chainID != 0) {
-            sentBatches[lastBatchSent].sequencerAddress = msg.sender;
-        }
+        sentBatches[lastBatchSent].sequencerAddress = msg.sender;
 
         emit SendBatch(lastBatchSent, msg.sender);
     }
@@ -162,7 +162,7 @@ contract ProofOfEfficiency is Ownable {
     function verifyBatch(
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint256 batchNum,
+        uint32 batchNum,
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
@@ -175,8 +175,16 @@ contract ProofOfEfficiency is Ownable {
 
         // Calculate Circuit Input
         BatchData memory currentBatch = sentBatches[batchNum];
-        address sequencerAddress = currentBatch.sequencerAddress; // could be 0, if sequencer is not registered
-        uint256 batchChainID = sequencers[sequencerAddress].chainID; // could be 0, if sequencer is not registered
+        address sequencerAddress = currentBatch.sequencerAddress;
+
+        uint32 batchChainID;
+        if (sequencers[sequencerAddress].chainID != 0) {
+            batchChainID = sequencers[sequencerAddress].chainID;
+        } else {
+            // If the sequencer is not registered use the default chainID
+            batchChainID = DEFAULT_CHAIN_ID;
+        }
+
         uint256 input = uint256(
             sha256(
                 abi.encodePacked(
@@ -186,10 +194,11 @@ contract ProofOfEfficiency is Ownable {
                     newLocalExitRoot,
                     sequencerAddress,
                     currentBatch.batchL2HashData,
-                    batchChainID
+                    batchChainID,
+                    batchNum
                 )
             )
-        ) % _RFIELD;
+        );
 
         // Verify proof
         require(
