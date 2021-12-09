@@ -186,7 +186,7 @@ contract ProofOfEfficiency is Ownable {
         }
 
         uint256 input = uint256(
-            sha256(
+            keccak256(
                 abi.encodePacked(
                     currentStateRoot,
                     currentLocalExitRoot,

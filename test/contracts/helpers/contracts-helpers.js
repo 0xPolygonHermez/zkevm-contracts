@@ -22,7 +22,7 @@ function calculateCircuitInput(
     batchChainID,
     batchNum,
 ) {
-    return ethers.utils.soliditySha256(
+    return ethers.utils.solidityKeccak256(
         ['bytes32', 'bytes32', 'bytes32', 'bytes32', 'address', 'bytes32', 'uint32', 'uint32'],
         [
             currentStateRoot,

@@ -44,7 +44,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         uint32 batchNum
     ) public pure returns (uint256) {
         uint256 input = uint256(
-            sha256(
+            keccak256(
                 abi.encodePacked(
                     currentStateRoot,
                     currentLocalExitRoot,
@@ -90,7 +90,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         }
 
         uint256 input = uint256(
-            sha256(
+            keccak256(
                 abi.encodePacked(
                     currentStateRoot,
                     currentLocalExitRoot,
