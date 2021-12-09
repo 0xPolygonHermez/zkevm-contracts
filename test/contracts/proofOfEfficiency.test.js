@@ -1,7 +1,7 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const { calculateCircuitInput } = require('./helpers/contractsHelpers');
+const { calculateCircuitInput } = require('./helpers/contracts-helpers');
 
 describe('Proof of efficiency', () => {
     let deployer;

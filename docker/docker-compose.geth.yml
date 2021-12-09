@@ -10,8 +10,8 @@ services:
       - ./gethData/geth_data:/geth_data
     entrypoint:
       - geth
-      - --rpc
-      - --rpcaddr
+      - --http
+      - --http.addr
       - "0.0.0.0"
       - --dev
       - --dev.period

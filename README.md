@@ -11,19 +11,11 @@ Smart contract implementation which will be used by the zkEVM
 
 - `contracts`: zkEVM contracts
 - `docs`: specs and useful links
-- `js`: complementary code in javascript
-- `test`: test all repository code
-
-## Install
+- `src`: js code to interact with the zkEVM, executor, zkEVMDB, sequencer and aggregator.
+- `test`: test of all repository 
 
 ```
-git config --local core.hooksPath .githooks/
-```
-
-## Activate github hook
-
-```
-npm run i
+npm i
 ```
 
 ## Run tests
@@ -43,7 +35,7 @@ npm run lint
 Autofix errors:
 
 ```
-npm run lintFix
+npm run lint:fix
 ```
 
 ## Deploy on hardhat
@@ -55,7 +47,7 @@ npm run deploy:PoE:hardhat
 ## Build dockers
 
 ```
-npm run dockerContracts
+npm run docker:contracts
 ```
 
 A new docker `hermez-geth1.3:latest` will be created

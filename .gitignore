@@ -13,3 +13,4 @@ artifacts/
 docs/interfaces
 docs/mocks
 .vscode/launch.json
+deploy_output.json
