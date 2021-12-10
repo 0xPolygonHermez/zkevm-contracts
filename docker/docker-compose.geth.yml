@@ -1,0 +1,20 @@
+version: "3.3"
+services:
+  geth:
+    image: ethereum/client-go
+    environment:
+      - DEV_PERIOD
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./gethData/geth_data:/geth_data
+    entrypoint:
+      - geth
+      - --http
+      - --http.addr
+      - "0.0.0.0"
+      - --dev
+      - --dev.period
+      - $DEV_PERIOD
+      - --datadir
+      - /geth_data

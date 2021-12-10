@@ -29,9 +29,10 @@
     "test": "npx hardhat test",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates",
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
-    "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./js",
-    "lintFix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./js --fix",
+    "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./js && npx eslint ./docker/scripts",
+    "lint:fix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./js --fix && npx eslint ./docker/scripts --fix",
     "compile": "npx hardhat compile",
-    "checkDeploy:PoE" :"npx hardhat node > /dev/null 2>&1 & npx hardhat run --network localhost deployment/testnet/deployPoETestnet.js && npx hardhat run --network localhost deployment/testnet/checkDeployment.js && pkill -f 'npm exec hardhat node'"
+    "check:deploy:PoE" :"npx hardhat node > /dev/null 2>&1 & npx hardhat run --network localhost deployment/testnet/deployPoETestnet.js && npx hardhat run --network localhost deployment/testnet/checkDeployment.js && pkill -f 'hardhat'",
+    "docker:contracts": "./docker/scripts/deploy-docker.sh"
   }
 }

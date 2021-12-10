@@ -2,28 +2,20 @@
 
 Smart contract implementation which will be used by the zkEVM
 
-
 ## Requirements
 
 - node version: 14.x
 - npm version: 7.x
 
 ## Repository structure
+
 - `contracts`: zkEVM contracts
 - `docs`: specs and useful links
-- `js`: complementary code in javascript
-- `test`: test all repository code
-
-## Install
+- `src`: js code to interact with the zkEVM, executor, zkEVMDB, sequencer and aggregator.
+- `test`: test of all repository 
 
 ```
-git config --local core.hooksPath .githooks/
-```
-
-## Activate github hook
-
-```
-npm run i
+npm i
 ```
 
 ## Run tests
@@ -43,7 +35,7 @@ npm run lint
 Autofix errors:
 
 ```
-npm run lintFix
+npm run lint:fix
 ```
 
 ## Deploy on hardhat
@@ -51,6 +43,17 @@ npm run lintFix
 ```
 npm run deploy:PoE:hardhat
 ```
+
+## Build dockers
+
+```
+npm run docker:contracts
+```
+
+A new docker `hermez-geth1.3:latest` will be created
+This docker will contain a geth node with the deployed contracts
+The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`
+To run the docker you can use: `docker run -p 8545:8545 hermez-geth1.3:latest`
 
 ## License
 
