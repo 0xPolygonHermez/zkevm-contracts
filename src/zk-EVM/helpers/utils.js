@@ -1,5 +1,6 @@
 /* eslint-disable no-await-in-loop, no-console */
 const { Scalar } = require('ffjavascript');
+const ethers = require('ethers');
 
 /**
  * Converts a decimal string into a 32 bytes hex stirng
@@ -31,21 +32,27 @@ function fromStringToUint8Array(value, F) {
     return F.e(valueHex);
 }
 /**
- * Concatenate all the rawTx in the rawTxArray
+ * Encodes using RLP all the rawTx
  * @param {Array} arrayRawTx Array of strings of rawTxs
- * @returns {String} All rawTx concatenated
+ * @returns {String} All rawTx encoded
 */
 function fromArrayRawTxToString(arrayRawTx) {
-    return arrayRawTx.reduce((accumulateValue, currentValue) => accumulateValue + currentValue.slice(2), '0x');
+    return ethers.utils.RLP.encode(arrayRawTx);
 }
 
-// async function fromStringToArrayRawTx(stringTx) {
-//     // TODO
-// }
+/**
+ * Decode RLP the rawTx in a string into an array of rawTxs
+ * @param {String} stringTx RLP encoded all raw txs
+ * @returns {Array} Array of strings of rawTxs
+*/
+function fromStringToArrayRawTx(stringTx) {
+    return ethers.utils.RLP.decode(stringTx);
+}
 
 module.exports = {
     stringToHex32,
     fromUint8ArrayToHex,
     fromArrayRawTxToString,
     fromStringToUint8Array,
+    fromStringToArrayRawTx,
 };

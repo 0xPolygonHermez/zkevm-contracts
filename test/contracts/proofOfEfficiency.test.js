@@ -1,7 +1,7 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const { calculateCircuitInput } = require('./helpers/contracts-helpers');
+const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
 
 describe('Proof of efficiency', () => {
     let deployer;

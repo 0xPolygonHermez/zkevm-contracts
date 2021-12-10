@@ -105,4 +105,33 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
         return input;
     }
+
+    /**
+     * @notice Set state root
+     * @param newStateRoot New State root ¡
+     */
+    function setStateRoot(bytes32 newStateRoot) public {
+        currentStateRoot = newStateRoot;
+    }
+
+    /**
+     * @notice Set Sequencer
+     * @param newLocalExitRoot New exit root ¡
+     */
+    function setExitRoot(bytes32 newLocalExitRoot) public {
+        currentLocalExitRoot = newLocalExitRoot;
+    }
+
+    /**
+     * @notice Allows to register a new sequencer or update the sequencer URL
+     * @param sequencerURL sequencer RPC URL
+     */
+    function setSequencer(
+        address sequencer,
+        string memory sequencerURL,
+        uint32 chainID
+    ) public {
+        sequencers[sequencer].sequencerURL = sequencerURL;
+        sequencers[sequencer].chainID = chainID;
+    }
 }
