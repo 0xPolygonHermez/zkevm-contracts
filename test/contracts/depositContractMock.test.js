@@ -24,13 +24,13 @@ describe('Deposit Contract', () => {
     });
 
     it('should deposit and verify merkle proof', async () => {
-        const originalNetwork = 0; // mainnet
+        const originalNetwork = 0;
         const tokenAddress = deployer.address;
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = 1;
         const destinationAddress = deployer.address;
 
-        await depositContractMock.deposit(tokenAddress, amount, destinationNetwork, destinationAddress);
+        await depositContractMock.deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
 
         // compute root merkle tree in Js
         const height = 32;
@@ -62,14 +62,14 @@ describe('Deposit Contract', () => {
     });
 
     it('should deposit and verify merkle proof with 2 leafs', async () => {
-        const originalNetwork = 0; // mainnet
+        const originalNetwork = 0;
         const tokenAddress = deployer.address;
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = 1;
         const destinationAddress = deployer.address;
 
-        await depositContractMock.deposit(tokenAddress, amount, destinationNetwork, destinationAddress);
-        await depositContractMock.deposit(tokenAddress, amount, destinationNetwork, destinationAddress);
+        await depositContractMock.deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
+        await depositContractMock.deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
 
         // compute root merkle tree in Js
         const height = 32;
@@ -114,7 +114,7 @@ describe('Deposit Contract', () => {
         let destinationNetwork = 1;
         let destinationAddress = deployer.address;
 
-        await depositContractMock.deposit(tokenAddress, amount, destinationNetwork, destinationAddress);
+        await depositContractMock.deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
 
         // compute root merkle tree in Js
         const height = 32;
@@ -145,13 +145,13 @@ describe('Deposit Contract', () => {
         )).to.be.equal(true);
 
         // Deposit 2 - different address and amount
-        originalNetwork = 0; // mainnet
+        originalNetwork = 0;
         tokenAddress = deployer.address;
         amount = ethers.utils.parseEther('1');
         destinationNetwork = 1;
         destinationAddress = acc2.address;
 
-        await depositContractMock.connect(acc2).deposit(tokenAddress, amount, destinationNetwork, destinationAddress);
+        await depositContractMock.connect(acc2).deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
 
         // compute root merkle tree in Js
         leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
@@ -180,12 +180,12 @@ describe('Deposit Contract', () => {
         )).to.be.equal(true);
 
         // Deposit 3 - deposit ether
-        originalNetwork = 0; // mainnet
+        originalNetwork = 0;
         tokenAddress = ethers.constants.AddressZero; // ether
         amount = ethers.utils.parseEther('100');
         destinationNetwork = 1;
         destinationAddress = acc2.address;
-        await depositContractMock.connect(acc2).deposit(tokenAddress, amount, destinationNetwork, destinationAddress);
+        await depositContractMock.connect(acc2).deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
 
         // compute root merkle tree in Js
         leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
@@ -220,7 +220,13 @@ describe('Deposit Contract', () => {
         leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
         const results = [];
         for (let i = 0; i < txCount; i++) {
-            const p = depositContractMock.connect(acc2).deposit(tokenAddress, amount, destinationNetwork, destinationAddress).then(() => {
+            const p = depositContractMock.connect(acc2).deposit(
+                tokenAddress,
+                amount,
+                originalNetwork,
+                destinationNetwork,
+                destinationAddress,
+            ).then(() => {
                 merkleTree.add(leafValue);
             });
             results.push(p);

@@ -12,15 +12,23 @@ contract DepositContractMock is DepositContract {
      * @notice Add a new leaf to the merkle tree
      * @param token Token address, 0 address is reserved for ehter
      * @param amount Amount of tokens
+     * @param originalNetwork Network origin
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      */
     function deposit(
         address token,
         uint256 amount,
+        uint32 originalNetwork,
         uint32 destinationNetwork,
         address destinationAddress
     ) public {
-        _deposit(token, amount, destinationNetwork, destinationAddress);
+        _deposit(
+            token,
+            amount,
+            originalNetwork,
+            destinationNetwork,
+            destinationAddress
+        );
     }
 }

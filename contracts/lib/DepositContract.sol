@@ -64,13 +64,14 @@ contract DepositContract {
     function _deposit(
         address token,
         uint256 amount,
+        uint32 originalNetwork,
         uint32 destinationNetwork,
         address destinationAddress
     ) internal {
         // Compute new leaf
         bytes32 node = keccak256(
             abi.encodePacked(
-                uint32(0), // Original network mainnet
+                originalNetwork,
                 token,
                 amount,
                 destinationNetwork,
