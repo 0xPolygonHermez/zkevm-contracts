@@ -12,7 +12,7 @@ Smart contract implementation which will be used by the zkEVM
 - `contracts`: zkEVM contracts
 - `docs`: specs and useful links
 - `src`: js code to interact with the zkEVM, executor, zkEVMDB, sequencer and aggregator.
-- `test`: test of all repository 
+- `test`: test of all repository
 
 ## Activate github hook
 
@@ -23,7 +23,7 @@ git config --local core.hooksPath .githooks/
 ## Install
 
 ```
-npm run i
+npm i
 ```
 
 ## Run tests

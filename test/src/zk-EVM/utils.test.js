@@ -4,9 +4,7 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 
-const { fromArrayRawTxToString, fromStringToArrayRawTx } = require('../../../src/zk-EVM/helpers/utils');
-
-describe('Tmp Db Test', () => {
+describe('Encode and decode transactions in RLP', () => {
     let testVectors;
 
     before(async () => {
@@ -18,7 +16,7 @@ describe('Tmp Db Test', () => {
             const {
                 genesis,
                 txs,
-                fullTransactionString,
+                batchL2Data,
             } = testVectors[i];
 
             const walletMap = {};
@@ -61,10 +59,10 @@ describe('Tmp Db Test', () => {
                     expect(txData.rawTx).to.equal(undefined);
                 }
             }
-            const encodedTransactions = fromArrayRawTxToString(rawTxs);
-            const decoded = fromStringToArrayRawTx(encodedTransactions);
+            const encodedTransactions = ethers.utils.RLP.encode(rawTxs);
+            const decoded = ethers.utils.RLP.decode(encodedTransactions);
             expect(decoded).to.be.deep.equal(rawTxs);
-            expect(fullTransactionString).to.be.equal(encodedTransactions);
+            expect(batchL2Data).to.be.equal(encodedTransactions);
         }
     });
 });

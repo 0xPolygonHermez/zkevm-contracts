@@ -29,7 +29,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param newStateRoot New State root once the batch is processed
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param sequencerAddress Sequencer address
-     * @param batchL2HashData Batch hash data
+     * @param batchHashData Batch hash data
      * @param batchChainID Batch chain ID
      * @param batchNum Batch number that the aggregator intends to verify, used as a sanity check
      */
@@ -39,7 +39,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 newStateRoot,
         bytes32 newLocalExitRoot,
         address sequencerAddress,
-        bytes32 batchL2HashData,
+        bytes32 batchHashData,
         uint32 batchChainID,
         uint32 batchNum
     ) public pure returns (uint256) {
@@ -51,7 +51,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     newStateRoot,
                     newLocalExitRoot,
                     sequencerAddress,
-                    batchL2HashData,
+                    batchHashData,
                     batchChainID,
                     batchNum
                 )
@@ -97,7 +97,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     newStateRoot,
                     newLocalExitRoot,
                     sequencerAddress,
-                    currentBatch.batchL2HashData,
+                    currentBatch.batchHashData,
                     batchChainID,
                     batchNum
                 )

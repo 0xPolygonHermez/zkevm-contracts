@@ -1,24 +1,5 @@
-/* eslint-disable no-await-in-loop, no-console */
+/* eslint-disable no-await-in-loop */
 const { Scalar } = require('ffjavascript');
-
-/**
- * Print the parts of the SMT that are required to store the keys
- * @param {Uint8Array} root merkle root
- * @param {Object} keys merkle tree keys
- * @param {Object} db Mem DB
- * @param {Object} smt merkle tree structure
- * @param {Object} F - poseidon F
- */
-async function printSMT(root, keys, db, smt, F) {
-    db.startCapture();
-
-    for (let m = 0; m < keys.length; m++) {
-        await smt.get(root, F.e(keys[m]));
-    }
-
-    const fullDb = db.endCapture();
-    console.log(fullDb);
-}
 
 /**
  * Fill the dbObject with all the childs recursively
@@ -61,7 +42,6 @@ async function getCurrentDB(root, db, F) {
 }
 
 module.exports = {
-    printSMT,
     fillDBArray,
     getCurrentDB,
 };

@@ -5,7 +5,7 @@ const Executor = require('./executor');
 const { getValue, setValue } = require('./helpers/db-key-value-utils');
 
 class ZkEVMDB {
-    constructor(db, lastBatch, stateRoot, arity, chainID, poseidon, sequencerAddress) {
+    constructor(db, lastBatch, stateRoot, arity, seqChainID, poseidon, sequencerAddress) {
         this.db = db;
         this.lastBatch = lastBatch || Scalar.e(0);
         this.poseidon = poseidon;
@@ -14,7 +14,7 @@ class ZkEVMDB {
         this.stateRoot = stateRoot || this.F.e(0);
 
         this.arity = arity;
-        this.chainID = chainID;
+        this.seqChainID = seqChainID;
         this.sequencerAddress = sequencerAddress;
     }
 
@@ -22,14 +22,14 @@ class ZkEVMDB {
      * Return a new Executor with the current RollupDb state
      * @param {Scalar} maxNTx - Maximum number of transactions
      */
-    async buildBatch(localExitRoot, globalExitRoot, maxNTx = 100) {
+    async buildBatch(localExitRoot, globalExitRoot, maxNTx = Constants.defaultMaxTx) {
         return new Executor(
             this.db,
             Scalar.add(this.lastBatch, 1),
             this.arity,
             this.poseidon,
             maxNTx,
-            this.chainID,
+            this.seqChainID,
             this.stateRoot,
             this.sequencerAddress,
             localExitRoot,
@@ -59,24 +59,26 @@ class ZkEVMDB {
         this.lastBatch = executor.batchNumber;
         this.stateRoot = executor.currentRoot;
     }
+
+    static async newZkEVM(db, seqChainID, arity, poseidon, sequencerAddress, root) {
+        const { F } = poseidon;
+        try {
+            const lastBatch = await getValue(Constants.DB_LastBatch, db, F);
+            const stateRoot = await getValue(Scalar.add(Constants.DB_Batch, lastBatch), db, F);
+            const dBSeqChainID = Scalar.toNumber(await getValue(Constants.DB_SeqChainID, db, F));
+            const dBArity = Scalar.toNumber(await getValue(Constants.DB_Arity, db, F));
+
+            return new ZkEVMDB(db, lastBatch, stateRoot, dBArity, dBSeqChainID, poseidon, sequencerAddress);
+        } catch (error) {
+            const setseqChainID = seqChainID || Constants.defaultSeqChainID;
+            const setArity = arity || Constants.defaultArity;
+
+            await setValue(Constants.DB_SeqChainID, setseqChainID, db, F);
+            await setValue(Constants.DB_Arity, setArity, db, F);
+
+            return new ZkEVMDB(db, Scalar.e(0), root, setArity, setseqChainID, poseidon, sequencerAddress);
+        }
+    }
 }
 
-module.exports = async function (db, chainID, arity, poseidon, sequencerAddress, root) {
-    const { F } = poseidon;
-    try {
-        const lastBatch = await getValue(Constants.DB_LastBatch, db, F);
-        const stateRoot = await getValue(Scalar.add(Constants.DB_Batch, lastBatch), db, F);
-        const dBchainID = Scalar.toNumber(await getValue(Constants.DB_ChainID, db, F));
-        const dBArity = Scalar.toNumber(await getValue(Constants.DB_Arity, db, F));
-
-        return new ZkEVMDB(db, lastBatch, stateRoot, dBArity, dBchainID, poseidon, sequencerAddress);
-    } catch (error) {
-        const setChainID = chainID || Constants.defaultChainID;
-        const setArity = arity || Constants.defaultArity;
-
-        await setValue(Constants.DB_ChainID, setChainID, db, F);
-        await setValue(Constants.DB_Arity, setArity, db, F);
-
-        return new ZkEVMDB(db, Scalar.e(0), root, setArity, setChainID, poseidon, sequencerAddress);
-    }
-};
+module.exports = ZkEVMDB;

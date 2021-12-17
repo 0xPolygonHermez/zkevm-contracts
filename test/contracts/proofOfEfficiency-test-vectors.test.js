@@ -13,7 +13,6 @@ const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
 const { setGenesisBlock } = require('../src/zk-EVM/helpers/test-helpers');
 
 const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
-const { stringToHex32 } = require('../../src/zk-EVM/helpers/utils');
 
 const testVectors = require('../src/zk-EVM/helpers/test-vector-data/state-transition.json');
 
@@ -87,10 +86,10 @@ describe('Proof of efficiency test vectors', () => {
             chainIdSequencer,
             sequencerAddress,
             expectedNewLeafs,
-            fullTransactionString,
+            batchL2Data,
             localExitRoot,
             globalExitRoot,
-            batchL2HashData,
+            batchHashData,
             inputHash,
         } = testVectors[i];
         it(`Test vectors id: ${id}`, async () => {
@@ -117,7 +116,7 @@ describe('Proof of efficiency test vectors', () => {
                 nonceArray.push(Scalar.e(nonce));
             }
 
-            const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt, F);
+            const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt);
             for (let j = 0; j < addressArray.length; j++) {
                 const currentState = await stateUtils.getState(addressArray[j], smt, genesisRoot);
 
@@ -157,7 +156,7 @@ describe('Proof of efficiency test vectors', () => {
             }
 
             // create a zkEVMDB and build a batch
-            const zkEVMDB = await ZkEVMDB(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
+            const zkEVMDB = await ZkEVMDB.newZkEVM(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
             const batch = await zkEVMDB.buildBatch(localExitRoot, globalExitRoot);
             for (let j = 0; j < rawTxs.length; j++) {
                 batch.addRawTx(rawTxs[j]);
@@ -197,20 +196,20 @@ describe('Proof of efficiency test vectors', () => {
             const circuitInput = await batch.getCircuitInput();
 
             // Check the encode transaction match with the vector test
-            expect(fullTransactionString).to.be.equal(batch.getFullTransactionsString());
+            expect(batchL2Data).to.be.equal(batch.getBatchL2Data());
 
-            // Check the batchL2HashData and the input hash
-            expect(batchL2HashData).to.be.equal(circuitInput.batchL2HashData);
+            // Check the batchHashData and the input hash
+            expect(batchHashData).to.be.equal(circuitInput.batchHashData);
             expect(inputHash).to.be.equal(circuitInput.inputHash);
 
             /// /////////////////////////////////////////////
             // Check against the smart contracts
             /// /////////////////////////////////////////////
-            const currentStateRoot = stringToHex32(expectedOldRoot, true);
-            const currentLocalExitRoot = stringToHex32(localExitRoot, true);
-            const newStateRoot = stringToHex32(expectedNewRoot, true);
-            const newLocalExitRoot = stringToHex32(localExitRoot, true);
-            const currentGlobalExitRoot = stringToHex32(globalExitRoot, true);
+            const currentStateRoot = `0x${Scalar.e(expectedOldRoot).toString(16).padStart(64, '0')}`;
+            const currentLocalExitRoot = `0x${Scalar.e(localExitRoot).toString(16).padStart(64, '0')}`;
+            const newStateRoot = `0x${Scalar.e(expectedNewRoot).toString(16).padStart(64, '0')}`;
+            const newLocalExitRoot = `0x${Scalar.e(localExitRoot).toString(16).padStart(64, '0')}`;
+            const currentGlobalExitRoot = `0x${Scalar.e(globalExitRoot).toString(16).padStart(64, '0')}`;
 
             const walletSequencer = walletMap[sequencerAddress].connect(ethers.provider);
             const aggregatorAddress = aggregator.address;
@@ -232,7 +231,7 @@ describe('Proof of efficiency test vectors', () => {
 
             // sequencer send the batch
             const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
-            const l2txData = fullTransactionString;
+            const l2txData = batchL2Data;
             const maticAmount = ethers.utils.parseEther('1');
 
             await expect(
@@ -254,7 +253,7 @@ describe('Proof of efficiency test vectors', () => {
 
             // check batch sent
             const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent + 1);
-            expect(sentBatch.batchL2HashData).to.be.equal(batchL2HashData);
+            expect(sentBatch.batchHashData).to.be.equal(batchHashData);
 
             // calculate circuit input
             const circuitInputSC = await proofOfEfficiencyContract.calculateCircuitInput(
@@ -263,7 +262,7 @@ describe('Proof of efficiency test vectors', () => {
                 newStateRoot,
                 newLocalExitRoot,
                 sequencerAddress,
-                batchL2HashData,
+                batchHashData,
                 chainIdSequencer,
                 batchNum,
             );
@@ -275,7 +274,7 @@ describe('Proof of efficiency test vectors', () => {
                 newStateRoot,
                 newLocalExitRoot,
                 sequencerAddress,
-                batchL2HashData,
+                batchHashData,
                 chainIdSequencer,
                 batchNum,
             );

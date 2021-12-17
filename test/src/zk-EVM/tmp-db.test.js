@@ -33,7 +33,7 @@ describe('Tmp Db Test', () => {
         const smt = new SMT(db, arity, poseidon, poseidon.F);
 
         // create TmpDB
-        const tmpDB = new TmpDB(poseidon.F, db);
+        const tmpDB = new TmpDB(db);
 
         // load smtTMp
         const smtTmp = new SMT(tmpDB, arity, poseidon, poseidon.F);
@@ -59,7 +59,7 @@ describe('Tmp Db Test', () => {
         const smt = new SMT(db, arity, poseidon, poseidon.F);
 
         // create TmpDB
-        const tmpDB = new TmpDB(poseidon.F, db);
+        const tmpDB = new TmpDB(db);
 
         // load smtTMp
         const smtTmp = new SMT(tmpDB, arity, poseidon, poseidon.F);

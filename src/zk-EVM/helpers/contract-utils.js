@@ -1,15 +1,14 @@
-/* eslint-disable no-await-in-loop, no-console */
 const { ethers } = require('hardhat');
-const { stringToHex32 } = require('./utils');
+const { Scalar } = require('ffjavascript');
 
 /**
- * Calculate leaf value
+ * Compute globalHash
  * @param {String} currentStateRoot - Current state Root
  * @param {String} currentLocalExitRoot - Current local exit root
  * @param {String} newStateRoot - New State root once the batch is processed
  * @param {String} newLocalExitRoot - New local exit root once the batch is processed
  * @param {String} sequencerAddress - Sequencer address
- * @param {String} batchL2HashData - Batch hash data
+ * @param {String} batchHashData - Batch hash data
  * @param {Number} batchChainID - Batch chain ID
  * @param {Number} batchNum - Batch number
  * @returns {String} - Leaf value
@@ -20,14 +19,14 @@ function calculateCircuitInput(
     newStateRoot,
     newLocalExitRoot,
     sequencerAddress,
-    batchL2HashData,
+    batchHashData,
     batchChainID,
     batchNum,
 ) {
-    const currentStateRootHex = stringToHex32(currentStateRoot, true);
-    const currentLocalExitRootHex = stringToHex32(currentLocalExitRoot, true);
-    const newStateRootHex = stringToHex32(newStateRoot, true);
-    const newLocalExitRootHex = stringToHex32(newLocalExitRoot, true);
+    const currentStateRootHex = `0x${Scalar.e(currentStateRoot).toString(16).padStart(64, '0')}`;
+    const currentLocalExitRootHex = `0x${Scalar.e(currentLocalExitRoot).toString(16).padStart(64, '0')}`;
+    const newStateRootHex = `0x${Scalar.e(newStateRoot).toString(16).padStart(64, '0')}`;
+    const newLocalExitRootHex = `0x${Scalar.e(newLocalExitRoot).toString(16).padStart(64, '0')}`;
 
     return ethers.utils.solidityKeccak256(
         ['bytes32', 'bytes32', 'bytes32', 'bytes32', 'address', 'bytes32', 'uint32', 'uint32'],
@@ -37,7 +36,7 @@ function calculateCircuitInput(
             newStateRootHex,
             newLocalExitRootHex,
             sequencerAddress,
-            batchL2HashData,
+            batchHashData,
             batchChainID,
             batchNum,
         ],
@@ -46,19 +45,19 @@ function calculateCircuitInput(
 
 /**
  * Batch hash data
- * @param {String} fullTransactionString - All raw transaction data concatenated
+ * @param {String} batchL2Data - All raw transaction data concatenated
  * @param {String} globalExitRoot - Global Exit Root
  * @returns {String} - Batch hash data
  */
-function calculateBatchL2HashData(
-    fullTransactionString,
+function calculateBatchHashData(
+    batchL2Data,
     globalExitRoot,
 ) {
-    const globalExitRootHex = stringToHex32(globalExitRoot, true);
-    return ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [fullTransactionString, globalExitRootHex]);
+    const globalExitRootHex = `0x${Scalar.e(globalExitRoot).toString(16).padStart(64, '0')}`;
+    return ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [batchL2Data, globalExitRootHex]);
 }
 
 module.exports = {
     calculateCircuitInput,
-    calculateBatchL2HashData,
+    calculateBatchHashData,
 };

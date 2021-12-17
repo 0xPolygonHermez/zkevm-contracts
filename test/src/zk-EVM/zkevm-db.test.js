@@ -43,11 +43,10 @@ describe('zkEVM-db Test', () => {
         const db = new MemDB(F);
 
         // create a zkEVMDB and build a batch
-        const zkEVMDB = await ZkEVMDB(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
-
+        const zkEVMDB = await ZkEVMDB.newZkEVM(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
         // check intiialize parameters
-        const chainIDDB = await getValue(Constants.DB_ChainID, db, F);
-        const arityDB = await getValue(Constants.DB_Arity, db, F);
+        const chainIDDB = await getValue(Constants.DB_SeqChainID, db);
+        const arityDB = await getValue(Constants.DB_Arity, db);
 
         expect(Scalar.toNumber(chainIDDB)).to.be.equal(chainIdSequencer);
         expect(Scalar.toNumber(arityDB)).to.be.equal(arity);
@@ -60,7 +59,7 @@ describe('zkEVM-db Test', () => {
 
         // checks DB state previous consolidate zkEVMDB
         try {
-            await getValue(Constants.DB_LastBatch, db, F);
+            await getValue(Constants.DB_LastBatch, db);
             throw new Error('DB should be empty');
         } catch (error) {
             expect(error.toString().includes("Cannot read property 'length' of undefined")).to.be.equal(true);
@@ -83,7 +82,7 @@ describe('zkEVM-db Test', () => {
         expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.stateRoot);
 
         // Try to import the DB
-        const zkEVMDBImported = await ZkEVMDB(db, null, null, poseidon, sequencerAddress, null);
+        const zkEVMDBImported = await ZkEVMDB.newZkEVM(db, null, null, poseidon, sequencerAddress, null);
 
         expect(zkEVMDB.lastBatch).to.be.equal(zkEVMDBImported.lastBatch);
         expect(zkEVMDB.stateRoot).to.be.deep.equal(zkEVMDBImported.stateRoot);
@@ -128,7 +127,7 @@ describe('zkEVM-db Test', () => {
         }
 
         // set genesis block
-        const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt, F);
+        const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt);
         for (let j = 0; j < addressArray.length; j++) {
             const currentState = await stateUtils.getState(addressArray[j], smt, genesisRoot);
 
@@ -168,8 +167,7 @@ describe('zkEVM-db Test', () => {
         }
 
         // create a zkEVMDB and build a batch
-        const zkEVMDB = await ZkEVMDB(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
-
+        const zkEVMDB = await ZkEVMDB.newZkEVM(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
         const batch = await zkEVMDB.buildBatch(localExitRoot, globalExitRoot);
         for (let j = 0; j < rawTxs.length; j++) {
             batch.addRawTx(rawTxs[j]);

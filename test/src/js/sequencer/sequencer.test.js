@@ -106,7 +106,7 @@ describe('Sequencer test', async () => {
         const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
         const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent);
         expect(sentBatch.sequencerAddress).to.be.equal(sequencerSigner.address);
-        expect(sentBatch.batchL2HashData).to.be.equal(ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txsData, lastGlobalExitRoot]));
+        expect(sentBatch.batchHashData).to.be.equal(ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txsData, lastGlobalExitRoot]));
     });
 
     it('SendBatch 3 tx', async () => {
@@ -171,6 +171,6 @@ describe('Sequencer test', async () => {
         const lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
         const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent);
         expect(sentBatch.sequencerAddress).to.be.equal(sequencerSigner.address);
-        expect(sentBatch.batchL2HashData).to.be.equal(ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txsData, lastGlobalExitRoot]));
+        expect(sentBatch.batchHashData).to.be.equal(ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txsData, lastGlobalExitRoot]));
     });
 });

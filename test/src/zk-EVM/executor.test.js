@@ -42,10 +42,10 @@ describe('Executor Test', () => {
                 chainIdSequencer,
                 sequencerAddress,
                 expectedNewLeafs,
-                fullTransactionString,
+                batchL2Data,
                 localExitRoot,
                 globalExitRoot,
-                batchL2HashData,
+                batchHashData,
                 inputHash,
             } = testVectors[i];
 
@@ -72,7 +72,7 @@ describe('Executor Test', () => {
                 nonceArray.push(Scalar.e(nonce));
             }
 
-            const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt, F);
+            const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt);
             for (let j = 0; j < addressArray.length; j++) {
                 const currentState = await stateUtils.getState(addressArray[j], smt, genesisRoot);
 
@@ -107,12 +107,13 @@ describe('Executor Test', () => {
                     rawTxs.push(rawTx);
                     txProcessed.push(txData);
                 } catch (error) {
+                    console.log(error)
                     expect(txData.rawTx).to.equal(undefined);
                 }
             }
 
             // create a zkEVMDB and build a batch
-            const zkEVMDB = await ZkEVMDB(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
+            const zkEVMDB = await ZkEVMDB.newZkEVM(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
             const batch = await zkEVMDB.buildBatch(localExitRoot, globalExitRoot);
             for (let j = 0; j < rawTxs.length; j++) {
                 batch.addRawTx(rawTxs[j]);
@@ -152,10 +153,10 @@ describe('Executor Test', () => {
             const circuitInput = await batch.getCircuitInput();
 
             // Check the encode transaction match with the vector test
-            expect(fullTransactionString).to.be.equal(batch.getFullTransactionsString());
+            expect(batchL2Data).to.be.equal(batch.getBatchL2Data());
 
-            // Check the batchL2HashData and the input hash
-            expect(batchL2HashData).to.be.equal(circuitInput.batchL2HashData);
+            // Check the batchHashData and the input hash
+            expect(batchHashData).to.be.equal(circuitInput.batchHashData);
             expect(inputHash).to.be.equal(circuitInput.inputHash);
 
             // Save outuput in file

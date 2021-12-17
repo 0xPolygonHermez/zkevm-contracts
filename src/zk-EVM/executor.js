@@ -10,19 +10,18 @@ const stateUtils = require('./helpers/state-utils');
 const smtKeyUtils = require('./helpers/smt-key-utils');
 
 const { getCurrentDB } = require('./helpers/smt-utils');
-const { fromUint8ArrayToHex, stringToHex32, fromArrayRawTxToString } = require('./helpers/utils');
-const { calculateCircuitInput, calculateBatchL2HashData } = require('./helpers/contract-utils');
+const { calculateCircuitInput, calculateBatchHashData } = require('./helpers/contract-utils');
 
 module.exports = class Executor {
-    constructor(db, batchNumber, arity, poseidon, maxNTx, chainID, root, sequencerAddress, localExitRoot, globalExitRoot) {
+    constructor(db, batchNumber, arity, poseidon, maxNTx, seqChainID, root, sequencerAddress, localExitRoot, globalExitRoot) {
         this.db = db;
         this.batchNumber = batchNumber;
         this.arity = arity;
         this.poseidon = poseidon;
         this.maxNTx = maxNTx;
-        this.chainID = chainID;
+        this.seqChainID = seqChainID;
         this.F = poseidon.F;
-        this.tmpDB = new TmpDB(poseidon.F, db);
+        this.tmpDB = new TmpDB(db);
         this.smt = new SMT(this.tmpDB, arity, poseidon, poseidon.F);
 
         this.rawTxs = [];
@@ -82,7 +81,6 @@ module.exports = class Executor {
     * C: Valid signature
     */
     async _decodeAndCheckRawTx() {
-        this._isNotBuilded();
         if (this.decodedTxs.length !== 0) {
             throw new Error('Transactions array should be empty');
         }
@@ -122,7 +120,7 @@ module.exports = class Executor {
             }
 
             // B: Valid chainID
-            if (txDecoded.chainID !== this.chainID && txDecoded.chainID !== Constants.genericChainID) {
+            if (txDecoded.chainID !== this.seqChainID && txDecoded.chainID !== Constants.defaultSeqChainID) {
                 this.decodedTxs.push({ isInvalid: true, reason: 'TX INVALID: Chain ID does not match', tx: txDecoded });
                 continue;
             }
@@ -264,7 +262,7 @@ module.exports = class Executor {
         const oldStateSequencer = await stateUtils.getState(this.sequencerAddress, this.smt, this.currentRoot);
         const newStateSequencer = { ...oldStateSequencer };
 
-        // update balance witht the accumulated fees
+        // update balance with the accumulated fees
         newStateSequencer.balance = Scalar.add(newStateSequencer.balance, this.totalFeeAccumulated);
 
         // update root
@@ -289,47 +287,46 @@ module.exports = class Executor {
             if (!currentTx) {
                 continue;
             }
-            const { from } = currentTx;
-            const { to } = currentTx;
+            const { from, to } = currentTx;
 
             if (from && mapAddress[from] === undefined) {
-                const keyBalance = fromUint8ArrayToHex(await smtKeyUtils.keyEthAddrBalance(from, this.arity), this.F);
-                const keyNonce = fromUint8ArrayToHex(await smtKeyUtils.keyEthAddrNonce(from, this.arity), this.F);
+                const keyBalance = this.F.toString(await smtKeyUtils.keyEthAddrBalance(from, this.arity), 16).padStart(64, '0');
+                const keyNonce = this.F.toString(await smtKeyUtils.keyEthAddrNonce(from, this.arity), 16).padStart(64, '0');
                 const previousState = await stateUtils.getState(from, this.smt, this.oldStateRoot);
-                keys[keyBalance] = stringToHex32(previousState.balance);
-                keys[keyNonce] = stringToHex32(previousState.nonce);
+                keys[keyBalance] = Scalar.e(previousState.balance).toString(16).padStart(64, '0');
+                keys[keyNonce] = Scalar.e(previousState.nonce).toString(16).padStart(64, '0');
                 mapAddress[from] = true;
             }
             if (mapAddress[to] === undefined) {
-                const keyBalance = fromUint8ArrayToHex(await smtKeyUtils.keyEthAddrBalance(to, this.arity), this.F);
-                const keyNonce = fromUint8ArrayToHex(await smtKeyUtils.keyEthAddrNonce(to, this.arity), this.F);
+                const keyBalance = this.F.toString(await smtKeyUtils.keyEthAddrBalance(to, this.arity), 16).padStart(64, '0');
+                const keyNonce = this.F.toString(await smtKeyUtils.keyEthAddrNonce(to, this.arity), 16).padStart(64, '0');
                 const previousState = await stateUtils.getState(to, this.smt, this.oldStateRoot);
-                keys[keyBalance] = stringToHex32(previousState.balance);
-                keys[keyNonce] = stringToHex32(previousState.nonce);
-                mapAddress[from] = true;
+                keys[keyBalance] = Scalar.e(previousState.balance).toString(16).padStart(64, '0');
+                keys[keyNonce] = Scalar.e(previousState.nonce).toString(16).padStart(64, '0');
+                mapAddress[to] = true;
             }
         }
 
         // compute circuit inputs
-        const oldStateRoot = fromUint8ArrayToHex(this.oldStateRoot, this.F, true);
-        const newStateRoot = fromUint8ArrayToHex(this.currentRoot, this.F, true);
+        const oldStateRoot = `0x${this.F.toString(this.oldStateRoot, 16).padStart(64, '0')}`;
+        const newStateRoot = `0x${this.F.toString(this.currentRoot, 16).padStart(64, '0')}`;
 
-        const batchL2HashData = calculateBatchL2HashData(this.getFullTransactionsString(), this.globalExitRoot);
+        const batchHashData = calculateBatchHashData(this.getBatchL2Data(), this.globalExitRoot);
         const inputHash = calculateCircuitInput(
             oldStateRoot,
             this.localExitRoot,
             newStateRoot,
             this.localExitRoot,
             this.sequencerAddress,
-            batchL2HashData,
-            this.chainID,
+            batchHashData,
+            this.seqChainID,
             this.batchNumber,
         );
 
         this.circuitInput = {
             keys,
             oldStateRoot,
-            chainId: this.chainID,
+            chainId: this.seqChainID,
             db: await getCurrentDB(this.oldStateRoot, this.db, this.F),
             sequencerAddr: this.sequencerAddress,
             txs: this.rawTxs,
@@ -337,7 +334,7 @@ module.exports = class Executor {
             oldLocalExitRoot: this.localExitRoot,
             newLocalExitRoot: this.localExitRoot,
             globalExitRoot: this.globalExitRoot,
-            batchL2HashData,
+            batchHashData,
             inputHash,
         };
     }
@@ -345,8 +342,8 @@ module.exports = class Executor {
     /**
      * Return all the transaction data concatenated
      */
-    getFullTransactionsString() {
-        return fromArrayRawTxToString(this.rawTxs);
+    getBatchL2Data() {
+        return ethers.utils.RLP.encode(this.rawTxs);
     }
 
     /**
