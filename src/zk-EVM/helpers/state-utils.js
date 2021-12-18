@@ -7,7 +7,7 @@ const smtKeyUtils = require('./smt-key-utils');
  * @param {Object} smt merkle tree structure
  * @param {Uint8Array} root merkle tree root
  * @returns {Object} ethereum address state
-*/
+ */
 async function getState(ethAddr, smt, root) {
     const keyBalance = await smtKeyUtils.keyEthAddrBalance(ethAddr, smt.arity);
     const keyNonce = await smtKeyUtils.keyEthAddrNonce(ethAddr, smt.arity);
@@ -37,7 +37,7 @@ async function getState(ethAddr, smt, root) {
  * @param {Scalar|Number} balance new balance
  * @param {Scalar|Number} nonce new nonce
  * @returns {Uint8Array} new state root
-*/
+ */
 async function setAccountState(ethAddr, smt, root, balance, nonce) {
     const keyBalance = await smtKeyUtils.keyEthAddrBalance(ethAddr, smt.arity);
     const keyNonce = await smtKeyUtils.keyEthAddrNonce(ethAddr, smt.arity);

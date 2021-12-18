@@ -43,7 +43,16 @@ describe('zkEVM-db Test', () => {
         const db = new MemDB(F);
 
         // create a zkEVMDB and build a batch
-        const zkEVMDB = await ZkEVMDB.newZkEVM(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
+        const zkEVMDB = await ZkEVMDB.newZkEVM(
+            db,
+            chainIdSequencer,
+            arity,
+            poseidon,
+            sequencerAddress,
+            genesisRoot,
+            localExitRoot,
+            globalExitRoot,
+        );
         // check intiialize parameters
         const chainIDDB = await getValue(Constants.DB_SeqChainID, db);
         const arityDB = await getValue(Constants.DB_Arity, db);
@@ -52,7 +61,7 @@ describe('zkEVM-db Test', () => {
         expect(Scalar.toNumber(arityDB)).to.be.equal(arity);
 
         // build an empty batch
-        const batch = await zkEVMDB.buildBatch(localExitRoot, globalExitRoot);
+        const batch = await zkEVMDB.buildBatch();
         await batch.executeTxs();
         const newRoot = batch.currentRoot;
         expect(newRoot).to.be.equal(genesisRoot);
@@ -66,26 +75,35 @@ describe('zkEVM-db Test', () => {
         }
 
         const batchNum = Scalar.e(0);
-        expect(zkEVMDB.lastBatch).to.be.equal(batchNum);
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(batchNum);
 
         // consoldate state
         await zkEVMDB.consolidate(batch);
 
         // checks after consolidate zkEVMDB
-        expect(zkEVMDB.lastBatch).to.be.equal(Scalar.add(batchNum, 1));
-        expect(zkEVMDB.stateRoot).to.be.equal(genesisRoot);
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(Scalar.add(batchNum, 1));
+        expect(zkEVMDB.getCurrentStateRoot()).to.be.equal(genesisRoot);
 
         // check agains DB
         const lastBatchDB = await getValue(Constants.DB_LastBatch, db, F);
-        const stateRootDB = await getValue(Scalar.add(Constants.DB_Batch, lastBatchDB), db, F);
+        const stateRootDB = await getValue(Scalar.add(Constants.DB_StateRoot, lastBatchDB), db, F);
         expect(lastBatchDB).to.be.equal(Scalar.add(batchNum, 1));
-        expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.stateRoot);
+        expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.getCurrentStateRoot());
 
         // Try to import the DB
-        const zkEVMDBImported = await ZkEVMDB.newZkEVM(db, null, null, poseidon, sequencerAddress, null);
+        const zkEVMDBImported = await ZkEVMDB.newZkEVM(
+            db,
+            null,
+            null,
+            poseidon,
+            sequencerAddress,
+            null,
+            null,
+            null,
+        );
 
-        expect(zkEVMDB.lastBatch).to.be.equal(zkEVMDBImported.lastBatch);
-        expect(zkEVMDB.stateRoot).to.be.deep.equal(zkEVMDBImported.stateRoot);
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(zkEVMDBImported.getCurrentNumBatch());
+        expect(zkEVMDB.getCurrentStateRoot()).to.be.deep.equal(zkEVMDBImported.stateRoot);
         expect(zkEVMDB.arity).to.be.equal(zkEVMDBImported.arity);
         expect(zkEVMDB.chainID).to.be.equal(zkEVMDBImported.chainID);
     });
@@ -137,8 +155,10 @@ describe('zkEVM-db Test', () => {
 
         expect(F.toString(genesisRoot)).to.be.equal(expectedOldRoot);
 
-        // build, sign transaction and generate rawTxs
-        // rawTxs would be the calldata inserted in the contract
+        /*
+         * build, sign transaction and generate rawTxs
+         * rawTxs would be the calldata inserted in the contract
+         */
         const txProcessed = [];
         const rawTxs = [];
         for (let j = 0; j < txs.length; j++) {
@@ -167,8 +187,17 @@ describe('zkEVM-db Test', () => {
         }
 
         // create a zkEVMDB and build a batch
-        const zkEVMDB = await ZkEVMDB.newZkEVM(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
-        const batch = await zkEVMDB.buildBatch(localExitRoot, globalExitRoot);
+        const zkEVMDB = await ZkEVMDB.newZkEVM(
+            db,
+            chainIdSequencer,
+            arity,
+            poseidon,
+            sequencerAddress,
+            genesisRoot,
+            localExitRoot,
+            globalExitRoot,
+        );
+        const batch = await zkEVMDB.buildBatch();
         for (let j = 0; j < rawTxs.length; j++) {
             batch.addRawTx(rawTxs[j]);
         }
@@ -188,21 +217,29 @@ describe('zkEVM-db Test', () => {
         }
 
         const batchNum = Scalar.e(0);
-        expect(zkEVMDB.lastBatch).to.be.equal(batchNum);
-        expect(F.toString(zkEVMDB.stateRoot)).to.be.equal(expectedOldRoot);
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(batchNum);
+        expect(F.toString(zkEVMDB.getCurrentStateRoot())).to.be.equal(expectedOldRoot);
 
         // consoldate state
         await zkEVMDB.consolidate(batch);
 
         // checks after consolidate zkEVMDB
-        expect(zkEVMDB.lastBatch).to.be.equal(Scalar.add(batchNum, 1));
-        expect(F.toString(zkEVMDB.stateRoot)).to.be.equal(expectedNewRoot);
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(Scalar.add(batchNum, 1));
+        expect(F.toString(zkEVMDB.getCurrentStateRoot())).to.be.equal(expectedNewRoot);
+        expect(zkEVMDB.getCurrentLocalExitRoot()).to.be.equal(localExitRoot);
+        expect(zkEVMDB.getCurrentGlobalExitRoot()).to.be.equal(globalExitRoot);
 
         const lastBatchDB = await getValue(Constants.DB_LastBatch, db, F);
 
         expect(lastBatchDB).to.be.equal(Scalar.add(batchNum, 1));
 
-        const stateRootDB = await getValue(Scalar.add(Constants.DB_Batch, lastBatchDB), db, F);
-        expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.stateRoot);
+        const stateRootDB = await getValue(Scalar.add(Constants.DB_StateRoot, lastBatchDB), db, F);
+        expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.getCurrentStateRoot());
+
+        const localExitRootDB = await getValue(Scalar.add(Constants.DB_LocalExitRoot, lastBatchDB), db, F);
+        expect(localExitRootDB.toString()).to.be.equal(zkEVMDB.getCurrentLocalExitRoot());
+
+        const globalExitRootDB = await getValue(Scalar.add(Constants.DB_GlobalExitRoot, lastBatchDB), db, F);
+        expect(globalExitRootDB.toString()).to.be.deep.equal(zkEVMDB.getCurrentGlobalExitRoot());
     });
 });

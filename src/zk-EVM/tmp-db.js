@@ -33,11 +33,11 @@ class TmpDB {
     }
 
     /**
-    * Set function of the DB, all the inserts will be stored
-    * In the inserts Object
-    * @param {Uint8Array} key - Key
-    * @param {Uint8Array} value - Value
-    */
+     * Set function of the DB, all the inserts will be stored
+     * In the inserts Object
+     * @param {Uint8Array} key - Key
+     * @param {Uint8Array} value - Value
+     */
     async set(key, value) {
         const keyS = this.F.toString(key, 16).padStart(64, '0');
         this.inserts[keyS] = [];
@@ -45,8 +45,8 @@ class TmpDB {
     }
 
     /**
-    * Populate all the inserts made to the tmpDB to the srcDB
-    */
+     * Populate all the inserts made to the tmpDB to the srcDB
+     */
     async populateSrcDb() {
         const insertKeys = Object.keys(this.inserts);
         for (let i = 0; i < insertKeys.length; i++) {

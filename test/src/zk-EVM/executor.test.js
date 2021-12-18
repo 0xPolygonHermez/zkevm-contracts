@@ -82,8 +82,10 @@ describe('Executor Test', () => {
 
             expect(F.toString(genesisRoot)).to.be.equal(expectedOldRoot);
 
-            // build, sign transaction and generate rawTxs
-            // rawTxs would be the calldata inserted in the contract
+            /*
+             * build, sign transaction and generate rawTxs
+             * rawTxs would be the calldata inserted in the contract
+             */
             const txProcessed = [];
             const rawTxs = [];
             for (let j = 0; j < txs.length; j++) {
@@ -107,14 +109,22 @@ describe('Executor Test', () => {
                     rawTxs.push(rawTx);
                     txProcessed.push(txData);
                 } catch (error) {
-                    console.log(error)
                     expect(txData.rawTx).to.equal(undefined);
                 }
             }
 
             // create a zkEVMDB and build a batch
-            const zkEVMDB = await ZkEVMDB.newZkEVM(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
-            const batch = await zkEVMDB.buildBatch(localExitRoot, globalExitRoot);
+            const zkEVMDB = await ZkEVMDB.newZkEVM(
+                db,
+                chainIdSequencer,
+                arity,
+                poseidon,
+                sequencerAddress,
+                genesisRoot,
+                localExitRoot,
+                globalExitRoot,
+            );
+            const batch = await zkEVMDB.buildBatch();
             for (let j = 0; j < rawTxs.length; j++) {
                 batch.addRawTx(rawTxs[j]);
             }
@@ -130,7 +140,7 @@ describe('Executor Test', () => {
 
             // Check balances and nonces
             for (const [address, leaf] of Object.entries(expectedNewLeafs)) { // eslint-disable-line
-                const newLeaf = await stateUtils.getState(address, smt, newRoot);
+                const newLeaf = await zkEVMDB.getCurrentAccountState(address);
                 expect(newLeaf.balance.toString()).to.equal(leaf.balance);
                 expect(newLeaf.nonce.toString()).to.equal(leaf.nonce);
             }
@@ -159,12 +169,14 @@ describe('Executor Test', () => {
             expect(batchHashData).to.be.equal(circuitInput.batchHashData);
             expect(inputHash).to.be.equal(circuitInput.inputHash);
 
-            // Save outuput in file
-            // const dir = path.join(__dirname, './helpers/inputs-executor/');
-            // if (!fs.existsSync(dir)) {
-            //     fs.mkdirSync(dir);
-            // }
-            // await fs.writeFileSync(`${dir}input_${id}.json`, JSON.stringify(circuitInput, null, 2));
+            /*
+             *  // Save outuput in file
+             *  const dir = path.join(__dirname, './helpers/inputs-executor/');
+             *  if (!fs.existsSync(dir)) {
+             *      fs.mkdirSync(dir);
+             *  }
+             *  await fs.writeFileSync(`${dir}input_${id}.json`, JSON.stringify(circuitInput, null, 2));
+             */
             const expectedInput = require(`./helpers/inputs-executor/input_${id}.json`); // eslint-disable-line
             expect(circuitInput).to.be.deep.equal(expectedInput);
         }

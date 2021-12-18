@@ -38,9 +38,9 @@ module.exports = class Executor {
     }
 
     /**
-    * Add a raw transaction to the executor
-    * @param {Object} rawTx - RLP encoded transaction with signature
-    */
+     * Add a raw transaction to the executor
+     * @param {Object} rawTx - RLP encoded transaction with signature
+     */
     addRawTx(rawTx) {
         this._isNotBuilded();
         if (this.rawTxs.length >= this.maxNTx) {
@@ -50,8 +50,8 @@ module.exports = class Executor {
     }
 
     /**
-    * Execute transactions
-    */
+     * Execute transactions
+     */
     async executeTxs() {
         this._isNotBuilded();
 
@@ -71,15 +71,15 @@ module.exports = class Executor {
     }
 
     /**
-    * Try to decode and check the validity of rawTxs
-    * Save the decoded transaction, whether is valid or not, and the invalidated reason if any in a new array: decodedTxs
-    * Note that, even if this funcion mark a transactions as valid, there are some checks that are performed
-    * During the processing of the transactions, therefore can be invalidated after
-    * This funcion will check:
-    * A: Well formed RLP encoding
-    * B: Valid ChainID
-    * C: Valid signature
-    */
+     * Try to decode and check the validity of rawTxs
+     * Save the decoded transaction, whether is valid or not, and the invalidated reason if any in a new array: decodedTxs
+     * Note that, even if this funcion mark a transactions as valid, there are some checks that are performed
+     * During the processing of the transactions, therefore can be invalidated after
+     * This funcion will check:
+     * A: Well formed RLP encoding
+     * B: Valid ChainID
+     * C: Valid signature
+     */
     async _decodeAndCheckRawTx() {
         if (this.decodedTxs.length !== 0) {
             throw new Error('Transactions array should be empty');
@@ -155,8 +155,10 @@ module.exports = class Executor {
                 continue;
             }
 
-            // The RLP encoding, encodes the 0 integer as "0x" ( empty byte array),
-            // In order to be compatible with Scalar or Number we will update the 0x integer cases with 0x00
+            /*
+             * The RLP encoding, encodes the 0 integer as "0x" ( empty byte array),
+             * In order to be compatible with Scalar or Number we will update the 0x integer cases with 0x00
+             */
             const txParams = Object.keys(txDecoded);
 
             txParams.forEach((key) => {
@@ -169,19 +171,19 @@ module.exports = class Executor {
     }
 
     /**
-   * Process the decoded transactions decodedTxs
-   * Also this function will perform several checks and can mark a transactions as invalid
-   * This funcion will check:
-    * A: VALID NONCE
-    * B: ENOUGH UPFRONT TX COST
-   * Process transaction will perform the following operations
-    * from: increase nonce
-    * from: substract total tx cost
-    * from: refund unused gas
-    * to: increase balance
-    * update state
-    * finally pay all the fees to the sequencer address
-   */
+     * Process the decoded transactions decodedTxs
+     * Also this function will perform several checks and can mark a transactions as invalid
+     * This funcion will check:
+     * A: VALID NONCE
+     * B: ENOUGH UPFRONT TX COST
+     * Process transaction will perform the following operations
+     * from: increase nonce
+     * from: substract total tx cost
+     * from: refund unused gas
+     * to: increase balance
+     * update state
+     * finally pay all the fees to the sequencer address
+     */
     async _processTx() {
         for (let i = 0; i < this.decodedTxs.length; i++) {
             const currentDecodedTx = this.decodedTxs[i];
@@ -210,12 +212,18 @@ module.exports = class Executor {
                     continue;
                 }
 
-                // Get to state
-                const oldStateTo = await stateUtils.getState(currenTx.to, this.smt, this.currentRoot);
-
                 // PROCESS TX
                 const newStateFrom = { ...oldStateFrom };
-                const newStateTo = { ...oldStateTo };
+                let newStateTo;
+
+                if (Scalar.e(currenTx.from) === Scalar.e(currenTx.to)) {
+                    // In case from and to are the same, both should modify the same object
+                    newStateTo = newStateFrom;
+                } else {
+                    // Get To state
+                    const oldStateTo = await stateUtils.getState(currenTx.to, this.smt, this.currentRoot);
+                    newStateTo = { ...oldStateTo };
+                }
 
                 // from: increase nonce
                 newStateFrom.nonce = Scalar.add(newStateFrom.nonce, 1);
@@ -223,8 +231,10 @@ module.exports = class Executor {
                 // from: substract total tx cost
                 newStateFrom.balance = Scalar.sub(newStateFrom.balance, upfronTxCost);
 
-                // from: refund unused gas
-                // hardcoded gas used for an ethereum tx: 21000
+                /*
+                 * from: refund unused gas
+                 * hardcoded gas used for an ethereum tx: 21000
+                 */
                 const gasUsed = Scalar.e(21000);
                 const feeGasCost = Scalar.mul(gasUsed, currenTx.gasPrice);
                 const refund = Scalar.sub(gasLimitCost, feeGasCost);
@@ -255,8 +265,8 @@ module.exports = class Executor {
     }
 
     /**
-    * Update the sequencer balance with the fees accumulated
-    */
+     * Update the sequencer balance with the fees accumulated
+     */
     async _paySequencerFees() {
         // get sequencer state
         const oldStateSequencer = await stateUtils.getState(this.sequencerAddress, this.smt, this.currentRoot);
@@ -276,8 +286,8 @@ module.exports = class Executor {
     }
 
     /**
-    * Compute circuit input
-    */
+     * Compute circuit input
+     */
     async _computeCircuitInput() {
         // compute keys used
         const keys = {};
@@ -347,31 +357,31 @@ module.exports = class Executor {
     }
 
     /**
-    * Return circuit input
-    */
+     * Return circuit input
+     */
     getCircuitInput() {
         this._isBuilded();
         return this.circuitInput;
     }
 
     /**
-    * Throw error if batch is already builded
-    */
+     * Throw error if batch is already builded
+     */
     _isNotBuilded() {
         if (this.builded) throw new Error('Batch already builded');
     }
 
     /**
-    * Throw error if batch is already builded
-    */
+     * Throw error if batch is already builded
+     */
     _isBuilded() {
         if (!this.builded) throw new Error('Batch must first be builded');
     }
 
     /**
-    * Return the decoded transactions, whether the transactions is valid or not and the reason if any
-    * @return {String} L2 data encoded as hexadecimal
-    */
+     * Return the decoded transactions, whether the transactions is valid or not and the reason if any
+     * @return {String} L2 data encoded as hexadecimal
+     */
     async getDecodedTxs() {
         this._isBuilded();
         return this.decodedTxs;

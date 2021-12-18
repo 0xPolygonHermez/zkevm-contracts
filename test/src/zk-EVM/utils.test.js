@@ -31,8 +31,10 @@ describe('Encode and decode transactions in RLP', () => {
                 walletMap[address] = newWallet;
             }
 
-            // build, sign transaction and generate rawTxs
-            // rawTxs would be the calldata inserted in the contract
+            /*
+             * build, sign transaction and generate rawTxs
+             * rawTxs would be the calldata inserted in the contract
+             */
             const txProcessed = [];
             const rawTxs = [];
             for (let j = 0; j < txs.length; j++) {

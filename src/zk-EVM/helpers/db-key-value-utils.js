@@ -14,7 +14,7 @@ async function setValue(key, value, db) {
  * Get value using the memDB as a key value DB
  * @param {String | Scalar} key - key in scalar or hex representationç
  * @param {Object} db - mem DB
-+ * @returns {Scalar} - value
+ *+ * @returns {Scalar} - value
  */
 async function getValue(key, db) {
     const arrayValues = await db.get(db.F.e(Scalar.e(key)));

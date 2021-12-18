@@ -126,8 +126,10 @@ describe('Proof of efficiency test vectors', () => {
 
             expect(F.toString(genesisRoot)).to.be.equal(expectedOldRoot);
 
-            // build, sign transaction and generate rawTxs
-            // rawTxs would be the calldata inserted in the contract
+            /*
+             * build, sign transaction and generate rawTxs
+             * rawTxs would be the calldata inserted in the contract
+             */
             const txProcessed = [];
             const rawTxs = [];
             for (let j = 0; j < txs.length; j++) {
@@ -156,8 +158,17 @@ describe('Proof of efficiency test vectors', () => {
             }
 
             // create a zkEVMDB and build a batch
-            const zkEVMDB = await ZkEVMDB.newZkEVM(db, chainIdSequencer, arity, poseidon, sequencerAddress, genesisRoot);
-            const batch = await zkEVMDB.buildBatch(localExitRoot, globalExitRoot);
+            const zkEVMDB = await ZkEVMDB.newZkEVM(
+                db,
+                chainIdSequencer,
+                arity,
+                poseidon,
+                sequencerAddress,
+                genesisRoot,
+                localExitRoot,
+                globalExitRoot,
+            );
+            const batch = await zkEVMDB.buildBatch();
             for (let j = 0; j < rawTxs.length; j++) {
                 batch.addRawTx(rawTxs[j]);
             }
@@ -173,7 +184,7 @@ describe('Proof of efficiency test vectors', () => {
 
             // Check balances and nonces
             for (const [address, leaf] of Object.entries(expectedNewLeafs)) { // eslint-disable-line
-                const newLeaf = await stateUtils.getState(address, smt, newRoot);
+                const newLeaf = await zkEVMDB.getCurrentAccountState(address);
                 expect(newLeaf.balance.toString()).to.equal(leaf.balance);
                 expect(newLeaf.nonce.toString()).to.equal(leaf.nonce);
             }
@@ -202,9 +213,11 @@ describe('Proof of efficiency test vectors', () => {
             expect(batchHashData).to.be.equal(circuitInput.batchHashData);
             expect(inputHash).to.be.equal(circuitInput.inputHash);
 
-            /// /////////////////////////////////////////////
-            // Check against the smart contracts
-            /// /////////////////////////////////////////////
+            /*
+             * /// /////////////////////////////////////////////
+             * // Check against the smart contracts
+             * /// /////////////////////////////////////////////
+             */
             const currentStateRoot = `0x${Scalar.e(expectedOldRoot).toString(16).padStart(64, '0')}`;
             const currentLocalExitRoot = `0x${Scalar.e(localExitRoot).toString(16).padStart(64, '0')}`;
             const newStateRoot = `0x${Scalar.e(expectedNewRoot).toString(16).padStart(64, '0')}`;
