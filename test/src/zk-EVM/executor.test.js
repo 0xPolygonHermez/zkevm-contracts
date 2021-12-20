@@ -26,10 +26,6 @@ describe('Executor Test', () => {
         testVectors = JSON.parse(fs.readFileSync(path.join(__dirname, './helpers/test-vector-data/state-transition.json')));
     });
 
-    after(async () => {
-        globalThis.curve_bn128.terminate(); // eslint-disable-line
-    });
-
     it('Check test vectors', async () => {
         for (let i = 0; i < testVectors.length; i++) {
             const {

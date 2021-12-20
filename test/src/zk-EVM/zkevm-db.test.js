@@ -28,10 +28,6 @@ describe('zkEVM-db Test', () => {
         testVectors = JSON.parse(fs.readFileSync(path.join(__dirname, './helpers/test-vector-data/state-transition.json')));
     });
 
-    after(async () => {
-        globalThis.curve_bn128.terminate(); // eslint-disable-line
-    });
-
     it('Check zkEVMDB basic functions', async () => {
         const arity = 4;
         const chainIdSequencer = 100;

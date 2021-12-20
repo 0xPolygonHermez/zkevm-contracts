@@ -20,10 +20,6 @@ describe('Tmp Db Test', () => {
         F = poseidon.F;
     });
 
-    after(async () => {
-        globalThis.curve_bn128.terminate(); // eslint-disable-line
-    });
-
     it('Check that tmpDB gets the state from srcDb', async () => {
         const arity = 4;
         const address = '0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D';

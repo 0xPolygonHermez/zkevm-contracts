@@ -80,7 +80,7 @@ class ZkEVMDB {
     }
 
     /**
-     * Get the current Batch numbet
+     * Get the current Batch number
      * @returns {Scalar} batch Number
      */
     getCurrentNumBatch() {
@@ -112,12 +112,13 @@ class ZkEVMDB {
     }
 
     /**
-     * Create a enw instance of the ZkEVMDB
+     * Create a new instance of the ZkEVMDB
      * @param {Object} db - Mem db object
      * @param {Object} seqChainID - Sequencer chian id
      * @param {Object} poseidon - Poseidon object
      * @param {String} sequencerAddress - Sequencer address
      * @param {Uint8Array} root - Executor object
+     * @returns {Object} ZkEVMDB object
      */
     static async newZkEVM(db, seqChainID, arity, poseidon, sequencerAddress, stateRoot, localExitRoot, globalExitRoot) {
         const { F } = poseidon;
