@@ -19,7 +19,7 @@ In project root execute:
 
 ```
 npm i
-npm run dockerContracts
+npm run docker:contracts
 ```
 
 A new docker `hermez-geth1.3:latest` will be created

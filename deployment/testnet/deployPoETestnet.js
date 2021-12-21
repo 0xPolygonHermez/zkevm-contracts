@@ -72,6 +72,20 @@ async function main() {
     console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
     console.log('verifierMockAddress:', await proofOfEfficiencyContract.rollupVerifier());
 
+    // calculate address and private Keys:
+    DEFAULT_MNEMONIC = "test test test test test test test test test test test junk";
+    const menmonic = process.env.MNEMONIC || DEFAULT_MNEMONIC
+    const defaultAccountsJson = 20;
+    const accountsArray = [];
+    for (let i = 0; i < defaultAccountsJson; i++) {
+        const path = `m/44'/60'/0'/0/${i}`
+        const wallet = ethers.Wallet.fromMnemonic(menmonic, path);
+        accountsArray.push({
+            address: wallet.address,
+            pvtKey: wallet.privateKey
+        });
+    }
+
     const outputJson = {
         proofOfEfficiencyAddress: proofOfEfficiencyContract.address,
         bridgeAddress: bridgeContract.address,

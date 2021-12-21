@@ -162,8 +162,8 @@ describe('Executor Test', () => {
             expect(batchL2Data).to.be.equal(batch.getBatchL2Data());
 
             // Check the batchHashData and the input hash
-            expect(batchHashData).to.be.equal(circuitInput.batchHashData);
-            expect(inputHash).to.be.equal(circuitInput.inputHash);
+            expect(batchHashData).to.be.equal(Scalar.e(circuitInput.batchHashData).toString());
+            expect(inputHash).to.be.equal(Scalar.e(circuitInput.inputHash).toString());
 
             /*
              *  // Save outuput in file

@@ -210,8 +210,8 @@ describe('Proof of efficiency test vectors', () => {
             expect(batchL2Data).to.be.equal(batch.getBatchL2Data());
 
             // Check the batchHashData and the input hash
-            expect(batchHashData).to.be.equal(circuitInput.batchHashData);
-            expect(inputHash).to.be.equal(circuitInput.inputHash);
+            expect(batchHashData).to.be.equal(Scalar.e(circuitInput.batchHashData).toString());
+            expect(inputHash).to.be.equal(Scalar.e(circuitInput.inputHash).toString());
 
             /*
              * /// /////////////////////////////////////////////
@@ -266,7 +266,7 @@ describe('Proof of efficiency test vectors', () => {
 
             // check batch sent
             const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent + 1);
-            expect(sentBatch.batchHashData).to.be.equal(batchHashData);
+            expect(sentBatch.batchHashData).to.be.equal(circuitInput.batchHashData);
 
             // calculate circuit input
             const circuitInputSC = await proofOfEfficiencyContract.calculateCircuitInput(
@@ -275,7 +275,7 @@ describe('Proof of efficiency test vectors', () => {
                 newStateRoot,
                 newLocalExitRoot,
                 sequencerAddress,
-                batchHashData,
+                circuitInput.batchHashData,
                 chainIdSequencer,
                 batchNum,
             );
@@ -287,12 +287,12 @@ describe('Proof of efficiency test vectors', () => {
                 newStateRoot,
                 newLocalExitRoot,
                 sequencerAddress,
-                batchHashData,
+                circuitInput.batchHashData,
                 chainIdSequencer,
                 batchNum,
             );
             expect(circuitInputSC).to.be.equal(circuitInputJS);
-            expect(circuitInputSC).to.be.equal(inputHash);
+            expect(circuitInputSC).to.be.equal(`0x${Scalar.e(inputHash).toString(16)}`);
 
             // Check the input parameters are correct
             const circuitNextInputSC = await proofOfEfficiencyContract.getNextCircuitInput(

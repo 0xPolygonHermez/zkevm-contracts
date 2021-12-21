@@ -31,8 +31,6 @@ async function main() {
             expectedNewLeafs,
             localExitRoot,
             globalExitRoot,
-            batchHashData,
-            inputHash,
         } = testVectors[i];
 
         const currentTestVector = testVectors[i];
@@ -159,22 +157,12 @@ async function main() {
         // Check the encode transaction match with the vector test
         currentTestVector.batchL2Data = batch.getBatchL2Data();
 
-        currentTestVector.batchHashData = circuitInput.batchHashData;
-        currentTestVector.inputHash = circuitInput.inputHash;
+        currentTestVector.batchHashData = Scalar.e(circuitInput.batchHashData).toString();
+        currentTestVector.inputHash = Scalar.e(circuitInput.inputHash).toString();
 
         currentTestVector.globalExitRoot = Scalar.e(circuitInput.globalExitRoot).toString();
         currentTestVector.localExitRoot = Scalar.e(circuitInput.oldLocalExitRoot).toString();
         currentTestVector.newLocalExitRoot = Scalar.e(circuitInput.newLocalExitRoot).toString();
-
-        // // Save outuput in file
-        // const dir = path.join(__dirname, './helpers/inputs-executor/');
-        // if (!fs.existsSync(dir)) {
-        //     fs.mkdirSync(dir);
-        // }
-        // await fs.writeFileSync(`${dir}input_${id}.json`, JSON.stringify(circuitInput, null, 2));
-
-        // const expectedInput = require(`./helpers/inputs-executor/input_${id}.json`); // eslint-disable-line
-        // expect(circuitInput).to.be.deep.equal(expectedInput);
     }
 
     const dir = path.join(__dirname, '../../test/src/zk-EVM/helpers/test-vector-data/state-transition.json');
