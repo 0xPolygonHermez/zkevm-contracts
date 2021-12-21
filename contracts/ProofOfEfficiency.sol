@@ -31,7 +31,7 @@ contract ProofOfEfficiency is Ownable {
     bytes4 private constant _PERMIT_SIGNATURE = 0xd505accf;
 
     // Default chainID
-    uint32 public constant DEFAULT_CHAIN_ID = 10000;
+    uint32 public constant DEFAULT_CHAIN_ID = 1000;
 
     // MATIC token address
     IERC20 public immutable matic;

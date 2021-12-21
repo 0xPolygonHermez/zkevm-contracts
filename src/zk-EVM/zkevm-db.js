@@ -59,11 +59,40 @@ class ZkEVMDB {
         // Populate actual DB with the keys and values inserted in the batch
         await executor.tmpDB.populateSrcDb();
 
-        await setValue(Scalar.add(Constants.DB_StateRoot, executor.batchNumber), this.F.toString(executor.currentRoot), this.db, this.F);
-        await setValue(Scalar.add(Constants.DB_LocalExitRoot, executor.batchNumber), executor.localExitRoot, this.db, this.F);
-        await setValue(Scalar.add(Constants.DB_GlobalExitRoot, executor.batchNumber), executor.globalExitRoot, this.db, this.F);
+        // Set state root
+        await setValue(
+            Scalar.add(Constants.DB_StateRoot, executor.batchNumber),
+            this.F.toString(executor.currentRoot),
+            this.db,
+            this.F,
+        );
+
+        // Set local exit root
+        await setValue(
+            Scalar.add(
+                Constants.DB_LocalExitRoot,
+                executor.batchNumber,
+            ),
+            this.F.toString(executor.localExitRoot),
+            this.db,
+            this.F,
+        );
+
+        // Set global exit root
+        await setValue(
+            Scalar.add(
+                Constants.DB_GlobalExitRoot,
+                executor.batchNumber,
+            ),
+            this.F.toString(executor.globalExitRoot),
+            this.db,
+            this.F,
+        );
+
+        // Set last batch number
         await setValue(Constants.DB_LastBatch, executor.batchNumber, this.db, this.F);
 
+        // Update ZKEVMDB variables
         this.lastBatch = executor.batchNumber;
         this.stateRoot = executor.currentRoot;
         this.localExitRoot = executor.localExitRoot;

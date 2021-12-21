@@ -8,7 +8,7 @@ module.exports.DB_GlobalExitRoot = ethers.utils.id(('Rollup_DB_GlobalExitRoot'))
 module.exports.DB_SeqChainID = ethers.utils.id(('Rollup_DB_SeqChainID')).slice(0, -6);
 module.exports.DB_Arity = ethers.utils.id(('Rollup_DB_Arity')).slice(0, -6);
 
-module.exports.defaultSeqChainID = 100000;
+module.exports.defaultSeqChainID = 1000;
 module.exports.defaultArity = 4;
 
 module.exports.constantBalance = 0;

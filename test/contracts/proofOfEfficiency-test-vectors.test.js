@@ -165,8 +165,8 @@ describe('Proof of efficiency test vectors', () => {
                 poseidon,
                 sequencerAddress,
                 genesisRoot,
-                localExitRoot,
-                globalExitRoot,
+                F.e(Scalar.e(localExitRoot)),
+                F.e(Scalar.e(globalExitRoot)),
             );
             const batch = await zkEVMDB.buildBatch();
             for (let j = 0; j < rawTxs.length; j++) {

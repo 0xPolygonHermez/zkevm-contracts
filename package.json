@@ -28,7 +28,7 @@
   "license": "GPL-3.0",
   "scripts": {
     "test:SC": "npx hardhat test",
-    "test:src": "npx mocha test/src/ --recursive --exit",
+    "test:src": "npx mocha test/src/ --recursive",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates",
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
     "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./docker/scripts",

@@ -4,7 +4,7 @@ const { ethers } = require('hardhat');
 const fs = require('fs');
 const path = require('path');
 
-const testVectors = require('../../src/zk-EVM/helpers/test-vector-data/state-transition.json');
+const testVectors = require('../../test/src/zk-EVM/helpers/test-vector-data/state-transition.json');
 
 async function main() {
     // deploy proof of efficiency
@@ -17,7 +17,6 @@ async function main() {
             id,
             txs,
             batchL2Data,
-            batchHashData,
         } = testVectors[i];
 
         const fullCallData = ProofOfEfficiencyFactory.interface.encodeFunctionData('sendBatch', [
@@ -29,7 +28,6 @@ async function main() {
             id,
             txs,
             batchL2Data,
-            batchHashData,
             maticAmount: maticAmount.toString(),
             fullCallData,
         });

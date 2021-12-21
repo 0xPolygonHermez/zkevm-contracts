@@ -320,19 +320,20 @@ module.exports = class Executor {
         // compute circuit inputs
         const oldStateRoot = `0x${this.F.toString(this.oldStateRoot, 16).padStart(64, '0')}`;
         const newStateRoot = `0x${this.F.toString(this.currentRoot, 16).padStart(64, '0')}`;
+        const localExitRoot = `0x${this.F.toString(this.localExitRoot, 16).padStart(64, '0')}`;
+        const globalExitRoot = `0x${this.F.toString(this.globalExitRoot, 16).padStart(64, '0')}`;
 
-        const batchHashData = calculateBatchHashData(this.getBatchL2Data(), this.globalExitRoot);
+        const batchHashData = calculateBatchHashData(this.getBatchL2Data(), globalExitRoot);
         const inputHash = calculateCircuitInput(
             oldStateRoot,
-            this.localExitRoot,
+            localExitRoot,
             newStateRoot,
-            this.localExitRoot,
+            localExitRoot, // should be the new exit root, but it's nod modified in this version
             this.sequencerAddress,
             batchHashData,
             this.seqChainID,
             this.batchNumber,
         );
-
         this.circuitInput = {
             keys,
             oldStateRoot,
@@ -341,11 +342,12 @@ module.exports = class Executor {
             sequencerAddr: this.sequencerAddress,
             txs: this.rawTxs,
             newStateRoot,
-            oldLocalExitRoot: this.localExitRoot,
-            newLocalExitRoot: this.localExitRoot,
-            globalExitRoot: this.globalExitRoot,
+            oldLocalExitRoot: localExitRoot,
+            newLocalExitRoot: localExitRoot,
+            globalExitRoot,
             batchHashData,
             inputHash,
+            batchNum: Scalar.toNumber(this.batchNumber),
         };
     }
 

@@ -22,7 +22,7 @@ async function checkDeployment() {
 
     // Check public constants
     expect(await proofOfEfficiencyContract.matic()).to.equal(maticTokenContract.address);
-    expect(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID()).to.equal(ethers.BigNumber.from(10000));
+    expect(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID()).to.equal(ethers.BigNumber.from(1000));
     expect(await proofOfEfficiencyContract.numSequencers()).to.equal(ethers.BigNumber.from(0));
     expect(await proofOfEfficiencyContract.lastBatchSent()).to.equal(ethers.BigNumber.from(0));
     expect(await proofOfEfficiencyContract.lastVerifiedBatch()).to.equal(ethers.BigNumber.from(0));
