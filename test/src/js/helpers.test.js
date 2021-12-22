@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 const fs = require('fs');
 const path = require('path');
 const { Scalar } = require('ffjavascript');
-const helpers = require('../../js/helpers');
+const helpers = require('../../../src/js/helpers');
 
 describe('toHexString', () => {
     it('Number to hexString', async () => {
@@ -97,7 +97,7 @@ describe('encodeTx', () => {
     let testVector;
 
     it('load test vectors', async () => {
-        testVector = JSON.parse(fs.readFileSync(path.join(__dirname, '../test-vectors/helpers.json')));
+        testVector = JSON.parse(fs.readFileSync(path.join(__dirname, './test-vectors/helpers.json')));
     });
 
     it('encodeSignedTx and test-vectors check', async () => {

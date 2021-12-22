@@ -23,7 +23,7 @@ contract ProofOfEfficiency is Ownable {
 
     struct BatchData {
         address sequencerAddress;
-        bytes32 batchL2HashData;
+        bytes32 batchHashData;
         uint256 maticCollateral;
     }
 
@@ -31,7 +31,7 @@ contract ProofOfEfficiency is Ownable {
     bytes4 private constant _PERMIT_SIGNATURE = 0xd505accf;
 
     // Default chainID
-    uint32 public constant DEFAULT_CHAIN_ID = 10000;
+    uint32 public constant DEFAULT_CHAIN_ID = 1000;
 
     // MATIC token address
     IERC20 public immutable matic;
@@ -141,7 +141,7 @@ contract ProofOfEfficiency is Ownable {
 
         // Update sentBatches mapping
         lastBatchSent++;
-        sentBatches[lastBatchSent].batchL2HashData = keccak256(
+        sentBatches[lastBatchSent].batchHashData = keccak256(
             abi.encodePacked(transactions, bridge.getLastGlobalExitRoot())
         );
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
@@ -193,7 +193,7 @@ contract ProofOfEfficiency is Ownable {
                     newStateRoot,
                     newLocalExitRoot,
                     sequencerAddress,
-                    currentBatch.batchL2HashData,
+                    currentBatch.batchHashData,
                     batchChainID,
                     batchNum
                 )

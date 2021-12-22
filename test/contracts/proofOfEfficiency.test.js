@@ -1,7 +1,7 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const { calculateCircuitInput } = require('./helpers/contracts-helpers');
+const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
 
 describe('Proof of efficiency', () => {
     let deployer;
@@ -210,8 +210,8 @@ describe('Proof of efficiency', () => {
         lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
         const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent);
 
-        const batchL2HashData = ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txData, lastGlobalExitRoot]);
-        expect(sentBatch.batchL2HashData).to.be.equal(batchL2HashData);
+        const batchHashData = ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txData, lastGlobalExitRoot]);
+        expect(sentBatch.batchHashData).to.be.equal(batchHashData);
 
         // Compute circuit input with the SC function
         const currentStateRoot = await proofOfEfficiencyContract.currentStateRoot();
@@ -227,7 +227,7 @@ describe('Proof of efficiency', () => {
             newStateRoot,
             newLocalExitRoot,
             sequencerAddress,
-            batchL2HashData,
+            batchHashData,
             batchChainID,
             batchNum,
         );
@@ -239,7 +239,7 @@ describe('Proof of efficiency', () => {
             newStateRoot,
             newLocalExitRoot,
             sequencerAddress,
-            batchL2HashData,
+            batchHashData,
             batchChainID,
             batchNum,
         );

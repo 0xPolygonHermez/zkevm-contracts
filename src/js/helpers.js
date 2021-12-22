@@ -20,7 +20,7 @@ function toHexString(num) {
 /**
  * Function to get an RLP encode: rlp(nonce, gasprice, startgas, to, value, data, chainid, 0, 0)
  * @param {Object} tx = { nonce, gasPrice, gasLimit, to, value, data, chainId}
-*/
+ */
 function encodeTx(tx) {
     const encodedTx = ethers.utils.RLP.encode([
         toHexString(tx.nonce),

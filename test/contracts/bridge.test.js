@@ -2,11 +2,11 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const {
     MerkleTreeBridge,
-} = require('../../src/merkle-tree-bridge');
+} = require('../../src/bridge-merkle-tree/merkle-tree-bridge');
 const {
     verifyMerkleProof,
     calculateLeafValue,
-} = require('../../src/utils-merkle-tree-bridge');
+} = require('../../src/bridge-merkle-tree/utils-merkle-tree-bridge');
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
@@ -498,8 +498,10 @@ describe('Bridge Contract', () => {
         )).to.be.revertedWith('ETH_TRANSFER_FAILED');
 
         const balanceDeployer = await ethers.provider.getBalance(deployer.address);
-        // Create a deposit to add ether to the Bridge
-        // Check deposit amount ether asserts
+        /*
+         * Create a deposit to add ether to the Bridge
+         * Check deposit amount ether asserts
+         */
         await expect(bridgeContract.deposit(tokenAddress, amount, 1, destinationAddress, { value: ethers.utils.parseEther('100') })).to.be.revertedWith('Bridge::deposit: AMOUNT_DOES_NOT_MATCH_MSG_VALUE');
 
         // Cehck mannet destination assert

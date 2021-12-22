@@ -22,15 +22,17 @@
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
     "solidity-docgen": "^0.5.16",
+    "circomlibjs": "0.1.1",
     "ffjavascript": "^0.2.39"
   },
   "license": "GPL-3.0",
   "scripts": {
-    "test": "npx hardhat test",
+    "test:SC": "npx hardhat test",
+    "test:src": "npx mocha test/src/ --recursive",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates",
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
-    "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./js && npx eslint ./docker/scripts",
-    "lint:fix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./js --fix && npx eslint ./docker/scripts --fix",
+    "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./docker/scripts",
+    "lint:fix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./docker/scripts --fix",
     "compile": "npx hardhat compile",
     "check:deploy:PoE" :"npx hardhat node > /dev/null 2>&1 & npx hardhat run --network localhost deployment/testnet/deployPoETestnet.js && npx hardhat run --network localhost deployment/testnet/checkDeployment.js && pkill -f 'hardhat'",
     "docker:contracts": "./docker/scripts/deploy-docker.sh"

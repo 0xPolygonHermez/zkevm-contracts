@@ -2,11 +2,11 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const {
     MerkleTreeBridge,
-} = require('../../src/merkle-tree-bridge');
+} = require('../../src/bridge-merkle-tree/merkle-tree-bridge');
 const {
     verifyMerkleProof,
     calculateLeafValue,
-} = require('../../src/utils-merkle-tree-bridge');
+} = require('../../src/bridge-merkle-tree/utils-merkle-tree-bridge');
 
 describe('Deposit Contract', () => {
     let deployer;
@@ -104,8 +104,10 @@ describe('Deposit Contract', () => {
     });
 
     it('should create a more exhaustive merkle tree test', async () => {
-        // Different deposits will be created and verified one by one
-        // Deposit 1
+        /*
+         * Different deposits will be created and verified one by one
+         * Deposit 1
+         */
         let originalNetwork = 0; // mainnet
         let tokenAddress = deployer.address;
         let amount = ethers.utils.parseEther('10');
@@ -230,8 +232,10 @@ describe('Deposit Contract', () => {
 
         expect(rootSC).to.be.equal(rootJS);
 
-        // Check merkle proof
-        // Check random index from the ones generated in the loop
+        /*
+         * Check merkle proof
+         * Check random index from the ones generated in the loop
+         */
         const promises = [];
         for (let i = 0; i < 10; i++) {
             index = Math.floor(Math.random() * (txCount - depositCount) + depositCount);

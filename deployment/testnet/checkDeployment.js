@@ -22,7 +22,7 @@ async function checkDeployment() {
 
     // Check public constants
     expect(await proofOfEfficiencyContract.matic()).to.equal(maticTokenContract.address);
-    expect(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID()).to.equal(ethers.BigNumber.from(10000));
+    expect(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID()).to.equal(ethers.BigNumber.from(1000));
     expect(await proofOfEfficiencyContract.numSequencers()).to.equal(ethers.BigNumber.from(0));
     expect(await proofOfEfficiencyContract.lastBatchSent()).to.equal(ethers.BigNumber.from(0));
     expect(await proofOfEfficiencyContract.lastVerifiedBatch()).to.equal(ethers.BigNumber.from(0));
@@ -40,7 +40,7 @@ async function checkDeployment() {
     // Check struct - BatchData
     const batchStruct = await proofOfEfficiencyContract.sentBatches(1);
     expect(batchStruct.sequencerAddress).to.equal(ethers.constants.AddressZero);
-    expect(batchStruct.batchL2HashData).to.equal(ethers.constants.HashZero);
+    expect(batchStruct.batchHashData).to.equal(ethers.constants.HashZero);
     expect(batchStruct.maticCollateral).to.equal(ethers.BigNumber.from(0));
     expect(batchStruct.length).to.equal(3);
     console.log('PoE Deployment checks succeed');
