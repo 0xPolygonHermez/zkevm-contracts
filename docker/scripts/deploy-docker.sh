@@ -7,4 +7,4 @@ npx hardhat run deployment/testnet/deployPoETestnet.js --network localhost
 mkdir docker/deploymentOutput
 mv deployment/testnet/deploy_output.json docker/deploymentOutput
 docker-compose -f docker/docker-compose.geth.yml down
-sudo docker build -t hermez-geth1.3 -f docker/Dockerfile.geth .
+sudo docker build -t hermeznetwork/geth-zkevm-contracts -f docker/Dockerfile.geth .
