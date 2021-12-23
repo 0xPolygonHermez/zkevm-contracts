@@ -74,7 +74,7 @@ describe('Bridge Contract', () => {
             .to.emit(tokenContract, 'Approval')
             .withArgs(deployer.address, bridgeContract.address, amount);
 
-        await expect(bridgeContract.deposit(tokenAddress, amount, destinationNetwork, destinationAddress))
+        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress))
             .to.emit(bridgeContract, 'DepositEvent')
             .withArgs(tokenAddress, amount, destinationNetwork, destinationAddress, depositCount);
 
@@ -172,7 +172,7 @@ describe('Bridge Contract', () => {
         const lastGlobalExitRootNum = await bridgeContract.lastGlobalExitRootNum();
 
         // Can't withdraw without tokens
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -190,7 +190,7 @@ describe('Bridge Contract', () => {
             .to.emit(tokenContract, 'Transfer')
             .withArgs(deployer.address, bridgeContract.address, amount);
 
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -212,7 +212,7 @@ describe('Bridge Contract', () => {
             );
 
         // Can't withdraw because nullifier
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -235,13 +235,13 @@ describe('Bridge Contract', () => {
         const destinationAddress = deployer.address;
 
         // create 3 new deposit
-        await expect(bridgeContract.deposit(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
+        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
             .to.emit(bridgeContract, 'DepositEvent')
             .withArgs(tokenAddress, amount, destinationNetwork, destinationAddress, depositCount);
-        await expect(bridgeContract.deposit(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
+        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
             .to.emit(bridgeContract, 'DepositEvent')
             .withArgs(tokenAddress, amount, destinationNetwork, destinationAddress, 1);
-        await expect(bridgeContract.deposit(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
+        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
             .to.emit(bridgeContract, 'DepositEvent')
             .withArgs(tokenAddress, amount, destinationNetwork, destinationAddress, 2);
 
@@ -323,7 +323,7 @@ describe('Bridge Contract', () => {
         const lastGlobalExitRootNum = await bridgeContract.lastGlobalExitRootNum();
 
         // Can't withdraw without tokens
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -342,7 +342,7 @@ describe('Bridge Contract', () => {
             .withArgs(deployer.address, bridgeContract.address, amount);
 
         // Check DESTINATION_NETWORK_NOT_MAINNET assert
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -356,7 +356,7 @@ describe('Bridge Contract', () => {
         )).to.be.revertedWith('Bridge::withdraw: DESTINATION_NETWORK_NOT_MAINNET');
 
         // Check ORIGIN_NETWORK_NOT_MAINNET assert
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             1, // Set wrong origin network
@@ -370,7 +370,7 @@ describe('Bridge Contract', () => {
         )).to.be.revertedWith('Bridge::withdraw: ORIGIN_NETWORK_NOT_MAINNET');
 
         // Check GLOBAL_EXIT_ROOT_DOES_NOT_MATCH assert
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -384,7 +384,7 @@ describe('Bridge Contract', () => {
         )).to.be.revertedWith('Bridge::withdraw: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH');
 
         // Check SMT_INVALID assert
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -397,7 +397,7 @@ describe('Bridge Contract', () => {
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::withdraw: SMT_INVALID');
 
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -419,7 +419,7 @@ describe('Bridge Contract', () => {
             );
 
         // Check ALREADY_CLAIMED_WITHDRAW
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -484,7 +484,7 @@ describe('Bridge Contract', () => {
         const lastGlobalExitRootNum = await bridgeContract.lastGlobalExitRootNum();
 
         // Can't withdraw without tokens
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -502,18 +502,18 @@ describe('Bridge Contract', () => {
          * Create a deposit to add ether to the Bridge
          * Check deposit amount ether asserts
          */
-        await expect(bridgeContract.deposit(tokenAddress, amount, 1, destinationAddress, { value: ethers.utils.parseEther('100') })).to.be.revertedWith('Bridge::deposit: AMOUNT_DOES_NOT_MATCH_MSG_VALUE');
+        await expect(bridgeContract.bridge(tokenAddress, amount, 1, destinationAddress, { value: ethers.utils.parseEther('100') })).to.be.revertedWith('Bridge::deposit: AMOUNT_DOES_NOT_MATCH_MSG_VALUE');
 
         // Cehck mannet destination assert
-        await expect(bridgeContract.deposit(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount })).to.be.revertedWith('Bridge::deposit: DESTINATION_CANT_BE_MAINNET');
+        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount })).to.be.revertedWith('Bridge::deposit: DESTINATION_CANT_BE_MAINNET');
 
-        expect(await bridgeContract.deposit(tokenAddress, amount, 1, destinationAddress, { value: amount }));
+        expect(await bridgeContract.bridge(tokenAddress, amount, 1, destinationAddress, { value: amount }));
 
         // Check balances before withdraw
         expect(await ethers.provider.getBalance(bridgeContract.address)).to.be.equal(amount);
         expect(await ethers.provider.getBalance(deployer.address)).to.be.lte(balanceDeployer.sub(amount));
 
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,
@@ -539,7 +539,7 @@ describe('Bridge Contract', () => {
         expect(await ethers.provider.getBalance(deployer.address)).to.be.lte(balanceDeployer);
 
         // Can't withdraw because nullifier
-        await expect(bridgeContract.withdraw(
+        await expect(bridgeContract.claim(
             tokenAddress,
             amount,
             originalNetwork,

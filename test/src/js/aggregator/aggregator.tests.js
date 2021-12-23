@@ -20,6 +20,8 @@ describe('Aggregator test', async () => {
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
     const maticAmount = ethers.utils.parseEther('1');
 
+    const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
     before('Deploy contract', async () => {
         // load signers
         [deployer, aggregatorSigner, sequencerSigner] = await ethers.getSigners();
@@ -54,6 +56,7 @@ describe('Aggregator test', async () => {
             bridgeContract.address,
             maticTokenContract.address,
             verifierContract.address,
+            genesisRoot,
         );
         await proofOfEfficiencyContract.deployed();
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);

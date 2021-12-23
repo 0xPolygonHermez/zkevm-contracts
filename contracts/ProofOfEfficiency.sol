@@ -23,6 +23,7 @@ contract ProofOfEfficiency is Ownable {
 
     struct BatchData {
         address sequencerAddress;
+        uint32 chainID;
         bytes32 batchHashData;
         uint256 maticCollateral;
     }
@@ -84,16 +85,19 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @param _bridge Bridge contract address
      * @param _matic MATIC token address
-     * @param _rollupVerifier rollup verifier address
+     * @param _rollupVerifier rollup verifier addressv
+     * @param genesisRoot rollup genesis root
      */
     constructor(
         BridgeInterface _bridge,
         IERC20 _matic,
-        VerifierRollupInterface _rollupVerifier
+        VerifierRollupInterface _rollupVerifier,
+        bytes32 genesisRoot
     ) {
         bridge = _bridge;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
+        currentStateRoot = genesisRoot;
     }
 
     /**
@@ -147,6 +151,14 @@ contract ProofOfEfficiency is Ownable {
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
         sentBatches[lastBatchSent].sequencerAddress = msg.sender;
 
+        // Set chainID
+        if (sequencers[msg.sender].chainID != 0) {
+            sentBatches[lastBatchSent].chainID = sequencers[msg.sender].chainID;
+        } else {
+            // If the sequencer is not registered use the default chainID
+            sentBatches[lastBatchSent].chainID = DEFAULT_CHAIN_ID;
+        }
+
         emit SendBatch(lastBatchSent, msg.sender);
     }
 
@@ -175,15 +187,6 @@ contract ProofOfEfficiency is Ownable {
 
         // Calculate Circuit Input
         BatchData memory currentBatch = sentBatches[batchNum];
-        address sequencerAddress = currentBatch.sequencerAddress;
-
-        uint32 batchChainID;
-        if (sequencers[sequencerAddress].chainID != 0) {
-            batchChainID = sequencers[sequencerAddress].chainID;
-        } else {
-            // If the sequencer is not registered use the default chainID
-            batchChainID = DEFAULT_CHAIN_ID;
-        }
 
         uint256 input = uint256(
             keccak256(
@@ -192,9 +195,9 @@ contract ProofOfEfficiency is Ownable {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    sequencerAddress,
+                    currentBatch.sequencerAddress,
                     currentBatch.batchHashData,
-                    batchChainID,
+                    currentBatch.chainID,
                     batchNum
                 )
             )

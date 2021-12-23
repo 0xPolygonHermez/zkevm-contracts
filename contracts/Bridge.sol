@@ -69,13 +69,13 @@ contract Bridge is Ownable, DepositContract {
     }
 
     /**
-     * @notice Deposit add a new leaf to the merkle tree
+     * @notice Add a new leaf to the mainnet merkle tree
      * @param token Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      */
-    function deposit(
+    function bridge(
         IERC20 token,
         uint256 amount,
         uint32 destinationNetwork,
@@ -119,7 +119,7 @@ contract Bridge is Ownable, DepositContract {
     }
 
     /**
-     * @notice Verify merkle proof and withdraw tokens/ether
+     * @notice Verify merkle proof and claim tokens/ether
      * @param token  Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param originalNetwork original network
@@ -131,7 +131,7 @@ contract Bridge is Ownable, DepositContract {
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      */
-    function withdraw(
+    function claim(
         address token,
         uint256 amount,
         uint32 originalNetwork,

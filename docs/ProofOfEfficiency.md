@@ -10,7 +10,8 @@ To enter and exit of the L2 network will be used a Bridge smart contract
   function constructor(
     contract BridgeInterface _bridge,
     contract IERC20 _matic,
-    contract VerifierRollupInterface _rollupVerifier
+    contract VerifierRollupInterface _rollupVerifier,
+    bytes32 genesisRoot
   ) public
 ```
 
@@ -20,7 +21,8 @@ To enter and exit of the L2 network will be used a Bridge smart contract
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_bridge` | contract BridgeInterface | Bridge contract address
 |`_matic` | contract IERC20 | MATIC token address
-|`_rollupVerifier` | contract VerifierRollupInterface | rollup verifier address
+|`_rollupVerifier` | contract VerifierRollupInterface | rollup verifier addressv
+|`genesisRoot` | bytes32 | rollup genesis root
 
 ### registerSequencer
 ```solidity

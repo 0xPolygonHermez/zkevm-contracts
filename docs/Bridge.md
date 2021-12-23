@@ -15,16 +15,16 @@ This is totally a mock contract, there's just enough to test the proof of effici
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_rollupAddress` | address | Rollup contract address
 
-### deposit
+### bridge
 ```solidity
-  function deposit(
+  function bridge(
     contract IERC20 token,
     uint256 amount,
     uint32 destinationNetwork,
     address destinationAddress
   ) public
 ```
-Deposit add a new leaf to the merkle tree
+Add a new leaf to the mainnet merkle tree
 
 
 #### Parameters:
@@ -35,9 +35,9 @@ Deposit add a new leaf to the merkle tree
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
 
-### withdraw
+### claim
 ```solidity
-  function withdraw(
+  function claim(
     address token,
     uint256 amount,
     uint32 originalNetwork,
@@ -50,7 +50,7 @@ Deposit add a new leaf to the merkle tree
     bytes32 rollupExitRoot
   ) public
 ```
-Verify merkle proof and withdraw tokens/ether
+Verify merkle proof and claim tokens/ether
 
 
 #### Parameters:

@@ -17,6 +17,8 @@ describe('Proof of efficiency', () => {
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
+    const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
     beforeEach('Deploy contract', async () => {
         // load signers
         [deployer, aggregator, sequencer] = await ethers.getSigners();
@@ -51,6 +53,7 @@ describe('Proof of efficiency', () => {
             bridgeContract.address,
             maticTokenContract.address,
             verifierContract.address,
+            genesisRoot,
         );
         await proofOfEfficiencyContract.deployed();
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);

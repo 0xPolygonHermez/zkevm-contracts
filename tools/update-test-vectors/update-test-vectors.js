@@ -12,13 +12,12 @@ const SMT = require('../../src/zk-EVM/zkproverjs/smt');
 const stateUtils = require('../../src/zk-EVM/helpers/state-utils');
 
 const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
-const { setGenesisBlock } = require('../../test/src/zk-EVM/helpers/test-helpers.js');
+const { setGenesisBlock } = require('../../test/src/zk-EVM/helpers/test-helpers');
 
 async function main() {
-    let testVectors;
     const poseidon = await buildPoseidon();
-    const F = poseidon.F;
-    testVectors = JSON.parse(fs.readFileSync(path.join(__dirname, '../../test/src/zk-EVM/helpers/test-vector-data/state-transition.json')));
+    const { F } = poseidon;
+    const testVectors = JSON.parse(fs.readFileSync(path.join(__dirname, '../../test/src/zk-EVM/helpers/test-vector-data/state-transition.json')));
 
     for (let i = 0; i < testVectors.length; i++) {
         const {
@@ -85,9 +84,8 @@ async function main() {
             };
 
             try {
-
                 let rawTx = await walletMap[txData.from].signTransaction(tx);
-                currentTestVector.txs[j].rawTx = rawTx
+                currentTestVector.txs[j].rawTx = rawTx;
 
                 if (txData.encodeInvalidData) {
                     rawTx = rawTx.slice(0, -6);
@@ -128,10 +126,8 @@ async function main() {
         // Check balances and nonces
         for (const [address, leaf] of Object.entries(expectedNewLeafs)) { // eslint-disable-line
             const newLeaf = await zkEVMDB.getCurrentAccountState(address);
-            const newLeaf2 = { balance: newLeaf.balance.toString(), nonce: newLeaf.nonce.toString() }
-            currentTestVector.expectedNewLeafs[address] = newLeaf2
-            expect(newLeaf.balance.toString()).to.equal(leaf.balance);
-            expect(newLeaf.nonce.toString()).to.equal(leaf.nonce);
+            const newLeafState = { balance: newLeaf.balance.toString(), nonce: newLeaf.nonce.toString() };
+            currentTestVector.expectedNewLeafs[address] = newLeafState;
         }
 
         // Check errors on decode transactions
@@ -141,15 +137,17 @@ async function main() {
             const currentTx = decodedTx[j];
             const expectedTx = txProcessed[j];
             try {
-                expect(currentTx.reason).to.be.equal(expectedTx.reason);
+                if (currentTx.reason !== expectedTx.reason) currentTestVector.txs[expectedTx.id].reason = currentTx.reason;
             } catch (error) {
                 console.log({ currentTx }, { expectedTx }); // eslint-disable-line no-console
                 throw new Error(`Batch Id : ${id} TxId:${expectedTx.id} ${error}`);
             }
         }
 
-        // Check the circuit input
-        //const circuitInput = await batch.getCircuitInput();
+        /*
+         *  Check the circuit input
+         * const circuitInput = await batch.getCircuitInput();
+         */
 
         // Check the circuit input
         const circuitInput = await batch.getCircuitInput();
@@ -168,7 +166,6 @@ async function main() {
     const dir = path.join(__dirname, '../../test/src/zk-EVM/helpers/test-vector-data/state-transition.json');
     await fs.writeFileSync(dir, JSON.stringify(testVectors, null, 2));
 }
-
 
 main()
     .then(() => process.exit(0))

@@ -1,5 +1,6 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
+const { Scalar } = require('ffjavascript');
 const output = require('./deploy_output.json');
 
 async function checkDeployment() {
@@ -20,6 +21,8 @@ async function checkDeployment() {
     const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiency');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.attach(output.proofOfEfficiencyAddress);
 
+    const genesisRoot = `0x${Scalar.e("4091651772388093439828475955668620102367778455436412389529460210592290187513").toString(16).padStart(64, '0')}`;
+
     // Check public constants
     expect(await proofOfEfficiencyContract.matic()).to.equal(maticTokenContract.address);
     expect(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID()).to.equal(ethers.BigNumber.from(1000));
@@ -27,7 +30,7 @@ async function checkDeployment() {
     expect(await proofOfEfficiencyContract.lastBatchSent()).to.equal(ethers.BigNumber.from(0));
     expect(await proofOfEfficiencyContract.lastVerifiedBatch()).to.equal(ethers.BigNumber.from(0));
     expect(await proofOfEfficiencyContract.bridge()).to.equal(bridgeContract.address);
-    expect(await proofOfEfficiencyContract.currentStateRoot()).to.equal(ethers.BigNumber.from(ethers.constants.HashZero));
+    expect(await proofOfEfficiencyContract.currentStateRoot()).to.equal(genesisRoot);
     expect(await proofOfEfficiencyContract.currentLocalExitRoot()).to.equal(ethers.BigNumber.from(ethers.constants.HashZero));
     expect(await proofOfEfficiencyContract.rollupVerifier()).to.equal(verifierContract.address);
 

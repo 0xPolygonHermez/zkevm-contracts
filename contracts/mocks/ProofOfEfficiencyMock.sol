@@ -15,12 +15,14 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param _bridge Bridge contract address
      * @param _matic MATIC token address
      * @param _rollupVerifier rollup verifier address
+     * @param genesisRoot rollup genesis root
      */
     constructor(
         BridgeInterface _bridge,
         IERC20 _matic,
-        VerifierRollupInterface _rollupVerifier
-    ) ProofOfEfficiency(_bridge, _matic, _rollupVerifier) {}
+        VerifierRollupInterface _rollupVerifier,
+        bytes32 genesisRoot
+    ) ProofOfEfficiency(_bridge, _matic, _rollupVerifier, genesisRoot) {}
 
     /**
      * @notice Calculate the circuit input
