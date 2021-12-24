@@ -12,6 +12,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 contract Bridge is Ownable, DepositContract {
     using SafeERC20 for IERC20;
 
+    uint32 public constant MAINNET_NETWORK_ID = 0;
+
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
 
@@ -67,13 +69,13 @@ contract Bridge is Ownable, DepositContract {
     }
 
     /**
-     * @notice Deposit add a new leaf to the merkle tree
+     * @notice Add a new leaf to the mainnet merkle tree
      * @param token Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      */
-    function deposit(
+    function bridge(
         IERC20 token,
         uint256 amount,
         uint32 destinationNetwork,
@@ -90,7 +92,7 @@ contract Bridge is Ownable, DepositContract {
         }
 
         require(
-            destinationNetwork != 0,
+            destinationNetwork != MAINNET_NETWORK_ID,
             "Bridge::deposit: DESTINATION_CANT_BE_MAINNET"
         );
 
@@ -106,6 +108,7 @@ contract Bridge is Ownable, DepositContract {
         _deposit(
             address(token),
             amount,
+            MAINNET_NETWORK_ID,
             destinationNetwork,
             destinationAddress
         );
@@ -116,7 +119,7 @@ contract Bridge is Ownable, DepositContract {
     }
 
     /**
-     * @notice Verify merkle proof and withdraw tokens/ether
+     * @notice Verify merkle proof and claim tokens/ether
      * @param token  Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param originalNetwork original network
@@ -128,7 +131,7 @@ contract Bridge is Ownable, DepositContract {
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      */
-    function withdraw(
+    function claim(
         address token,
         uint256 amount,
         uint32 originalNetwork,
@@ -148,13 +151,13 @@ contract Bridge is Ownable, DepositContract {
 
         // Destination network must be mainnet
         require(
-            destinationNetwork == 0,
+            destinationNetwork == MAINNET_NETWORK_ID,
             "Bridge::withdraw: DESTINATION_NETWORK_NOT_MAINNET"
         );
 
         // This should create wrapped erc20 tokens, for now not supported
         require(
-            originalNetwork == 0,
+            originalNetwork == MAINNET_NETWORK_ID,
             "Bridge::withdraw: ORIGIN_NETWORK_NOT_MAINNET"
         );
 

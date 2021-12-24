@@ -1,11 +1,12 @@
-This is totally a mock contract, there's just enough to test the proof of efficiency contract
+Bridge that will be deployed on L2 in the Zk-EVM
+For now only supports mainnet
 
 
 ## Functions
 ### constructor
 ```solidity
   function constructor(
-    address _rollupAddress
+    uint32 _networkID
   ) public
 ```
 
@@ -13,24 +14,24 @@ This is totally a mock contract, there's just enough to test the proof of effici
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_rollupAddress` | address | Rollup contract address
+|`_networkID` | uint32 | Rollup contract address
 
 ### bridge
 ```solidity
   function bridge(
-    contract IERC20 token,
+    address token,
     uint256 amount,
     uint32 destinationNetwork,
     address destinationAddress
   ) public
 ```
-Add a new leaf to the mainnet merkle tree
+Deposit add a new leaf to the merkle tree
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | contract IERC20 | Token address, 0 address is reserved for ether
+|`token` | address | Token address, 0 address is reserved for ether
 |`amount` | uint256 | Amount of tokens
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
@@ -38,7 +39,7 @@ Add a new leaf to the mainnet merkle tree
 ### claim
 ```solidity
   function claim(
-    address token,
+    address originalTokenAddress,
     uint256 amount,
     uint32 originalNetwork,
     uint32 destinationNetwork,
@@ -47,43 +48,25 @@ Add a new leaf to the mainnet merkle tree
     uint64 index,
     uint256 globalExitRootNum,
     bytes32 mainnetExitRoot,
-    bytes32 rollupExitRoot
+    bytes32 localExitRoot
   ) public
 ```
-Verify merkle proof and claim tokens/ether
+Verify merkle proof and withdraw tokens/ether
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | address |  Token address, 0 address is reserved for ether
+|`originalTokenAddress` | address |  Original token address, 0 address is reserved for ether
 |`amount` | uint256 | Amount of tokens
-|`originalNetwork` | uint32 | original network
+|`originalNetwork` | uint32 | Original network
 |`destinationNetwork` | uint32 | Network destination, must be 0 ( mainnet)
 |`destinationAddress` | address | Address destination
 |`smtProof` | bytes32[] | Smt proof
 |`index` | uint64 | Index of the leaf
 |`globalExitRootNum` | uint256 | Global exit root num
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
-|`rollupExitRoot` | bytes32 | Rollup exit root
-
-### updateRollupExitRoot
-```solidity
-  function updateRollupExitRoot(
-  ) public
-```
-Update the rollup exit root
-
-
-
-### _updateGlobalExitRoot
-```solidity
-  function _updateGlobalExitRoot(
-  ) internal
-```
-Update the global exit root using the mainnet and rollup exit root
-
-
+|`localExitRoot` | bytes32 | Rollup exit root
 
 ### getLastGlobalExitRoot
 ```solidity
@@ -95,21 +78,29 @@ Return last global exit root
 
 
 ## Events
-### DepositEvent
+### BridgeEvent
 ```solidity
-  event DepositEvent(
+  event BridgeEvent(
   )
 ```
 
-Emitted when a deposit is added to the mainnet merkle tree
+Emitted when a bridge some tokens to another network
 
-### WithdrawEvent
+### ClaimEvent
 ```solidity
-  event WithdrawEvent(
+  event ClaimEvent(
   )
 ```
 
-Emitted when a withdraw is done
+Emitted when a claim is done from another network
+
+### NewWrappedToken
+```solidity
+  event NewWrappedToken(
+  )
+```
+
+Emitted when a a new wrapped token is created
 
 ### UpdateRollupRootEvent
 ```solidity

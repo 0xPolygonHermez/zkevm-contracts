@@ -19,6 +19,8 @@ describe('Sequencer test', async () => {
     const maticAmount = ethers.utils.parseEther('1');
     const sequencerURL = 'URL';
 
+    const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
     before('Deploy contract', async () => {
         // load signers
         [deployer, sequencerSigner, userAWallet] = await ethers.getSigners();
@@ -53,6 +55,7 @@ describe('Sequencer test', async () => {
             bridgeContract.address,
             maticTokenContract.address,
             verifierContract.address,
+            genesisRoot,
         );
         await proofOfEfficiencyContract.deployed();
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);

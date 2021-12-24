@@ -31,8 +31,8 @@
     "test:src": "npx mocha test/src/ --recursive",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates",
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
-    "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./docker/scripts",
-    "lint:fix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./docker/scripts --fix",
+    "lint": "npx eslint ./test && npx eslint ./src && npx eslint ./docker/scripts && npx eslint ./tools",
+    "lint:fix": "npx eslint ./test --fix && npx eslint ./src --fix && npx eslint ./docker/scripts --fix && npx eslint ./tools --fix",
     "compile": "npx hardhat compile",
     "check:deploy:PoE" :"npx hardhat node > /dev/null 2>&1 & npx hardhat run --network localhost deployment/testnet/deployPoETestnet.js && npx hardhat run --network localhost deployment/testnet/checkDeployment.js && pkill -f 'hardhat'",
     "docker:contracts": "./docker/scripts/deploy-docker.sh"

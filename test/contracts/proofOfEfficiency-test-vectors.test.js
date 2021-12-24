@@ -32,6 +32,8 @@ describe('Proof of efficiency test vectors', () => {
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
+    const genesisRootSC = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
     beforeEach('Deploy contract', async () => {
         // build poseidon
         poseidon = await buildPoseidon();
@@ -70,6 +72,7 @@ describe('Proof of efficiency test vectors', () => {
             bridgeContract.address,
             maticTokenContract.address,
             verifierContract.address,
+            genesisRootSC,
         );
         await proofOfEfficiencyContract.deployed();
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
