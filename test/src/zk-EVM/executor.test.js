@@ -1,3 +1,4 @@
+/* eslint-disable prefer-arrow-callback */
 /* eslint-disable no-await-in-loop */
 const { buildPoseidon } = require('circomlibjs');
 const { Scalar } = require('ffjavascript');
@@ -14,7 +15,8 @@ const stateUtils = require('../../../src/zk-EVM/helpers/state-utils');
 const ZkEVMDB = require('../../../src/zk-EVM/zkevm-db');
 const { setGenesisBlock } = require('./helpers/test-helpers');
 
-describe('Executor Test', () => {
+describe('Executor Test', async function () {
+    this.timeout(60000);
     let poseidon;
     let F;
 
