@@ -43,6 +43,8 @@ function calculateBlockHash(
     return ethers.utils.keccak256(rlpEncodedBlock);
 }
 
+// Constants
+
 async function main() {
     // deploy proof of efficiency
 
@@ -54,10 +56,13 @@ async function main() {
         } = testVectors[i];
 
         const currentTestVector = testVectors[i];
-        const parentHash = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const blockNumber = 0;
         const gasUsedForTx = 21000;
         const blockGasLimit = 30000000;
+        const parentHash = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        // TODO
+        const txHashRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const receiptRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
         const receiptArray = [];
 
@@ -87,10 +92,14 @@ async function main() {
             });
         }
         currentTestVector.receipts = receiptArray;
-
-        // TODO
-        const txHashRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const receiptRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        currentTestVector.blockInfo = {
+            blockNumber,
+            gasUsedForTx,
+            blockGasLimit,
+            parentHash,
+            txHashRoot,
+            receiptRoot,
+        };
 
         const gasUsed = gasUsedForTx * (receiptArray.length);
         const blockHash = calculateBlockHash(
