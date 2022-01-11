@@ -1,5 +1,8 @@
+const fs = require('fs');
+const path = require('path');
 
-
+const deployParameters = require("./deploy_parameters.json");
+const pathOutputJson = path.join(__dirname, './deploy_parameters.json');
 
 const addressTable =
     `
@@ -37,11 +40,17 @@ while (currentIndex != -1) {
     currentIndex = addressTable.indexOf("0x", currentIndex + 1);
 }
 
-// Get address object array
-const addressArrayObject = [];
+// Edit genesis array from file
+const genesis = deployParameters.genesis;
+const addressesGenesis = genesis.map(accountObject => accountObject.address)
+console.log(addressesGenesis);
+
 for (let i = 0; i < addressArray.length; i++) {
-    const currentObject = { address: addressArray[i] };
-    addressArrayObject.push(currentObject);
+    const currentAddres = addressArray[i];
+    if (!addressesGenesis.includes(currentAddres)) {
+        const currentObject = { address: currentAddres };
+        genesis.push(currentObject);
+    }
 }
 
-console.log(JSON.stringify(addressArrayObject, null, 1))
+fs.writeFileSync(pathOutputJson, JSON.stringify(deployParameters, null, 1));
