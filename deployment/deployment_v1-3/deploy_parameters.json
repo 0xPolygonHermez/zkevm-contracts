@@ -4,11 +4,11 @@
  "genesis": [
   {
    "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-   "balance": "100000000000000000000"
+   "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
   },
   {
    "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
-   "balance": "200000000000000000000"
+   "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23"
   },
   {
    "address": "0xA67CD3f603E42dcBF674ffBa511872Bd397EB895"
@@ -51,6 +51,15 @@
   },
   {
    "address": "0xCF7A13951c6F804E334C39F2eD81D79317e6509"
+  },
+  {
+   "address": "0x56b2118d90cCA76E4683EfECEEC35662372d64C"
+  },
+  {
+   "address": "0xd66d09242faa9b3beae711f89d8fff0946974a2"
+  },
+  {
+   "address": "0x615031554479128d65f30Ffa721791D6441d972"
   }
  ]
 }

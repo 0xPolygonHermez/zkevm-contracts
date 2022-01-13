@@ -108,6 +108,9 @@ async function main() {
     console.log('#######################\n');
     console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
 
+    const deploymentBlockNumber = (await proofOfEfficiencyContract.deployTransaction.wait()).blockNumber;
+    const defaultChainID = await proofOfEfficiencyContract.DEFAULT_CHAIN_ID();
+
     console.log('\n#######################');
     console.log('#####    Checks    #####');
     console.log('#######################');
@@ -115,17 +118,18 @@ async function main() {
     console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
     console.log('verifierMockAddress:', await proofOfEfficiencyContract.rollupVerifier());
     console.log('genesiRoot:', await proofOfEfficiencyContract.currentStateRoot());
+    console.log('DEFAULT_CHAIN_ID:', defaultChainID);
 
     // calculate address and private Keys:
     const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk";
     const menmonic = deployParameters.mnemonic || DEFAULT_MNEMONIC
     const numAccounts = deployParameters.numFundAccounts;
 
-    const accountsArray = [];
+    const accountsL1Array = [];
     for (let i = 0; i < numAccounts; i++) {
         const path = `m/44'/60'/0'/0/${i}`
         const wallet = ethers.Wallet.fromMnemonic(menmonic, path);
-        accountsArray.push({
+        accountsL1Array.push({
             address: wallet.address,
             pvtKey: wallet.privateKey
         });
@@ -151,7 +155,9 @@ async function main() {
         maticTokenAddress: maticTokenContract.address,
         verifierMockAddress: verifierMockContract.address,
         deployerAddress: deployer.address,
-        accountsArray
+        defaultChainID,
+        deploymentBlockNumber,
+        accountsL1Array
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 
