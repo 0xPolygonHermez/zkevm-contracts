@@ -55,9 +55,9 @@ contract Bridge is Ownable, DepositContract {
     );
 
     /**
-     * @dev Emitted when the rollup updates the exit root
+     * @dev Emitted when the the global exit root is updated
      */
-    event UpdateRollupRootEvent(bytes32 rollupExitRoot);
+    event UpdateGlobalExitRoot(bytes32 mainnetExitRoot, bytes32 rollupExitRoot);
 
     /**
      * @param _rollupAddress Rollup contract address
@@ -215,8 +215,6 @@ contract Bridge is Ownable, DepositContract {
         );
         lastRollupExitRoot = newRollupExitRoot;
         _updateGlobalExitRoot();
-
-        emit UpdateRollupRootEvent(newRollupExitRoot);
     }
 
     /**
@@ -227,6 +225,8 @@ contract Bridge is Ownable, DepositContract {
         globalExitRootMap[lastGlobalExitRootNum] = keccak256(
             abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
         );
+
+        emit UpdateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);
     }
 
     /**

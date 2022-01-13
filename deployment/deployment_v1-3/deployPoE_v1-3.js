@@ -4,7 +4,13 @@ const fs = require('fs');
 const { Scalar } = require('ffjavascript');
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
+const deployParameters = require("./deploy_parameters.json");
+
 const { expect } = require('chai');
+const { buildPoseidon } = require('circomlibjs');
+const MemDB = require('../../src/zk-EVM/zkproverjs/memdb');
+const SMT = require('../../src/zk-EVM/zkproverjs/smt');
+const { setGenesisBlock } = require('../../test/src/zk-EVM/helpers/test-helpers');
 
 async function main() {
     const deployer = (await ethers.getSigners())[0];
@@ -14,7 +20,7 @@ async function main() {
     */
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.utils.parseEther('2000000000');
 
     const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
     const maticTokenContract = await maticTokenFactory.deploy(
@@ -25,6 +31,9 @@ async function main() {
     );
     await maticTokenContract.deployed();
 
+    console.log('#######################\n');
+    console.log('Matic deployed to:', maticTokenContract.address);
+
     /*
         Deployment Mock verifier
     */
@@ -33,6 +42,9 @@ async function main() {
     );
     const verifierMockContract = await VerifierRollupHelperFactory.deploy();
     await verifierMockContract.deployed();
+
+    console.log('#######################\n');
+    console.log('Verifier Mock deployed to:', verifierMockContract.address);
 
     /*
         Deployment Bridge Mock
@@ -48,22 +60,31 @@ async function main() {
         Deploy proof of efficiency
     */
 
-    /* "genesis": [
-    *    {
-    *      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-    *      "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
-    *      "balance": "100000000000000000000",
-    *      "nonce": "0"
-    *    },
-    *    {
-    *      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
-    *      "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
-    *      "balance": "200000000000000000000",
-    *      "nonce": "0"
-    *    }
-    *  ] 
-    */
-    const genesisRoot = `0x${Scalar.e("4091651772388093439828475955668620102367778455436412389529460210592290187513").toString(16).padStart(64, '0')}`;
+    // generate genesis
+    const poseidon = await buildPoseidon();
+    const F = poseidon.F;
+    const arity = 4;
+    const db = new MemDB(F);
+    const smt = new SMT(db, arity, poseidon, poseidon.F);
+
+    const defaultBalance = Scalar.e(ethers.utils.parseEther("1000"));
+    const addressArray = [];
+    const amountArray = [];
+    const nonceArray = [];
+
+    const genesis = deployParameters.genesis;
+    for (let j = 0; j < genesis.length; j++) {
+        const {
+            address, balance, nonce,
+        } = genesis[j];
+
+        addressArray.push(address);
+        amountArray.push(balance ? Scalar.e(balance) : defaultBalance);
+        nonceArray.push(nonce ? Scalar.e(nonce) : Scalar.e(0));
+    }
+
+    const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt);
+    const genesisRootHex = `0x${Scalar.e(F.toString(genesisRoot)).toString(16).padStart(64, '0')}`;
 
     console.log('\n#######################');
     console.log('##### Deployment Proof of Efficiency #####');
@@ -72,20 +93,23 @@ async function main() {
     console.log('bridgeAddress:', bridgeContract.address);
     console.log('maticTokenAddress:', maticTokenContract.address);
     console.log('verifierMockAddress:', verifierMockContract.address);
-    console.log('genesisRoot:', genesisRoot);
+    console.log('genesisRoot:', genesisRootHex);
 
     const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiency');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
         bridgeContract.address,
         maticTokenContract.address,
         verifierMockContract.address,
-        genesisRoot
+        genesisRootHex
     );
     await proofOfEfficiencyContract.deployed();
     expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
 
     console.log('#######################\n');
-    console.log('Proof of Efficiecny deployed to:', proofOfEfficiencyContract.address);
+    console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
+
+    const deploymentBlockNumber = (await proofOfEfficiencyContract.deployTransaction.wait()).blockNumber;
+    const defaultChainID = await proofOfEfficiencyContract.DEFAULT_CHAIN_ID();
 
     console.log('\n#######################');
     console.log('#####    Checks    #####');
@@ -94,19 +118,35 @@ async function main() {
     console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
     console.log('verifierMockAddress:', await proofOfEfficiencyContract.rollupVerifier());
     console.log('genesiRoot:', await proofOfEfficiencyContract.currentStateRoot());
+    console.log('DEFAULT_CHAIN_ID:', defaultChainID);
 
     // calculate address and private Keys:
-    DEFAULT_MNEMONIC = "test test test test test test test test test test test junk";
-    const menmonic = process.env.MNEMONIC || DEFAULT_MNEMONIC
-    const defaultAccountsJson = 20;
-    const accountsArray = [];
-    for (let i = 0; i < defaultAccountsJson; i++) {
+    const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk";
+    const menmonic = deployParameters.mnemonic || DEFAULT_MNEMONIC
+    const numAccounts = deployParameters.numFundAccounts;
+
+    const accountsL1Array = [];
+    for (let i = 0; i < numAccounts; i++) {
         const path = `m/44'/60'/0'/0/${i}`
         const wallet = ethers.Wallet.fromMnemonic(menmonic, path);
-        accountsArray.push({
+        accountsL1Array.push({
             address: wallet.address,
             pvtKey: wallet.privateKey
         });
+
+        // fund account with tokens and ether if it have less than 0.5 ether.
+        const balanceEther = await ethers.provider.getBalance(wallet.address);
+        const minEtherBalance = ethers.utils.parseEther("0.1");
+        if (balanceEther < minEtherBalance) {
+            const params = {
+                to: wallet.address,
+                value: minEtherBalance,
+            };
+            await deployer.sendTransaction(params);
+        }
+        const tokensBalance = ethers.utils.parseEther("100000");
+        await maticTokenContract.transfer(wallet.address, tokensBalance);
+        console.log(`Account ${i} funded`);
     }
 
     const outputJson = {
@@ -115,6 +155,9 @@ async function main() {
         maticTokenAddress: maticTokenContract.address,
         verifierMockAddress: verifierMockContract.address,
         deployerAddress: deployer.address,
+        defaultChainID,
+        deploymentBlockNumber,
+        accountsL1Array
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 

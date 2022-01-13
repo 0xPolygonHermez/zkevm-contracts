@@ -111,11 +111,11 @@ Emitted when a deposit is added to the mainnet merkle tree
 
 Emitted when a withdraw is done
 
-### UpdateRollupRootEvent
+### UpdateGlobalExitRoot
 ```solidity
-  event UpdateRollupRootEvent(
+  event UpdateGlobalExitRoot(
   )
 ```
 
-Emitted when the rollup updates the exit root
+Emitted when the the global exit root is updated
 

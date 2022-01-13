@@ -1,0 +1,65 @@
+{
+ "mnemonic": "unknown purity process december property proof answer leave raise claw there gloom",
+ "numFundAccounts": 10,
+ "genesis": [
+  {
+   "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+   "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+  },
+  {
+   "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+   "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23"
+  },
+  {
+   "address": "0xA67CD3f603E42dcBF674ffBa511872Bd397EB895"
+  },
+  {
+   "address": "0xbAe5deBDDf9381686ec18a8A2B99E09ADa982adf"
+  },
+  {
+   "address": "0xfcFC415D6D21660b90c0545CA0e91E68172B8650"
+  },
+  {
+   "address": "0x999b52bE90FA59fCaEf59d7243FD874aF3E43E04"
+  },
+  {
+   "address": "0xA67CD3f603E42dcBF674ffBa511872Bd397EB89"
+  },
+  {
+   "address": "0xbAe5deBDDf9381686ec18a8A2B99E09ADa982ad"
+  },
+  {
+   "address": "0xfcFC415D6D21660b90c0545CA0e91E68172B865"
+  },
+  {
+   "address": "0x999b52bE90FA59fCaEf59d7243FD874aF3E43E0"
+  },
+  {
+   "address": "0x2536C2745Ac4A584656A830f7bdCd329c94e8F3"
+  },
+  {
+   "address": "0x380ed8Bd696c78395Fb1961BDa42739D2f5242a"
+  },
+  {
+   "address": "0xd873F6DC68e3057e4B7da74c6b304d0eF0B484C"
+  },
+  {
+   "address": "0x1EA2EBB132aBD1157831feE038F31A39674b999"
+  },
+  {
+   "address": "0xb48cA794d49EeC406A5dD2c547717e37b5952a8"
+  },
+  {
+   "address": "0xCF7A13951c6F804E334C39F2eD81D79317e6509"
+  },
+  {
+   "address": "0x56b2118d90cCA76E4683EfECEEC35662372d64C"
+  },
+  {
+   "address": "0xd66d09242faa9b3beae711f89d8fff0946974a2"
+  },
+  {
+   "address": "0x615031554479128d65f30Ffa721791D6441d972"
+  }
+ ]
+}

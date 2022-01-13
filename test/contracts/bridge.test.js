@@ -69,28 +69,31 @@ describe('Bridge Contract', () => {
         const balanceDeployer = await tokenContract.balanceOf(deployer.address);
         const balanceBridge = await tokenContract.balanceOf(bridgeContract.address);
 
+        const rollupExitRoot = await bridgeContract.lastRollupExitRoot();
+
         // create a new deposit
         await expect(tokenContract.approve(bridgeContract.address, amount))
             .to.emit(tokenContract, 'Approval')
             .withArgs(deployer.address, bridgeContract.address, amount);
 
-        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress))
-            .to.emit(bridgeContract, 'DepositEvent')
-            .withArgs(tokenAddress, amount, destinationNetwork, destinationAddress, depositCount);
-
-        expect(await tokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
-        expect(await tokenContract.balanceOf(bridgeContract.address)).to.be.equal(balanceBridge.add(amount));
-
-        // compute root merkle tree in Js
+        // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
         const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
         merkleTree.add(leafValue);
+        const rootJS = merkleTree.getRoot();
+
+        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress))
+            .to.emit(bridgeContract, 'DepositEvent')
+            .withArgs(tokenAddress, amount, destinationNetwork, destinationAddress, depositCount)
+            .to.emit(bridgeContract, 'UpdateGlobalExitRoot')
+            .withArgs(rootJS, rollupExitRoot);
+
+        expect(await tokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
+        expect(await tokenContract.balanceOf(bridgeContract.address)).to.be.equal(balanceBridge.add(amount));
 
         // check merkle root with SC
         const rootSC = await bridgeContract.getDepositRoot();
-        const rootJS = merkleTree.getRoot();
-
         expect(rootSC).to.be.equal(rootJS);
 
         // check merkle proof
@@ -111,7 +114,6 @@ describe('Bridge Contract', () => {
         )).to.be.equal(true);
 
         const mainnetExitRoot = await bridgeContract.lastMainnetExitRoot();
-        const rollupExitRoot = await bridgeContract.lastRollupExitRoot();
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot);
         expect(computedGlobalExitRoot).to.be.equal(await bridgeContract.getLastGlobalExitRoot());
@@ -124,6 +126,8 @@ describe('Bridge Contract', () => {
         const destinationNetwork = 0;
         const destinationAddress = deployer.address;
 
+        const mainnetExitRoot = await bridgeContract.lastMainnetExitRoot();
+
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
@@ -131,22 +135,21 @@ describe('Bridge Contract', () => {
         merkleTree.add(leafValue);
 
         // check merkle root with SC
-        const rootJS = merkleTree.getRoot();
+        const rootJSRollup = merkleTree.getRoot();
 
         // check only rollup account with update rollup exit root
-        await expect(bridgeContract.updateRollupExitRoot(rootJS))
+        await expect(bridgeContract.updateRollupExitRoot(rootJSRollup))
             .to.be.revertedWith('Bridge::updateRollupExitRoot: ONLY_ROLLUP');
 
         // add rollup Merkle root
-        await expect(bridgeContract.connect(rollup).updateRollupExitRoot(rootJS))
-            .to.emit(bridgeContract, 'UpdateRollupRootEvent')
-            .withArgs(rootJS);
+        await expect(bridgeContract.connect(rollup).updateRollupExitRoot(rootJSRollup))
+            .to.emit(bridgeContract, 'UpdateGlobalExitRoot')
+            .withArgs(mainnetExitRoot, rootJSRollup);
 
         // check roots
-        const mainnetExitRoot = await bridgeContract.lastMainnetExitRoot();
         const rollupExitRootSC = await bridgeContract.lastRollupExitRoot();
 
-        expect(rollupExitRootSC).to.be.equal(rootJS);
+        expect(rollupExitRootSC).to.be.equal(rootJSRollup);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         expect(computedGlobalExitRoot).to.be.equal(await bridgeContract.getLastGlobalExitRoot());
@@ -156,7 +159,7 @@ describe('Bridge Contract', () => {
         const index = 0;
 
         // verify merkle proof
-        expect(verifyMerkleProof(leafValue, proof, index, rootJS)).to.be.equal(true);
+        expect(verifyMerkleProof(leafValue, proof, index, rootJSRollup)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
             tokenAddress,
             amount,
@@ -165,7 +168,7 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            rootJS,
+            rootJSRollup,
         )).to.be.equal(true);
 
         // withdraw
@@ -279,6 +282,8 @@ describe('Bridge Contract', () => {
         const destinationNetwork = 0;
         const destinationAddress = deployer.address;
 
+        const mainnetExitRoot = await bridgeContract.lastMainnetExitRoot();
+
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
@@ -286,18 +291,17 @@ describe('Bridge Contract', () => {
         merkleTree.add(leafValue);
 
         // check merkle root with SC
-        const rootJS = merkleTree.getRoot();
+        const rootJSRollup = merkleTree.getRoot();
 
         // add rollup Merkle root
-        await expect(bridgeContract.connect(rollup).updateRollupExitRoot(rootJS))
-            .to.emit(bridgeContract, 'UpdateRollupRootEvent')
-            .withArgs(rootJS);
+        await expect(bridgeContract.connect(rollup).updateRollupExitRoot(rootJSRollup))
+            .to.emit(bridgeContract, 'UpdateGlobalExitRoot')
+            .withArgs(mainnetExitRoot, rootJSRollup);
 
         // check roots
-        const mainnetExitRoot = await bridgeContract.lastMainnetExitRoot();
         const rollupExitRootSC = await bridgeContract.lastRollupExitRoot();
 
-        expect(rollupExitRootSC).to.be.equal(rootJS);
+        expect(rollupExitRootSC).to.be.equal(rootJSRollup);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         expect(computedGlobalExitRoot).to.be.equal(await bridgeContract.getLastGlobalExitRoot());
@@ -307,7 +311,7 @@ describe('Bridge Contract', () => {
         const index = 0;
 
         // verify merkle proof
-        expect(verifyMerkleProof(leafValue, proof, index, rootJS)).to.be.equal(true);
+        expect(verifyMerkleProof(leafValue, proof, index, rootJSRollup)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
             tokenAddress,
             amount,
@@ -316,7 +320,7 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            rootJS,
+            rootJSRollup,
         )).to.be.equal(true);
 
         // withdraw
@@ -440,6 +444,8 @@ describe('Bridge Contract', () => {
         const destinationNetwork = 0;
         const destinationAddress = deployer.address;
 
+        const mainnetExitRoot = await bridgeContract.lastMainnetExitRoot();
+
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
@@ -447,18 +453,17 @@ describe('Bridge Contract', () => {
         merkleTree.add(leafValue);
 
         // check merkle root with SC
-        const rootJS = merkleTree.getRoot();
+        const rootJSRollup = merkleTree.getRoot();
 
         // add rollup Merkle root
-        await expect(bridgeContract.connect(rollup).updateRollupExitRoot(rootJS))
-            .to.emit(bridgeContract, 'UpdateRollupRootEvent')
-            .withArgs(rootJS);
+        await expect(bridgeContract.connect(rollup).updateRollupExitRoot(rootJSRollup))
+            .to.emit(bridgeContract, 'UpdateGlobalExitRoot')
+            .withArgs(mainnetExitRoot, rootJSRollup);
 
         // check roots
-        const mainnetExitRoot = await bridgeContract.lastMainnetExitRoot();
         const rollupExitRootSC = await bridgeContract.lastRollupExitRoot();
 
-        expect(rollupExitRootSC).to.be.equal(rootJS);
+        expect(rollupExitRootSC).to.be.equal(rootJSRollup);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         expect(computedGlobalExitRoot).to.be.equal(await bridgeContract.getLastGlobalExitRoot());
@@ -468,7 +473,7 @@ describe('Bridge Contract', () => {
         const index = 0;
 
         // verify merkle proof
-        expect(verifyMerkleProof(leafValue, proof, index, rootJS)).to.be.equal(true);
+        expect(verifyMerkleProof(leafValue, proof, index, rootJSRollup)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
             tokenAddress,
             amount,
@@ -477,7 +482,7 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            rootJS,
+            rootJSRollup,
         )).to.be.equal(true);
 
         // withdraw
@@ -504,9 +509,10 @@ describe('Bridge Contract', () => {
          */
         await expect(bridgeContract.bridge(tokenAddress, amount, 1, destinationAddress, { value: ethers.utils.parseEther('100') })).to.be.revertedWith('Bridge::deposit: AMOUNT_DOES_NOT_MATCH_MSG_VALUE');
 
-        // Cehck mannet destination assert
+        // Check mannet destination assert
         await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount })).to.be.revertedWith('Bridge::deposit: DESTINATION_CANT_BE_MAINNET');
 
+        // This is used just to pay ether to the birdge smart contract and be able to withdraw it afterwards.
         expect(await bridgeContract.bridge(tokenAddress, amount, 1, destinationAddress, { value: amount }));
 
         // Check balances before withdraw
