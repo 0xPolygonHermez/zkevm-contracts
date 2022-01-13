@@ -35,7 +35,7 @@ const addressTable =
 let currentIndex = addressTable.indexOf("0x");;
 const addressArray = [];
 while (currentIndex != -1) {
-    const currentAddres = addressTable.slice(currentIndex, currentIndex + 41) // 20bytes * 2 character/byte + 0x(2 characters) = 42 characters
+    const currentAddres = addressTable.slice(currentIndex, currentIndex + 42) // 20bytes * 2 character/byte + 0x(2 characters) = 42 characters
     addressArray.push(currentAddres);
     currentIndex = addressTable.indexOf("0x", currentIndex + 1);
 }
@@ -43,7 +43,6 @@ while (currentIndex != -1) {
 // Edit genesis array from file
 const genesis = deployParameters.genesis;
 const addressesGenesis = genesis.map(accountObject => accountObject.address)
-console.log(addressesGenesis);
 
 for (let i = 0; i < addressArray.length; i++) {
     const currentAddres = addressArray[i];
