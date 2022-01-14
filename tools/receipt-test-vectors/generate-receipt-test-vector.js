@@ -51,7 +51,7 @@ function calculateBlockHash(
         toHexString(time),
         extra,
         mixDigest,
-        toHexString(nonce),
+        nonce,
     ]);
     return ethers.utils.keccak256(rlpEncodedBlock);
 }
@@ -80,13 +80,13 @@ async function main() {
         // TODO parameters
         const txHashRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const receiptRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const time = '0x';
-        const bloom = '0x';
+        const time = 0;
+        const bloom = `0x${Scalar.e(0).toString(16).padStart(256 * 2, '0')}`; // 256 bytes;
         const extra = '0x';
 
         // POW related parameters
         const mixDigest = '0x0000000000000000000000000000000000000000000000000000000000000000'; // for match the ethereum go interface
-        const nonce = 0;
+        const nonce = `0x${Scalar.e(0).toString(16).padStart(16, '0')}`; // 8 bytes
         const uncleHash = '0x0000000000000000000000000000000000000000000000000000000000000000';// for match the etheruem go interface
         const difficulty = '0x';
 
@@ -145,6 +145,7 @@ async function main() {
             bloom,
             difficulty,
         );
+
         for (let j = 0; j < receiptArray.length; j++) {
             receiptArray[j].receipt.blockHash = blockHash;
         }
