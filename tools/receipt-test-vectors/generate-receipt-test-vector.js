@@ -11,6 +11,7 @@ function toHexString(num) {
     let numHex;
     if (typeof num === 'number') {
         numHex = Scalar.toString(Scalar.e(num), 16);
+        // if it's an integer and it's value is 0, the standar is set to 0x, instead of 0x00 ( because says that always is codified in the shortest way)
         if (Scalar.e(num) === Scalar.e(0)) return '0x';
     } else if (typeof num === 'string') {
         numHex = num.startsWith('0x') ? num.slice(2) : num;
@@ -70,25 +71,33 @@ async function main() {
 
         const currentTestVector = testVectors[i];
 
-        // Hardcoded parameters for this test
+        // For matching the interface in go, some parameters has some predertermined byte length:
+        const hashByteLen = 32;
+        const bloomByteLen = 256;
+        const nonceByteLen = 8;
+
+        // Hardcoded parameters
         const blockNumber = 0;
         const gasUsedForTx = 21000;
         const blockGasLimit = 30000000;
-        const parentHash = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const newRootHex = `0x${Scalar.e(expectedNewRoot).toString(16).padStart(64, '0')}`;
+        const parentHash = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+
+        // Test case parameters:
+        const newRootHex = `0x${Scalar.e(expectedNewRoot).toString(16).padStart(hashByteLen * 2, '0')}`;
+        // sequencerAddress: is already well codified
 
         // TODO parameters
-        const txHashRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const receiptRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const txHashRoot = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+        const receiptRoot = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
         const time = 0;
-        const bloom = `0x${Scalar.e(0).toString(16).padStart(256 * 2, '0')}`; // 256 bytes;
-        const extra = '0x';
+        const bloom = `0x${Scalar.e(0).toString(16).padStart(bloomByteLen * 2, '0')}`;
+        const extra = '0x'; // no predefined bytes
 
         // POW related parameters
-        const mixDigest = '0x0000000000000000000000000000000000000000000000000000000000000000'; // for match the ethereum go interface
-        const nonce = `0x${Scalar.e(0).toString(16).padStart(16, '0')}`; // 8 bytes
-        const uncleHash = '0x0000000000000000000000000000000000000000000000000000000000000000';// for match the etheruem go interface
-        const difficulty = '0x';
+        const mixDigest = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+        const nonce = `0x${Scalar.e(0).toString(16).padStart(nonceByteLen * 2, '0')}`;
+        const uncleHash = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+        const difficulty = 0;
 
         const receiptArray = [];
 
