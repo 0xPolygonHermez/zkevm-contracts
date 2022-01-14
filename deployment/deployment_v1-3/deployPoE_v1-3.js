@@ -157,6 +157,7 @@ async function main() {
         deployerAddress: deployer.address,
         defaultChainID,
         deploymentBlockNumber,
+        genesisRoot: genesisRootHex,
         accountsL1Array
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));

@@ -23,6 +23,7 @@
     "expectedOldRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
     "txs": [
       {
+        "id": 0,
         "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
         "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
         "nonce": 0,
@@ -53,6 +54,7 @@
     "localExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
     "receipts": [
       {
+        "txId": 0,
         "receipt": {
           "transactionHash": "0x0cc3dd49b941271b19df83ba6733bed4023fb82c28d40e6ef863ca589d4a933a",
           "transactionIndex": 0,
@@ -65,7 +67,7 @@
           "logs": 0,
           "logsBloom": 0,
           "status": 1,
-          "blockHash": "0x3876996627d5ab60961420d22ea80db3fd4de16e611328e21882eb06515ef68d"
+          "blockHash": "0xd8b11a147ef818dfea97e7c76614305fba1fbe02020b038cfc888891a37ea936"
         }
       }
     ],
@@ -224,7 +226,7 @@
           "logs": 0,
           "logsBloom": 0,
           "status": 1,
-          "blockHash": "0x3876996627d5ab60961420d22ea80db3fd4de16e611328e21882eb06515ef68d"
+          "blockHash": "0x5e3a5a019132294c08e35f7fa05066642435d692db12e22b4b6294ae6cc52456"
         }
       },
       {
@@ -241,7 +243,7 @@
           "logs": 0,
           "logsBloom": 0,
           "status": 1,
-          "blockHash": "0x3876996627d5ab60961420d22ea80db3fd4de16e611328e21882eb06515ef68d"
+          "blockHash": "0x5e3a5a019132294c08e35f7fa05066642435d692db12e22b4b6294ae6cc52456"
         }
       }
     ],
@@ -544,7 +546,7 @@
           "logs": 0,
           "logsBloom": 0,
           "status": 1,
-          "blockHash": "0x3876996627d5ab60961420d22ea80db3fd4de16e611328e21882eb06515ef68d"
+          "blockHash": "0xea1a23bc5d5ee1f5b7f184710aff8028af5797e8f9871b958aac6e0b0c6853f8"
         }
       }
     ],
@@ -661,7 +663,7 @@
           "logs": 0,
           "logsBloom": 0,
           "status": 1,
-          "blockHash": "0x3876996627d5ab60961420d22ea80db3fd4de16e611328e21882eb06515ef68d"
+          "blockHash": "0x586e9c4aa493016b85f596deaa3b4db2e55e63703261c2566fb92ccedee51089"
         }
       }
     ],
