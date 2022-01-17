@@ -32,7 +32,7 @@ async function main() {
         const signData = ethers.utils.RLP.encode(messageToHash).slice(2);
         const r = rtx[7].slice(2).padStart(64, '0'); // 32 bytes
         const s = rtx[8].slice(2).padStart(64, '0'); // 32 bytes
-        const v = (sign + 27).toString(16).padStart(8, '0'); // 4 bytes
+        const v = (sign + 27).toString(16).padStart(2, '0'); // 1 bytes
 
         const calldata = `0x${signData.concat(r).concat(s).concat(v)}`;
         testVectorNewCallData[i].output = calldata;
