@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop, no-loop-func */
+/* eslint-disable no-await-in-loop, no-loop-func, no-continue */
 const { buildPoseidon } = require('circomlibjs');
 const { Scalar } = require('ffjavascript');
 
@@ -10,7 +10,7 @@ const SMT = require('../../src/zk-EVM/zkproverjs/smt');
 const stateUtils = require('../../src/zk-EVM/helpers/state-utils');
 
 const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
-const { setGenesisBlock } = require('../src/zk-EVM/helpers/test-helpers');
+const { setGenesisBlock, toHexStringRlp } = require('../src/zk-EVM/helpers/test-helpers');
 
 const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
 
@@ -144,10 +144,34 @@ describe('Proof of efficiency test vectors', () => {
                     gasLimit: txData.gasLimit,
                     gasPrice: ethers.utils.parseUnits(txData.gasPrice, 'gwei'),
                     chainId: txData.chainId,
+                    data: txData.data || '0x',
                 };
+                if (!ethers.utils.isAddress(tx.to)) {
+                    expect(txData.rawTx).to.equal(undefined);
+                    continue;
+                }
 
                 try {
-                    let rawTx = await walletMap[txData.from].signTransaction(tx);
+                    const signData = ethers.utils.RLP.encode([
+                        toHexStringRlp(Scalar.e(tx.nonce)),
+                        toHexStringRlp(tx.gasPrice),
+                        toHexStringRlp(tx.gasLimit),
+                        toHexStringRlp(tx.to),
+                        toHexStringRlp(tx.value),
+                        toHexStringRlp(tx.data),
+                        toHexStringRlp(ethers.utils.hexlify(tx.chainId)),
+                        '0x',
+                        '0x',
+                    ]);
+                    const digest = ethers.utils.keccak256(signData);
+                    const signingKey = new ethers.utils.SigningKey(walletMap[txData.from].privateKey);
+                    const signature = signingKey.signDigest(digest);
+
+                    const r = signature.r.slice(2).padStart(64, '0'); // 32 bytes
+                    const s = signature.s.slice(2).padStart(64, '0'); // 32 bytes
+                    const v = (signature.v).toString(16).padStart(2, '0'); // 1 bytes
+
+                    let rawTx = signData.concat(r).concat(s).concat(v);
                     expect(rawTx).to.equal(txData.rawTx);
 
                     if (txData.encodeInvalidData) {

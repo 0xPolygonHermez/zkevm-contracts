@@ -15,3 +15,5 @@ module.exports.constantBalance = 0;
 module.exports.constantNonce = 1;
 
 module.exports.defaultMaxTx = 100;
+
+module.exports.signatureBytes = 32 + 32 + 1;

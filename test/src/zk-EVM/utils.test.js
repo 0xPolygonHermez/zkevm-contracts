@@ -1,8 +1,12 @@
 /* eslint-disable no-await-in-loop */
+/* eslint-disable no-continue */
+
 const ethers = require('ethers');
 const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
+const { Scalar } = require('ffjavascript');
+const { toHexStringRlp } = require('./helpers/test-helpers');
 
 describe('Encode and decode transactions in RLP', () => {
     let testVectors;
@@ -46,10 +50,34 @@ describe('Encode and decode transactions in RLP', () => {
                     gasLimit: txData.gasLimit,
                     gasPrice: ethers.utils.parseUnits(txData.gasPrice, 'gwei'),
                     chainId: txData.chainId,
+                    data: txData.data || '0x',
                 };
+                if (!ethers.utils.isAddress(tx.to)) {
+                    expect(txData.rawTx).to.equal(undefined);
+                    continue;
+                }
 
                 try {
-                    let rawTx = await walletMap[txData.from].signTransaction(tx);
+                    const signData = ethers.utils.RLP.encode([
+                        toHexStringRlp(Scalar.e(tx.nonce)),
+                        toHexStringRlp(tx.gasPrice),
+                        toHexStringRlp(tx.gasLimit),
+                        toHexStringRlp(tx.to),
+                        toHexStringRlp(tx.value),
+                        toHexStringRlp(tx.data),
+                        toHexStringRlp(ethers.utils.hexlify(tx.chainId)),
+                        '0x',
+                        '0x',
+                    ]);
+                    const digest = ethers.utils.keccak256(signData);
+                    const signingKey = new ethers.utils.SigningKey(walletMap[txData.from].privateKey);
+                    const signature = signingKey.signDigest(digest);
+
+                    const r = signature.r.slice(2).padStart(64, '0'); // 32 bytes
+                    const s = signature.s.slice(2).padStart(64, '0'); // 32 bytes
+                    const v = (signature.v).toString(16).padStart(2, '0'); // 1 bytes
+
+                    let rawTx = signData.concat(r).concat(s).concat(v);
                     expect(rawTx).to.equal(txData.rawTx);
 
                     if (txData.encodeInvalidData) {
@@ -61,9 +89,8 @@ describe('Encode and decode transactions in RLP', () => {
                     expect(txData.rawTx).to.equal(undefined);
                 }
             }
-            const encodedTransactions = ethers.utils.RLP.encode(rawTxs);
-            const decoded = ethers.utils.RLP.decode(encodedTransactions);
-            expect(decoded).to.be.deep.equal(rawTxs);
+
+            const encodedTransactions = rawTxs.reduce((previousValue, currentValue) => previousValue + currentValue.slice(2), '0x');
             expect(batchL2Data).to.be.equal(encodedTransactions);
         }
     });
