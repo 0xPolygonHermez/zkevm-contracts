@@ -3,8 +3,22 @@ const hre = require('hardhat'); // eslint-disable-line
 const { ethers } = require('hardhat');
 const fs = require('fs');
 const path = require('path');
+const { Scalar } = require('ffjavascript');
 
 const testVectors = require('../../test/src/zk-EVM/helpers/test-vector-data/state-transition.json');
+
+function toHexString(num) {
+    let numHex;
+    if (typeof num === 'number') {
+        numHex = Scalar.toString(Scalar.e(num), 16);
+        // if it's an integer and it's value is 0, the standar is set to 0x, instead of 0x00 ( because says that always is codified in the shortest way)
+        if (Scalar.e(num) === Scalar.e(0)) return '0x';
+    } else if (typeof num === 'string') {
+        numHex = num.startsWith('0x') ? num.slice(2) : num;
+    }
+    numHex = (numHex.length % 2 === 1) ? (`0x0${numHex}`) : (`0x${numHex}`);
+    return numHex;
+}
 
 function calculateBlockHash(
     parentHash,
@@ -15,15 +29,15 @@ function calculateBlockHash(
     number,
     gasLimit,
     gasUsed,
-    time = 0,
-    extra = 0,
-    mixDigest = 0,
-    nonce = 0,
-    uncleHash = 0,
-    bloom = 0,
-    difficulty = 0,
+    time,
+    extra,
+    mixDigest,
+    nonce,
+    uncleHash,
+    bloom,
+    difficulty,
 ) {
-    const rlpEncodedBlock = ethers.utils.RLP.encode(
+    const rlpEncodedBlock = ethers.utils.RLP.encode([
         parentHash,
         uncleHash,
         coinbase,
@@ -31,15 +45,15 @@ function calculateBlockHash(
         txHash,
         receiptHash,
         bloom,
-        difficulty,
-        number,
-        gasLimit,
-        gasUsed,
-        time,
+        toHexString(difficulty),
+        toHexString(number),
+        toHexString(gasLimit),
+        toHexString(gasUsed),
+        toHexString(time),
         extra,
         mixDigest,
         nonce,
-    );
+    ]);
     return ethers.utils.keccak256(rlpEncodedBlock);
 }
 
@@ -56,13 +70,34 @@ async function main() {
         } = testVectors[i];
 
         const currentTestVector = testVectors[i];
+
+        // For matching the interface in go, some parameters has some predertermined byte length:
+        const hashByteLen = 32;
+        const bloomByteLen = 256;
+        const nonceByteLen = 8;
+
+        // Hardcoded parameters
         const blockNumber = 0;
         const gasUsedForTx = 21000;
         const blockGasLimit = 30000000;
-        const parentHash = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        // TODO
-        const txHashRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const receiptRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const parentHash = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+
+        // Test case parameters:
+        const newRootHex = `0x${Scalar.e(expectedNewRoot).toString(16).padStart(hashByteLen * 2, '0')}`;
+        // sequencerAddress: is already well codified
+
+        // TODO parameters
+        const txHashRoot = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+        const receiptRoot = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+        const time = 0;
+        const bloom = `0x${Scalar.e(0).toString(16).padStart(bloomByteLen * 2, '0')}`;
+        const extra = '0x'; // no predefined bytes
+
+        // POW related parameters
+        const mixDigest = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+        const nonce = `0x${Scalar.e(0).toString(16).padStart(nonceByteLen * 2, '0')}`;
+        const uncleHash = `0x${Scalar.e(0).toString(16).padStart(hashByteLen * 2, '0')}`;
+        const difficulty = 0;
 
         const receiptArray = [];
 
@@ -105,13 +140,21 @@ async function main() {
         const blockHash = calculateBlockHash(
             parentHash,
             sequencerAddress,
-            expectedNewRoot,
+            newRootHex,
             txHashRoot,
             receiptRoot,
             blockNumber,
             blockGasLimit,
             gasUsed,
+            time,
+            extra,
+            mixDigest,
+            nonce,
+            uncleHash,
+            bloom,
+            difficulty,
         );
+
         for (let j = 0; j < receiptArray.length; j++) {
             receiptArray[j].receipt.blockHash = blockHash;
         }

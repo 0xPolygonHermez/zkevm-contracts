@@ -27,7 +27,6 @@ module.exports = class Executor {
         this.rawTxs = [];
         this.decodedTxs = [];
         this.builded = false;
-        this.totalFeeAccumulated = Scalar.e(0);
         this.circuitInput = {};
 
         this.oldStateRoot = root;
@@ -60,9 +59,6 @@ module.exports = class Executor {
 
         // Process transactions and update the state
         await this._processTx();
-
-        // Pay to the sequencer address the accumualted fees
-        await this._paySequencerFees();
 
         // Calculate Circuit input
         await this._computeCircuitInput();
@@ -259,30 +255,25 @@ module.exports = class Executor {
                     newStateTo.nonce,
                 );
 
-                this.totalFeeAccumulated = Scalar.add(this.totalFeeAccumulated, feeGasCost);
+                // Pay sequencer fees
+
+                // Get sequencer state
+                const oldStateSequencer = await stateUtils.getState(this.sequencerAddress, this.smt, this.currentRoot);
+                const newStateSequencer = { ...oldStateSequencer };
+
+                // Increase sequencer balance
+                newStateSequencer.balance = Scalar.add(newStateSequencer.balance, feeGasCost);
+
+                // update root
+                this.currentRoot = await stateUtils.setAccountState(
+                    this.sequencerAddress,
+                    this.smt,
+                    this.currentRoot,
+                    newStateSequencer.balance,
+                    newStateSequencer.nonce,
+                );
             }
         }
-    }
-
-    /**
-     * Update the sequencer balance with the fees accumulated
-     */
-    async _paySequencerFees() {
-        // get sequencer state
-        const oldStateSequencer = await stateUtils.getState(this.sequencerAddress, this.smt, this.currentRoot);
-        const newStateSequencer = { ...oldStateSequencer };
-
-        // update balance with the accumulated fees
-        newStateSequencer.balance = Scalar.add(newStateSequencer.balance, this.totalFeeAccumulated);
-
-        // update root
-        this.currentRoot = await stateUtils.setAccountState(
-            this.sequencerAddress,
-            this.smt,
-            this.currentRoot,
-            newStateSequencer.balance,
-            newStateSequencer.nonce,
-        );
     }
 
     /**
