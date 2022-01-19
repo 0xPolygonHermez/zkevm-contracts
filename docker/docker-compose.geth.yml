@@ -1,7 +1,7 @@
 version: "3.3"
 services:
   geth:
-    image: ethereum/client-go
+    image: ethereum/client-go:v1.10.15
     environment:
       - DEV_PERIOD
     ports:
