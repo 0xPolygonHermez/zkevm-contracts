@@ -30,14 +30,8 @@ function rawTxToCustomRawTx(rawTx) {
     ]);
     const r = tx.r.slice(2);
     const s = tx.s.slice(2);
+    const v = (tx.v - tx.chainId * 2 - 35 + 27).toString(16).padStart(2, '0'); // 1 byte
 
-    let v;
-
-    if (tx.chainId === 0) {
-        v = tx.v.toString(16).padStart(2, '0'); // 1 byte
-    } else {
-        v = (tx.v - tx.chainId * 2 - 35 + 27).toString(16).padStart(2, '0'); // 1 byte
-    }
     return signData.concat(r).concat(s).concat(v);
 }
 
