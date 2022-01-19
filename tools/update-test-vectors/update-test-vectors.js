@@ -11,9 +11,10 @@ const path = require('path');
 const MemDB = require('../../src/zk-EVM/zkproverjs/memdb');
 const SMT = require('../../src/zk-EVM/zkproverjs/smt');
 const stateUtils = require('../../src/zk-EVM/helpers/state-utils');
+const { rawTxToCustomRawTx, toHexStringRlp } = require('../../src/zk-EVM/helpers/executor-utils');
 
 const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
-const { setGenesisBlock, toHexStringRlp } = require('../../test/src/zk-EVM/helpers/test-helpers');
+const { setGenesisBlock } = require('../../test/src/zk-EVM/helpers/test-helpers');
 
 async function main() {
     const poseidon = await buildPoseidon();
@@ -85,39 +86,46 @@ async function main() {
                 data: txData.data || '0x',
             };
 
-            if (!ethers.utils.isAddress(tx.to)) {
+            if (!ethers.utils.isAddress(tx.to) || !ethers.utils.isAddress(txData.from)) {
                 expect(txData.rawTx).to.equal(undefined);
                 continue;
             }
 
             try {
-                const signData = ethers.utils.RLP.encode([
-                    toHexStringRlp(Scalar.e(tx.nonce)),
-                    toHexStringRlp(tx.gasPrice),
-                    toHexStringRlp(tx.gasLimit),
-                    toHexStringRlp(tx.to),
-                    toHexStringRlp(tx.value),
-                    toHexStringRlp(tx.data),
-                    toHexStringRlp(ethers.utils.hexlify(tx.chainId)),
-                    '0x',
-                    '0x',
-                ]);
-                const digest = ethers.utils.keccak256(signData);
-                const signingKey = new ethers.utils.SigningKey(walletMap[txData.from].privateKey);
-                const signature = signingKey.signDigest(digest);
+                let customRawTx;
 
-                const r = signature.r.slice(2).padStart(64, '0'); // 32 bytes
-                const s = signature.s.slice(2).padStart(64, '0'); // 32 bytes
-                const v = (signature.v).toString(16).padStart(2, '0'); // 1 bytes
+                if (tx.chainId === 0) {
+                    const signData = ethers.utils.RLP.encode([
+                        toHexStringRlp(Scalar.e(tx.nonce)),
+                        toHexStringRlp(tx.gasPrice),
+                        toHexStringRlp(tx.gasLimit),
+                        toHexStringRlp(tx.to),
+                        toHexStringRlp(tx.value),
+                        toHexStringRlp(tx.data),
+                        toHexStringRlp(tx.chainId),
+                        '0x',
+                        '0x',
+                    ]);
+                    const digest = ethers.utils.keccak256(signData);
+                    const signingKey = new ethers.utils.SigningKey(walletMap[txData.from].privateKey);
+                    const signature = signingKey.signDigest(digest);
+                    const r = signature.r.slice(2).padStart(64, '0'); // 32 bytes
+                    const s = signature.s.slice(2).padStart(64, '0'); // 32 bytes
+                    const v = (signature.v).toString(16).padStart(2, '0'); // 1 bytes
+                    customRawTx = signData.concat(r).concat(s).concat(v);
+                } else {
+                    const rawTxEthers = await walletMap[txData.from].signTransaction(tx);
+                    customRawTx = rawTxToCustomRawTx(rawTxEthers);
+                }
 
-                let rawTx = signData.concat(r).concat(s).concat(v);
+                expect(customRawTx).to.equal(txData.rawTx);
 
-                currentTestVector.txs[j].rawTx = rawTx;
+                currentTestVector.txs[j].rawTx = customRawTx;
 
                 if (txData.encodeInvalidData) {
-                    rawTx = rawTx.slice(0, -6);
+                    customRawTx = customRawTx.slice(0, -6);
                 }
-                rawTxs.push(rawTx);
+                rawTxs.push(customRawTx);
                 txProcessed.push(txData);
             } catch (error) {
                 expect(txData.rawTx).to.equal(undefined);
