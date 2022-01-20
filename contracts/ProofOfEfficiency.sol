@@ -28,6 +28,10 @@ contract ProofOfEfficiency is Ownable {
         uint256 maticCollateral;
     }
 
+    // Modulus zkSNARK
+    uint256 constant _RFIELD =
+        21888242871839275222246405745257275088548364400416034343698204186575808495617;
+
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
     bytes4 private constant _PERMIT_SIGNATURE = 0xd505accf;
 
@@ -201,7 +205,7 @@ contract ProofOfEfficiency is Ownable {
                     batchNum
                 )
             )
-        );
+        ) % _RFIELD;
 
         // Verify proof
         require(

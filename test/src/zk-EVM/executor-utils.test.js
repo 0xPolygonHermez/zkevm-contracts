@@ -6,7 +6,7 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 const { Scalar } = require('ffjavascript');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../../src/zk-EVM/helpers/executor-utils');
+const { toHexStringRlp, customRawTxToRawTx, rawTxToCustomRawTx } = require('../../../src/zk-EVM/helpers/executor-utils');
 
 describe('Encode and decode transactions in RLP', () => {
     let testVectors;
@@ -20,7 +20,6 @@ describe('Encode and decode transactions in RLP', () => {
             const {
                 genesis,
                 txs,
-                batchL2Data,
             } = testVectors[i];
 
             const walletMap = {};
@@ -39,8 +38,6 @@ describe('Encode and decode transactions in RLP', () => {
              * build, sign transaction and generate rawTxs
              * rawTxs would be the calldata inserted in the contract
              */
-            const txProcessed = [];
-            const rawTxs = [];
             for (let j = 0; j < txs.length; j++) {
                 const txData = txs[j];
                 const tx = {
@@ -52,6 +49,7 @@ describe('Encode and decode transactions in RLP', () => {
                     chainId: txData.chainId,
                     data: txData.data || '0x',
                 };
+
                 if (!ethers.utils.isAddress(tx.to) || !ethers.utils.isAddress(txData.from)) {
                     expect(txData.rawTx).to.equal(undefined);
                     continue;
@@ -82,22 +80,15 @@ describe('Encode and decode transactions in RLP', () => {
                     } else {
                         const rawTxEthers = await walletMap[txData.from].signTransaction(tx);
                         customRawTx = rawTxToCustomRawTx(rawTxEthers);
-                    }
 
+                        const reconstructedEthers = customRawTxToRawTx(customRawTx);
+                        expect(rawTxEthers).to.equal(reconstructedEthers);
+                    }
                     expect(customRawTx).to.equal(txData.rawTx);
-
-                    if (txData.encodeInvalidData) {
-                        customRawTx = customRawTx.slice(0, -6);
-                    }
-                    rawTxs.push(customRawTx);
-                    txProcessed.push(txData);
                 } catch (error) {
-                    expect(txData.rawTx).to.equal(undefined);
+                    expect(txData.customRawTx).to.equal(undefined);
                 }
             }
-
-            const encodedTransactions = rawTxs.reduce((previousValue, currentValue) => previousValue + currentValue.slice(2), '0x');
-            expect(batchL2Data).to.be.equal(encodedTransactions);
         }
     });
 });

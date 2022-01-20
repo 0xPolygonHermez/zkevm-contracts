@@ -86,10 +86,15 @@ module.exports = class Executor {
             const rawTx = this.rawTxs[i];
 
             // A: Well formed RLP encoding
+            const signatureCharacters = Constants.signatureBytes * 2;
+            const rlpSignData = rawTx.slice(0, -signatureCharacters);
+            const signature = `0x${rawTx.slice(-signatureCharacters)}`;
+
             let txDecoded;
 
+            // Decode rlp signing data
             try {
-                const txFields = ethers.utils.RLP.decode(rawTx);
+                const txFields = ethers.utils.RLP.decode(rlpSignData);
 
                 txDecoded = {
                     nonce: txFields[0],
@@ -98,16 +103,28 @@ module.exports = class Executor {
                     to: txFields[3],
                     value: txFields[4],
                     data: txFields[5],
-                    v: txFields[6],
-                    r: txFields[7],
-                    s: txFields[8],
-                    chainID: (Number(txFields[6]) - 35) >> 1,
-                    from: undefined,
+                    chainID: Number(txFields[6]),
                 };
+
+                if (txFields[7] !== '0x' || txFields[8] !== '0x') {
+                    throw new Error('The rlp encode should be: rlp(nonce, gasprice, startgas, to, value, data, chainid, 0, 0)');
+                }
             } catch (error) {
-                this.decodedTxs.push({ isInvalid: true, reason: 'TX INVALID: Failed to RLP decode raw transaction', tx: txDecoded });
+                this.decodedTxs.push({ isInvalid: true, reason: 'TX INVALID: Failed to RLP decode signing data', tx: txDecoded });
                 continue;
             }
+
+            // Decode signature
+            try {
+                const { r, s, v } = ethers.utils.splitSignature(signature);
+                txDecoded.r = r;
+                txDecoded.s = s;
+                txDecoded.v = v;
+            } catch (error) {
+                this.decodedTxs.push({ isInvalid: true, reason: 'TX INVALID: Failed to decode singature', tx: txDecoded });
+                continue;
+            }
+            txDecoded.from = undefined;
 
             // TODO should be check the type of every decoded parameter?
             if (!ethers.utils.isAddress(txDecoded.to)) {
@@ -121,30 +138,13 @@ module.exports = class Executor {
                 continue;
             }
 
-            // C: Valid Signature
-            const sign = !(Number(txDecoded.v) & 1);
-
-            // Build encoded hash according eip155
-            const e = [
-                txDecoded.nonce,
-                txDecoded.gasPrice,
-                txDecoded.gasLimit,
-                txDecoded.to,
-                txDecoded.value,
-                txDecoded.data,
-                ethers.utils.hexlify(txDecoded.chainID),
-                '0x',
-                '0x',
-            ];
-
-            const signData = ethers.utils.RLP.encode(e);
-            const digest = ethers.utils.keccak256(signData);
-
+            // verify signature!
+            const digest = ethers.utils.keccak256(rlpSignData);
             try {
                 txDecoded.from = ethers.utils.recoverAddress(digest, {
                     r: txDecoded.r,
                     s: txDecoded.s,
-                    v: sign + 27,
+                    v: txDecoded.v,
                 });
             } catch (error) {
                 this.decodedTxs.push({ isInvalid: true, reason: 'TX INVALID: Failed signature', tx: txDecoded });
@@ -346,7 +346,7 @@ module.exports = class Executor {
      * Return all the transaction data concatenated
      */
     getBatchL2Data() {
-        return ethers.utils.RLP.encode(this.rawTxs);
+        return this.rawTxs.reduce((previousValue, currentValue) => previousValue + currentValue.slice(2), '0x');
     }
 
     /**
