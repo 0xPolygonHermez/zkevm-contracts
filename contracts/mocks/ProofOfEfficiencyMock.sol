@@ -58,7 +58,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     batchNum
                 )
             )
-        );
+        ) % _RFIELD;
         return input;
     }
 
@@ -104,7 +104,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     batchNum
                 )
             )
-        );
+        ) % _RFIELD;
         return input;
     }
 

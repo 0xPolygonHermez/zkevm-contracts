@@ -1,5 +1,6 @@
 const { ethers } = require('hardhat');
 const { Scalar } = require('ffjavascript');
+const { Fr } = require('../constants');
 
 /**
  * Compute globalHash
@@ -28,7 +29,7 @@ function calculateCircuitInput(
     const newStateRootHex = `0x${Scalar.e(newStateRoot).toString(16).padStart(64, '0')}`;
     const newLocalExitRootHex = `0x${Scalar.e(newLocalExitRoot).toString(16).padStart(64, '0')}`;
 
-    return ethers.utils.solidityKeccak256(
+    const hashKeccak = ethers.utils.solidityKeccak256(
         ['bytes32', 'bytes32', 'bytes32', 'bytes32', 'address', 'bytes32', 'uint32', 'uint32'],
         [
             currentStateRootHex,
@@ -41,6 +42,8 @@ function calculateCircuitInput(
             batchNum,
         ],
     );
+
+    return `0x${Scalar.mod(Scalar.fromString(hashKeccak, 16), Fr).toString(16).padStart(64, '0')}`;
 }
 
 /**
