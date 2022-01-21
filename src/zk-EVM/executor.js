@@ -338,7 +338,7 @@ module.exports = class Executor {
             globalExitRoot,
             batchHashData,
             inputHash,
-            batchNum: Scalar.toNumber(this.batchNumber),
+            numBatch: Scalar.toNumber(this.batchNumber),
         };
     }
 

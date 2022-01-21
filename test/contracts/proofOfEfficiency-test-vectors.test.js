@@ -290,7 +290,7 @@ describe('Proof of efficiency test vectors', () => {
                 .withArgs(lastBatchSent + 1, sequencerAddress);
 
             // Check inputs mathces de smart contract
-            const batchNum = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
+            const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
             const proofA = ['0', '0'];
             const proofB = [
                 ['0', '0'],
@@ -311,7 +311,7 @@ describe('Proof of efficiency test vectors', () => {
                 sequencerAddress,
                 circuitInput.batchHashData,
                 chainIdSequencer,
-                batchNum,
+                numBatch,
             );
 
             // Compute Js input
@@ -323,7 +323,7 @@ describe('Proof of efficiency test vectors', () => {
                 sequencerAddress,
                 circuitInput.batchHashData,
                 chainIdSequencer,
-                batchNum,
+                numBatch,
             );
             expect(circuitInputSC).to.be.equal(circuitInputJS);
             expect(circuitInputSC).to.be.equal(`0x${Scalar.e(inputHash).toString(16)}`);
@@ -332,7 +332,7 @@ describe('Proof of efficiency test vectors', () => {
             const circuitNextInputSC = await proofOfEfficiencyContract.getNextCircuitInput(
                 newStateRoot,
                 newLocalExitRoot,
-                batchNum,
+                numBatch,
             );
             expect(circuitNextInputSC).to.be.equal(circuitInputSC);
 
@@ -345,13 +345,13 @@ describe('Proof of efficiency test vectors', () => {
                 proofOfEfficiencyContract.connect(aggregator).verifyBatch(
                     newLocalExitRoot,
                     newStateRoot,
-                    batchNum,
+                    numBatch,
                     proofA,
                     proofB,
                     proofC,
                 ),
             ).to.emit(proofOfEfficiencyContract, 'VerifyBatch')
-                .withArgs(batchNum, aggregatorAddress);
+                .withArgs(numBatch, aggregatorAddress);
 
             const finalAggregatorMatic = await maticTokenContract.balanceOf(
                 await aggregator.getAddress(),

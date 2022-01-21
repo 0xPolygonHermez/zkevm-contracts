@@ -72,20 +72,20 @@ describe('zkEVM-db Test', () => {
             expect(error.toString().includes("Cannot read property 'length' of undefined")).to.be.equal(true);
         }
 
-        const batchNum = Scalar.e(0);
-        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(batchNum);
+        const numBatch = Scalar.e(0);
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(numBatch);
 
         // consoldate state
         await zkEVMDB.consolidate(batch);
 
         // checks after consolidate zkEVMDB
-        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(Scalar.add(batchNum, 1));
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(Scalar.add(numBatch, 1));
         expect(zkEVMDB.getCurrentStateRoot()).to.be.equal(genesisRoot);
 
         // check agains DB
         const lastBatchDB = await getValue(Constants.DB_LastBatch, db, F);
         const stateRootDB = await getValue(Scalar.add(Constants.DB_StateRoot, lastBatchDB), db, F);
-        expect(lastBatchDB).to.be.equal(Scalar.add(batchNum, 1));
+        expect(lastBatchDB).to.be.equal(Scalar.add(numBatch, 1));
         expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.getCurrentStateRoot());
 
         // Try to import the DB
@@ -243,22 +243,22 @@ describe('zkEVM-db Test', () => {
             expect(error.toString().includes("Cannot read property 'length' of undefined")).to.be.equal(true);
         }
 
-        const batchNum = Scalar.e(0);
-        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(batchNum);
+        const numBatch = Scalar.e(0);
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(numBatch);
         expect(F.toString(zkEVMDB.getCurrentStateRoot())).to.be.equal(expectedOldRoot);
 
         // consoldate state
         await zkEVMDB.consolidate(batch);
 
         // checks after consolidate zkEVMDB
-        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(Scalar.add(batchNum, 1));
+        expect(zkEVMDB.getCurrentNumBatch()).to.be.equal(Scalar.add(numBatch, 1));
         expect(F.toString(zkEVMDB.getCurrentStateRoot())).to.be.equal(expectedNewRoot);
         expect(zkEVMDB.getCurrentLocalExitRoot()).to.be.deep.equal(F.e(localExitRoot));
         expect(zkEVMDB.getCurrentGlobalExitRoot()).to.be.deep.equal(F.e(globalExitRoot));
 
         const lastBatchDB = await getValue(Constants.DB_LastBatch, db, F);
 
-        expect(lastBatchDB).to.be.equal(Scalar.add(batchNum, 1));
+        expect(lastBatchDB).to.be.equal(Scalar.add(numBatch, 1));
 
         const stateRootDB = await getValue(Scalar.add(Constants.DB_StateRoot, lastBatchDB), db, F);
         expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.getCurrentStateRoot());

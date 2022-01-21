@@ -11,7 +11,7 @@ const { Fr } = require('../constants');
  * @param {String} sequencerAddress - Sequencer address
  * @param {String} batchHashData - Batch hash data
  * @param {Number} batchChainID - Batch chain ID
- * @param {Number} batchNum - Batch number
+ * @param {Number} numBatch - Batch number
  * @returns {String} - Leaf value
  */
 function calculateCircuitInput(
@@ -22,7 +22,7 @@ function calculateCircuitInput(
     sequencerAddress,
     batchHashData,
     batchChainID,
-    batchNum,
+    numBatch,
 ) {
     const currentStateRootHex = `0x${Scalar.e(currentStateRoot).toString(16).padStart(64, '0')}`;
     const currentLocalExitRootHex = `0x${Scalar.e(currentLocalExitRoot).toString(16).padStart(64, '0')}`;
@@ -39,7 +39,7 @@ function calculateCircuitInput(
             sequencerAddress,
             batchHashData,
             batchChainID,
-            batchNum,
+            numBatch,
         ],
     );
 

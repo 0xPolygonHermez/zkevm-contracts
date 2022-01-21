@@ -153,7 +153,7 @@ describe('Proof of efficiency', () => {
         // aggregator forge the batch
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const batchNum = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
+        const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
         const proofA = ['0', '0'];
         const proofB = [
             ['0', '0'],
@@ -169,7 +169,7 @@ describe('Proof of efficiency', () => {
             proofOfEfficiencyContract.connect(aggregator).verifyBatch(
                 newLocalExitRoot,
                 newStateRoot,
-                batchNum - 1,
+                numBatch - 1,
                 proofA,
                 proofB,
                 proofC,
@@ -177,9 +177,9 @@ describe('Proof of efficiency', () => {
         ).to.be.revertedWith('ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH');
 
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatch(newLocalExitRoot, newStateRoot, batchNum, proofA, proofB, proofC),
+            proofOfEfficiencyContract.connect(aggregator).verifyBatch(newLocalExitRoot, newStateRoot, numBatch, proofA, proofB, proofC),
         ).to.emit(proofOfEfficiencyContract, 'VerifyBatch')
-            .withArgs(batchNum, aggregatorAddress);
+            .withArgs(numBatch, aggregatorAddress);
 
         const finalAggregatorMatic = await maticTokenContract.balanceOf(
             await aggregator.getAddress(),
@@ -222,7 +222,7 @@ describe('Proof of efficiency', () => {
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
         const batchChainID = defaultChainId;
-        const batchNum = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
+        const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
 
         const circuitInputSC = await proofOfEfficiencyContract.calculateCircuitInput(
             currentStateRoot,
@@ -232,7 +232,7 @@ describe('Proof of efficiency', () => {
             sequencerAddress,
             batchHashData,
             batchChainID,
-            batchNum,
+            numBatch,
         );
 
         // Compute Js input
@@ -244,7 +244,7 @@ describe('Proof of efficiency', () => {
             sequencerAddress,
             batchHashData,
             batchChainID,
-            batchNum,
+            numBatch,
         );
         expect(circuitInputSC).to.be.equal(circuitInputJS);
 
@@ -252,7 +252,7 @@ describe('Proof of efficiency', () => {
         const circuitNextInputSC = await proofOfEfficiencyContract.getNextCircuitInput(
             newStateRoot,
             newLocalExitRoot,
-            batchNum,
+            numBatch,
         );
         expect(circuitNextInputSC).to.be.equal(circuitInputSC);
     });
