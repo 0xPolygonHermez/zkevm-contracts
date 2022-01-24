@@ -76,5 +76,5 @@
   "globalExitRoot": "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9",
   "batchHashData": "0x84bd40a971cac799a5911b0a4b4b5b4fb768b1ce86c6f009c912d1cbe0473da3",
   "inputHash": "0x27a74ad0dc3ad8b6b35b06d413cb125f83d009edcf0bc56a098a1f6b87adddb8",
-  "batchNum": 1
+  "numBatch": 1
 }

@@ -79,12 +79,12 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @dev Emitted when a sequencer sends a new batch of transactions
      */
-    event SendBatch(uint32 indexed batchNum, address indexed sequencer);
+    event SendBatch(uint32 indexed numBatch, address indexed sequencer);
 
     /**
      * @dev Emitted when a aggregator verifies a new batch
      */
-    event VerifyBatch(uint32 indexed batchNum, address indexed aggregator);
+    event VerifyBatch(uint32 indexed numBatch, address indexed aggregator);
 
     /**
      * @param _bridge Bridge contract address
@@ -170,7 +170,7 @@ contract ProofOfEfficiency is Ownable {
      * @notice Allows an aggregator to verify a batch
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param batchNum Batch number that the aggregator intends to verify, used as a sanity check
+     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      * @param proofA zk-snark input
      * @param proofB zk-snark input
      * @param proofC zk-snark input
@@ -178,19 +178,19 @@ contract ProofOfEfficiency is Ownable {
     function verifyBatch(
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint32 batchNum,
+        uint32 numBatch,
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public {
         // sanity check
         require(
-            batchNum == lastVerifiedBatch + 1,
+            numBatch == lastVerifiedBatch + 1,
             "ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH"
         );
 
         // Calculate Circuit Input
-        BatchData memory currentBatch = sentBatches[batchNum];
+        BatchData memory currentBatch = sentBatches[numBatch];
 
         uint256 input = uint256(
             keccak256(
@@ -202,7 +202,7 @@ contract ProofOfEfficiency is Ownable {
                     currentBatch.sequencerAddress,
                     currentBatch.batchHashData,
                     currentBatch.chainID,
-                    batchNum
+                    numBatch
                 )
             )
         ) % _RFIELD;
@@ -224,7 +224,7 @@ contract ProofOfEfficiency is Ownable {
         // Get MATIC reward
         matic.safeTransfer(msg.sender, currentBatch.maticCollateral);
 
-        emit VerifyBatch(batchNum, msg.sender);
+        emit VerifyBatch(numBatch, msg.sender);
     }
 
     /**

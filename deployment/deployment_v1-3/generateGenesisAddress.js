@@ -21,6 +21,8 @@ const addressTable =
     | 0x56b2118d90cCA76E4683EfECEEC35662372d64Cd |                 |
     | 0xd66d09242faa9b3beae711f89d8fff0946974a21 |                 |
     | 0x615031554479128d65f30Ffa721791D6441d9727 |                 |
+    | 0x890C6F9dAa205C93FeD6546F9ecb4d8D71cfC250 |                 |
+    | 0x8faF6d5f53cD2459aDB7D4cF8682db024dCdCD26 |                 |
     |                                            |                 |
     |                                            |                 |
     |                                            |                 |

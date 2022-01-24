@@ -67,12 +67,12 @@ module.exports = class Aggregator {
      */
     async verifyBatch() {
         await this.calculateNewState();
-        const batchNum = Scalar.e(await this.proofOfEfficiencyContract.lastBatchSent());
+        const numBatch = Scalar.e(await this.proofOfEfficiencyContract.lastBatchSent());
         const proof = await this.calculateProof();
         const tx = await this.proofOfEfficiencyContract.connect(this.signer).verifyBatch(
             this.state.newLocalExitRoot,
             this.state.newStateRoot,
-            batchNum,
+            numBatch,
             proof.proofA,
             proof.proofB,
             proof.proofC,

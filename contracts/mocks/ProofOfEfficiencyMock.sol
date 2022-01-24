@@ -33,7 +33,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param sequencerAddress Sequencer address
      * @param batchHashData Batch hash data
      * @param batchChainID Batch chain ID
-     * @param batchNum Batch number that the aggregator intends to verify, used as a sanity check
+     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
     function calculateCircuitInput(
         bytes32 currentStateRoot,
@@ -43,7 +43,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         address sequencerAddress,
         bytes32 batchHashData,
         uint32 batchChainID,
-        uint32 batchNum
+        uint32 numBatch
     ) public pure returns (uint256) {
         uint256 input = uint256(
             keccak256(
@@ -55,10 +55,10 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     sequencerAddress,
                     batchHashData,
                     batchChainID,
-                    batchNum
+                    numBatch
                 )
             )
-        );
+        ) % _RFIELD;
         return input;
     }
 
@@ -66,21 +66,21 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Calculate the circuit input
      * @param newStateRoot New State root once the batch is processed
      * @param newLocalExitRoot  New local exit root once the batch is processed
-     * @param batchNum Batch number that the aggregator intends to verify, used as a sanity check
+     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
     function getNextCircuitInput(
         bytes32 newStateRoot,
         bytes32 newLocalExitRoot,
-        uint32 batchNum
+        uint32 numBatch
     ) public view returns (uint256) {
         // sanity check
         require(
-            batchNum == lastVerifiedBatch + 1,
+            numBatch == lastVerifiedBatch + 1,
             "ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH"
         );
 
         // Calculate Circuit Input
-        BatchData memory currentBatch = sentBatches[batchNum];
+        BatchData memory currentBatch = sentBatches[numBatch];
         address sequencerAddress = currentBatch.sequencerAddress;
 
         uint32 batchChainID;
@@ -101,10 +101,10 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     sequencerAddress,
                     currentBatch.batchHashData,
                     batchChainID,
-                    batchNum
+                    numBatch
                 )
             )
-        );
+        ) % _RFIELD;
         return input;
     }
 
