@@ -29,7 +29,7 @@
   "scripts": {
     "test:SC": "npx hardhat test",
     "test:src": "npx mocha test/src/ --recursive",
-    "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates",
+    "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates -e ./contracts/verifiers,./contracts/mocks",
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
     "deploy:PoE1_3:hardhat": "npx hardhat run deployment/deployment_v1-3/deployPoE_v1-3.js --network hardhat",
     "deploy:PoE1_3:goerli": "npx hardhat run deployment/deployment_v1-3/deployPoE_v1-3.js --network goerli",

@@ -60,7 +60,40 @@ function calculateBatchHashData(
     return ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [batchL2Data, globalExitRootHex]);
 }
 
+/**
+ * Prepare zkSnark inputs for smart contract
+ * @param {Object} proof - Contain the proof data related from snarkJs
+ * @param {Array} publicSignals - Contain the public input array from snarkJs
+ * @returns {Object} - Proof structure ready to be sent to smart contract
+ */
+function generateSolidityInputs(
+    proof,
+    publicSignals,
+) {
+    const proofA = [proof.pi_a[0],
+        proof.pi_a[1],
+    ];
+    const proofB = [
+        [
+            proof.pi_b[0][1],
+            proof.pi_b[0][0],
+        ],
+        [
+            proof.pi_b[1][1],
+            proof.pi_b[1][0],
+        ],
+    ];
+    const proofC = [proof.pi_c[0],
+        proof.pi_c[1],
+    ];
+    const input = publicSignals;
+    return {
+        proofA, proofB, proofC, input,
+    };
+}
+
 module.exports = {
     calculateCircuitInput,
     calculateBatchHashData,
+    generateSolidityInputs,
 };

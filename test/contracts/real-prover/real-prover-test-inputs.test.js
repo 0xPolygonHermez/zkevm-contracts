@@ -1,10 +1,12 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
+const { generateSolidityInputs } = require('../../../src/zk-EVM/helpers/contract-utils');
+
 const proofJson = require('./test-inputs/proof.json');
 const publicJson = require('./test-inputs/public.json');
 
-describe('Proof of efficiency', () => {
+describe('Real prover test', () => {
     let deployer;
     let sequencer;
 
@@ -63,23 +65,9 @@ describe('Proof of efficiency', () => {
     });
 
     it('Test real prover', async () => {
-        const proofA = [proofJson.pi_a[0],
-            proofJson.pi_a[1],
-        ];
-        const proofB = [
-            [
-                proofJson.pi_b[0][1],
-                proofJson.pi_b[0][0],
-            ],
-            [
-                proofJson.pi_b[1][1],
-                proofJson.pi_b[1][0],
-            ],
-        ];
-        const proofC = [proofJson.pi_c[0],
-            proofJson.pi_c[1],
-        ];
-        const input = publicJson;
+        const {
+            proofA, proofB, proofC, input,
+        } = generateSolidityInputs(proofJson, publicJson);
 
         expect(await verifierContract.verifyProof(
             proofA,
