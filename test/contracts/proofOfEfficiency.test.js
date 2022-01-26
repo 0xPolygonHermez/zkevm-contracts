@@ -46,7 +46,8 @@ describe('Proof of efficiency', () => {
         const BridgeFactory = await ethers.getContractFactory('Bridge');
         bridgeContract = await BridgeFactory.deploy(precalculatePoEAddress);
         await bridgeContract.deployed();
-
+        const lastGlobalExitRoot = await bridgeContract.getLastGlobalExitRoot();
+        console.log("lastGlobalExitRoot: ", lastGlobalExitRoot);
         // deploy proof of efficiency
         const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
         proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
