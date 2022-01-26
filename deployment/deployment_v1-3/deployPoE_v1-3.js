@@ -103,7 +103,7 @@ async function main() {
     console.log('verifierAddress:', verifierContract.address);
     console.log('genesisRoot:', genesisRootHex);
 
-    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiency');
+    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
         bridgeContract.address,
         maticTokenContract.address,

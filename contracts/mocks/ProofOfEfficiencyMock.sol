@@ -69,8 +69,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
     function getNextCircuitInput(
-        bytes32 newStateRoot,
         bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
         uint32 numBatch
     ) public view returns (uint256) {
         // sanity check
@@ -81,15 +81,6 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
 
         // Calculate Circuit Input
         BatchData memory currentBatch = sentBatches[numBatch];
-        address sequencerAddress = currentBatch.sequencerAddress;
-
-        uint32 batchChainID;
-        if (sequencers[sequencerAddress].chainID != 0) {
-            batchChainID = sequencers[sequencerAddress].chainID;
-        } else {
-            // If the sequencer is not registered use the default chainID
-            batchChainID = DEFAULT_CHAIN_ID;
-        }
 
         uint256 input = uint256(
             keccak256(
@@ -98,14 +89,47 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    sequencerAddress,
+                    currentBatch.sequencerAddress,
                     currentBatch.batchHashData,
-                    batchChainID,
+                    currentBatch.chainID,
                     numBatch
                 )
             )
         ) % _RFIELD;
         return input;
+    }
+
+    /**
+     * @notice Return the input hash parameters
+     * @param newStateRoot New State root once the batch is processed
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
+     */
+    function returnInputHashParameters(
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint32 numBatch
+    ) public view returns (bytes memory) {
+        // sanity check
+        require(
+            numBatch == lastVerifiedBatch + 1,
+            "ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH"
+        );
+
+        // Calculate Circuit Input
+        BatchData memory currentBatch = sentBatches[numBatch];
+
+        return
+            abi.encodePacked(
+                currentStateRoot,
+                currentLocalExitRoot,
+                newStateRoot,
+                newLocalExitRoot,
+                currentBatch.sequencerAddress,
+                currentBatch.batchHashData,
+                currentBatch.chainID,
+                numBatch
+            );
     }
 
     /**
