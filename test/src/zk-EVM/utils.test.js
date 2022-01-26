@@ -6,7 +6,9 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 const { Scalar } = require('ffjavascript');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../../src/zk-EVM/helpers/executor-utils');
+const {
+    rawTxToCustomRawTx, toHexStringRlp, arrayToEncodedString, encodedStringToArray,
+} = require('../../../src/zk-EVM/helpers/executor-utils');
 
 describe('Encode and decode transactions in RLP', () => {
     let testVectors;
@@ -99,51 +101,10 @@ describe('Encode and decode transactions in RLP', () => {
             const encodedTransactions = rawTxs.reduce((previousValue, currentValue) => previousValue + currentValue.slice(2), '0x');
             expect(batchL2Data).to.be.equal(encodedTransactions);
 
-
-            const signatureBytes = 65;
-            // from rawTxArray to reduced string
-            const encodedTxBytes = ethers.utils.arrayify(encodedTransactions);
-
-            let offset = 0;
-            const decodedRawTx = [];
-
-            while (offset < encodedTxBytes.length) {
-                if (encodedTxBytes[offset] >= 0xf8) {
-                    const lengthLength = encodedTxBytes[offset] - 0xf7;
-                    if (offset + 1 + lengthLength > encodedTxBytes.length) {
-                        throw new Error("encodedTxBytes short segment too short");
-                    }
-
-                    const length = unarrayifyInteger(encodedTxBytes, offset + 1, lengthLength);
-                    if (offset + 1 + lengthLength + length > encodedTxBytes.length) {
-                        throw new Error("encodedTxBytes long segment too short");
-                    }
-
-                    decodedRawTx.push(ethers.utils.hexlify(encodedTxBytes.slice(offset, offset + 1 + lengthLength + length + signatureBytes)));
-                    offset = offset + 1 + lengthLength + length + signatureBytes;
-
-                } else if (encodedTxBytes[offset] >= 0xc0) {
-                    const length = encodedTxBytes[offset] - 0xc0;
-                    if (offset + 1 + length > encodedTxBytes.length) {
-                        throw new Error("encodedTxBytes array too short");
-                    }
-
-                    decodedRawTx.push(ethers.utils.hexlify(encodedTxBytes.slice(offset, offset + 1 + length + signatureBytes)));
-                    offset = offset + 1 + length + signatureBytes;
-                } else {
-                    throw new Error("Error");
-                }
-            }
+            // test encode and decode calldata transactions utilss
+            expect(encodedTransactions).to.be.equal(arrayToEncodedString(rawTxs));
+            const decodedRawTx = encodedStringToArray(encodedTransactions);
             expect(rawTxs).to.be.deep.equal(decodedRawTx);
         }
     });
 });
-
-
-function unarrayifyInteger(data, offset, length) {
-    let result = 0;
-    for (let i = 0; i < length; i++) {
-        result = (result * 256) + data[offset + i];
-    }
-    return result;
-}
