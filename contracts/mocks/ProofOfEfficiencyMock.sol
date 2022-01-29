@@ -136,7 +136,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set state root
      * @param newStateRoot New State root ¡
      */
-    function setStateRoot(bytes32 newStateRoot) public {
+    function setStateRoot(bytes32 newStateRoot) public onlyOwner {
         currentStateRoot = newStateRoot;
     }
 
@@ -144,7 +144,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set Sequencer
      * @param newLocalExitRoot New exit root ¡
      */
-    function setExitRoot(bytes32 newLocalExitRoot) public {
+    function setExitRoot(bytes32 newLocalExitRoot) public onlyOwner {
         currentLocalExitRoot = newLocalExitRoot;
     }
 
@@ -156,8 +156,35 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         address sequencer,
         string memory sequencerURL,
         uint32 chainID
-    ) public {
+    ) public onlyOwner {
         sequencers[sequencer].sequencerURL = sequencerURL;
         sequencers[sequencer].chainID = chainID;
+    }
+
+    /**
+     * @notice VerifyBatchMock
+     */
+    function verifyBatchMock() public onlyOwner {
+        // Update state
+        lastVerifiedBatch++;
+        // Interact with bridge
+        bridge.updateRollupExitRoot(currentLocalExitRoot);
+        emit VerifyBatch(lastVerifiedBatch, msg.sender);
+    }
+
+    /**
+     * @notice Allows to set Batch
+     */
+    function setBatch(
+        bytes32 batchHashData,
+        uint256 maticCollateral,
+        address sequencer,
+        uint32 chainID,
+        uint32 batchNum
+    ) public onlyOwner {
+        sentBatches[batchNum].batchHashData = batchHashData;
+        sentBatches[batchNum].maticCollateral = maticCollateral;
+        sentBatches[batchNum].sequencerAddress = sequencer;
+        sentBatches[batchNum].chainID = chainID;
     }
 }
