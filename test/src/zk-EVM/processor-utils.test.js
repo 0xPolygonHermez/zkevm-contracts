@@ -6,7 +6,9 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 const { Scalar } = require('ffjavascript');
-const { toHexStringRlp, customRawTxToRawTx, rawTxToCustomRawTx } = require('../../../src/zk-EVM/helpers/executor-utils');
+const {
+    toHexStringRlp, customRawTxToRawTx, rawTxToCustomRawTx, decodeCustomRawTxProverMethod,
+} = require('../../../src/zk-EVM/helpers/processor-utils');
 
 describe('Encode and decode transactions in RLP', () => {
     let testVectors;
@@ -85,6 +87,34 @@ describe('Encode and decode transactions in RLP', () => {
                         expect(rawTxEthers).to.equal(reconstructedEthers);
                     }
                     expect(customRawTx).to.equal(txData.rawTx);
+
+                    // Test decode raw tx prover method
+                    const { txDecoded, rlpSignData } = decodeCustomRawTxProverMethod(customRawTx);
+                    const signData = ethers.utils.RLP.encode([
+                        toHexStringRlp(Scalar.e(tx.nonce)),
+                        toHexStringRlp(tx.gasPrice),
+                        toHexStringRlp(tx.gasLimit),
+                        toHexStringRlp(tx.to),
+                        toHexStringRlp(tx.value),
+                        toHexStringRlp(tx.data),
+                        toHexStringRlp(tx.chainId),
+                        '0x',
+                        '0x',
+                    ]);
+                    expect(rlpSignData).to.equal(signData);
+
+                    const txParams = Object.keys(txDecoded);
+                    txParams.forEach((key) => {
+                        if (txDecoded[key] === '0x' && key !== 'data') {
+                            txDecoded[key] = '0x00';
+                        }
+                    });
+                    expect(Number(txDecoded.nonce)).to.equal(tx.nonce);
+                    expect(ethers.BigNumber.from(txDecoded.gasPrice)).to.equal(tx.gasPrice);
+                    expect(ethers.BigNumber.from(txDecoded.gasLimit)).to.equal(tx.gasLimit);
+                    expect(ethers.BigNumber.from(txDecoded.to)).to.equal(ethers.BigNumber.from(tx.to));
+                    expect(ethers.BigNumber.from(txDecoded.value)).to.equal(tx.value);
+                    expect(Number(txDecoded.chainID)).to.equal(tx.chainId);
                 } catch (error) {
                     expect(txData.customRawTx).to.equal(undefined);
                 }

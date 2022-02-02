@@ -101,10 +101,121 @@ function encodedStringToArray(encodedTransactions) {
     return decodedRawTx;
 }
 
+function decodeNextShortStringRLP(encodedTxBytes, offset) {
+    if (encodedTxBytes[offset] >= 0xb8) {
+        throw new Error('Should be a short string RLP');
+    } else if (encodedTxBytes[offset] >= 0x80) {
+        const length = encodedTxBytes[offset] - 0x80;
+        const result = ethers.utils.hexlify(encodedTxBytes.slice(offset + 1, offset + 1 + length));
+        return { consumed: (1 + length), result };
+    } else {
+        return { consumed: 1, result: ethers.utils.hexlify(encodedTxBytes[offset]) };
+    }
+}
+
+function decodeNextStringRLP(encodedTxBytes, offset) {
+    if (encodedTxBytes[offset] >= 0xb8) {
+        const lengthLength = encodedTxBytes[offset] - 0xb7;
+        const length = unarrayifyInteger(encodedTxBytes, offset + 1, lengthLength);
+        const result = ethers.utils.hexlify(encodedTxBytes.slice(offset + 1 + lengthLength, offset + 1 + lengthLength + length));
+        return { consumed: (1 + lengthLength + length), result };
+    }
+    return decodeNextShortStringRLP(encodedTxBytes, offset);
+}
+
+function decodeCustomRawTxProverMethod(encodedTransactions) {
+    // should check total len before read
+    const encodedTxBytes = ethers.utils.arrayify(encodedTransactions);
+    const txDecoded = {};
+
+    let offset = 0; // in zkasm this is the p
+
+    let txListLength = 0;
+
+    // Decode list length
+    if (encodedTxBytes[offset] < 0xc0) {
+        throw new Error('headerList should be a list');
+    } else if (encodedTxBytes[offset] >= 0xf8) {
+        const lengthLength = encodedTxBytes[offset] - 0xf7;
+        txListLength = unarrayifyInteger(encodedTxBytes, offset + 1, lengthLength);
+        offset = offset + 1 + lengthLength;
+    } else if (encodedTxBytes[offset] >= 0xc0) {
+        txListLength = encodedTxBytes[offset] - 0xc0;
+        offset += 1;
+    }
+
+    // Nonce read
+    const decodedNonce = decodeNextShortStringRLP(encodedTxBytes, offset);
+    offset += decodedNonce.consumed;
+    txDecoded.nonce = decodedNonce.result;
+
+    // GasPrice read
+    const decodedGasPrice = decodeNextShortStringRLP(encodedTxBytes, offset);
+    offset += decodedGasPrice.consumed;
+    txDecoded.gasPrice = decodedGasPrice.result;
+
+    // gas read
+    const decodedGasLimit = decodeNextShortStringRLP(encodedTxBytes, offset);
+    offset += decodedGasLimit.consumed;
+    txDecoded.gasLimit = decodedGasLimit.result;
+
+    // To READ
+    if (encodedTxBytes[offset] === 0x80) {
+        txDecoded.to = '0x';
+        // isContract = true
+    } else if (encodedTxBytes[offset] === 0x94) {
+        const length = 20;
+        txDecoded.to = ethers.utils.hexlify(encodedTxBytes.slice(offset + 1, offset + 1 + length));
+        offset += 1 + length;
+    } else {
+        throw new Error('To should be an address or empty');
+    }
+
+    // Value READ
+    const decodedValue = decodeNextShortStringRLP(encodedTxBytes, offset);
+    offset += decodedValue.consumed;
+    txDecoded.value = decodedValue.result;
+
+    // Data READ
+    const decodedData = decodeNextStringRLP(encodedTxBytes, offset);
+    offset += decodedData.consumed;
+    txDecoded.data = decodedData.result;
+
+    // Value READ
+    const decodedChainID = decodeNextShortStringRLP(encodedTxBytes, offset);
+    offset += decodedChainID.consumed;
+    txDecoded.chainID = decodedChainID.result;
+
+    if ((encodedTxBytes[offset] !== 0x80) || encodedTxBytes[offset + 1] !== 0x80) {
+        throw new Error('The last 2 values should be 0x8080');
+    }
+    offset += 2;
+
+    if (txListLength + 1 !== offset) {
+        throw new Error('Invalid list length');
+    }
+
+    const rlpSignData = ethers.utils.hexlify(encodedTxBytes.slice(0, offset));
+
+    const lenR = 32;
+    const lenS = 32;
+    const lenV = 1;
+
+    txDecoded.r = ethers.utils.hexlify(encodedTxBytes.slice(offset, offset + lenR));
+    offset += lenR;
+    txDecoded.s = ethers.utils.hexlify(encodedTxBytes.slice(offset, offset + lenS));
+    offset += lenS;
+    txDecoded.v = ethers.utils.hexlify(encodedTxBytes.slice(offset, offset + lenV));
+    offset += lenV;
+
+    return { txDecoded, rlpSignData };
+}
+
 module.exports = {
     toHexStringRlp,
     customRawTxToRawTx,
     rawTxToCustomRawTx,
     arrayToEncodedString,
     encodedStringToArray,
+    decodeCustomRawTxProverMethod,
 };

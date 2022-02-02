@@ -11,8 +11,9 @@ const smtKeyUtils = require('./helpers/smt-key-utils');
 
 const { getCurrentDB } = require('./helpers/smt-utils');
 const { calculateCircuitInput, calculateBatchHashData } = require('./helpers/contract-utils');
+const { decodeCustomRawTxProverMethod } = require('./helpers/processor-utils');
 
-module.exports = class Executor {
+module.exports = class Processor {
     constructor(db, batchNumber, arity, poseidon, maxNTx, seqChainID, root, sequencerAddress, localExitRoot, globalExitRoot) {
         this.db = db;
         this.batchNumber = batchNumber;
@@ -37,7 +38,7 @@ module.exports = class Executor {
     }
 
     /**
-     * Add a raw transaction to the executor
+     * Add a raw transaction to the processor
      * @param {Object} rawTx - RLP encoded transaction with signature
      */
     addRawTx(rawTx) {
@@ -85,52 +86,19 @@ module.exports = class Executor {
         for (let i = 0; i < this.rawTxs.length; i++) {
             const rawTx = this.rawTxs[i];
 
-            // A: Well formed RLP encoding
-            const signatureCharacters = Constants.signatureBytes * 2;
-            const rlpSignData = rawTx.slice(0, -signatureCharacters);
-            const signature = `0x${rawTx.slice(-signatureCharacters)}`;
-
+            // Decode raw transaction using prover method
             let txDecoded;
-
-            // Decode rlp signing data
+            let rlpSignData;
             try {
-                const txFields = ethers.utils.RLP.decode(rlpSignData);
-
-                txDecoded = {
-                    nonce: txFields[0],
-                    gasPrice: txFields[1],
-                    gasLimit: txFields[2],
-                    to: txFields[3],
-                    value: txFields[4],
-                    data: txFields[5],
-                    chainID: Number(txFields[6]),
-                };
-
-                if (txFields[7] !== '0x' || txFields[8] !== '0x') {
-                    throw new Error('The rlp encode should be: rlp(nonce, gasprice, startgas, to, value, data, chainid, 0, 0)');
-                }
+                const decodedObject = decodeCustomRawTxProverMethod(rawTx);
+                txDecoded = decodedObject.txDecoded;
+                rlpSignData = decodedObject.rlpSignData;
             } catch (error) {
                 this.decodedTxs.push({ isInvalid: true, reason: 'TX INVALID: Failed to RLP decode signing data', tx: txDecoded });
                 continue;
             }
-
-            // Decode signature
-            try {
-                const { r, s, v } = ethers.utils.splitSignature(signature);
-                txDecoded.r = r;
-                txDecoded.s = s;
-                txDecoded.v = v;
-            } catch (error) {
-                this.decodedTxs.push({ isInvalid: true, reason: 'TX INVALID: Failed to decode singature', tx: txDecoded });
-                continue;
-            }
             txDecoded.from = undefined;
-
-            // TODO should be check the type of every decoded parameter?
-            if (!ethers.utils.isAddress(txDecoded.to)) {
-                this.decodedTxs.push({ isInvalid: true, reason: 'TX INVALID: To invalid address', tx: txDecoded });
-                continue;
-            }
+            txDecoded.chainID = Number(txDecoded.chainID);
 
             // B: Valid chainID
             if (txDecoded.chainID !== this.seqChainID && txDecoded.chainID !== Constants.defaultSeqChainID) {

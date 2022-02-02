@@ -8,7 +8,7 @@ const path = require('path');
 const { Scalar } = require('ffjavascript');
 const {
     rawTxToCustomRawTx, toHexStringRlp, arrayToEncodedString, encodedStringToArray,
-} = require('../../../src/zk-EVM/helpers/executor-utils');
+} = require('../../../src/zk-EVM/helpers/processor-utils');
 
 describe('Encode and decode transactions in RLP', () => {
     let testVectors;

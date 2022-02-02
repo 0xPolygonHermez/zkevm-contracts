@@ -1,7 +1,7 @@
 const { Scalar } = require('ffjavascript');
 
 const Constants = require('./constants');
-const Executor = require('./executor');
+const Processor = require('./processor');
 const SMT = require('./zkproverjs/smt');
 const { getState } = require('./helpers/state-utils');
 const { getValue, setValue } = require('./helpers/db-key-value-utils');
@@ -25,11 +25,11 @@ class ZkEVMDB {
     }
 
     /**
-     * Return a new Executor with the current RollupDb state
+     * Return a new Processor with the current RollupDb state
      * @param {Scalar} maxNTx - Maximum number of transactions
      */
     async buildBatch(maxNTx = Constants.defaultMaxTx) {
-        return new Executor(
+        return new Processor(
             this.db,
             Scalar.add(this.lastBatch, 1),
             this.arity,
@@ -45,24 +45,24 @@ class ZkEVMDB {
 
     /**
      * Consolidate a batch by writing it in the DB
-     * @param {Object} executor - Executor object
+     * @param {Object} processor - Processor object
      */
-    async consolidate(executor) {
-        if (executor.batchNumber !== Scalar.add(this.lastBatch, 1)) {
+    async consolidate(processor) {
+        if (processor.batchNumber !== Scalar.add(this.lastBatch, 1)) {
             throw new Error('Updating the wrong batch');
         }
 
-        if (!executor.builded) {
-            await executor.executeTxs();
+        if (!processor.builded) {
+            await processor.executeTxs();
         }
 
         // Populate actual DB with the keys and values inserted in the batch
-        await executor.tmpDB.populateSrcDb();
+        await processor.tmpDB.populateSrcDb();
 
         // Set state root
         await setValue(
-            Scalar.add(Constants.DB_StateRoot, executor.batchNumber),
-            this.F.toString(executor.currentRoot),
+            Scalar.add(Constants.DB_StateRoot, processor.batchNumber),
+            this.F.toString(processor.currentRoot),
             this.db,
             this.F,
         );
@@ -71,9 +71,9 @@ class ZkEVMDB {
         await setValue(
             Scalar.add(
                 Constants.DB_LocalExitRoot,
-                executor.batchNumber,
+                processor.batchNumber,
             ),
-            this.F.toString(executor.localExitRoot),
+            this.F.toString(processor.localExitRoot),
             this.db,
             this.F,
         );
@@ -82,21 +82,21 @@ class ZkEVMDB {
         await setValue(
             Scalar.add(
                 Constants.DB_GlobalExitRoot,
-                executor.batchNumber,
+                processor.batchNumber,
             ),
-            this.F.toString(executor.globalExitRoot),
+            this.F.toString(processor.globalExitRoot),
             this.db,
             this.F,
         );
 
         // Set last batch number
-        await setValue(Constants.DB_LastBatch, executor.batchNumber, this.db, this.F);
+        await setValue(Constants.DB_LastBatch, processor.batchNumber, this.db, this.F);
 
         // Update ZKEVMDB variables
-        this.lastBatch = executor.batchNumber;
-        this.stateRoot = executor.currentRoot;
-        this.localExitRoot = executor.localExitRoot;
-        this.globalExitRoot = executor.globalExitRoot;
+        this.lastBatch = processor.batchNumber;
+        this.stateRoot = processor.currentRoot;
+        this.localExitRoot = processor.localExitRoot;
+        this.globalExitRoot = processor.globalExitRoot;
     }
 
     /**
@@ -146,7 +146,7 @@ class ZkEVMDB {
      * @param {Object} seqChainID - Sequencer chian id
      * @param {Object} poseidon - Poseidon object
      * @param {String} sequencerAddress - Sequencer address
-     * @param {Uint8Array} root - Executor object
+     * @param {Uint8Array} root - Processor object
      * @returns {Object} ZkEVMDB object
      */
     static async newZkEVM(db, seqChainID, arity, poseidon, sequencerAddress, stateRoot, localExitRoot, globalExitRoot) {
