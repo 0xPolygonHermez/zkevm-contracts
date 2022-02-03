@@ -330,8 +330,8 @@ describe('Proof of efficiency test vectors', () => {
 
             // Check the input parameters are correct
             const circuitNextInputSC = await proofOfEfficiencyContract.getNextCircuitInput(
-                newStateRoot,
                 newLocalExitRoot,
+                newStateRoot,
                 numBatch,
             );
             expect(circuitNextInputSC).to.be.equal(circuitInputSC);

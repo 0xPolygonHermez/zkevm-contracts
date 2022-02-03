@@ -69,8 +69,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
     function getNextCircuitInput(
-        bytes32 newStateRoot,
         bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
         uint32 numBatch
     ) public view returns (uint256) {
         // sanity check
@@ -81,15 +81,6 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
 
         // Calculate Circuit Input
         BatchData memory currentBatch = sentBatches[numBatch];
-        address sequencerAddress = currentBatch.sequencerAddress;
-
-        uint32 batchChainID;
-        if (sequencers[sequencerAddress].chainID != 0) {
-            batchChainID = sequencers[sequencerAddress].chainID;
-        } else {
-            // If the sequencer is not registered use the default chainID
-            batchChainID = DEFAULT_CHAIN_ID;
-        }
 
         uint256 input = uint256(
             keccak256(
@@ -98,9 +89,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    sequencerAddress,
+                    currentBatch.sequencerAddress,
                     currentBatch.batchHashData,
-                    batchChainID,
+                    currentBatch.chainID,
                     numBatch
                 )
             )
@@ -109,10 +100,43 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
     }
 
     /**
+     * @notice Return the input hash parameters
+     * @param newStateRoot New State root once the batch is processed
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
+     */
+    function returnInputHashParameters(
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint32 numBatch
+    ) public view returns (bytes memory) {
+        // sanity check
+        require(
+            numBatch == lastVerifiedBatch + 1,
+            "ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH"
+        );
+
+        // Calculate Circuit Input
+        BatchData memory currentBatch = sentBatches[numBatch];
+
+        return
+            abi.encodePacked(
+                currentStateRoot,
+                currentLocalExitRoot,
+                newStateRoot,
+                newLocalExitRoot,
+                currentBatch.sequencerAddress,
+                currentBatch.batchHashData,
+                currentBatch.chainID,
+                numBatch
+            );
+    }
+
+    /**
      * @notice Set state root
      * @param newStateRoot New State root ¡
      */
-    function setStateRoot(bytes32 newStateRoot) public {
+    function setStateRoot(bytes32 newStateRoot) public onlyOwner {
         currentStateRoot = newStateRoot;
     }
 
@@ -120,7 +144,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set Sequencer
      * @param newLocalExitRoot New exit root ¡
      */
-    function setExitRoot(bytes32 newLocalExitRoot) public {
+    function setExitRoot(bytes32 newLocalExitRoot) public onlyOwner {
         currentLocalExitRoot = newLocalExitRoot;
     }
 
@@ -132,8 +156,35 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         address sequencer,
         string memory sequencerURL,
         uint32 chainID
-    ) public {
+    ) public onlyOwner {
         sequencers[sequencer].sequencerURL = sequencerURL;
         sequencers[sequencer].chainID = chainID;
+    }
+
+    /**
+     * @notice VerifyBatchMock
+     */
+    function verifyBatchMock() public onlyOwner {
+        // Update state
+        lastVerifiedBatch++;
+        // Interact with bridge
+        bridge.updateRollupExitRoot(currentLocalExitRoot);
+        emit VerifyBatch(lastVerifiedBatch, msg.sender);
+    }
+
+    /**
+     * @notice Allows to set Batch
+     */
+    function setBatch(
+        bytes32 batchHashData,
+        uint256 maticCollateral,
+        address sequencer,
+        uint32 chainID,
+        uint32 batchNum
+    ) public onlyOwner {
+        sentBatches[batchNum].batchHashData = batchHashData;
+        sentBatches[batchNum].maticCollateral = maticCollateral;
+        sentBatches[batchNum].sequencerAddress = sequencer;
+        sentBatches[batchNum].chainID = chainID;
     }
 }

@@ -2,6 +2,14 @@ const { ethers } = require('hardhat');
 const { Scalar } = require('ffjavascript');
 const Constants = require('../constants');
 
+function unarrayifyInteger(data, offset, length) {
+    let result = 0;
+    for (let i = 0; i < length; i++) {
+        result = (result * 256) + data[offset + i];
+    }
+    return result;
+}
+
 function toHexStringRlp(num) {
     let numHex;
     if (typeof num === 'number' || typeof num === 'bigint' || typeof num === 'object') {
@@ -52,8 +60,51 @@ function customRawTxToRawTx(customRawTx) {
     return ethers.utils.RLP.encode(rlpFields);
 }
 
+function arrayToEncodedString(rawTxs) {
+    return rawTxs.reduce((previousValue, currentValue) => previousValue + currentValue.slice(2), '0x');
+}
+
+function encodedStringToArray(encodedTransactions) {
+    const encodedTxBytes = ethers.utils.arrayify(encodedTransactions);
+    const decodedRawTx = [];
+
+    let offset = 0;
+
+    while (offset < encodedTxBytes.length) {
+        if (encodedTxBytes[offset] >= 0xf8) {
+            const lengthLength = encodedTxBytes[offset] - 0xf7;
+            if (offset + 1 + lengthLength > encodedTxBytes.length) {
+                throw new Error('encodedTxBytes short segment too short');
+            }
+
+            const length = unarrayifyInteger(encodedTxBytes, offset + 1, lengthLength);
+            if (offset + 1 + lengthLength + length > encodedTxBytes.length) {
+                throw new Error('encodedTxBytes long segment too short');
+            }
+
+            decodedRawTx.push(ethers.utils.hexlify(
+                encodedTxBytes.slice(offset, offset + 1 + lengthLength + length + Constants.signatureBytes),
+            ));
+            offset = offset + 1 + lengthLength + length + Constants.signatureBytes;
+        } else if (encodedTxBytes[offset] >= 0xc0) {
+            const length = encodedTxBytes[offset] - 0xc0;
+            if (offset + 1 + length > encodedTxBytes.length) {
+                throw new Error('encodedTxBytes array too short');
+            }
+
+            decodedRawTx.push(ethers.utils.hexlify(encodedTxBytes.slice(offset, offset + 1 + length + Constants.signatureBytes)));
+            offset = offset + 1 + length + Constants.signatureBytes;
+        } else {
+            throw new Error('Error');
+        }
+    }
+    return decodedRawTx;
+}
+
 module.exports = {
     toHexStringRlp,
     customRawTxToRawTx,
     rawTxToCustomRawTx,
+    arrayToEncodedString,
+    encodedStringToArray,
 };

@@ -6,7 +6,9 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 const { Scalar } = require('ffjavascript');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../../src/zk-EVM/helpers/executor-utils');
+const {
+    rawTxToCustomRawTx, toHexStringRlp, arrayToEncodedString, encodedStringToArray,
+} = require('../../../src/zk-EVM/helpers/executor-utils');
 
 describe('Encode and decode transactions in RLP', () => {
     let testVectors;
@@ -98,6 +100,11 @@ describe('Encode and decode transactions in RLP', () => {
 
             const encodedTransactions = rawTxs.reduce((previousValue, currentValue) => previousValue + currentValue.slice(2), '0x');
             expect(batchL2Data).to.be.equal(encodedTransactions);
+
+            // test encode and decode calldata transactions utilss
+            expect(encodedTransactions).to.be.equal(arrayToEncodedString(rawTxs));
+            const decodedRawTx = encodedStringToArray(encodedTransactions);
+            expect(rawTxs).to.be.deep.equal(decodedRawTx);
         }
     });
 });

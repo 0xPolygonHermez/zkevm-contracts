@@ -37,14 +37,22 @@ async function main() {
     /*
         Deployment Mock verifier
     */
-    const VerifierRollupHelperFactory = await ethers.getContractFactory(
-        'VerifierRollupHelperMock',
-    );
-    const verifierMockContract = await VerifierRollupHelperFactory.deploy();
-    await verifierMockContract.deployed();
+    let VerifierFactory
+    if (deployParameters.realVerifier) {
+        VerifierFactory = await ethers.getContractFactory(
+            'Verifier',
+        );
+    } else {
+        VerifierFactory = await ethers.getContractFactory(
+            'VerifierRollupHelperMock',
+        );
+    }
+
+    const verifierContract = await VerifierFactory.deploy();
+    await verifierContract.deployed();
 
     console.log('#######################\n');
-    console.log('Verifier Mock deployed to:', verifierMockContract.address);
+    console.log('Verifier Mock deployed to:', verifierContract.address);
 
     /*
         Deployment Bridge Mock
@@ -92,14 +100,14 @@ async function main() {
     console.log('deployer:', deployer.address);
     console.log('bridgeAddress:', bridgeContract.address);
     console.log('maticTokenAddress:', maticTokenContract.address);
-    console.log('verifierMockAddress:', verifierMockContract.address);
+    console.log('verifierAddress:', verifierContract.address);
     console.log('genesisRoot:', genesisRootHex);
 
-    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiency');
+    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
         bridgeContract.address,
         maticTokenContract.address,
-        verifierMockContract.address,
+        verifierContract.address,
         genesisRootHex
     );
     await proofOfEfficiencyContract.deployed();
@@ -153,7 +161,7 @@ async function main() {
         proofOfEfficiencyAddress: proofOfEfficiencyContract.address,
         bridgeAddress: bridgeContract.address,
         maticTokenAddress: maticTokenContract.address,
-        verifierMockAddress: verifierMockContract.address,
+        verifierAddress: verifierContract.address,
         deployerAddress: deployer.address,
         defaultChainID,
         deploymentBlockNumber,
