@@ -146,7 +146,7 @@ class ZkEVMDB {
      * @param {Object} seqChainID - Sequencer chian id
      * @param {Object} poseidon - Poseidon object
      * @param {String} sequencerAddress - Sequencer address
-     * @param {Uint8Array} root - Processor object
+     * @param {Uint8Array} root - Merkle root
      * @returns {Object} ZkEVMDB object
      */
     static async newZkEVM(db, seqChainID, arity, poseidon, sequencerAddress, stateRoot, localExitRoot, globalExitRoot) {

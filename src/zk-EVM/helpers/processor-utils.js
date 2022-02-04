@@ -2,6 +2,13 @@ const { ethers } = require('hardhat');
 const { Scalar } = require('ffjavascript');
 const Constants = require('../constants');
 
+/**
+ * Extract an integer from a byte array
+ * @param {Uint8Array} data - Byte array
+ * @param {Number} offset - Offset of the data array
+ * @param {Number} length - Length of the integer in bytes
+ * @returns {Number} - Extracted integer
+ */
 function unarrayifyInteger(data, offset, length) {
     let result = 0;
     for (let i = 0; i < length; i++) {
@@ -10,6 +17,11 @@ function unarrayifyInteger(data, offset, length) {
     return result;
 }
 
+/**
+ * Convert a number type to a hex string starting with 0x and with a integer number of bytes
+ * @param {Number | BigInt | BigNumber | Object} num - Number
+ * @returns {Number} - Hex string
+ */
 function toHexStringRlp(num) {
     let numHex;
     if (typeof num === 'number' || typeof num === 'bigint' || typeof num === 'object') {
@@ -23,6 +35,12 @@ function toHexStringRlp(num) {
     return numHex;
 }
 
+/**
+ * Convert a standar rawTx of ethereum [rlp(nonce,gasprice,gaslimit,to,value,data,r,s,v)]
+ * to our custom raw tx [rlp(nonce,gasprice,gaslimit,to,value,data,0,0)|r|s|v]
+ * @param {String} rawTx - Standar raw transaction
+ * @returns {String} - Custom raw transaction
+ */
 function rawTxToCustomRawTx(rawTx) {
     const tx = ethers.utils.parseTransaction(rawTx);
     const signData = ethers.utils.RLP.encode([
@@ -43,6 +61,12 @@ function rawTxToCustomRawTx(rawTx) {
     return signData.concat(r).concat(s).concat(v);
 }
 
+/**
+ * Convert a custom rawTx  [rlp(nonce,gasprice,gaslimit,to,value,data,0,0)|r|s|v]
+ * to a standar raw tx [rlp(nonce,gasprice,gaslimit,to,value,data,r,s,v)]
+ * @param {String} customRawTx -  Custom raw transaction
+ * @returns {String} - Standar raw transaction
+ */
 function customRawTxToRawTx(customRawTx) {
     const signatureCharacters = Constants.signatureBytes * 2;
     const rlpSignData = customRawTx.slice(0, -signatureCharacters);
@@ -60,10 +84,20 @@ function customRawTxToRawTx(customRawTx) {
     return ethers.utils.RLP.encode(rlpFields);
 }
 
+/**
+ * Reduce an array of rawTx to a single string wich will be the BatchL2Data
+ * @param {Array} rawTxs -  Array of rawTxs
+ * @returns {String} - Reduced array
+ */
 function arrayToEncodedString(rawTxs) {
     return rawTxs.reduce((previousValue, currentValue) => previousValue + currentValue.slice(2), '0x');
 }
 
+/**
+ * Decode the BatchL2Data to an array of rawTxs
+ * @param {String} encodedTransactions -  Reduced array
+ * @returns {Array} - Array of rawTxs
+ */
 function encodedStringToArray(encodedTransactions) {
     const encodedTxBytes = ethers.utils.arrayify(encodedTransactions);
     const decodedRawTx = [];
@@ -101,6 +135,12 @@ function encodedStringToArray(encodedTransactions) {
     return decodedRawTx;
 }
 
+/**
+ * Decode The next string in rlp, wich has 0-55 bytes long
+ * @param {Uint8Array} data - Byte array
+ * @param {Number} offset - Offset of the data array
+ * @returns {Object} - Return the bytes consumed and the result encoded in hex string
+ */
 function decodeNextShortStringRLP(encodedTxBytes, offset) {
     if (encodedTxBytes[offset] >= 0xb8) {
         throw new Error('Should be a short string RLP');
@@ -113,6 +153,11 @@ function decodeNextShortStringRLP(encodedTxBytes, offset) {
     }
 }
 
+/**
+ * Decode The next string in rlp
+ * @param {String} encodedTxBytes - Reduced array
+ * @returns {Array} - Array of rawTxs
+ */
 function decodeNextStringRLP(encodedTxBytes, offset) {
     if (encodedTxBytes[offset] >= 0xb8) {
         const lengthLength = encodedTxBytes[offset] - 0xb7;
@@ -123,6 +168,11 @@ function decodeNextStringRLP(encodedTxBytes, offset) {
     return decodeNextShortStringRLP(encodedTxBytes, offset);
 }
 
+/**
+ * Decode the BatchL2Data to an array of rawTxs using the prover method
+ * @param {String} encodedTransactions - Reduced array
+ * @returns {Object} - The object contain the  Array of rawTxs and the rlpSignData as the prover does
+ */
 function decodeCustomRawTxProverMethod(encodedTransactions) {
     // should check total len before read
     const encodedTxBytes = ethers.utils.arrayify(encodedTransactions);
