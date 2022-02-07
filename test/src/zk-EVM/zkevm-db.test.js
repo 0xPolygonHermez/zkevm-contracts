@@ -16,7 +16,7 @@ const { getValue } = require('../../../src/zk-EVM/helpers/db-key-value-utils');
 
 const ZkEVMDB = require('../../../src/zk-EVM/zkevm-db');
 const { setGenesisBlock } = require('./helpers/test-helpers');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../../src/zk-EVM/helpers/executor-utils');
+const { rawTxToCustomRawTx, toHexStringRlp } = require('../../../src/zk-EVM/helpers/processor-utils');
 
 describe('zkEVM-db Test', () => {
     let poseidon;

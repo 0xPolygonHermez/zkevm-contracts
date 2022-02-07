@@ -11,7 +11,7 @@ const stateUtils = require('../../src/zk-EVM/helpers/state-utils');
 
 const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
 const { setGenesisBlock } = require('../src/zk-EVM/helpers/test-helpers');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../src/zk-EVM/helpers/executor-utils');
+const { rawTxToCustomRawTx, toHexStringRlp } = require('../../src/zk-EVM/helpers/processor-utils');
 
 const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
 

@@ -361,7 +361,7 @@
         "gasPrice": "1",
         "chainId": 1001,
         "rawTx": "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980801186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb9700910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c012259687999074321b",
-        "reason": "TX INVALID: Failed to RLP decode signing data"
+        "reason": "TX INVALID: Failed signature"
       }
     ],
     "expectedNewRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",

@@ -11,7 +11,7 @@ const path = require('path');
 const MemDB = require('../../src/zk-EVM/zkproverjs/memdb');
 const SMT = require('../../src/zk-EVM/zkproverjs/smt');
 const stateUtils = require('../../src/zk-EVM/helpers/state-utils');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../src/zk-EVM/helpers/executor-utils');
+const { rawTxToCustomRawTx, toHexStringRlp } = require('../../src/zk-EVM/helpers/processor-utils');
 
 const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
 const { setGenesisBlock } = require('../../test/src/zk-EVM/helpers/test-helpers');

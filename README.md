@@ -11,7 +11,7 @@ Smart contract implementation which will be used by the zkEVM
 
 - `contracts`: zkEVM contracts
 - `docs`: specs and useful links
-- `src`: js code to interact with the zkEVM, executor, zkEVMDB, sequencer and aggregator.
+- `src`: js code to interact with the zkEVM, processor, zkEVMDB, sequencer and aggregator.
 - `test`: test of all repository
 
 ## Activate github hook
