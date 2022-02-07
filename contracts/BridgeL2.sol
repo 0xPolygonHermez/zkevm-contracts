@@ -7,6 +7,7 @@ import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./lib/TokenWrappedL2.sol";
 
+// clones!!
 /**
  * Bridge that will be deployed on L2 in the Zk-EVM
  * For now only supports mainnet
@@ -48,7 +49,7 @@ contract BridgeL2 is Ownable, DepositContract {
     mapping(address => TokenInformation) public addressToTokenInfo;
 
     /**
-     * @param _networkID Rollup contract address
+     * @param _networkID networkID
      */
     constructor(uint32 _networkID) {
         networkID = _networkID;

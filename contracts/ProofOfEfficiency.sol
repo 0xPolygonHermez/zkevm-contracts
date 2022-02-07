@@ -79,7 +79,11 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @dev Emitted when a sequencer sends a new batch of transactions
      */
-    event SendBatch(uint32 indexed numBatch, address indexed sequencer);
+    event SendBatch(
+        uint32 indexed numBatch,
+        address indexed sequencer,
+        bytes32 lastGlobalExitRoot
+    );
 
     /**
      * @dev Emitted when a aggregator verifies a new batch
@@ -147,23 +151,34 @@ contract ProofOfEfficiency is Ownable {
 
         matic.safeTransferFrom(msg.sender, address(this), maticCollateral);
 
+        // Get bridge global exit root
+        bytes32 lastGlobalExitRoot = bridge.getLastGlobalExitRoot();
+
+        // Set chainID
+        uint32 batchChainID;
+        if (sequencers[msg.sender].chainID != 0) {
+            batchChainID = sequencers[msg.sender].chainID;
+        } else {
+            // If the sequencer is not registered use the default chainID
+            batchChainID = DEFAULT_CHAIN_ID;
+        }
+
         // Update sentBatches mapping
         lastBatchSent++;
         sentBatches[lastBatchSent].batchHashData = keccak256(
-            abi.encodePacked(transactions, bridge.getLastGlobalExitRoot())
+            abi.encodePacked(
+                transactions,
+                lastGlobalExitRoot,
+                block.timestamp,
+                msg.sender,
+                batchChainID
+            )
         );
+
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
         sentBatches[lastBatchSent].sequencerAddress = msg.sender;
 
-        // Set chainID
-        if (sequencers[msg.sender].chainID != 0) {
-            sentBatches[lastBatchSent].chainID = sequencers[msg.sender].chainID;
-        } else {
-            // If the sequencer is not registered use the default chainID
-            sentBatches[lastBatchSent].chainID = DEFAULT_CHAIN_ID;
-        }
-
-        emit SendBatch(lastBatchSent, msg.sender);
+        emit SendBatch(lastBatchSent, msg.sender, lastGlobalExitRoot);
     }
 
     /**
@@ -231,7 +246,7 @@ contract ProofOfEfficiency is Ownable {
      * @notice Function to calculate the sequencer collateral depending on the congestion of the batches
      // TODO
      */
-    function calculateSequencerCollateral() public pure returns (uint256) {
-        return 1 ether;
+    function calculateSequencerCollateral() public view returns (uint256) {
+        return 1 ether * (1 + lastBatchSent - lastVerifiedBatch);
     }
 }
