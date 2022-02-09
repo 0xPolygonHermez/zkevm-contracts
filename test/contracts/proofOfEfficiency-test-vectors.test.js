@@ -28,12 +28,15 @@ describe('Proof of efficiency test vectors', () => {
     let bridgeContract;
     let proofOfEfficiencyContract;
     let maticTokenContract;
+    let globalExitRootManager;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
     const genesisRootSC = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+    const networkIDMainnet = 0;
 
     beforeEach('Deploy contract', async () => {
         // build poseidon
@@ -58,24 +61,35 @@ describe('Proof of efficiency test vectors', () => {
             maticTokenInitialBalance,
         );
         await maticTokenContract.deployed();
-
-        // deploy bridge
-        const precalculatePoEAddress = await ethers.utils.getContractAddress(
+        const precalculatBridgeAddress = await ethers.utils.getContractAddress(
             { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
         );
-        const BridgeFactory = await ethers.getContractFactory('BridgeMock');
-        bridgeContract = await BridgeFactory.deploy(precalculatePoEAddress);
+
+        const precalculatePoEAddress = await ethers.utils.getContractAddress(
+            { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2 },
+        );
+
+        // deploy global exit root manager
+        const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerMock');
+        globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculatBridgeAddress);
+        await globalExitRootManager.deployed();
+
+        // deploy bridge
+        const bridgeFactory = await ethers.getContractFactory('Bridge');
+        bridgeContract = await bridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
         await bridgeContract.deployed();
 
         // deploy proof of efficiency
         const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
         proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
-            bridgeContract.address,
+            globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
             genesisRootSC,
         );
         await proofOfEfficiencyContract.deployed();
+
+        expect(bridgeContract.address).to.be.equal(precalculatBridgeAddress);
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
     });
 
@@ -271,7 +285,7 @@ describe('Proof of efficiency test vectors', () => {
             // set roots to the contract:
             await proofOfEfficiencyContract.setStateRoot(currentStateRoot);
             await proofOfEfficiencyContract.setExitRoot(currentLocalExitRoot);
-            await bridgeContract.setLastGlobalExitRoot(currentGlobalExitRoot);
+            await globalExitRootManager.setLastGlobalExitRoot(currentGlobalExitRoot);
 
             // set sequencer
             await proofOfEfficiencyContract.setSequencer(sequencerAddress, 'URL', chainIdSequencer);

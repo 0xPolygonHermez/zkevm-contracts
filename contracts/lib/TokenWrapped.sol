@@ -2,23 +2,26 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-contract TokenWrappedL2 is ERC20 {
+contract TokenWrapped is Initializable, ERC20Upgradeable {
     address public bridgeAddress;
 
     modifier onlyBridge() {
-        require(msg.sender == bridgeAddress, "ERC20:NOT_BRIDGE");
+        require(msg.sender == bridgeAddress, "TokenWrapped:NOT_BRIDGE");
         _;
     }
 
-    constructor(
+    // This is used to avoid the initialization of the implementation contract.
+    constructor() initializer {}
+
+    function initialize(
         string memory name,
         string memory symbol,
         address initialAccount,
         uint256 initialBalance
-    ) payable ERC20(name, symbol) {
+    ) public initializer {
+        __ERC20_init(name, symbol);
         bridgeAddress = msg.sender;
         _mint(initialAccount, initialBalance);
     }

@@ -5,48 +5,73 @@ pragma solidity 0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./lib/TokenWrapped.sol";
+import "./interfaces/IGlobalExitRootManager.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 
 /**
- * This is totally a mock contract, there's just enough to test the proof of efficiency contract
+ * Bridge that will be deployed on both networks Ethereum and Polygon Hermez
+ * Contract responsible to manage the token interactions with other networks
  */
 contract Bridge is Ownable, DepositContract {
     using SafeERC20 for IERC20;
 
+    // Token information struct
+    struct TokenInformation {
+        uint32 originalNetwork;
+        address originalTokenAddress;
+    }
+
+    // Mainnet indentifier
     uint32 public constant MAINNET_NETWORK_ID = 0;
 
-    // Rollup exit root, this will be updated every time a batch is verified
-    bytes32 public lastRollupExitRoot;
-
-    // Rollup exit root, this will be updated every time a deposit is made in mainnet
-    bytes32 public lastMainnetExitRoot;
-
-    // Store every global exit root
-    mapping(uint256 => bytes32) public globalExitRootMap;
-
-    // Current global exit roots stored
-    uint256 public lastGlobalExitRootNum;
-
-    // Rollup contract address
-    address public rollupAddress;
+    // Network identifier
+    uint32 public networkID;
 
     // Leaf index --> claimed
-    mapping(uint256 => bool) public withdrawNullifier;
+    mapping(uint256 => bool) public claimNullifier;
+
+    // keccak256(OriginalNetwork || tokenAddress) --> L2 token address
+    mapping(bytes32 => address) public tokenInfoToAddress;
+
+    // L2 token Address --> original token information
+    mapping(address => TokenInformation) public addressToTokenInfo;
+
+    // Global Exit Root address
+    IGlobalExitRootManager public globalExitRootManager;
+
+    // Addres of the token wrapped implementation
+    address public immutable tokenImplementation;
 
     /**
-     * @dev Emitted when a deposit is added to the mainnet merkle tree
+     * @param _networkID networkID
+     * @param _globalExitRootManager global exit root manager address
      */
-    event DepositEvent(
+    constructor(
+        uint32 _networkID,
+        IGlobalExitRootManager _globalExitRootManager
+    ) {
+        networkID = _networkID;
+        globalExitRootManager = _globalExitRootManager;
+        tokenImplementation = address(new TokenWrapped());
+    }
+
+    /**
+     * @dev Emitted when a bridge some tokens to another network
+     */
+    event BridgeEvent(
         address tokenAddres,
         uint256 amount,
+        uint32 originNetwork,
         uint32 destinationNetwork,
         address destinationAddress,
         uint32 depositCount
     );
 
     /**
-     * @dev Emitted when a withdraw is done
+     * @dev Emitted when a claim is done from another network
      */
-    event WithdrawEvent(
+    event ClaimEvent(
         uint64 index,
         uint32 originalNetwork,
         address token,
@@ -55,74 +80,99 @@ contract Bridge is Ownable, DepositContract {
     );
 
     /**
-     * @dev Emitted when the the global exit root is updated
+     * @dev Emitted when a a new wrapped token is created
      */
-    event UpdateGlobalExitRoot(bytes32 mainnetExitRoot, bytes32 rollupExitRoot);
+    event NewWrappedToken(
+        uint32 originalNetwork,
+        address originalTokenAddress,
+        address wrappedTokenAddress
+    );
 
     /**
-     * @param _rollupAddress Rollup contract address
+     * @dev Emitted when the rollup updates the exit root
      */
-    constructor(address _rollupAddress) {
-        rollupAddress = _rollupAddress;
-        lastMainnetExitRoot = getDepositRoot();
-        _updateGlobalExitRoot();
-    }
+    event UpdateRollupRootEvent(bytes32 rollupExitRoot);
 
     /**
-     * @notice Add a new leaf to the mainnet merkle tree
+     * @notice Deposit add a new leaf to the merkle tree
      * @param token Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      */
     function bridge(
-        IERC20 token,
+        address token,
         uint256 amount,
         uint32 destinationNetwork,
         address destinationAddress
     ) public payable {
-        // Transfer tokens or ether
-        if (address(token) == address(0)) {
-            require(
-                msg.value == amount,
-                "Bridge::deposit: AMOUNT_DOES_NOT_MATCH_MSG_VALUE"
-            );
-        } else {
-            token.safeTransferFrom(msg.sender, address(this), amount);
-        }
-
         require(
-            destinationNetwork != MAINNET_NETWORK_ID,
-            "Bridge::deposit: DESTINATION_CANT_BE_MAINNET"
+            destinationNetwork != networkID,
+            "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
         );
 
-        emit DepositEvent(
-            address(token),
+        address originalTokenAddress;
+        uint32 originNetwork;
+
+        if (token == address(0)) {
+            // Ether transfer
+            require(
+                msg.value == amount,
+                "Bridge::bridge: AMOUNT_DOES_NOT_MATCH_MSG_VALUE"
+            );
+
+            // Ether is treated as ether from mainnet
+            originNetwork = MAINNET_NETWORK_ID;
+        } else {
+            TokenInformation memory tokenInfo = addressToTokenInfo[token];
+
+            if (tokenInfo.originalTokenAddress != address(0)) {
+                // The token is a wrapped token from another network
+
+                // Burn tokens
+                TokenWrapped(token).burn(msg.sender, amount);
+
+                originalTokenAddress = tokenInfo.originalTokenAddress;
+                originNetwork = tokenInfo.originalNetwork;
+            } else {
+                // The token is from this network.
+                IERC20(token).safeTransferFrom(
+                    msg.sender,
+                    address(this),
+                    amount
+                );
+
+                originalTokenAddress = token;
+                originNetwork = networkID;
+            }
+        }
+
+        emit BridgeEvent(
+            originalTokenAddress,
             amount,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             uint32(depositCount)
         );
 
-        // Add new leaf to the mainnet merkle tree
         _deposit(
-            address(token),
+            originalTokenAddress,
             amount,
-            MAINNET_NETWORK_ID,
+            originNetwork,
             destinationNetwork,
             destinationAddress
         );
 
-        // Update mainnet root
-        lastMainnetExitRoot = getDepositRoot();
-        _updateGlobalExitRoot();
+        // Update the new exit root to the exit root manager
+        globalExitRootManager.updateExitRoot(getDepositRoot());
     }
 
     /**
-     * @notice Verify merkle proof and claim tokens/ether
-     * @param token  Token address, 0 address is reserved for ether
+     * @notice Verify merkle proof and withdraw tokens/ether
+     * @param originalTokenAddress  Original token address, 0 address is reserved for ether
      * @param amount Amount of tokens
-     * @param originalNetwork original network
+     * @param originalNetwork Original network
      * @param destinationNetwork Network destination, must be 0 ( mainnet)
      * @param destinationAddress Address destination
      * @param smtProof Smt proof
@@ -132,7 +182,7 @@ contract Bridge is Ownable, DepositContract {
      * @param rollupExitRoot Rollup exit root
      */
     function claim(
-        address token,
+        address originalTokenAddress,
         uint256 amount,
         uint32 originalNetwork,
         uint32 destinationNetwork,
@@ -145,94 +195,139 @@ contract Bridge is Ownable, DepositContract {
     ) public {
         // Check nullifier
         require(
-            withdrawNullifier[index] == false,
-            "Bridge::withdraw: ALREADY_CLAIMED_WITHDRAW"
+            claimNullifier[index] == false,
+            "Bridge::claim: ALREADY_CLAIMED"
         );
 
         // Destination network must be mainnet
         require(
-            destinationNetwork == MAINNET_NETWORK_ID,
-            "Bridge::withdraw: DESTINATION_NETWORK_NOT_MAINNET"
+            destinationNetwork == networkID,
+            "Bridge::claim: DESTINATION_NETWORK_DOES_NOT_MATCH"
         );
 
-        // This should create wrapped erc20 tokens, for now not supported
-        require(
-            originalNetwork == MAINNET_NETWORK_ID,
-            "Bridge::withdraw: ORIGIN_NETWORK_NOT_MAINNET"
-        );
-
-        // Check that the rollup exit root belongs to some global exit root
+        // Check that the merkle proof belongs to some global exit root
+        // TODO this should be a SMTproof
         require(
             keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot)) ==
-                globalExitRootMap[globalExitRootNum],
-            "Bridge::withdraw: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
+                globalExitRootManager.globalExitRootMap(globalExitRootNum),
+            "Bridge::claim: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
         );
 
-        require(
-            verifyMerkleProof(
-                token,
-                amount,
-                originalNetwork,
-                destinationNetwork,
-                destinationAddress,
-                smtProof,
-                index,
-                rollupExitRoot
-            ),
-            "Bridge::withdraw: SMT_INVALID"
-        );
+        if (networkID == MAINNET_NETWORK_ID) {
+            // Verify merkle proof using rollup exit root
+            require(
+                verifyMerkleProof(
+                    originalTokenAddress,
+                    amount,
+                    originalNetwork,
+                    destinationNetwork,
+                    destinationAddress,
+                    smtProof,
+                    index,
+                    rollupExitRoot
+                ),
+                "Bridge::claim: SMT_INVALID"
+            );
+        } else {
+            // Verify merkle proof using mainnet exit root
+            require(
+                verifyMerkleProof(
+                    originalTokenAddress,
+                    amount,
+                    originalNetwork,
+                    destinationNetwork,
+                    destinationAddress,
+                    smtProof,
+                    index,
+                    mainnetExitRoot
+                ),
+                "Bridge::claim: SMT_INVALID"
+            );
+        }
 
         // Update nullifier
-        withdrawNullifier[index] = true;
+        claimNullifier[index] = true;
 
-        // Transfer tokens or ether
-        if (token == address(0)) {
+        // Transfer funds
+        if (originalTokenAddress == address(0)) {
+            // Transfer ether
             /* solhint-disable avoid-low-level-calls */
             (bool success, ) = destinationAddress.call{value: amount}(
                 new bytes(0)
             );
-            require(success, "Bridge::withdraw: ETH_TRANSFER_FAILED");
+            require(success, "Bridge::claim: ETH_TRANSFER_FAILED");
         } else {
-            IERC20(token).safeTransfer(destinationAddress, amount);
+            // Transfer tokens
+            if (originalNetwork == networkID) {
+                // The token is an ERC20 from this network
+                IERC20(originalTokenAddress).safeTransfer(
+                    destinationAddress,
+                    amount
+                );
+            } else {
+                // The tokens is not from this network
+                // Create a wrapper for the token if not exist yet
+                address wrappedToken = tokenInfoToAddress[
+                    keccak256(
+                        abi.encodePacked(originalNetwork, originalTokenAddress)
+                    )
+                ];
+                if (wrappedToken == address(0)) {
+                    // Create a new wrapped erc20
+                    TokenWrapped newWrappedToken = TokenWrapped(
+                        Clones.clone(tokenImplementation)
+                    );
+                    newWrappedToken.initialize(
+                        "name",
+                        "symbol",
+                        destinationAddress,
+                        amount
+                    );
+
+                    // Create mappings
+                    tokenInfoToAddress[
+                        keccak256(
+                            abi.encodePacked(
+                                originalNetwork,
+                                originalTokenAddress
+                            )
+                        )
+                    ] = address(newWrappedToken);
+
+                    addressToTokenInfo[
+                        address(newWrappedToken)
+                    ] = TokenInformation(originalNetwork, originalTokenAddress);
+
+                    emit NewWrappedToken(
+                        originalNetwork,
+                        originalTokenAddress,
+                        address(newWrappedToken)
+                    );
+                } else {
+                    // Use the existing wrapped erc20
+                    TokenWrapped(wrappedToken).mint(destinationAddress, amount);
+                }
+            }
         }
 
-        emit WithdrawEvent(
+        emit ClaimEvent(
             index,
             originalNetwork,
-            token,
+            originalTokenAddress,
             amount,
             destinationAddress
         );
     }
 
-    /**
-     * @notice Update the rollup exit root
-     */
-    function updateRollupExitRoot(bytes32 newRollupExitRoot) public {
-        require(
-            msg.sender == rollupAddress,
-            "Bridge::updateRollupExitRoot: ONLY_ROLLUP"
-        );
-        lastRollupExitRoot = newRollupExitRoot;
-        _updateGlobalExitRoot();
-    }
-
-    /**
-     * @notice Update the global exit root using the mainnet and rollup exit root
-     */
-    function _updateGlobalExitRoot() internal {
-        lastGlobalExitRootNum++;
-        globalExitRootMap[lastGlobalExitRootNum] = keccak256(
-            abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
-        );
-
-        emit UpdateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);
-    }
-
-    /**
-     * @notice Return last global exit root
-     */
-    function getLastGlobalExitRoot() public view returns (bytes32) {
-        return globalExitRootMap[lastGlobalExitRootNum];
+    function getTokenWrappedAddress(
+        uint32 originalNetwork,
+        address originalTokenAddress
+    ) public view returns (address) {
+        return
+            tokenInfoToAddress[
+                keccak256(
+                    abi.encodePacked(originalNetwork, originalTokenAddress)
+                )
+            ];
     }
 }

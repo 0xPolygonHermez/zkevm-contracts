@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.9;
 
-import "../interfaces/VerifierRollupInterface.sol";
+import "../interfaces/IVerifierRollup.sol";
 
-contract VerifierRollupHelperMock is VerifierRollupInterface {
+contract VerifierRollupHelperMock is IVerifierRollup {
     function verifyProof(
         uint256[2] calldata a,
         uint256[2][2] calldata b,

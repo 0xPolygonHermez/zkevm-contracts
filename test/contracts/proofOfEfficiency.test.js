@@ -1,7 +1,7 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
+const { calculateCircuitInput, calculateBatchHashData } = require('../../src/zk-EVM/helpers/contract-utils');
 
 describe('Proof of efficiency', () => {
     let deployer;
@@ -12,12 +12,15 @@ describe('Proof of efficiency', () => {
     let bridgeContract;
     let proofOfEfficiencyContract;
     let maticTokenContract;
+    let globalExitRootManager;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+    const networkIDMainnet = 0;
 
     beforeEach('Deploy contract', async () => {
         // load signers
@@ -39,31 +42,43 @@ describe('Proof of efficiency', () => {
         );
         await maticTokenContract.deployed();
 
-        // deploy bridge
-        const precalculatePoEAddress = await ethers.utils.getContractAddress(
+        const precalculatBridgeAddress = await ethers.utils.getContractAddress(
             { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
         );
-        const BridgeFactory = await ethers.getContractFactory('Bridge');
-        bridgeContract = await BridgeFactory.deploy(precalculatePoEAddress);
+
+        const precalculatePoEAddress = await ethers.utils.getContractAddress(
+            { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2 },
+        );
+
+        // deploy global exit root manager
+        const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
+        globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculatBridgeAddress);
+        await globalExitRootManager.deployed();
+
+        // deploy bridge
+        const bridgeFactory = await ethers.getContractFactory('Bridge');
+        bridgeContract = await bridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
         await bridgeContract.deployed();
 
         // deploy proof of efficiency
         const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
         proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
-            bridgeContract.address,
+            globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
             genesisRoot,
         );
         await proofOfEfficiencyContract.deployed();
+
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
+        expect(bridgeContract.address).to.be.equal(precalculatBridgeAddress);
 
         // fund sequencer address with Matic tokens
         await maticTokenContract.transfer(sequencer.address, ethers.utils.parseEther('100'));
     });
 
     it('should check the constructor parameters', async () => {
-        expect(await proofOfEfficiencyContract.bridge()).to.be.equal(bridgeContract.address);
+        expect(await proofOfEfficiencyContract.globalExitRootManager()).to.be.equal(globalExitRootManager.address);
         expect(await proofOfEfficiencyContract.matic()).to.be.equal(maticTokenContract.address);
         expect(await proofOfEfficiencyContract.rollupVerifier()).to.be.equal(verifierContract.address);
     });
@@ -97,8 +112,10 @@ describe('Proof of efficiency', () => {
 
     it('should send batch of transactions', async () => {
         const l2txData = '0x123456';
-        const maticAmount = ethers.utils.parseEther('1'); // for now the price depends on the bytes
+        const maticAmount = await proofOfEfficiencyContract.calculateSequencerCollateral();
         const sequencerAddress = deployer.address;
+        const defaultChainId = Number(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID());
+        const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
 
         expect(maticAmount.toString()).to.be.equal((await proofOfEfficiencyContract.calculateSequencerCollateral()).toString());
 
@@ -122,7 +139,7 @@ describe('Proof of efficiency', () => {
 
         await expect(proofOfEfficiencyContract.sendBatch(l2txData, maticAmount))
             .to.emit(proofOfEfficiencyContract, 'SendBatch')
-            .withArgs(lastBatchSent + 1, sequencerAddress);
+            .withArgs(lastBatchSent + 1, sequencerAddress, defaultChainId, lastGlobalExitRoot);
 
         const finalOwnerBalance = await maticTokenContract.balanceOf(
             await deployer.getAddress(),
@@ -130,9 +147,28 @@ describe('Proof of efficiency', () => {
         expect(finalOwnerBalance).to.equal(
             ethers.BigNumber.from(initialOwnerBalance).sub(ethers.BigNumber.from(maticAmount)),
         );
+
+        // register and then send a batch
+        const sequencerURL = 'http://exampleURL';
+        const maticAmount2 = await proofOfEfficiencyContract.calculateSequencerCollateral();
+
+        await expect(proofOfEfficiencyContract.registerSequencer(sequencerURL))
+            .to.emit(proofOfEfficiencyContract, 'RegisterSequencer')
+            .withArgs(sequencerAddress, sequencerURL, ethers.BigNumber.from(defaultChainId + 1));
+
+        await expect(
+            maticTokenContract.approve(proofOfEfficiencyContract.address, maticAmount2),
+        ).to.emit(maticTokenContract, 'Approval');
+
+        await expect(proofOfEfficiencyContract.sendBatch(l2txData, maticAmount2))
+            .to.emit(proofOfEfficiencyContract, 'SendBatch')
+            .withArgs(lastBatchSent + 2, sequencerAddress, ethers.BigNumber.from(defaultChainId + 1), lastGlobalExitRoot);
     });
 
     it('should forge the batch', async () => {
+        const defaultChainId = Number(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID());
+        const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
+
         const l2txData = '0x123456';
         const maticAmount = ethers.utils.parseEther('1');
 
@@ -148,7 +184,7 @@ describe('Proof of efficiency', () => {
 
         await expect(proofOfEfficiencyContract.connect(sequencer).sendBatch(l2txData, maticAmount))
             .to.emit(proofOfEfficiencyContract, 'SendBatch')
-            .withArgs(lastBatchSent + 1, sequencerAddress);
+            .withArgs(lastBatchSent + 1, sequencerAddress, defaultChainId, lastGlobalExitRoot);
 
         // aggregator forge the batch
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
@@ -193,6 +229,7 @@ describe('Proof of efficiency', () => {
         const maticAmount = ethers.utils.parseEther('1');
         const sequencerAddress = sequencer.address;
         const defaultChainId = Number(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID());
+        const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
 
         // sequencer send the batch
         await expect(
@@ -203,17 +240,17 @@ describe('Proof of efficiency', () => {
 
         await expect(proofOfEfficiencyContract.connect(sequencer).sendBatch(l2txData, maticAmount))
             .to.emit(proofOfEfficiencyContract, 'SendBatch')
-            .withArgs(lastBatchSent + 1, sequencerAddress);
+            .withArgs(lastBatchSent + 1, sequencerAddress, defaultChainId, lastGlobalExitRoot);
 
-        // calculate all the input parameters
-
-        // calculate l2HashData
-        const lastGlobalExitRoot = await bridgeContract.getLastGlobalExitRoot();
-
+        /*
+         * calculate all the input parameters
+         * calculate l2HashData
+         */
+        const { timestamp } = await ethers.provider.getBlock();
         lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
         const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent);
 
-        const batchHashData = ethers.utils.solidityKeccak256(['bytes', 'bytes32'], [l2txData, lastGlobalExitRoot]);
+        const batchHashData = calculateBatchHashData(l2txData, lastGlobalExitRoot, timestamp, sequencerAddress, defaultChainId);
         expect(sentBatch.batchHashData).to.be.equal(batchHashData);
 
         // Compute circuit input with the SC function
@@ -221,7 +258,6 @@ describe('Proof of efficiency', () => {
         const currentLocalExitRoot = await proofOfEfficiencyContract.currentLocalExitRoot();
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
-        const batchChainID = defaultChainId;
         const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
 
         const circuitInputSC = await proofOfEfficiencyContract.calculateCircuitInput(
@@ -229,9 +265,7 @@ describe('Proof of efficiency', () => {
             currentLocalExitRoot,
             newStateRoot,
             newLocalExitRoot,
-            sequencerAddress,
             batchHashData,
-            batchChainID,
             numBatch,
         );
 
@@ -241,9 +275,7 @@ describe('Proof of efficiency', () => {
             currentLocalExitRoot,
             newStateRoot,
             newLocalExitRoot,
-            sequencerAddress,
             batchHashData,
-            batchChainID,
             numBatch,
         );
         expect(circuitInputSC).to.be.equal(circuitInputJS);
