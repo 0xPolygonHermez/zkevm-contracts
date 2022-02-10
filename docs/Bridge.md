@@ -104,11 +104,3 @@ Emitted when a claim is done from another network
 
 Emitted when a a new wrapped token is created
 
-### UpdateRollupRootEvent
-```solidity
-  event UpdateRollupRootEvent(
-  )
-```
-
-Emitted when the rollup updates the exit root
-

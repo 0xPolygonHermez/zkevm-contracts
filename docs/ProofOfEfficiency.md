@@ -52,7 +52,7 @@ Allows a sequencer to send a batch of L2 transactions
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`transactions` | bytes | L2 ethereum transactions EIP-155 with signature:
-rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0, v, r, s)
+rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
 |`maticAmount` | uint256 | Max amount of MATIC tokens that the sequencer is willing to pay
 
 ### verifyBatch

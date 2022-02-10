@@ -89,11 +89,6 @@ contract Bridge is Ownable, DepositContract {
     );
 
     /**
-     * @dev Emitted when the rollup updates the exit root
-     */
-    event UpdateRollupRootEvent(bytes32 rollupExitRoot);
-
-    /**
      * @notice Deposit add a new leaf to the merkle tree
      * @param token Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
