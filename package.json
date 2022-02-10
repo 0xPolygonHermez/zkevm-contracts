@@ -8,6 +8,7 @@
     "@openzeppelin/contracts-upgradeable": "^4.3.2",
     "@openzeppelin/hardhat-upgrades": "^1.11.0",
     "@openzeppelin/test-helpers": "^0.5.15",
+    "@polygon-hermez/zkevm-commonjs": "https://github.com/hermeznetwork/zkevm-commonjs.git",
     "chai": "^4.3.4",
     "circomlibjs": "0.1.1",
     "dotenv": "^8.2.0",
@@ -23,8 +24,7 @@
     "prettier-plugin-solidity": "^1.0.0-beta.18",
     "solc-0.8": "npm:solc@0.8.9",
     "solidity-coverage": "^0.7.17",
-    "solidity-docgen": "^0.5.16",
-    "@polygon-hermez/zkevm-commonjs": "https://github.com/hermeznetwork/zkevm-commonjs.git"
+    "solidity-docgen": "^0.5.16"
   },
   "license": "GPL-3.0",
   "scripts": {

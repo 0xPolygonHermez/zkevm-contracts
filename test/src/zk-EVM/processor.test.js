@@ -8,10 +8,10 @@ const ethers = require('ethers');
 const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
-
 const {
     MemDB, SMT, stateUtils, processorUtils, ZkEVMDB,
 } = require('@polygon-hermez/zkevm-commonjs');
+const { pathTestVectors } = require('../../helpers/test-utils');
 
 const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
 
@@ -27,7 +27,7 @@ describe('Processor Test', async function () {
     before(async () => {
         poseidon = await buildPoseidon();
         F = poseidon.F;
-        testVectors = JSON.parse(fs.readFileSync(path.join(__dirname, './helpers/test-vector-data/state-transition.json')));
+        testVectors = JSON.parse(fs.readFileSync(path.join(pathTestVectors, 'state-transition/state-transition.json')));
     });
 
     it('Check test vectors', async () => {
@@ -208,7 +208,8 @@ describe('Processor Test', async function () {
              *  }
              *  await fs.writeFileSync(`${dir}input_${id}.json`, JSON.stringify(circuitInput, null, 2));
              */
-            const expectedInput = require(`./helpers/inputs-executor/input_${id}.json`); // eslint-disable-line
+
+            const expectedInput = JSON.parse(fs.readFileSync(path.join(pathTestVectors, `inputs-executor/input_${id}.json`)));
             expect(circuitInput).to.be.deep.equal(expectedInput);
         }
     });

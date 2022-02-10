@@ -13,6 +13,7 @@ const {
 } = require('@polygon-hermez/zkevm-commonjs');
 
 const { setGenesisBlock } = require('./helpers/test-helpers');
+const { pathTestVectors } = require('../../helpers/test-utils');
 
 const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
 
@@ -25,7 +26,7 @@ describe('zkEVM-db Test', () => {
     before(async () => {
         poseidon = await buildPoseidon();
         F = poseidon.F;
-        testVectors = JSON.parse(fs.readFileSync(path.join(__dirname, './helpers/test-vector-data/state-transition.json')));
+        testVectors = JSON.parse(fs.readFileSync(path.join(pathTestVectors, 'state-transition/state-transition.json')));
     });
 
     it('Check zkEVMDB basic functions', async () => {
