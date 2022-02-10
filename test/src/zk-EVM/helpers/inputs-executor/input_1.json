@@ -99,7 +99,8 @@
   "oldLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
   "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
   "globalExitRoot": "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9",
-  "batchHashData": "0x52908863661a595b4789246fdef2ace7b93b522503dd31ceb834d1d89e16908d",
-  "inputHash": "0x29ac8ebe63f7f755e291c5fa62b858611c3b45a0ee553985106d6f35fa0061a2",
-  "numBatch": 1
+  "batchHashData": "0xeaa079ba1c363ee0452f6706d256bce58e1c25cd79af323c3fd95eff26e7d5fe",
+  "inputHash": "0x1bf436f098b3466f6d193c7d89f4c87039056d0e454a85557a6605a7a9b8873c",
+  "numBatch": 1,
+  "timestamp": 1944498031
 }

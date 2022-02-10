@@ -32,6 +32,7 @@ async function main() {
             expectedNewLeafs,
             localExitRoot,
             globalExitRoot,
+            timestamp,
         } = testVectors[i];
 
         const currentTestVector = testVectors[i];
@@ -143,7 +144,8 @@ async function main() {
             F.e(Scalar.e(localExitRoot)),
             F.e(Scalar.e(globalExitRoot)),
         );
-        const batch = await zkEVMDB.buildBatch();
+
+        const batch = await zkEVMDB.buildBatch(timestamp);
         for (let j = 0; j < rawTxs.length; j++) {
             batch.addRawTx(rawTxs[j]);
         }

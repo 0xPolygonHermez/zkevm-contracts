@@ -26,9 +26,10 @@ class ZkEVMDB {
 
     /**
      * Return a new Processor with the current RollupDb state
+     * @param {Number} timestamp - Timestamp of the batch
      * @param {Scalar} maxNTx - Maximum number of transactions
      */
-    async buildBatch(maxNTx = Constants.defaultMaxTx) {
+    async buildBatch(timestamp, maxNTx = Constants.defaultMaxTx) {
         return new Processor(
             this.db,
             Scalar.add(this.lastBatch, 1),
@@ -40,6 +41,7 @@ class ZkEVMDB {
             this.sequencerAddress,
             this.localExitRoot,
             this.globalExitRoot,
+            timestamp,
         );
     }
 

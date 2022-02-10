@@ -47,6 +47,7 @@ describe('Processor Test', async function () {
                 globalExitRoot,
                 batchHashData,
                 inputHash,
+                timestamp,
             } = testVectors[i];
 
             const db = new MemDB(F);
@@ -155,7 +156,7 @@ describe('Processor Test', async function () {
                 F.e(Scalar.e(localExitRoot)),
                 F.e(Scalar.e(globalExitRoot)),
             );
-            const batch = await zkEVMDB.buildBatch();
+            const batch = await zkEVMDB.buildBatch(timestamp);
             for (let j = 0; j < rawTxs.length; j++) {
                 batch.addRawTx(rawTxs[j]);
             }

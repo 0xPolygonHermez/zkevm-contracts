@@ -17,6 +17,19 @@ const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-uti
 
 const testVectors = require('../src/zk-EVM/helpers/test-vector-data/state-transition.json');
 
+async function takeSnapshop() {
+    return (ethers.provider.send('evm_snapshot', []));
+}
+
+async function revertToSnapshot(snapshotId) {
+    const revert = await ethers.provider.send('evm_revert', [snapshotId]);
+    return revert;
+}
+
+async function setNextBlockTimestamp(timestamp) {
+    return (ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]));
+}
+
 describe('Proof of efficiency test vectors', () => {
     let poseidon;
     let F;
@@ -109,8 +122,11 @@ describe('Proof of efficiency test vectors', () => {
             globalExitRoot,
             batchHashData,
             inputHash,
+            timestamp,
         } = testVectors[i];
         it(`Test vectors id: ${id}`, async () => {
+            const snapshotID = await takeSnapshop();
+
             const db = new MemDB(F);
             const smt = new SMT(db, arity, poseidon, poseidon.F);
 
@@ -216,7 +232,7 @@ describe('Proof of efficiency test vectors', () => {
                 F.e(Scalar.e(localExitRoot)),
                 F.e(Scalar.e(globalExitRoot)),
             );
-            const batch = await zkEVMDB.buildBatch();
+            const batch = await zkEVMDB.buildBatch(timestamp);
             for (let j = 0; j < rawTxs.length; j++) {
                 batch.addRawTx(rawTxs[j]);
             }
@@ -277,6 +293,7 @@ describe('Proof of efficiency test vectors', () => {
 
             // fund sequencer address with Matic tokens and ether
             await maticTokenContract.transfer(sequencerAddress, ethers.utils.parseEther('100'));
+
             await deployer.sendTransaction({
                 to: sequencerAddress,
                 value: ethers.utils.parseEther('10.0'),
@@ -299,9 +316,12 @@ describe('Proof of efficiency test vectors', () => {
                 maticTokenContract.connect(walletSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
             ).to.emit(maticTokenContract, 'Approval');
 
+            // set timestamp
+            await setNextBlockTimestamp(timestamp);
+
             await expect(proofOfEfficiencyContract.connect(walletSequencer).sendBatch(l2txData, maticAmount))
                 .to.emit(proofOfEfficiencyContract, 'SendBatch')
-                .withArgs(lastBatchSent + 1, sequencerAddress);
+                .withArgs(lastBatchSent + 1, sequencerAddress, chainIdSequencer, currentGlobalExitRoot);
 
             // Check inputs mathces de smart contract
             const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
@@ -322,9 +342,7 @@ describe('Proof of efficiency test vectors', () => {
                 currentLocalExitRoot,
                 newStateRoot,
                 newLocalExitRoot,
-                sequencerAddress,
                 circuitInput.batchHashData,
-                chainIdSequencer,
                 numBatch,
             );
 
@@ -334,9 +352,7 @@ describe('Proof of efficiency test vectors', () => {
                 currentLocalExitRoot,
                 newStateRoot,
                 newLocalExitRoot,
-                sequencerAddress,
                 circuitInput.batchHashData,
-                chainIdSequencer,
                 numBatch,
             );
             expect(circuitInputSC).to.be.equal(circuitInputJS);
@@ -373,6 +389,7 @@ describe('Proof of efficiency test vectors', () => {
             expect(finalAggregatorMatic).to.equal(
                 ethers.BigNumber.from(initialAggregatorMatic).add(ethers.BigNumber.from(maticAmount)),
             );
+            expect(await revertToSnapshot(snapshotID)).to.be.equal(true);
         });
     }
 });

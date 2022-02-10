@@ -14,7 +14,7 @@ const { calculateCircuitInput, calculateBatchHashData } = require('./helpers/con
 const { decodeCustomRawTxProverMethod } = require('./helpers/processor-utils');
 
 module.exports = class Processor {
-    constructor(db, batchNumber, arity, poseidon, maxNTx, seqChainID, root, sequencerAddress, localExitRoot, globalExitRoot) {
+    constructor(db, batchNumber, arity, poseidon, maxNTx, seqChainID, root, sequencerAddress, localExitRoot, globalExitRoot, timestamp) {
         this.db = db;
         this.batchNumber = batchNumber;
         this.arity = arity;
@@ -35,6 +35,7 @@ module.exports = class Processor {
         this.sequencerAddress = sequencerAddress;
         this.localExitRoot = localExitRoot;
         this.globalExitRoot = globalExitRoot;
+        this.timestamp = timestamp;
     }
 
     /**
@@ -282,15 +283,20 @@ module.exports = class Processor {
         const localExitRoot = `0x${this.F.toString(this.localExitRoot, 16).padStart(64, '0')}`;
         const globalExitRoot = `0x${this.F.toString(this.globalExitRoot, 16).padStart(64, '0')}`;
 
-        const batchHashData = calculateBatchHashData(this.getBatchL2Data(), globalExitRoot);
+        const batchHashData = calculateBatchHashData(
+            this.getBatchL2Data(),
+            globalExitRoot,
+            this.timestamp,
+            this.sequencerAddress,
+            this.seqChainID,
+        );
+
         const inputHash = calculateCircuitInput(
             oldStateRoot,
             localExitRoot,
             newStateRoot,
             localExitRoot, // should be the new exit root, but it's nod modified in this version
-            this.sequencerAddress,
             batchHashData,
-            this.seqChainID,
             this.batchNumber,
         );
         this.circuitInput = {
@@ -307,6 +313,7 @@ module.exports = class Processor {
             batchHashData,
             inputHash,
             numBatch: Scalar.toNumber(this.batchNumber),
+            timestamp: this.timestamp,
         };
     }
 
