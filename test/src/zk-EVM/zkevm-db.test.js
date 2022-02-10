@@ -8,15 +8,13 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 
-const MemDB = require('../../../src/zk-EVM/zkproverjs/memdb');
-const SMT = require('../../../src/zk-EVM/zkproverjs/smt');
-const stateUtils = require('../../../src/zk-EVM/helpers/state-utils');
-const Constants = require('../../../src/zk-EVM/constants');
-const { getValue } = require('../../../src/zk-EVM/helpers/db-key-value-utils');
+const {
+    MemDB, SMT, stateUtils, Constants, ZkEVMDB, processorUtils,
+} = require('@polygon-hermez/zkevm-commonjs');
 
-const ZkEVMDB = require('../../../src/zk-EVM/zkevm-db');
 const { setGenesisBlock } = require('./helpers/test-helpers');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../../src/zk-EVM/helpers/processor-utils');
+
+const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
 
 describe('zkEVM-db Test', () => {
     let poseidon;
@@ -52,8 +50,8 @@ describe('zkEVM-db Test', () => {
             globalExitRoot,
         );
         // check intiialize parameters
-        const chainIDDB = await getValue(Constants.DB_SeqChainID, db);
-        const arityDB = await getValue(Constants.DB_Arity, db);
+        const chainIDDB = await db.getValue(Constants.DB_SEQ_CHAINID);
+        const arityDB = await db.getValue(Constants.DB_ARITY);
 
         expect(Scalar.toNumber(chainIDDB)).to.be.equal(chainIdSequencer);
         expect(Scalar.toNumber(arityDB)).to.be.equal(arity);
@@ -61,15 +59,15 @@ describe('zkEVM-db Test', () => {
         // build an empty batch
         const batch = await zkEVMDB.buildBatch();
         await batch.executeTxs();
-        const newRoot = batch.currentRoot;
+        const newRoot = batch.currentStateRoot;
         expect(newRoot).to.be.equal(genesisRoot);
 
         // checks DB state previous consolidate zkEVMDB
         try {
-            await getValue(Constants.DB_LastBatch, db);
+            await db.getValue(Constants.DB_LAST_BATCH);
             throw new Error('DB should be empty');
         } catch (error) {
-            expect(error.toString().includes("Cannot read property 'length' of undefined")).to.be.equal(true);
+            expect(error.toString().includes('DB should be empty')).to.be.equal(true);
         }
 
         const numBatch = Scalar.e(0);
@@ -83,8 +81,8 @@ describe('zkEVM-db Test', () => {
         expect(zkEVMDB.getCurrentStateRoot()).to.be.equal(genesisRoot);
 
         // check agains DB
-        const lastBatchDB = await getValue(Constants.DB_LastBatch, db, F);
-        const stateRootDB = await getValue(Scalar.add(Constants.DB_StateRoot, lastBatchDB), db, F);
+        const lastBatchDB = await db.getValue(Constants.DB_LAST_BATCH);
+        const stateRootDB = await db.getValue(Scalar.add(Constants.DB_STATE_ROOT, lastBatchDB));
         expect(lastBatchDB).to.be.equal(Scalar.add(numBatch, 1));
         expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.getCurrentStateRoot());
 
@@ -232,15 +230,15 @@ describe('zkEVM-db Test', () => {
         // execute the transactions added to the batch
         await batch.executeTxs();
 
-        const newRoot = batch.currentRoot;
+        const newRoot = batch.currentStateRoot;
         expect(F.toString(newRoot)).to.be.equal(expectedNewRoot);
 
         // checks previous consolidate zkEVMDB
         try {
-            await getValue(Constants.DB_LastBatch, db, F);
+            await db.getValue(Constants.DB_LAST_BATCH);
             throw new Error('DB should be empty');
         } catch (error) {
-            expect(error.toString().includes("Cannot read property 'length' of undefined")).to.be.equal(true);
+            // expect(error.toString().includes("Cannot read property 'length' of undefined")).to.be.equal(true);
         }
 
         const numBatch = Scalar.e(0);
@@ -256,17 +254,17 @@ describe('zkEVM-db Test', () => {
         expect(zkEVMDB.getCurrentLocalExitRoot()).to.be.deep.equal(F.e(localExitRoot));
         expect(zkEVMDB.getCurrentGlobalExitRoot()).to.be.deep.equal(F.e(globalExitRoot));
 
-        const lastBatchDB = await getValue(Constants.DB_LastBatch, db, F);
+        const lastBatchDB = await db.getValue(Constants.DB_LAST_BATCH);
 
         expect(lastBatchDB).to.be.equal(Scalar.add(numBatch, 1));
 
-        const stateRootDB = await getValue(Scalar.add(Constants.DB_StateRoot, lastBatchDB), db, F);
+        const stateRootDB = await db.getValue(Scalar.add(Constants.DB_STATE_ROOT, lastBatchDB));
         expect(F.e(stateRootDB)).to.be.deep.equal(zkEVMDB.getCurrentStateRoot());
 
-        const localExitRootDB = await getValue(Scalar.add(Constants.DB_LocalExitRoot, lastBatchDB), db, F);
+        const localExitRootDB = await db.getValue(Scalar.add(Constants.DB_LOCAL_EXIT_ROOT, lastBatchDB));
         expect(F.e(localExitRootDB)).to.be.deep.equal(zkEVMDB.getCurrentLocalExitRoot());
 
-        const globalExitRootDB = await getValue(Scalar.add(Constants.DB_GlobalExitRoot, lastBatchDB), db, F);
+        const globalExitRootDB = await db.getValue(Scalar.add(Constants.DB_GLOBAL_EXIT_ROOT, lastBatchDB));
         expect(F.e(globalExitRootDB)).to.be.deep.equal(zkEVMDB.getCurrentGlobalExitRoot());
     });
 });

@@ -1,7 +1,9 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
+const { contractUtils } = require('@polygon-hermez/zkevm-commonjs');
+
+const { calculateCircuitInput } = contractUtils;
 
 describe('Proof of efficiency', () => {
     let deployer;

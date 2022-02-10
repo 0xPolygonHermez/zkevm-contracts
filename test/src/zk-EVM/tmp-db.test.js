@@ -3,13 +3,9 @@ const { Scalar } = require('ffjavascript');
 
 const { expect } = require('chai');
 const ethers = require('ethers');
-
-const MemDB = require('../../../src/zk-EVM/zkproverjs/memdb');
-const SMT = require('../../../src/zk-EVM/zkproverjs/smt');
-const smtUtils = require('../../../src/zk-EVM/helpers/smt-utils');
-const smtKeyUtils = require('../../../src/zk-EVM/helpers/smt-key-utils');
-
-const TmpDB = require('../../../src/zk-EVM/tmp-db');
+const {
+    MemDB, SMT, smtUtils, TmpSmtDB,
+} = require('@polygon-hermez/zkevm-commonjs');
 
 describe('Tmp Db Test', () => {
     let poseidon;
@@ -28,13 +24,13 @@ describe('Tmp Db Test', () => {
         const db = new MemDB(F);
         const smt = new SMT(db, arity, poseidon, poseidon.F);
 
-        // create TmpDB
-        const tmpDB = new TmpDB(db);
+        // create TmpSmtDB
+        const tmpDB = new TmpSmtDB(db);
 
         // load smtTMp
         const smtTmp = new SMT(tmpDB, arity, poseidon, poseidon.F);
 
-        const keyBalance = await smtKeyUtils.keyEthAddrBalance(address, smt.arity);
+        const keyBalance = await smtUtils.keyEthAddrBalance(address, smt.arity);
         const zeroRoot = F.zero;
 
         const auxRes = await smt.set(zeroRoot, keyBalance, balance);
@@ -54,13 +50,13 @@ describe('Tmp Db Test', () => {
         const db = new MemDB(F);
         const smt = new SMT(db, arity, poseidon, poseidon.F);
 
-        // create TmpDB
-        const tmpDB = new TmpDB(db);
+        // create TmpSmtDB
+        const tmpDB = new TmpSmtDB(db);
 
         // load smtTMp
         const smtTmp = new SMT(tmpDB, arity, poseidon, poseidon.F);
 
-        const keyBalance = await smtKeyUtils.keyEthAddrBalance(address, smt.arity);
+        const keyBalance = await smtUtils.keyEthAddrBalance(address, smt.arity);
         const zeroRoot = F.zero;
 
         const auxRes = await smtTmp.set(zeroRoot, keyBalance, balance);

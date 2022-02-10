@@ -5,15 +5,15 @@ const { Scalar } = require('ffjavascript');
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
 
-const MemDB = require('../../src/zk-EVM/zkproverjs/memdb');
-const SMT = require('../../src/zk-EVM/zkproverjs/smt');
-const stateUtils = require('../../src/zk-EVM/helpers/state-utils');
+const {
+    MemDB, SMT, stateUtils, contractUtils, ZkEVMDB, processorUtils,
+} = require('@polygon-hermez/zkevm-commonjs');
 
-const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
 const { setGenesisBlock } = require('../src/zk-EVM/helpers/test-helpers');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../src/zk-EVM/helpers/processor-utils');
 
-const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
+const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
+
+const { calculateCircuitInput } = contractUtils;
 
 const testVectors = require('../src/zk-EVM/helpers/test-vector-data/state-transition.json');
 
@@ -210,7 +210,7 @@ describe('Proof of efficiency test vectors', () => {
             // execute the transactions added to the batch
             await batch.executeTxs();
 
-            const newRoot = batch.currentRoot;
+            const newRoot = batch.currentStateRoot;
             expect(F.toString(newRoot)).to.be.equal(expectedNewRoot);
 
             // consoldate state

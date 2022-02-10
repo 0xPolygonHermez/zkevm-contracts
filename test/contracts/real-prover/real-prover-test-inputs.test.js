@@ -1,7 +1,9 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const { generateSolidityInputs } = require('../../../src/zk-EVM/helpers/contract-utils');
+const { contractUtils } = require('@polygon-hermez/zkevm-commonjs');
+
+const { generateSolidityInputs } = contractUtils;
 
 const proofJson = require('./test-inputs/proof.json');
 const publicJson = require('./test-inputs/public.json');
