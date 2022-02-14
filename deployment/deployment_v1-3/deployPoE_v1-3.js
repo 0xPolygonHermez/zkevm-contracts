@@ -14,6 +14,7 @@ const { setGenesisBlock } = require('../../test/src/zk-EVM/helpers/test-helpers'
 
 async function main() {
     const deployer = (await ethers.getSigners())[0];
+    const networkIDMainnet = 0;
 
     /*
         Deployment MATIC
@@ -35,7 +36,7 @@ async function main() {
     console.log('Matic deployed to:', maticTokenContract.address);
 
     /*
-        Deployment Mock verifier
+        Deployment verifier
     */
     let VerifierFactory
     if (deployParameters.realVerifier) {
@@ -52,17 +53,36 @@ async function main() {
     await verifierContract.deployed();
 
     console.log('#######################\n');
-    console.log('Verifier Mock deployed to:', verifierContract.address);
+    console.log('Verifier deployed to:', verifierContract.address);
+
 
     /*
-        Deployment Bridge Mock
+        Deployment Global exit root manager
     */
-    const precalculatePoEAddress = await ethers.utils.getContractAddress(
+    const precalculatBridgeAddress = await ethers.utils.getContractAddress(
         { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
     );
-    const BridgeFactory = await ethers.getContractFactory('Bridge');
-    const bridgeContract = await BridgeFactory.deploy(precalculatePoEAddress);
+
+    const precalculatePoEAddress = await ethers.utils.getContractAddress(
+        { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2 },
+    );
+    const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
+    const globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculatBridgeAddress);
+    await globalExitRootManager.deployed();
+
+    console.log('#######################\n');
+    console.log('globalExitRootManager deployed to:', globalExitRootManager.address);
+
+    /*
+       Deployment Bridge
+    */
+    const BridgeFactory = await ethers.getContractFactory('BridgeMock');
+    const bridgeContract = await BridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
     await bridgeContract.deployed();
+    expect(bridgeContract.address).to.be.equal(precalculatBridgeAddress);
+
+    console.log('#######################\n');
+    console.log('Bridge deployed to:', bridgeContract.address);
 
     /*
         Deploy proof of efficiency
@@ -98,14 +118,14 @@ async function main() {
     console.log('##### Deployment Proof of Efficiency #####');
     console.log('#######################');
     console.log('deployer:', deployer.address);
-    console.log('bridgeAddress:', bridgeContract.address);
+    console.log('globalExitRootManagerAddress:', globalExitRootManager.address);
     console.log('maticTokenAddress:', maticTokenContract.address);
     console.log('verifierAddress:', verifierContract.address);
     console.log('genesisRoot:', genesisRootHex);
 
     const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
-        bridgeContract.address,
+        globalExitRootManager.address,
         maticTokenContract.address,
         verifierContract.address,
         genesisRootHex
@@ -122,7 +142,7 @@ async function main() {
     console.log('\n#######################');
     console.log('#####    Checks    #####');
     console.log('#######################');
-    console.log('bridgeAddress:', await proofOfEfficiencyContract.bridge());
+    console.log('globalExitRootManagerAddress:', await proofOfEfficiencyContract.globalExitRootManager());
     console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
     console.log('verifierMockAddress:', await proofOfEfficiencyContract.rollupVerifier());
     console.log('genesiRoot:', await proofOfEfficiencyContract.currentStateRoot());
@@ -160,6 +180,7 @@ async function main() {
     const outputJson = {
         proofOfEfficiencyAddress: proofOfEfficiencyContract.address,
         bridgeAddress: bridgeContract.address,
+        globalExitRootManagerAddress: globalExitRootManager.address,
         maticTokenAddress: maticTokenContract.address,
         verifierAddress: verifierContract.address,
         deployerAddress: deployer.address,
