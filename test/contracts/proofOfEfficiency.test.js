@@ -125,7 +125,7 @@ describe('Proof of efficiency', () => {
 
         // revert because tokens were not approved
         await expect(proofOfEfficiencyContract.sendBatch(l2txData, maticAmount))
-            .to.be.revertedWith('ERC20: transfer amount exceeds allowance');
+            .to.be.revertedWith('ERC20: insufficient allowance');
 
         const initialOwnerBalance = await maticTokenContract.balanceOf(
             await deployer.getAddress(),
