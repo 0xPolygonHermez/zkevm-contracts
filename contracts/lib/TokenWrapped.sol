@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 contract TokenWrapped is Initializable, ERC20Upgradeable {
     address public bridgeAddress;
+    uint8 private _decimals;
 
     modifier onlyBridge() {
         require(msg.sender == bridgeAddress, "TokenWrapped:NOT_BRIDGE");
@@ -18,11 +19,13 @@ contract TokenWrapped is Initializable, ERC20Upgradeable {
     function initialize(
         string memory name,
         string memory symbol,
+        uint8 decimals,
         address initialAccount,
         uint256 initialBalance
     ) public initializer {
         __ERC20_init(name, symbol);
         bridgeAddress = msg.sender;
+        _decimals = decimals;
         _mint(initialAccount, initialBalance);
     }
 
@@ -42,5 +45,9 @@ contract TokenWrapped is Initializable, ERC20Upgradeable {
     {
         _burn(account, value);
         return true;
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return _decimals;
     }
 }

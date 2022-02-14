@@ -29,3 +29,12 @@
 
 
 
+### decimals
+```solidity
+  function decimals(
+  ) public returns (uint8)
+```
+
+
+
+

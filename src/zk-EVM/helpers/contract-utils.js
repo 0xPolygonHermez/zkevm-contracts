@@ -10,7 +10,7 @@ const { Fr } = require('../constants');
  * @param {String} newLocalExitRoot - New local exit root once the batch is processed
  * @param {String} batchHashData - Batch hash data
  * @param {Number} numBatch - Batch number
- * @returns {String} - Leaf value
+ * @returns {String} - Global hash in hex encoding
  */
 function calculateCircuitInput(
     currentStateRoot,
@@ -45,7 +45,7 @@ function calculateCircuitInput(
  * @param {String} transactions - All raw transaction data concatenated
  * @param {String} globalExitRoot - Global Exit Root
  * @param {String} sequencerAddress - Sequencer address
- * @param {String} timestamp - Block timestamp
+ * @param {Number} timestamp - Block timestamp
  * @param {Number} batchChainID - Batch chain ID
  * @returns {String} - Batch hash data
  */
