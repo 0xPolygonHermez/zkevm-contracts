@@ -73,11 +73,18 @@ Verify merkle proof and withdraw tokens/ether
 ### getTokenWrappedAddress
 ```solidity
   function getTokenWrappedAddress(
+    uint32 originalNetwork,
+    address originalTokenAddress
   ) public returns (address)
 ```
+Returns the address of a wrapper using the token information
 
 
-
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`originalNetwork` | uint32 | Original network
+|`originalTokenAddress` | address | Original token address, 0 address is reserved for ether
 
 ## Events
 ### BridgeEvent

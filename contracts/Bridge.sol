@@ -194,7 +194,7 @@ contract Bridge is Ownable, DepositContract {
             "Bridge::claim: ALREADY_CLAIMED"
         );
 
-        // Destination network must be mainnet
+        // Destination network must be networkID
         require(
             destinationNetwork == networkID,
             "Bridge::claim: DESTINATION_NETWORK_DOES_NOT_MATCH"
@@ -275,6 +275,7 @@ contract Bridge is Ownable, DepositContract {
                     newWrappedToken.initialize(
                         "name",
                         "symbol",
+                        18,
                         destinationAddress,
                         amount
                     );
@@ -314,6 +315,11 @@ contract Bridge is Ownable, DepositContract {
         );
     }
 
+    /**
+     * @notice Returns the address of a wrapper using the token information
+     * @param originalNetwork Original network
+     * @param originalTokenAddress Original token address, 0 address is reserved for ether
+     */
     function getTokenWrappedAddress(
         uint32 originalNetwork,
         address originalTokenAddress

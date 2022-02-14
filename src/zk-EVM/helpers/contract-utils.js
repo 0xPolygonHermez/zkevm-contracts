@@ -45,7 +45,7 @@ function calculateCircuitInput(
  * @param {String} transactions - All raw transaction data concatenated
  * @param {String} globalExitRoot - Global Exit Root
  * @param {String} sequencerAddress - Sequencer address
- * @param {String} timestamp - Block timestamp
+ * @param {Number} timestamp - Block timestamp
  * @param {Number} batchChainID - Batch chain ID
  * @returns {String} - Batch hash data
  */

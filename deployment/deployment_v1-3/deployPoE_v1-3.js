@@ -59,7 +59,7 @@ async function main() {
     /*
         Deployment Global exit root manager
     */
-    const precalculatBridgeAddress = await ethers.utils.getContractAddress(
+    const precalculateBridgeAddress = await ethers.utils.getContractAddress(
         { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
     );
 
@@ -67,7 +67,7 @@ async function main() {
         { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2 },
     );
     const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-    const globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculatBridgeAddress);
+    const globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculateBridgeAddress);
     await globalExitRootManager.deployed();
 
     console.log('#######################\n');
@@ -79,7 +79,7 @@ async function main() {
     const BridgeFactory = await ethers.getContractFactory('BridgeMock');
     const bridgeContract = await BridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
     await bridgeContract.deployed();
-    expect(bridgeContract.address).to.be.equal(precalculatBridgeAddress);
+    expect(bridgeContract.address).to.be.equal(precalculateBridgeAddress);
 
     console.log('#######################\n');
     console.log('Bridge deployed to:', bridgeContract.address);
