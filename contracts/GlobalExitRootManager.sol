@@ -14,7 +14,7 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Ownable {
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
 
-    // Rollup exit root, this will be updated every time a deposit is made in mainnet
+    // Mainnet exit root, this will be updated every time a deposit is made in mainnet
     bytes32 public lastMainnetExitRoot;
 
     // Store every global exit root

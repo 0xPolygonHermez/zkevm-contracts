@@ -23,7 +23,8 @@ contract GlobalExitRootManagerL2 is IGlobalExitRootManager {
     ////////////////////
     // Regular variables
     ///////////////////
-    // Rollup exit root,will be updated for every bridge call
+
+    // Rollup exit root, will be updated for every bridge call
     bytes32 public lastRollupExitRoot;
 
     // Bridge address
