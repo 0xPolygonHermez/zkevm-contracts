@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 /**
  * @dev Define interface verifier
  */
-interface VerifierRollupInterface {
+interface IVerifierRollup {
     function verifyProof(
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,

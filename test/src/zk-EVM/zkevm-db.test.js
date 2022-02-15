@@ -37,6 +37,7 @@ describe('zkEVM-db Test', () => {
         const genesisRoot = F.e('0x0000000000000000000000000000000000000000000000000000000000000000');
         const localExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const globalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const timestamp = 1;
 
         const db = new MemDB(F);
 
@@ -59,7 +60,7 @@ describe('zkEVM-db Test', () => {
         expect(Scalar.toNumber(arityDB)).to.be.equal(arity);
 
         // build an empty batch
-        const batch = await zkEVMDB.buildBatch();
+        const batch = await zkEVMDB.buildBatch(timestamp);
         await batch.executeTxs();
         const newRoot = batch.currentRoot;
         expect(newRoot).to.be.equal(genesisRoot);
@@ -69,7 +70,7 @@ describe('zkEVM-db Test', () => {
             await getValue(Constants.DB_LastBatch, db);
             throw new Error('DB should be empty');
         } catch (error) {
-            expect(error.toString().includes("Cannot read property 'length' of undefined")).to.be.equal(true);
+            expect(error.toString().includes('Cannot read')).to.be.equal(true);
         }
 
         const numBatch = Scalar.e(0);
@@ -117,6 +118,7 @@ describe('zkEVM-db Test', () => {
             sequencerAddress,
             localExitRoot,
             globalExitRoot,
+            timestamp,
         } = testVectors[0];
 
         const db = new MemDB(F);
@@ -224,7 +226,7 @@ describe('zkEVM-db Test', () => {
             F.e(Scalar.e(localExitRoot)),
             F.e(Scalar.e(globalExitRoot)),
         );
-        const batch = await zkEVMDB.buildBatch();
+        const batch = await zkEVMDB.buildBatch(timestamp);
         for (let j = 0; j < rawTxs.length; j++) {
             batch.addRawTx(rawTxs[j]);
         }
@@ -240,7 +242,7 @@ describe('zkEVM-db Test', () => {
             await getValue(Constants.DB_LastBatch, db, F);
             throw new Error('DB should be empty');
         } catch (error) {
-            expect(error.toString().includes("Cannot read property 'length' of undefined")).to.be.equal(true);
+            expect(error.toString().includes('Cannot read')).to.be.equal(true);
         }
 
         const numBatch = Scalar.e(0);

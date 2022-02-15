@@ -4,8 +4,8 @@ pragma solidity 0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "./interfaces/VerifierRollupInterface.sol";
-import "./interfaces/BridgeInterface.sol";
+import "./interfaces/IVerifierRollup.sol";
+import "./interfaces/IGlobalExitRootManager.sol";
 
 /**
  * Contract responsible for managing the state and the updates of it of the L2 Hermez network.
@@ -22,14 +22,12 @@ contract ProofOfEfficiency is Ownable {
     }
 
     struct BatchData {
-        address sequencerAddress;
-        uint32 chainID;
         bytes32 batchHashData;
         uint256 maticCollateral;
     }
 
     // Modulus zkSNARK
-    uint256 constant _RFIELD =
+    uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
@@ -56,8 +54,8 @@ contract ProofOfEfficiency is Ownable {
     // Last batch verified by the aggregators
     uint32 public lastVerifiedBatch;
 
-    // Bridge address
-    BridgeInterface public bridge;
+    // Global Exit Root address
+    IGlobalExitRootManager public globalExitRootManager;
 
     // Current state root
     bytes32 public currentStateRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
@@ -65,7 +63,7 @@ contract ProofOfEfficiency is Ownable {
     // Current local exit root
     bytes32 public currentLocalExitRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
 
-    VerifierRollupInterface public rollupVerifier;
+    IVerifierRollup public rollupVerifier;
 
     /**
      * @dev Emitted when a sequencer is registered or updated
@@ -79,7 +77,12 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @dev Emitted when a sequencer sends a new batch of transactions
      */
-    event SendBatch(uint32 indexed numBatch, address indexed sequencer);
+    event SendBatch(
+        uint32 indexed numBatch,
+        address indexed sequencer,
+        uint32 batchChainID,
+        bytes32 lastGlobalExitRoot
+    );
 
     /**
      * @dev Emitted when a aggregator verifies a new batch
@@ -87,18 +90,18 @@ contract ProofOfEfficiency is Ownable {
     event VerifyBatch(uint32 indexed numBatch, address indexed aggregator);
 
     /**
-     * @param _bridge Bridge contract address
+     * @param _globalExitRootManager global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier rollup verifier addressv
      * @param genesisRoot rollup genesis root
      */
     constructor(
-        BridgeInterface _bridge,
+        IGlobalExitRootManager _globalExitRootManager,
         IERC20 _matic,
-        VerifierRollupInterface _rollupVerifier,
+        IVerifierRollup _rollupVerifier,
         bytes32 genesisRoot
     ) {
-        bridge = _bridge;
+        globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
         currentStateRoot = genesisRoot;
@@ -133,7 +136,7 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @notice Allows a sequencer to send a batch of L2 transactions
      * @param transactions L2 ethereum transactions EIP-155 with signature:
-     * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0, v, r, s)
+     * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * @param maticAmount Max amount of MATIC tokens that the sequencer is willing to pay
      */
     function sendBatch(bytes memory transactions, uint256 maticAmount) public {
@@ -147,23 +150,38 @@ contract ProofOfEfficiency is Ownable {
 
         matic.safeTransferFrom(msg.sender, address(this), maticCollateral);
 
+        // Get globalExitRoot global exit root
+        bytes32 lastGlobalExitRoot = globalExitRootManager
+            .getLastGlobalExitRoot();
+
+        // Set chainID
+        uint32 batchChainID;
+        if (sequencers[msg.sender].chainID != 0) {
+            batchChainID = sequencers[msg.sender].chainID;
+        } else {
+            // If the sequencer is not registered use the default chainID
+            batchChainID = DEFAULT_CHAIN_ID;
+        }
+
         // Update sentBatches mapping
         lastBatchSent++;
         sentBatches[lastBatchSent].batchHashData = keccak256(
-            abi.encodePacked(transactions, bridge.getLastGlobalExitRoot())
+            abi.encodePacked(
+                transactions,
+                lastGlobalExitRoot,
+                block.timestamp,
+                msg.sender,
+                batchChainID
+            )
         );
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
-        sentBatches[lastBatchSent].sequencerAddress = msg.sender;
 
-        // Set chainID
-        if (sequencers[msg.sender].chainID != 0) {
-            sentBatches[lastBatchSent].chainID = sequencers[msg.sender].chainID;
-        } else {
-            // If the sequencer is not registered use the default chainID
-            sentBatches[lastBatchSent].chainID = DEFAULT_CHAIN_ID;
-        }
-
-        emit SendBatch(lastBatchSent, msg.sender);
+        emit SendBatch(
+            lastBatchSent,
+            msg.sender,
+            batchChainID,
+            lastGlobalExitRoot
+        );
     }
 
     /**
@@ -199,9 +217,7 @@ contract ProofOfEfficiency is Ownable {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    currentBatch.sequencerAddress,
                     currentBatch.batchHashData,
-                    currentBatch.chainID,
                     numBatch
                 )
             )
@@ -218,8 +234,8 @@ contract ProofOfEfficiency is Ownable {
         currentStateRoot = newStateRoot;
         currentLocalExitRoot = newLocalExitRoot;
 
-        // Interact with bridge
-        bridge.updateRollupExitRoot(currentLocalExitRoot);
+        // Interact with globalExitRoot
+        globalExitRootManager.updateExitRoot(currentLocalExitRoot);
 
         // Get MATIC reward
         matic.safeTransfer(msg.sender, currentBatch.maticCollateral);
@@ -231,7 +247,7 @@ contract ProofOfEfficiency is Ownable {
      * @notice Function to calculate the sequencer collateral depending on the congestion of the batches
      // TODO
      */
-    function calculateSequencerCollateral() public pure returns (uint256) {
-        return 1 ether;
+    function calculateSequencerCollateral() public view returns (uint256) {
+        return 1 ether * (1 + lastBatchSent - lastVerifiedBatch);
     }
 }

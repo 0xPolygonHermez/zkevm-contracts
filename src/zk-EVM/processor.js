@@ -7,14 +7,13 @@ const SMT = require('./zkproverjs/smt');
 const TmpDB = require('./tmp-db');
 const Constants = require('./constants');
 const stateUtils = require('./helpers/state-utils');
-const smtKeyUtils = require('./helpers/smt-key-utils');
 
 const { getCurrentDB } = require('./helpers/smt-utils');
 const { calculateCircuitInput, calculateBatchHashData } = require('./helpers/contract-utils');
 const { decodeCustomRawTxProverMethod } = require('./helpers/processor-utils');
 
 module.exports = class Processor {
-    constructor(db, batchNumber, arity, poseidon, maxNTx, seqChainID, root, sequencerAddress, localExitRoot, globalExitRoot) {
+    constructor(db, batchNumber, arity, poseidon, maxNTx, seqChainID, root, sequencerAddress, localExitRoot, globalExitRoot, timestamp) {
         this.db = db;
         this.batchNumber = batchNumber;
         this.arity = arity;
@@ -35,6 +34,7 @@ module.exports = class Processor {
         this.sequencerAddress = sequencerAddress;
         this.localExitRoot = localExitRoot;
         this.globalExitRoot = globalExitRoot;
+        this.timestamp = timestamp;
     }
 
     /**
@@ -248,33 +248,37 @@ module.exports = class Processor {
      * Compute circuit input
      */
     async _computeCircuitInput() {
-        // compute keys used
-        const keys = {};
-        const mapAddress = {};
-        for (let i = 0; i < this.decodedTxs.length; i++) {
-            const currentTx = this.decodedTxs[i].tx;
-            if (!currentTx) {
-                continue;
-            }
-            const { from, to } = currentTx;
+        /*
+         * compute keys used
+         * const keys = {};
+         * const mapAddress = {};
+         * for (let i = 0; i < this.decodedTxs.length; i++) {
+         *     const currentTx = this.decodedTxs[i].tx;
+         *     if (!currentTx) {
+         *         continue;
+         *     }
+         *     const { from, to } = currentTx;
+         */
 
-            if (from && mapAddress[from] === undefined) {
-                const keyBalance = this.F.toString(await smtKeyUtils.keyEthAddrBalance(from, this.arity), 16).padStart(64, '0');
-                const keyNonce = this.F.toString(await smtKeyUtils.keyEthAddrNonce(from, this.arity), 16).padStart(64, '0');
-                const previousState = await stateUtils.getState(from, this.smt, this.oldStateRoot);
-                keys[keyBalance] = Scalar.e(previousState.balance).toString(16).padStart(64, '0');
-                keys[keyNonce] = Scalar.e(previousState.nonce).toString(16).padStart(64, '0');
-                mapAddress[from] = true;
-            }
-            if (mapAddress[to] === undefined) {
-                const keyBalance = this.F.toString(await smtKeyUtils.keyEthAddrBalance(to, this.arity), 16).padStart(64, '0');
-                const keyNonce = this.F.toString(await smtKeyUtils.keyEthAddrNonce(to, this.arity), 16).padStart(64, '0');
-                const previousState = await stateUtils.getState(to, this.smt, this.oldStateRoot);
-                keys[keyBalance] = Scalar.e(previousState.balance).toString(16).padStart(64, '0');
-                keys[keyNonce] = Scalar.e(previousState.nonce).toString(16).padStart(64, '0');
-                mapAddress[to] = true;
-            }
-        }
+        /*
+         *     if (from && mapAddress[from] === undefined) {
+         *         const keyBalance = this.F.toString(await smtKeyUtils.keyEthAddrBalance(from, this.arity), 16).padStart(64, '0');
+         *         const keyNonce = this.F.toString(await smtKeyUtils.keyEthAddrNonce(from, this.arity), 16).padStart(64, '0');
+         *         const previousState = await stateUtils.getState(from, this.smt, this.oldStateRoot);
+         *         keys[keyBalance] = Scalar.e(previousState.balance).toString(16).padStart(64, '0');
+         *         keys[keyNonce] = Scalar.e(previousState.nonce).toString(16).padStart(64, '0');
+         *         mapAddress[from] = true;
+         *     }
+         *     if (mapAddress[to] === undefined) {
+         *         const keyBalance = this.F.toString(await smtKeyUtils.keyEthAddrBalance(to, this.arity), 16).padStart(64, '0');
+         *         const keyNonce = this.F.toString(await smtKeyUtils.keyEthAddrNonce(to, this.arity), 16).padStart(64, '0');
+         *         const previousState = await stateUtils.getState(to, this.smt, this.oldStateRoot);
+         *         keys[keyBalance] = Scalar.e(previousState.balance).toString(16).padStart(64, '0');
+         *         keys[keyNonce] = Scalar.e(previousState.nonce).toString(16).padStart(64, '0');
+         *         mapAddress[to] = true;
+         *     }
+         * }
+         */
 
         // compute circuit inputs
         const oldStateRoot = `0x${this.F.toString(this.oldStateRoot, 16).padStart(64, '0')}`;
@@ -282,24 +286,28 @@ module.exports = class Processor {
         const localExitRoot = `0x${this.F.toString(this.localExitRoot, 16).padStart(64, '0')}`;
         const globalExitRoot = `0x${this.F.toString(this.globalExitRoot, 16).padStart(64, '0')}`;
 
-        const batchHashData = calculateBatchHashData(this.getBatchL2Data(), globalExitRoot);
+        const batchHashData = calculateBatchHashData(
+            this.getBatchL2Data(),
+            globalExitRoot,
+            this.timestamp,
+            this.sequencerAddress,
+            this.seqChainID,
+        );
+
         const inputHash = calculateCircuitInput(
             oldStateRoot,
             localExitRoot,
             newStateRoot,
             localExitRoot, // should be the new exit root, but it's nod modified in this version
-            this.sequencerAddress,
             batchHashData,
-            this.seqChainID,
             this.batchNumber,
         );
         this.circuitInput = {
-            keys,
             oldStateRoot,
             chainId: this.seqChainID,
             db: await getCurrentDB(this.oldStateRoot, this.db, this.F),
             sequencerAddr: this.sequencerAddress,
-            txs: this.rawTxs,
+            batchL2Data: this.getBatchL2Data(),
             newStateRoot,
             oldLocalExitRoot: localExitRoot,
             newLocalExitRoot: localExitRoot,
@@ -307,6 +315,7 @@ module.exports = class Processor {
             batchHashData,
             inputHash,
             numBatch: Scalar.toNumber(this.batchNumber),
+            timestamp: this.timestamp,
         };
     }
 
