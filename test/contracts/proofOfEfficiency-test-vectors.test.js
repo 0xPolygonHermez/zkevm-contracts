@@ -13,7 +13,7 @@ const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
 const fs = require('fs');
 const path = require('path');
 
-const { setGenesisBlock } = require('../src/zk-EVM/helpers/test-helpers');
+const { setGenesisBlock } = require('./helpers/test-helpers');
 
 const { calculateCircuitInput } = contractUtils;
 const { pathTestVectors } = require('../helpers/test-utils');

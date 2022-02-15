@@ -22,10 +22,19 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node-version }}
+      - name: Set int-bot SSH key
+        run: |
+          touch /tmp/ssh-key
+          echo "${{ secrets.INT_BOT_SSH_KEY }}" > /tmp/ssh-key
+          chmod 400 /tmp/ssh-key
+          eval "$(ssh-agent -s)"
+          ssh-add /tmp/ssh-key
       - name: Checkout code
         uses: actions/checkout@v2
       - name: setup
         run: |
+          eval "$(ssh-agent -s)"
+          ssh-add /tmp/ssh-key
           npm install -g npm@latest
           npm i
       - name: linter
