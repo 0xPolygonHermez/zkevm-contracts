@@ -160,7 +160,7 @@ describe('Proof of efficiency test vectors', () => {
                 expect(currentState.nonce).to.be.equal(nonceArray[j]);
             }
 
-            expect(F.toString(genesisRoot)).to.be.equal(expectedOldRoot);
+            expect(`0x${Scalar.e(F.toString(genesisRoot)).toString(16).padStart(64, '0')}`).to.be.equal(expectedOldRoot);
 
             /*
              * build, sign transaction and generate rawTxs
@@ -240,7 +240,7 @@ describe('Proof of efficiency test vectors', () => {
             await batch.executeTxs();
 
             const newRoot = batch.currentStateRoot;
-            expect(F.toString(newRoot)).to.be.equal(expectedNewRoot);
+            expect(`0x${Scalar.e(F.toString(newRoot)).toString(16).padStart(64, '0')}`).to.be.equal(expectedNewRoot);
 
             // consoldate state
             await zkEVMDB.consolidate(batch);
