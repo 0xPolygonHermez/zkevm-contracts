@@ -6,9 +6,11 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 const { Scalar } = require('ffjavascript');
+const { processorUtils } = require('@polygon-hermez/zkevm-commonjs');
+
 const {
     toHexStringRlp, customRawTxToRawTx, rawTxToCustomRawTx, decodeCustomRawTxProverMethod,
-} = require('../../../src/zk-EVM/helpers/processor-utils');
+} = processorUtils;
 
 describe('Encode and decode transactions in RLP', () => {
     let testVectors;

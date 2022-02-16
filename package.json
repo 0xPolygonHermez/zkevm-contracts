@@ -23,7 +23,8 @@
     "prettier-plugin-solidity": "^1.0.0-beta.18",
     "solc-0.8": "npm:solc@0.8.9",
     "solidity-coverage": "^0.7.17",
-    "solidity-docgen": "^0.5.16"
+    "solidity-docgen": "^0.5.16",
+    "@polygon-hermez/zkevm-commonjs": "https://github.com/hermeznetwork/zkevm-commonjs.git"
   },
   "license": "GPL-3.0",
   "scripts": {

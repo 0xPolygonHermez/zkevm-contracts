@@ -8,12 +8,12 @@ const { expect } = require('chai');
 const fs = require('fs');
 const path = require('path');
 
-const MemDB = require('../../src/zk-EVM/zkproverjs/memdb');
-const SMT = require('../../src/zk-EVM/zkproverjs/smt');
-const stateUtils = require('../../src/zk-EVM/helpers/state-utils');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../src/zk-EVM/helpers/processor-utils');
+const {
+    MemDB, SMT, stateUtils, ZkEVMDB, processorUtils,
+} = require('@polygon-hermez/zkevm-commonjs');
 
-const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
+const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
+
 const { setGenesisBlock } = require('../../test/src/zk-EVM/helpers/test-helpers');
 
 async function main() {
@@ -153,7 +153,7 @@ async function main() {
         // execute the transactions added to the batch
         await batch.executeTxs();
 
-        const newRoot = batch.currentRoot;
+        const newRoot = batch.currentStateRoot;
 
         currentTestVector.expectedNewRoot = F.toString(newRoot);
 
