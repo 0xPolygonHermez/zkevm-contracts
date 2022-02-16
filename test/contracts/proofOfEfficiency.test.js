@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 
 const { contractUtils } = require('@polygon-hermez/zkevm-commonjs');
 
-const { calculateCircuitInput } = contractUtils;
+const { calculateCircuitInput, calculateBatchHashData } = contractUtils;
 
 describe('Proof of efficiency', () => {
     let deployer;
