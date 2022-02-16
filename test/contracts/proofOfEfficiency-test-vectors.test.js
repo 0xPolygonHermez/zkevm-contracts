@@ -9,11 +9,10 @@ const {
     MemDB, SMT, stateUtils, contractUtils, ZkEVMDB, processorUtils,
 } = require('@polygon-hermez/zkevm-commonjs');
 
+const { setGenesisBlock } = stateUtils;
 const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
 const fs = require('fs');
 const path = require('path');
-
-const { setGenesisBlock } = require('./helpers/test-helpers');
 
 const { calculateCircuitInput } = contractUtils;
 const { pathTestVectors } = require('../helpers/test-utils');
