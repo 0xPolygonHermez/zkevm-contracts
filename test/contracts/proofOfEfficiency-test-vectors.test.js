@@ -18,7 +18,7 @@ const { setGenesisBlock } = require('./helpers/test-helpers');
 const { calculateCircuitInput } = contractUtils;
 const { pathTestVectors } = require('../helpers/test-utils');
 
-const testVectors = JSON.parse(fs.readFileSync(path.join(pathTestVectors, 'state-transition/state-transition.json')));
+const testVectors = JSON.parse(fs.readFileSync(path.join(pathTestVectors, 'test-vector-data/state-transition.json')));
 
 async function takeSnapshop() {
     return (ethers.provider.send('evm_snapshot', []));
@@ -174,14 +174,14 @@ describe('Proof of efficiency test vectors', () => {
                 const tx = {
                     to: txData.to,
                     nonce: txData.nonce,
-                    value: ethers.utils.parseEther(txData.value),
+                    value: ethers.utils.parseUnits(txData.value, 'wei'),
                     gasLimit: txData.gasLimit,
-                    gasPrice: ethers.utils.parseUnits(txData.gasPrice, 'gwei'),
+                    gasPrice: ethers.utils.parseUnits(txData.gasPrice, 'wei'),
                     chainId: txData.chainId,
                     data: txData.data || '0x',
                 };
                 if (!ethers.utils.isAddress(tx.to) || !ethers.utils.isAddress(txData.from)) {
-                    expect(txData.rawTx).to.equal(undefined);
+                    expect(txData.customRawTx).to.equal(undefined);
                     continue;
                 }
 
@@ -212,7 +212,7 @@ describe('Proof of efficiency test vectors', () => {
                         customRawTx = rawTxToCustomRawTx(rawTxEthers);
                     }
 
-                    expect(customRawTx).to.equal(txData.rawTx);
+                    expect(customRawTx).to.equal(txData.customRawTx);
 
                     if (txData.encodeInvalidData) {
                         customRawTx = customRawTx.slice(0, -6);
@@ -227,15 +227,12 @@ describe('Proof of efficiency test vectors', () => {
             // create a zkEVMDB and build a batch
             const zkEVMDB = await ZkEVMDB.newZkEVM(
                 db,
-                chainIdSequencer,
                 arity,
                 poseidon,
-                sequencerAddress,
                 genesisRoot,
                 F.e(Scalar.e(localExitRoot)),
-                F.e(Scalar.e(globalExitRoot)),
             );
-            const batch = await zkEVMDB.buildBatch(timestamp);
+            const batch = await zkEVMDB.buildBatch(timestamp, sequencerAddress, chainIdSequencer, F.e(Scalar.e(globalExitRoot)));
             for (let j = 0; j < rawTxs.length; j++) {
                 batch.addRawTx(rawTxs[j]);
             }
@@ -277,8 +274,8 @@ describe('Proof of efficiency test vectors', () => {
             expect(batchL2Data).to.be.equal(batch.getBatchL2Data());
 
             // Check the batchHashData and the input hash
-            expect(batchHashData).to.be.equal(Scalar.e(circuitInput.batchHashData).toString());
-            expect(inputHash).to.be.equal(Scalar.e(circuitInput.inputHash).toString());
+            expect(batchHashData).to.be.equal(circuitInput.batchHashData);
+            expect(inputHash).to.be.equal(circuitInput.inputHash);
 
             /*
              * /// /////////////////////////////////////////////
