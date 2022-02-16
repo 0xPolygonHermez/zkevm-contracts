@@ -9,13 +9,16 @@ const {
     MemDB, SMT, stateUtils, contractUtils, ZkEVMDB, processorUtils,
 } = require('@polygon-hermez/zkevm-commonjs');
 
+const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
+const fs = require('fs');
+const path = require('path');
+
 const { setGenesisBlock } = require('../src/zk-EVM/helpers/test-helpers');
 
-const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
-
 const { calculateCircuitInput } = contractUtils;
+const { pathTestVectors } = require('../helpers/test-utils');
 
-const testVectors = require('../src/zk-EVM/helpers/test-vector-data/state-transition.json');
+const testVectors = JSON.parse(fs.readFileSync(path.join(pathTestVectors, 'state-transition/state-transition.json')));
 
 async function takeSnapshop() {
     return (ethers.provider.send('evm_snapshot', []));

@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { Scalar } = require('ffjavascript');
 const { processorUtils } = require('@polygon-hermez/zkevm-commonjs');
+const { pathTestVectors } = require('../../helpers/test-utils');
 
 const {
     toHexStringRlp, customRawTxToRawTx, rawTxToCustomRawTx, decodeCustomRawTxProverMethod,
@@ -16,7 +17,7 @@ describe('Encode and decode transactions in RLP', () => {
     let testVectors;
 
     before(async () => {
-        testVectors = JSON.parse(fs.readFileSync(path.join(__dirname, './helpers/test-vector-data/state-transition.json')));
+        testVectors = JSON.parse(fs.readFileSync(path.join(pathTestVectors, 'state-transition/state-transition.json')));
     });
 
     it('Check encode and decode transactions', async () => {
