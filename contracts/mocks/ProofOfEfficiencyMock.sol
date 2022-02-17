@@ -12,17 +12,24 @@ import "hardhat/console.sol";
  */
 contract ProofOfEfficiencyMock is ProofOfEfficiency {
     /**
-     * @param _bridge Bridge contract address
+     * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier rollup verifier address
      * @param genesisRoot rollup genesis root
      */
     constructor(
-        BridgeInterface _bridge,
+        IGlobalExitRootManager _globalExitRootManager,
         IERC20 _matic,
-        VerifierRollupInterface _rollupVerifier,
+        IVerifierRollup _rollupVerifier,
         bytes32 genesisRoot
-    ) ProofOfEfficiency(_bridge, _matic, _rollupVerifier, genesisRoot) {}
+    )
+        ProofOfEfficiency(
+            _globalExitRootManager,
+            _matic,
+            _rollupVerifier,
+            genesisRoot
+        )
+    {}
 
     /**
      * @notice Calculate the circuit input
@@ -30,9 +37,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param currentLocalExitRoot Current local exit root
      * @param newStateRoot New State root once the batch is processed
      * @param newLocalExitRoot  New local exit root once the batch is processed
-     * @param sequencerAddress Sequencer address
      * @param batchHashData Batch hash data
-     * @param batchChainID Batch chain ID
      * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
     function calculateCircuitInput(
@@ -40,9 +45,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 currentLocalExitRoot,
         bytes32 newStateRoot,
         bytes32 newLocalExitRoot,
-        address sequencerAddress,
         bytes32 batchHashData,
-        uint32 batchChainID,
         uint32 numBatch
     ) public pure returns (uint256) {
         uint256 input = uint256(
@@ -52,9 +55,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    sequencerAddress,
                     batchHashData,
-                    batchChainID,
                     numBatch
                 )
             )
@@ -89,9 +90,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    currentBatch.sequencerAddress,
                     currentBatch.batchHashData,
-                    currentBatch.chainID,
                     numBatch
                 )
             )
@@ -125,9 +124,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 currentLocalExitRoot,
                 newStateRoot,
                 newLocalExitRoot,
-                currentBatch.sequencerAddress,
                 currentBatch.batchHashData,
-                currentBatch.chainID,
                 numBatch
             );
     }
@@ -168,7 +165,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         // Update state
         lastVerifiedBatch++;
         // Interact with bridge
-        bridge.updateRollupExitRoot(currentLocalExitRoot);
+        globalExitRootManager.updateExitRoot(currentLocalExitRoot);
         emit VerifyBatch(lastVerifiedBatch, msg.sender);
     }
 
@@ -178,13 +175,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
     function setBatch(
         bytes32 batchHashData,
         uint256 maticCollateral,
-        address sequencer,
-        uint32 chainID,
         uint32 batchNum
     ) public onlyOwner {
         sentBatches[batchNum].batchHashData = batchHashData;
         sentBatches[batchNum].maticCollateral = maticCollateral;
-        sentBatches[batchNum].sequencerAddress = sequencer;
-        sentBatches[batchNum].chainID = chainID;
     }
 }

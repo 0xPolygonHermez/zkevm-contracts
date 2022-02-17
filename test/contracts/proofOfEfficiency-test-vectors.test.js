@@ -5,17 +5,32 @@ const { Scalar } = require('ffjavascript');
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
 
-const MemDB = require('../../src/zk-EVM/zkproverjs/memdb');
-const SMT = require('../../src/zk-EVM/zkproverjs/smt');
-const stateUtils = require('../../src/zk-EVM/helpers/state-utils');
+const {
+    MemDB, SMT, stateUtils, contractUtils, ZkEVMDB, processorUtils,
+} = require('@polygon-hermez/zkevm-commonjs');
 
-const ZkEVMDB = require('../../src/zk-EVM/zkevm-db');
-const { setGenesisBlock } = require('../src/zk-EVM/helpers/test-helpers');
-const { rawTxToCustomRawTx, toHexStringRlp } = require('../../src/zk-EVM/helpers/processor-utils');
+const { setGenesisBlock } = stateUtils;
+const { rawTxToCustomRawTx, toHexStringRlp } = processorUtils;
+const fs = require('fs');
+const path = require('path');
 
-const { calculateCircuitInput } = require('../../src/zk-EVM/helpers/contract-utils');
+const { calculateCircuitInput } = contractUtils;
+const { pathTestVectors } = require('../helpers/test-utils');
 
-const testVectors = require('../src/zk-EVM/helpers/test-vector-data/state-transition.json');
+const testVectors = JSON.parse(fs.readFileSync(path.join(pathTestVectors, 'test-vector-data/state-transition.json')));
+
+async function takeSnapshop() {
+    return (ethers.provider.send('evm_snapshot', []));
+}
+
+async function revertToSnapshot(snapshotId) {
+    const revert = await ethers.provider.send('evm_revert', [snapshotId]);
+    return revert;
+}
+
+async function setNextBlockTimestamp(timestamp) {
+    return (ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]));
+}
 
 describe('Proof of efficiency test vectors', () => {
     let poseidon;
@@ -28,12 +43,15 @@ describe('Proof of efficiency test vectors', () => {
     let bridgeContract;
     let proofOfEfficiencyContract;
     let maticTokenContract;
+    let globalExitRootManager;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
     const genesisRootSC = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+    const networkIDMainnet = 0;
 
     beforeEach('Deploy contract', async () => {
         // build poseidon
@@ -58,24 +76,35 @@ describe('Proof of efficiency test vectors', () => {
             maticTokenInitialBalance,
         );
         await maticTokenContract.deployed();
-
-        // deploy bridge
-        const precalculatePoEAddress = await ethers.utils.getContractAddress(
+        const precalculatBridgeAddress = await ethers.utils.getContractAddress(
             { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
         );
-        const BridgeFactory = await ethers.getContractFactory('BridgeMock');
-        bridgeContract = await BridgeFactory.deploy(precalculatePoEAddress);
+
+        const precalculatePoEAddress = await ethers.utils.getContractAddress(
+            { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2 },
+        );
+
+        // deploy global exit root manager
+        const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerMock');
+        globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculatBridgeAddress);
+        await globalExitRootManager.deployed();
+
+        // deploy bridge
+        const bridgeFactory = await ethers.getContractFactory('Bridge');
+        bridgeContract = await bridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
         await bridgeContract.deployed();
 
         // deploy proof of efficiency
         const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
         proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
-            bridgeContract.address,
+            globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
             genesisRootSC,
         );
         await proofOfEfficiencyContract.deployed();
+
+        expect(bridgeContract.address).to.be.equal(precalculatBridgeAddress);
         expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
     });
 
@@ -95,8 +124,11 @@ describe('Proof of efficiency test vectors', () => {
             globalExitRoot,
             batchHashData,
             inputHash,
+            timestamp,
         } = testVectors[i];
         it(`Test vectors id: ${id}`, async () => {
+            const snapshotID = await takeSnapshop();
+
             const db = new MemDB(F);
             const smt = new SMT(db, arity, poseidon, poseidon.F);
 
@@ -128,7 +160,7 @@ describe('Proof of efficiency test vectors', () => {
                 expect(currentState.nonce).to.be.equal(nonceArray[j]);
             }
 
-            expect(F.toString(genesisRoot)).to.be.equal(expectedOldRoot);
+            expect(`0x${Scalar.e(F.toString(genesisRoot)).toString(16).padStart(64, '0')}`).to.be.equal(expectedOldRoot);
 
             /*
              * build, sign transaction and generate rawTxs
@@ -141,14 +173,14 @@ describe('Proof of efficiency test vectors', () => {
                 const tx = {
                     to: txData.to,
                     nonce: txData.nonce,
-                    value: ethers.utils.parseEther(txData.value),
+                    value: ethers.utils.parseUnits(txData.value, 'wei'),
                     gasLimit: txData.gasLimit,
-                    gasPrice: ethers.utils.parseUnits(txData.gasPrice, 'gwei'),
+                    gasPrice: ethers.utils.parseUnits(txData.gasPrice, 'wei'),
                     chainId: txData.chainId,
                     data: txData.data || '0x',
                 };
                 if (!ethers.utils.isAddress(tx.to) || !ethers.utils.isAddress(txData.from)) {
-                    expect(txData.rawTx).to.equal(undefined);
+                    expect(txData.customRawTx).to.equal(undefined);
                     continue;
                 }
 
@@ -179,7 +211,7 @@ describe('Proof of efficiency test vectors', () => {
                         customRawTx = rawTxToCustomRawTx(rawTxEthers);
                     }
 
-                    expect(customRawTx).to.equal(txData.rawTx);
+                    expect(customRawTx).to.equal(txData.customRawTx);
 
                     if (txData.encodeInvalidData) {
                         customRawTx = customRawTx.slice(0, -6);
@@ -194,15 +226,12 @@ describe('Proof of efficiency test vectors', () => {
             // create a zkEVMDB and build a batch
             const zkEVMDB = await ZkEVMDB.newZkEVM(
                 db,
-                chainIdSequencer,
                 arity,
                 poseidon,
-                sequencerAddress,
                 genesisRoot,
                 F.e(Scalar.e(localExitRoot)),
-                F.e(Scalar.e(globalExitRoot)),
             );
-            const batch = await zkEVMDB.buildBatch();
+            const batch = await zkEVMDB.buildBatch(timestamp, sequencerAddress, chainIdSequencer, F.e(Scalar.e(globalExitRoot)));
             for (let j = 0; j < rawTxs.length; j++) {
                 batch.addRawTx(rawTxs[j]);
             }
@@ -210,8 +239,8 @@ describe('Proof of efficiency test vectors', () => {
             // execute the transactions added to the batch
             await batch.executeTxs();
 
-            const newRoot = batch.currentRoot;
-            expect(F.toString(newRoot)).to.be.equal(expectedNewRoot);
+            const newRoot = batch.currentStateRoot;
+            expect(`0x${Scalar.e(F.toString(newRoot)).toString(16).padStart(64, '0')}`).to.be.equal(expectedNewRoot);
 
             // consoldate state
             await zkEVMDB.consolidate(batch);
@@ -244,8 +273,8 @@ describe('Proof of efficiency test vectors', () => {
             expect(batchL2Data).to.be.equal(batch.getBatchL2Data());
 
             // Check the batchHashData and the input hash
-            expect(batchHashData).to.be.equal(Scalar.e(circuitInput.batchHashData).toString());
-            expect(inputHash).to.be.equal(Scalar.e(circuitInput.inputHash).toString());
+            expect(batchHashData).to.be.equal(circuitInput.batchHashData);
+            expect(inputHash).to.be.equal(circuitInput.inputHash);
 
             /*
              * /// /////////////////////////////////////////////
@@ -263,6 +292,7 @@ describe('Proof of efficiency test vectors', () => {
 
             // fund sequencer address with Matic tokens and ether
             await maticTokenContract.transfer(sequencerAddress, ethers.utils.parseEther('100'));
+
             await deployer.sendTransaction({
                 to: sequencerAddress,
                 value: ethers.utils.parseEther('10.0'),
@@ -271,7 +301,7 @@ describe('Proof of efficiency test vectors', () => {
             // set roots to the contract:
             await proofOfEfficiencyContract.setStateRoot(currentStateRoot);
             await proofOfEfficiencyContract.setExitRoot(currentLocalExitRoot);
-            await bridgeContract.setLastGlobalExitRoot(currentGlobalExitRoot);
+            await globalExitRootManager.setLastGlobalExitRoot(currentGlobalExitRoot);
 
             // set sequencer
             await proofOfEfficiencyContract.setSequencer(sequencerAddress, 'URL', chainIdSequencer);
@@ -285,9 +315,12 @@ describe('Proof of efficiency test vectors', () => {
                 maticTokenContract.connect(walletSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
             ).to.emit(maticTokenContract, 'Approval');
 
+            // set timestamp
+            await setNextBlockTimestamp(timestamp);
+
             await expect(proofOfEfficiencyContract.connect(walletSequencer).sendBatch(l2txData, maticAmount))
                 .to.emit(proofOfEfficiencyContract, 'SendBatch')
-                .withArgs(lastBatchSent + 1, sequencerAddress);
+                .withArgs(lastBatchSent + 1, sequencerAddress, chainIdSequencer, currentGlobalExitRoot);
 
             // Check inputs mathces de smart contract
             const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
@@ -308,9 +341,7 @@ describe('Proof of efficiency test vectors', () => {
                 currentLocalExitRoot,
                 newStateRoot,
                 newLocalExitRoot,
-                sequencerAddress,
                 circuitInput.batchHashData,
-                chainIdSequencer,
                 numBatch,
             );
 
@@ -320,9 +351,7 @@ describe('Proof of efficiency test vectors', () => {
                 currentLocalExitRoot,
                 newStateRoot,
                 newLocalExitRoot,
-                sequencerAddress,
                 circuitInput.batchHashData,
-                chainIdSequencer,
                 numBatch,
             );
             expect(circuitInputSC).to.be.equal(circuitInputJS);
@@ -359,6 +388,7 @@ describe('Proof of efficiency test vectors', () => {
             expect(finalAggregatorMatic).to.equal(
                 ethers.BigNumber.from(initialAggregatorMatic).add(ethers.BigNumber.from(maticAmount)),
             );
+            expect(await revertToSnapshot(snapshotID)).to.be.equal(true);
         });
     }
 });

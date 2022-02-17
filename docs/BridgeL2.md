@@ -14,7 +14,7 @@ For now only supports mainnet
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_networkID` | uint32 | Rollup contract address
+|`_networkID` | uint32 | networkID
 
 ### bridge
 ```solidity
