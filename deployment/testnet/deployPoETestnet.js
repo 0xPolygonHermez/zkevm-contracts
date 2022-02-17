@@ -8,6 +8,7 @@ const { expect } = require('chai');
 
 async function main() {
     const deployer = (await ethers.getSigners())[0];
+    const networkIDMainnet = 0;
 
     /*
         Deployment MATIC
@@ -31,18 +32,36 @@ async function main() {
     const VerifierRollupHelperFactory = await ethers.getContractFactory(
         'VerifierRollupHelperMock',
     );
-    const verifierMockContract = await VerifierRollupHelperFactory.deploy();
-    await verifierMockContract.deployed();
+    const verifierContract = await VerifierRollupHelperFactory.deploy();
+    await verifierContract.deployed();
 
     /*
-        Deployment Bridge Mock
+    *Deployment Global exit root manager
     */
-    const precalculatePoEAddress = await ethers.utils.getContractAddress(
+    const precalculateBridgeAddress = await ethers.utils.getContractAddress(
         { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
     );
-    const BridgeFactory = await ethers.getContractFactory('Bridge');
-    const bridgeContract = await BridgeFactory.deploy(precalculatePoEAddress);
+
+    const precalculatePoEAddress = await ethers.utils.getContractAddress(
+        { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2 },
+    );
+    const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
+    const globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculateBridgeAddress);
+    await globalExitRootManager.deployed();
+
+    console.log('#######################\n');
+    console.log('globalExitRootManager deployed to:', globalExitRootManager.address);
+
+    /*
+     *Deployment Bridge
+     */
+    const BridgeFactory = await ethers.getContractFactory('BridgeMock');
+    const bridgeContract = await BridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
     await bridgeContract.deployed();
+    expect(bridgeContract.address).to.be.equal(precalculateBridgeAddress);
+
+    console.log('#######################\n');
+    console.log('Bridge deployed to:', bridgeContract.address);
 
     /*
         Deploy proof of efficiency
@@ -63,37 +82,41 @@ async function main() {
     *    }
     *  ] 
     */
-    const genesisRoot = `0x${Scalar.e("4091651772388093439828475955668620102367778455436412389529460210592290187513").toString(16).padStart(64, '0')}`;
+    const genesisRootHex = `0x${Scalar.e("4091651772388093439828475955668620102367778455436412389529460210592290187513").toString(16).padStart(64, '0')}`;
 
     console.log('\n#######################');
     console.log('##### Deployment Proof of Efficiency #####');
     console.log('#######################');
     console.log('deployer:', deployer.address);
-    console.log('bridgeAddress:', bridgeContract.address);
+    console.log('globalExitRootManagerAddress:', globalExitRootManager.address);
     console.log('maticTokenAddress:', maticTokenContract.address);
-    console.log('verifierMockAddress:', verifierMockContract.address);
-    console.log('genesisRoot:', genesisRoot);
+    console.log('verifierAddress:', verifierContract.address);
+    console.log('genesisRoot:', genesisRootHex);
 
-    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiency');
+    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
-        bridgeContract.address,
+        globalExitRootManager.address,
         maticTokenContract.address,
-        verifierMockContract.address,
-        genesisRoot
+        verifierContract.address,
+        genesisRootHex,
     );
     await proofOfEfficiencyContract.deployed();
     expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
 
     console.log('#######################\n');
-    console.log('Proof of Efficiecny deployed to:', proofOfEfficiencyContract.address);
+    console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
+
+    const deploymentBlockNumber = (await proofOfEfficiencyContract.deployTransaction.wait()).blockNumber;
+    const defaultChainID = await proofOfEfficiencyContract.DEFAULT_CHAIN_ID();
 
     console.log('\n#######################');
     console.log('#####    Checks    #####');
     console.log('#######################');
-    console.log('bridgeAddress:', await proofOfEfficiencyContract.bridge());
+    console.log('globalExitRootManagerAddress:', await proofOfEfficiencyContract.globalExitRootManager());
     console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
     console.log('verifierMockAddress:', await proofOfEfficiencyContract.rollupVerifier());
     console.log('genesiRoot:', await proofOfEfficiencyContract.currentStateRoot());
+    console.log('DEFAULT_CHAIN_ID:', defaultChainID);
 
     // calculate address and private Keys:
     DEFAULT_MNEMONIC = "test test test test test test test test test test test junk";
@@ -112,9 +135,12 @@ async function main() {
     const outputJson = {
         proofOfEfficiencyAddress: proofOfEfficiencyContract.address,
         bridgeAddress: bridgeContract.address,
+        globalExitRootManagerAddress: globalExitRootManager.address,
         maticTokenAddress: maticTokenContract.address,
-        verifierMockAddress: verifierMockContract.address,
+        verifierMockAddress: verifierContract.address,
         deployerAddress: deployer.address,
+        deploymentBlockNumber,
+        genesisRoot: genesisRootHex,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 
