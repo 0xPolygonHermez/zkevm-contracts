@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
+import "hardhat/console.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon Hermez
@@ -262,16 +263,19 @@ contract Bridge is Ownable, DepositContract {
             } else {
                 // The tokens is not from this network
                 // Create a wrapper for the token if not exist yet
-                address wrappedToken = tokenInfoToAddress[
-                    keccak256(
+                bytes32 salt = keccak256(
                         abi.encodePacked(originalNetwork, originalTokenAddress)
-                    )
-                ];
+                    );
+                address wrappedToken = tokenInfoToAddress[salt];
+
                 if (wrappedToken == address(0)) {
                     // Create a new wrapped erc20
                     TokenWrapped newWrappedToken = TokenWrapped(
-                        Clones.clone(tokenImplementation)
+                        Clones.cloneDeterministic(tokenImplementation, salt)
                     );
+                    console.log("NEW WRAPPED ADDRESS:");
+                    console.log(address(newWrappedToken));
+
                     newWrappedToken.initialize(
                         "name",
                         "symbol",
@@ -281,14 +285,7 @@ contract Bridge is Ownable, DepositContract {
                     );
 
                     // Create mappings
-                    tokenInfoToAddress[
-                        keccak256(
-                            abi.encodePacked(
-                                originalNetwork,
-                                originalTokenAddress
-                            )
-                        )
-                    ] = address(newWrappedToken);
+                    tokenInfoToAddress[salt] = address(newWrappedToken);
 
                     addressToTokenInfo[
                         address(newWrappedToken)
@@ -314,6 +311,20 @@ contract Bridge is Ownable, DepositContract {
             destinationAddress
         );
     }
+
+    function getPair(uint32 originalNetwork, address originalTokenAddress) public returns (address){
+        bytes32 salt = keccak256(
+            abi.encodePacked(originalNetwork, originalTokenAddress)
+        );
+        bytes memory bytecode = type(TokenWrapped).creationCode;
+        address pair;
+        assembly {
+            pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
+        }
+        console.log("GET PAIR");
+        console.log(pair);
+    }
+
 
     /**
      * @notice Returns the address of a wrapper using the token information

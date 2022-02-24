@@ -49,6 +49,7 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Ownable {
 
     /**
      * @notice Update the exit root of one of the networks and the global exit root
+     * @param newRoot new exit tree root
      */
     function updateExitRoot(bytes32 newRoot) external {
         require(

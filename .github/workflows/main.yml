@@ -40,4 +40,4 @@ jobs:
       - name: linter
         run: npm run lint
       - name: test
-        run: npm run test:SC &&  npm run test:src
+        run: npm run test

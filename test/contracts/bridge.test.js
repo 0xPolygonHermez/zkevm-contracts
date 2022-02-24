@@ -1,12 +1,10 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
-const {
-    MerkleTreeBridge,
-} = require('../../src/bridge-merkle-tree/merkle-tree-bridge');
+const MerkleTreeBridge = require('@polygon-hermez/zkevm-commonjs').MTBridge;
 const {
     verifyMerkleProof,
     calculateLeafValue,
-} = require('../../src/bridge-merkle-tree/utils-merkle-tree-bridge');
+} = require('@polygon-hermez/zkevm-commonjs').mtBridgeUtils;
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
@@ -299,11 +297,18 @@ describe('Bridge Contract', () => {
         // claim
 
         // precalculate wrapped erc20 address
-        const precalculateWrappedErc20 = await ethers.utils.getContractAddress(
-            { from: bridgeContract.address, nonce: (await ethers.provider.getTransactionCount(bridgeContract.address)) },
-        );
-
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
+        const salt = ethers.utils.solidityKeccak256(['uint32', 'address'], [networkIDRollup, tokenAddress]);
+
+        const hashBytecodeTokenWrapped = ethers.utils.keccak256(tokenWrappedFactory.bytecode);
+        const precalculateWrappedErc20 = await ethers.utils.getCreate2Address(bridgeContract.address, salt, hashBytecodeTokenWrapped);
+        // eslint-disable-next-line no-console
+        console.log('precalculateWrappedErc20: ', precalculateWrappedErc20);
+
+        const tx = await bridgeContract.getPair(networkIDRollup, tokenAddress);
+        // eslint-disable-next-line no-unused-vars
+        const res = await tx.wait();
+
         const newWrappedToken = tokenWrappedFactory.attach(precalculateWrappedErc20);
 
         await expect(bridgeContract.claim(
@@ -338,8 +343,7 @@ describe('Bridge Contract', () => {
         expect(await bridgeContract.getTokenWrappedAddress(networkIDRollup, tokenAddress)).to.be.equal(precalculateWrappedErc20);
         expect(await bridgeContract.getTokenWrappedAddress(networkIDRollup, tokenAddress)).to.be.equal(precalculateWrappedErc20);
 
-        const tokenHash = ethers.utils.solidityKeccak256(['uint32', 'address'], [networkIDRollup, tokenAddress]);
-        expect(await bridgeContract.tokenInfoToAddress(tokenHash)).to.be.equal(precalculateWrappedErc20);
+        expect(await bridgeContract.tokenInfoToAddress(salt)).to.be.equal(precalculateWrappedErc20);
 
         // Can't claim because nullifier
         await expect(bridgeContract.claim(

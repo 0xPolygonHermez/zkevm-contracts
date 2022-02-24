@@ -9,7 +9,7 @@
     "@openzeppelin/hardhat-upgrades": "^1.11.0",
     "@openzeppelin/test-helpers": "^0.5.15",
     "@polygon-hermez/test-vectors": "https://github.com/hermeznetwork/test-vectors.git#0.0.1",
-    "@polygon-hermez/zkevm-commonjs": "https://github.com/hermeznetwork/zkevm-commonjs.git#0.0.1",
+    "@polygon-hermez/zkevm-commonjs": "https://github.com/hermeznetwork/zkevm-commonjs.git#feature/updateTypesPoE",
     "chai": "^4.3.4",
     "circomlibjs": "0.1.1",
     "dotenv": "^8.2.0",
@@ -29,8 +29,7 @@
   },
   "license": "GPL-3.0",
   "scripts": {
-    "test:SC": "npx hardhat test test/contracts/**.test.js",
-    "test:src": "npx mocha test/src/ --recursive",
+    "test": "npx hardhat test test/contracts/**.test.js",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates -e ./contracts/verifiers,./contracts/mocks",
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
     "deploy:PoE1_3:hardhat": "npx hardhat run deployment/deployment_v1-3/deployPoE_v1-3.js --network hardhat",

@@ -70,6 +70,15 @@ Verify merkle proof and withdraw tokens/ether
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
 
+### getPair
+```solidity
+  function getPair(
+  ) public returns (address)
+```
+
+
+
+
 ### getTokenWrappedAddress
 ```solidity
   function getTokenWrappedAddress(

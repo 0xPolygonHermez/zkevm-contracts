@@ -39,11 +39,12 @@ contract GlobalExitRootManagerL2 is IGlobalExitRootManager {
 
     /**
      * @notice Update the exit root of one of the networks and the global exit root
+     * @param newRoot new exit tree root
      */
     function updateExitRoot(bytes32 newRoot) external {
         require(
             msg.sender == bridgeAddress,
-            "GlobalExitRootManager::updateExitRoot: ONLY_BRIDGE"
+            "GlobalExitRootManagerL2::updateExitRoot: ONLY_BRIDGE"
         );
         lastRollupExitRoot = newRoot;
     }
