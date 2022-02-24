@@ -18,7 +18,7 @@ contract ProofOfEfficiency is Ownable {
 
     struct Sequencer {
         string sequencerURL;
-        uint32 chainID;
+        uint64 chainID;
     }
 
     struct BatchData {
@@ -34,7 +34,7 @@ contract ProofOfEfficiency is Ownable {
     bytes4 private constant _PERMIT_SIGNATURE = 0xd505accf;
 
     // Default chainID
-    uint32 public constant DEFAULT_CHAIN_ID = 1000;
+    uint64 public constant DEFAULT_CHAIN_ID = 1000;
 
     // MATIC token address
     IERC20 public immutable matic;
@@ -46,13 +46,13 @@ contract ProofOfEfficiency is Ownable {
     uint32 public numSequencers;
 
     // Last batch sent by the sequencers
-    uint32 public lastBatchSent;
+    uint64 public lastBatchSent;
 
     // Mapping of sent batches with their associated data
-    mapping(uint32 => BatchData) public sentBatches;
+    mapping(uint64 => BatchData) public sentBatches;
 
     // Last batch verified by the aggregators
-    uint32 public lastVerifiedBatch;
+    uint64 public lastVerifiedBatch;
 
     // Global Exit Root address
     IGlobalExitRootManager public globalExitRootManager;
@@ -71,23 +71,23 @@ contract ProofOfEfficiency is Ownable {
     event RegisterSequencer(
         address sequencerAddress,
         string sequencerURL,
-        uint32 chainID
+        uint64 chainID
     );
 
     /**
      * @dev Emitted when a sequencer sends a new batch of transactions
      */
     event SendBatch(
-        uint32 indexed numBatch,
+        uint64 indexed numBatch,
         address indexed sequencer,
-        uint32 batchChainID,
+        uint64 batchChainID,
         bytes32 lastGlobalExitRoot
     );
 
     /**
      * @dev Emitted when a aggregator verifies a new batch
      */
-    event VerifyBatch(uint32 indexed numBatch, address indexed aggregator);
+    event VerifyBatch(uint64 indexed numBatch, address indexed aggregator);
 
     /**
      * @param _globalExitRootManager global exit root manager address
@@ -155,7 +155,7 @@ contract ProofOfEfficiency is Ownable {
             .getLastGlobalExitRoot();
 
         // Set chainID
-        uint32 batchChainID;
+        uint64 batchChainID;
         if (sequencers[msg.sender].chainID != 0) {
             batchChainID = sequencers[msg.sender].chainID;
         } else {
@@ -169,9 +169,10 @@ contract ProofOfEfficiency is Ownable {
             abi.encodePacked(
                 transactions,
                 lastGlobalExitRoot,
-                block.timestamp,
+                uint64(block.timestamp),
                 msg.sender,
-                batchChainID
+                batchChainID,
+                lastBatchSent
             )
         );
         sentBatches[lastBatchSent].maticCollateral = maticCollateral;
@@ -196,7 +197,7 @@ contract ProofOfEfficiency is Ownable {
     function verifyBatch(
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint32 numBatch,
+        uint64 numBatch,
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
@@ -217,8 +218,7 @@ contract ProofOfEfficiency is Ownable {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    currentBatch.batchHashData,
-                    numBatch
+                    currentBatch.batchHashData
                 )
             )
         ) % _RFIELD;

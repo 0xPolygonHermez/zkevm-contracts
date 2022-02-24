@@ -342,7 +342,6 @@ describe('Proof of efficiency test vectors', () => {
                 newStateRoot,
                 newLocalExitRoot,
                 circuitInput.batchHashData,
-                numBatch,
             );
 
             // Compute Js input
@@ -352,7 +351,6 @@ describe('Proof of efficiency test vectors', () => {
                 newStateRoot,
                 newLocalExitRoot,
                 circuitInput.batchHashData,
-                numBatch,
             );
             expect(circuitInputSC).to.be.equal(circuitInputJS);
             expect(circuitInputSC).to.be.equal(`0x${Scalar.e(inputHash).toString(16)}`);
