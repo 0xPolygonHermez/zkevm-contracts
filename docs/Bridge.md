@@ -47,7 +47,7 @@ Deposit add a new leaf to the merkle tree
     uint32 destinationNetwork,
     address destinationAddress,
     bytes32[] smtProof,
-    uint64 index,
+    uint32 index,
     uint256 globalExitRootNum,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot
@@ -65,19 +65,26 @@ Verify merkle proof and withdraw tokens/ether
 |`destinationNetwork` | uint32 | Network destination, must be 0 ( mainnet)
 |`destinationAddress` | address | Address destination
 |`smtProof` | bytes32[] | Smt proof
-|`index` | uint64 | Index of the leaf
+|`index` | uint32 | Index of the leaf
 |`globalExitRootNum` | uint256 | Global exit root num
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
 
-### getPair
+### precalculatedWrapperAddress
 ```solidity
-  function getPair(
+  function precalculatedWrapperAddress(
+    uint32 originalNetwork,
+    address originalTokenAddress
   ) public returns (address)
 ```
+Returns the precalculated address of a wrapper using the token information
 
 
-
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`originalNetwork` | uint32 | Original network
+|`originalTokenAddress` | address | Original token address, 0 address is reserved for ether
 
 ### getTokenWrappedAddress
 ```solidity
@@ -86,7 +93,7 @@ Verify merkle proof and withdraw tokens/ether
     address originalTokenAddress
   ) public returns (address)
 ```
-Returns the address of a wrapper using the token information
+Returns the address of a wrapper using the token information if already exist
 
 
 #### Parameters:

@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "hardhat/console.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon Hermez
@@ -73,7 +72,7 @@ contract Bridge is Ownable, DepositContract {
      * @dev Emitted when a claim is done from another network
      */
     event ClaimEvent(
-        uint64 index,
+        uint32 index,
         uint32 originalNetwork,
         address token,
         uint256 amount,
@@ -184,7 +183,7 @@ contract Bridge is Ownable, DepositContract {
         uint32 destinationNetwork,
         address destinationAddress,
         bytes32[] memory smtProof,
-        uint64 index,
+        uint32 index,
         uint256 globalExitRootNum,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot
@@ -263,18 +262,19 @@ contract Bridge is Ownable, DepositContract {
             } else {
                 // The tokens is not from this network
                 // Create a wrapper for the token if not exist yet
-                bytes32 salt = keccak256(
-                        abi.encodePacked(originalNetwork, originalTokenAddress)
-                    );
-                address wrappedToken = tokenInfoToAddress[salt];
+                bytes32 tokenInfoHash = keccak256(
+                    abi.encodePacked(originalNetwork, originalTokenAddress)
+                );
+                address wrappedToken = tokenInfoToAddress[tokenInfoHash];
 
                 if (wrappedToken == address(0)) {
                     // Create a new wrapped erc20
                     TokenWrapped newWrappedToken = TokenWrapped(
-                        Clones.cloneDeterministic(tokenImplementation, salt)
+                        Clones.cloneDeterministic(
+                            tokenImplementation,
+                            tokenInfoHash
+                        )
                     );
-                    console.log("NEW WRAPPED ADDRESS:");
-                    console.log(address(newWrappedToken));
 
                     newWrappedToken.initialize(
                         "name",
@@ -285,7 +285,9 @@ contract Bridge is Ownable, DepositContract {
                     );
 
                     // Create mappings
-                    tokenInfoToAddress[salt] = address(newWrappedToken);
+                    tokenInfoToAddress[tokenInfoHash] = address(
+                        newWrappedToken
+                    );
 
                     addressToTokenInfo[
                         address(newWrappedToken)
@@ -312,22 +314,23 @@ contract Bridge is Ownable, DepositContract {
         );
     }
 
-    function getPair(uint32 originalNetwork, address originalTokenAddress) public returns (address){
+    /**
+     * @notice Returns the precalculated address of a wrapper using the token information
+     * @param originalNetwork Original network
+     * @param originalTokenAddress Original token address, 0 address is reserved for ether
+     */
+    function precalculatedWrapperAddress(
+        uint32 originalNetwork,
+        address originalTokenAddress
+    ) public view returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originalNetwork, originalTokenAddress)
         );
-        bytes memory bytecode = type(TokenWrapped).creationCode;
-        address pair;
-        assembly {
-            pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
-        }
-        console.log("GET PAIR");
-        console.log(pair);
+        return Clones.predictDeterministicAddress(tokenImplementation, salt);
     }
 
-
     /**
-     * @notice Returns the address of a wrapper using the token information
+     * @notice Returns the address of a wrapper using the token information if already exist
      * @param originalNetwork Original network
      * @param originalTokenAddress Original token address, 0 address is reserved for ether
      */

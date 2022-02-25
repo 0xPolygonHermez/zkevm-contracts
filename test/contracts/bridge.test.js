@@ -298,17 +298,15 @@ describe('Bridge Contract', () => {
 
         // precalculate wrapped erc20 address
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
+
+        // create2 parameters
+        const tokenImplementationAddress = await bridgeContract.tokenImplementation();
         const salt = ethers.utils.solidityKeccak256(['uint32', 'address'], [networkIDRollup, tokenAddress]);
+        // Bytecode proxy from this blog https://blog.openzeppelin.com/deep-dive-into-the-minimal-proxy-contract/
+        const minimalBytecodeProxy = `0x3d602d80600a3d3981f3363d3d373d3d3d363d73${tokenImplementationAddress.slice(2)}5af43d82803e903d91602b57fd5bf3`;
+        const hashInitCode = ethers.utils.keccak256(minimalBytecodeProxy);
 
-        const hashBytecodeTokenWrapped = ethers.utils.keccak256(tokenWrappedFactory.bytecode);
-        const precalculateWrappedErc20 = await ethers.utils.getCreate2Address(bridgeContract.address, salt, hashBytecodeTokenWrapped);
-        // eslint-disable-next-line no-console
-        console.log('precalculateWrappedErc20: ', precalculateWrappedErc20);
-
-        const tx = await bridgeContract.getPair(networkIDRollup, tokenAddress);
-        // eslint-disable-next-line no-unused-vars
-        const res = await tx.wait();
-
+        const precalculateWrappedErc20 = await ethers.utils.getCreate2Address(bridgeContract.address, salt, hashInitCode);
         const newWrappedToken = tokenWrappedFactory.attach(precalculateWrappedErc20);
 
         await expect(bridgeContract.claim(
