@@ -1,5 +1,33 @@
 {
-  "name": "poe-draft",
+  "name": "@polygon-hermez/contracts-zkevm",
+  "description": "Core contracts for the Polygon Hermez zkEVM",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hermeznetwork/contracts-zkEVM.git"
+  },
+  "main": "index.js",
+  "keywords": [
+    "zkevm",
+    "snark",
+    "polygon",
+    "hermez",
+    "stark",
+    "EVM",
+    "ethereum",
+    "blockchain"
+  ],
+  "author": "polygon-hermez",
+
+  "files": [
+    "contracts",
+    "build"
+  ],
+  "bugs": {
+    "url": "https://github.com/hermeznetwork/contracts-zkEVM/issues"
+  },
+  "homepage": "https://github.com/hermeznetwork/contracts-zkEVM#readme",
+  "license": "GPL-3.0",
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^2.1.7",
@@ -8,8 +36,8 @@
     "@openzeppelin/contracts-upgradeable": "^4.3.2",
     "@openzeppelin/hardhat-upgrades": "^1.11.0",
     "@openzeppelin/test-helpers": "^0.5.15",
-    "@polygon-hermez/test-vectors": "https://github.com/hermeznetwork/test-vectors.git#0.0.2",
-    "@polygon-hermez/zkevm-commonjs": "https://github.com/hermeznetwork/zkevm-commonjs.git#0.0.3",
+    "@polygon-hermez/test-vectors": "https://github.com/hermeznetwork/test-vectors.git#v0.0.4",
+    "@polygon-hermez/zkevm-commonjs": "https://github.com/hermeznetwork/zkevm-commonjs.git#v0.0.4",
     "chai": "^4.3.4",
     "circomlibjs": "0.1.1",
     "dotenv": "^8.2.0",
@@ -27,7 +55,6 @@
     "solidity-coverage": "^0.7.17",
     "solidity-docgen": "^0.5.16"
   },
-  "license": "GPL-3.0",
   "scripts": {
     "test": "npx hardhat test test/contracts/**.test.js",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates -e ./contracts/verifiers,./contracts/mocks",
