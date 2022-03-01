@@ -1,7 +1,7 @@
 {
   "name": "@polygon-hermez/contracts-zkevm",
   "description": "Core contracts for the Polygon Hermez zkEVM",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hermeznetwork/contracts-zkEVM.git"
@@ -18,7 +18,6 @@
     "blockchain"
   ],
   "author": "polygon-hermez",
-
   "files": [
     "contracts",
     "index.js",
