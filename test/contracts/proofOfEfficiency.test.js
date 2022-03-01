@@ -252,7 +252,14 @@ describe('Proof of efficiency', () => {
         lastBatchSent = await proofOfEfficiencyContract.lastBatchSent();
         const sentBatch = await proofOfEfficiencyContract.sentBatches(lastBatchSent);
 
-        const batchHashData = calculateBatchHashData(l2txData, lastGlobalExitRoot, timestamp, sequencerAddress, defaultChainId);
+        const batchHashData = calculateBatchHashData(
+            l2txData,
+            lastGlobalExitRoot,
+            timestamp,
+            sequencerAddress,
+            defaultChainId,
+            lastBatchSent,
+        );
         expect(sentBatch.batchHashData).to.be.equal(batchHashData);
 
         // Compute circuit input with the SC function
@@ -268,7 +275,6 @@ describe('Proof of efficiency', () => {
             newStateRoot,
             newLocalExitRoot,
             batchHashData,
-            numBatch,
         );
 
         // Compute Js input
@@ -278,7 +284,6 @@ describe('Proof of efficiency', () => {
             newStateRoot,
             newLocalExitRoot,
             batchHashData,
-            numBatch,
         );
         expect(circuitInputSC).to.be.equal(circuitInputJS);
 

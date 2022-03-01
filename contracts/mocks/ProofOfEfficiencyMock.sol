@@ -38,15 +38,13 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param newStateRoot New State root once the batch is processed
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param batchHashData Batch hash data
-     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
     function calculateCircuitInput(
         bytes32 currentStateRoot,
         bytes32 currentLocalExitRoot,
         bytes32 newStateRoot,
         bytes32 newLocalExitRoot,
-        bytes32 batchHashData,
-        uint32 numBatch
+        bytes32 batchHashData
     ) public pure returns (uint256) {
         uint256 input = uint256(
             keccak256(
@@ -55,8 +53,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    batchHashData,
-                    numBatch
+                    batchHashData
                 )
             )
         ) % _RFIELD;
@@ -90,8 +87,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    currentBatch.batchHashData,
-                    numBatch
+                    currentBatch.batchHashData
                 )
             )
         ) % _RFIELD;
@@ -124,8 +120,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 currentLocalExitRoot,
                 newStateRoot,
                 newLocalExitRoot,
-                currentBatch.batchHashData,
-                numBatch
+                currentBatch.batchHashData
             );
     }
 

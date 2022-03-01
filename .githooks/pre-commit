@@ -5,6 +5,19 @@
 if npm run lint; then
     npm run docgen
     git add docs
+    cp artifacts/contracts/Bridge.sol/Bridge.json compiled-contracts/
+    cp artifacts/contracts/GlobalExitRootManager.sol/GlobalExitRootManager.json compiled-contracts/
+    cp artifacts/contracts/GlobalExitRootManagerL2.sol/GlobalExitRootManagerL2.json compiled-contracts/
+    cp artifacts/contracts/lib/TokenWrapped.sol/TokenWrapped.json compiled-contracts/
+    cp artifacts/contracts/mocks/BridgeMock.sol/BridgeMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/ERC20PermitMock.sol/ERC20PermitMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/GlobalExitRootManagerL2Mock.sol/GlobalExitRootManagerL2Mock.json compiled-contracts/
+    cp artifacts/contracts/mocks/GlobalExitRootManagerMock.sol/GlobalExitRootManagerMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/ProofOfEfficiencyMock.sol/ProofOfEfficiencyMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/VerifierRollupHelperMock.sol/VerifierRollupHelperMock.json compiled-contracts/
+    cp artifacts/contracts/ProofOfEfficiency.sol/ProofOfEfficiency.json compiled-contracts/
+    cp artifacts/contracts/verifiers/Verifier.sol/Verifier.json compiled-contracts/
+    git add compiled-contracts
     exit 0
 else
     exit 1

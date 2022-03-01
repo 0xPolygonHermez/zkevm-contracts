@@ -72,7 +72,7 @@ contract Bridge is Ownable, DepositContract {
      * @dev Emitted when a claim is done from another network
      */
     event ClaimEvent(
-        uint64 index,
+        uint32 index,
         uint32 originalNetwork,
         address token,
         uint256 amount,
@@ -183,7 +183,7 @@ contract Bridge is Ownable, DepositContract {
         uint32 destinationNetwork,
         address destinationAddress,
         bytes32[] memory smtProof,
-        uint64 index,
+        uint32 index,
         uint256 globalExitRootNum,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot
@@ -262,16 +262,20 @@ contract Bridge is Ownable, DepositContract {
             } else {
                 // The tokens is not from this network
                 // Create a wrapper for the token if not exist yet
-                address wrappedToken = tokenInfoToAddress[
-                    keccak256(
-                        abi.encodePacked(originalNetwork, originalTokenAddress)
-                    )
-                ];
+                bytes32 tokenInfoHash = keccak256(
+                    abi.encodePacked(originalNetwork, originalTokenAddress)
+                );
+                address wrappedToken = tokenInfoToAddress[tokenInfoHash];
+
                 if (wrappedToken == address(0)) {
                     // Create a new wrapped erc20
                     TokenWrapped newWrappedToken = TokenWrapped(
-                        Clones.clone(tokenImplementation)
+                        Clones.cloneDeterministic(
+                            tokenImplementation,
+                            tokenInfoHash
+                        )
                     );
+
                     newWrappedToken.initialize(
                         "name",
                         "symbol",
@@ -281,14 +285,9 @@ contract Bridge is Ownable, DepositContract {
                     );
 
                     // Create mappings
-                    tokenInfoToAddress[
-                        keccak256(
-                            abi.encodePacked(
-                                originalNetwork,
-                                originalTokenAddress
-                            )
-                        )
-                    ] = address(newWrappedToken);
+                    tokenInfoToAddress[tokenInfoHash] = address(
+                        newWrappedToken
+                    );
 
                     addressToTokenInfo[
                         address(newWrappedToken)
@@ -316,7 +315,22 @@ contract Bridge is Ownable, DepositContract {
     }
 
     /**
-     * @notice Returns the address of a wrapper using the token information
+     * @notice Returns the precalculated address of a wrapper using the token information
+     * @param originalNetwork Original network
+     * @param originalTokenAddress Original token address, 0 address is reserved for ether
+     */
+    function precalculatedWrapperAddress(
+        uint32 originalNetwork,
+        address originalTokenAddress
+    ) public view returns (address) {
+        bytes32 salt = keccak256(
+            abi.encodePacked(originalNetwork, originalTokenAddress)
+        );
+        return Clones.predictDeterministicAddress(tokenImplementation, salt);
+    }
+
+    /**
+     * @notice Returns the address of a wrapper using the token information if already exist
      * @param originalNetwork Original network
      * @param originalTokenAddress Original token address, 0 address is reserved for ether
      */

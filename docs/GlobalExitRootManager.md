@@ -20,11 +20,16 @@ Contract responsible for managing the exit roots across multiple networks
 ### updateExitRoot
 ```solidity
   function updateExitRoot(
+    bytes32 newRoot
   ) external
 ```
 Update the exit root of one of the networks and the global exit root
 
 
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newRoot` | bytes32 | new exit tree root
 
 ### getLastGlobalExitRoot
 ```solidity
