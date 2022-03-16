@@ -5,12 +5,11 @@ const { Scalar } = require('ffjavascript');
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
 const {
-    MemDB, SMT, stateUtils,
+    MemDB, SMT, stateUtils, getPoseidon, smtUtils,
 } = require('@polygon-hermez/zkevm-commonjs');
 
 const { setGenesisBlock } = stateUtils;
 const { expect } = require('chai');
-const { buildPoseidon } = require('circomlibjs');
 const deployParameters = require('./deploy_parameters.json');
 
 async function main() {
@@ -89,11 +88,10 @@ async function main() {
      */
 
     // generate genesis
-    const poseidon = await buildPoseidon();
+    const poseidon = await getPoseidon();
     const { F } = poseidon;
-    const arity = 4;
     const db = new MemDB(F);
-    const smt = new SMT(db, arity, poseidon, poseidon.F);
+    const smt = new SMT(db, poseidon, poseidon.F);
 
     const defaultBalance = Scalar.e(ethers.utils.parseEther('1000'));
     const addressArray = [];
@@ -112,7 +110,7 @@ async function main() {
     }
 
     const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt);
-    const genesisRootHex = `0x${Scalar.e(F.toString(genesisRoot)).toString(16).padStart(64, '0')}`;
+    const genesisRootHex = smtUtils.h4toString(genesisRoot);
 
     console.log('\n#######################');
     console.log('##### Deployment Proof of Efficiency #####');

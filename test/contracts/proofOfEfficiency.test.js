@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 
 const { contractUtils } = require('@polygon-hermez/zkevm-commonjs');
 
-const { calculateCircuitInput, calculateBatchHashData } = contractUtils;
+const { calculateSnarkInput, calculateBatchHashData } = contractUtils;
 
 describe('Proof of efficiency', () => {
     let deployer;
@@ -278,13 +278,14 @@ describe('Proof of efficiency', () => {
         );
 
         // Compute Js input
-        const circuitInputJS = calculateCircuitInput(
+        const circuitInputJS = calculateSnarkInput(
             currentStateRoot,
             currentLocalExitRoot,
             newStateRoot,
             newLocalExitRoot,
             batchHashData,
         );
+
         expect(circuitInputSC).to.be.equal(circuitInputJS);
 
         // Check the input parameters are correct

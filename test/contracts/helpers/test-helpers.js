@@ -2,7 +2,7 @@
 const { stateUtils } = require('@polygon-hermez/zkevm-commonjs');
 
 async function setGenesisBlock(addressArray, amountArray, nonceArray, smt) {
-    let currentRoot = smt.F.zero;
+    let currentRoot = smt.empty;
     for (let i = 0; i < addressArray.length; i++) {
         currentRoot = await stateUtils.setAccountState(addressArray[i], smt, currentRoot, amountArray[i], nonceArray[i]);
     }
