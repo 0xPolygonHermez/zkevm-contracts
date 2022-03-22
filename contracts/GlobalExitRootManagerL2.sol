@@ -17,15 +17,12 @@ contract GlobalExitRootManagerL2 is IGlobalExitRootManager {
     // Store every global exit root
     mapping(uint256 => bytes32) public globalExitRootMap;
 
-    // Current global exit roots stored
-    uint256 public lastGlobalExitRootNum;
+    // Rollup exit root, will be updated for every bridge call
+    bytes32 public lastRollupExitRoot;
 
     ////////////////////
     // Regular variables
     ///////////////////
-
-    // Rollup exit root, will be updated for every bridge call
-    bytes32 public lastRollupExitRoot;
 
     // Bridge address
     address public bridgeAddress;
@@ -53,6 +50,6 @@ contract GlobalExitRootManagerL2 is IGlobalExitRootManager {
      * @notice Return last global exit root
      */
     function getLastGlobalExitRoot() public view returns (bytes32) {
-        return globalExitRootMap[lastGlobalExitRootNum];
+        return globalExitRootMap[block.number];
     }
 }
