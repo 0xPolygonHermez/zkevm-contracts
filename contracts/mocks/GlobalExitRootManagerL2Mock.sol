@@ -8,27 +8,29 @@ import "../GlobalExitRootManagerL2.sol";
 
  */
 contract GlobalExitRootManagerL2Mock is GlobalExitRootManagerL2 {
-    address public circuit;
-
     /**
      * @param _bridgeAddress Bridge contract address
      */
-    constructor(address _bridgeAddress, address _circuit)
+    constructor(address _bridgeAddress)
         GlobalExitRootManagerL2(_bridgeAddress)
+    {}
+
+    /**
+     * @notice Set globalExitRoot
+     * @param globalExitRoot New global exit root
+     * @param blockNumber block number
+     */
+    function setLastGlobalExitRoot(bytes32 globalExitRoot, uint256 blockNumber)
+        public
     {
-        circuit = _circuit;
+        globalExitRootMap[blockNumber] = globalExitRoot;
     }
 
     /**
-     * @notice Add a new globalExitRoot
-     * @param globalExitRoot New global exit root
+     * @notice Set rollup exit root
+     * @param newRoot New rollup exit root
      */
-    function setLastGlobalExitRoot(bytes32 globalExitRoot) public {
-        require(
-            msg.sender == circuit,
-            "GlobalExitRootManager::setLastGlobalExitRoot: ONLY_CIRCUIT"
-        );
-        lastGlobalExitRootNum++;
-        globalExitRootMap[lastGlobalExitRootNum] = globalExitRoot;
+    function setExitRoot(bytes32 newRoot) public {
+        lastRollupExitRoot = newRoot;
     }
 }
