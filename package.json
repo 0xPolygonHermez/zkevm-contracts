@@ -60,6 +60,7 @@
     "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
     "deploy:PoE1_5:hardhat": "npx hardhat run deployment/deployment_v1-5/deployPoE_v1-5.js --network hardhat",
     "deploy:PoE1_5:goerli": "npx hardhat run deployment/deployment_v1-5/deployPoE_v1-5.js --network goerli",
+    "verify:PoE1_5:goerli": "npx hardhat run deployment/deployment_v1-5/verifyPoE_v1-5.js --network goerli",
     "lint": "npx eslint ./test && npx eslint ./docker/scripts",
     "lint:fix": "npx eslint ./test --fix && npx eslint ./docker/scripts --fix",
     "compile": "npx hardhat compile",
