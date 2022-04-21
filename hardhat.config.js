@@ -91,6 +91,14 @@ module.exports = {
         count: 20,
       },
     },
+    hardhat: {
+      accounts: {
+        mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+        path: "m/44'/60'/0'/0",
+        initialIndex: 0,
+        count: 20,
+      },
+    },
   },
   gasReporter: {
     currency: "USD",

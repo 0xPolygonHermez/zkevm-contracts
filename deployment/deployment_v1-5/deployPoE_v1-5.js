@@ -4,24 +4,21 @@ const fs = require('fs');
 const { Scalar } = require('ffjavascript');
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
-const {
-    MemDB, SMT, stateUtils, getPoseidon, smtUtils,
-} = require('@polygon-hermez/zkevm-commonjs');
 
-const { setGenesisBlock } = stateUtils;
 const { expect } = require('chai');
 const deployParameters = require('./deploy_parameters.json');
+const genesis = require("./genesis.json")
 
 async function main() {
     const deployer = (await ethers.getSigners())[0];
     const networkIDMainnet = 0;
 
     /*
-     *Deployment MATIC
-     */
+        Deployment MATIC
+    */
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('2000000000');
+    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
     const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
     const maticTokenContract = await maticTokenFactory.deploy(
@@ -36,28 +33,19 @@ async function main() {
     console.log('Matic deployed to:', maticTokenContract.address);
 
     /*
-     *Deployment verifier
-     */
-    let VerifierFactory;
-    if (deployParameters.realVerifier) {
-        VerifierFactory = await ethers.getContractFactory(
-            'Verifier',
-        );
-    } else {
-        VerifierFactory = await ethers.getContractFactory(
-            'VerifierRollupHelperMock',
-        );
-    }
-
-    const verifierContract = await VerifierFactory.deploy();
+        Deployment Mock verifier
+    */
+    const VerifierRollupHelperFactory = await ethers.getContractFactory(
+        'VerifierRollupHelperMock',
+    );
+    const verifierContract = await VerifierRollupHelperFactory.deploy();
     await verifierContract.deployed();
 
     console.log('#######################\n');
     console.log('Verifier deployed to:', verifierContract.address);
-
     /*
-     *Deployment Global exit root manager
-     */
+    *Deployment Global exit root manager
+    */
     const precalculateBridgeAddress = await ethers.utils.getContractAddress(
         { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
     );
@@ -84,33 +72,10 @@ async function main() {
     console.log('Bridge deployed to:', bridgeContract.address);
 
     /*
-     *Deploy proof of efficiency
-     */
-
-    // generate genesis
-    const poseidon = await getPoseidon();
-    const { F } = poseidon;
-    const db = new MemDB(F);
-    const smt = new SMT(db, poseidon, poseidon.F);
-
-    const defaultBalance = Scalar.e(ethers.utils.parseEther('1000'));
-    const addressArray = [];
-    const amountArray = [];
-    const nonceArray = [];
-
-    const { genesis } = deployParameters;
-    for (let j = 0; j < genesis.length; j++) {
-        const {
-            address, balance, nonce,
-        } = genesis[j];
-
-        addressArray.push(address);
-        amountArray.push(balance ? Scalar.e(balance) : defaultBalance);
-        nonceArray.push(nonce ? Scalar.e(nonce) : Scalar.e(0));
-    }
-
-    const genesisRoot = await setGenesisBlock(addressArray, amountArray, nonceArray, smt);
-    const genesisRootHex = smtUtils.h4toString(genesisRoot);
+        Deploy proof of efficiency
+    */
+    // Check genesis file
+    const genesisRootHex = genesis.root;
 
     console.log('\n#######################');
     console.log('##### Deployment Proof of Efficiency #####');
@@ -182,15 +147,12 @@ async function main() {
         maticTokenAddress: maticTokenContract.address,
         verifierAddress: verifierContract.address,
         deployerAddress: deployer.address,
-        defaultChainID,
+        defaultChainID: defaultChainID.toNumber(),
         deploymentBlockNumber,
         genesisRoot: genesisRootHex,
         accountsL1Array,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
-
-    // Test
-    expect(await proofOfEfficiencyContract.matic()).to.equal(maticTokenContract.address);
 }
 
 main().catch((e) => {
