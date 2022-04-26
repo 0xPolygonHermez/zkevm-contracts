@@ -3,6 +3,7 @@
 ## To use this hook execute in the project root:
 ## git config --local core.hooksPath .githooks/
 if npm run lint; then
+    npx hardhat compile --force
     npm run docgen
     git add docs
     cp artifacts/contracts/Bridge.sol/Bridge.json compiled-contracts/

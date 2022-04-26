@@ -36,7 +36,7 @@ async function main() {
       }
     );
   } catch (error) {
-    expect(error.message).to.be.equal("Contract source code already verified");
+    expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
   }
 
   // verify verifierMock
@@ -47,7 +47,7 @@ async function main() {
       }
     );
   } catch (error) {
-    expect(error.message).to.be.equal("Contract source code already verified");
+    expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
   }
 
   // verify bridge
@@ -63,7 +63,8 @@ async function main() {
       }
     );
   } catch (error) {
-    expect(error.message).to.be.equal("Contract source code already verified");
+    console.log(error.message)
+    expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
   }
 
   // verify PoE
@@ -81,7 +82,7 @@ async function main() {
       }
     );
   } catch (error) {
-    expect(error.message).to.be.equal("Contract source code already verified");
+    expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
   }
 
     // verify GlobalExtiRootManager
@@ -97,7 +98,7 @@ async function main() {
         }
       );
     } catch (error) {
-      expect(error.message).to.be.equal("Contract source code already verified");
+      expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
     }
 }
 
