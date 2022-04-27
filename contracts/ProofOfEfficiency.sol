@@ -248,6 +248,6 @@ contract ProofOfEfficiency is Ownable {
      // TODO
      */
     function calculateSequencerCollateral() public view returns (uint256) {
-        return 1 ether * (1 + lastBatchSent - lastVerifiedBatch);
+        return 1 ether * uint256(1 + lastBatchSent - lastVerifiedBatch);
     }
 }
