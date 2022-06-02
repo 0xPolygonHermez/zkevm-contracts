@@ -18,7 +18,7 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Ownable {
     bytes32 public lastMainnetExitRoot;
 
     // Store every global exit root
-    mapping(uint256 => bytes32) public globalExitRootMap;
+    mapping(bytes32 => uint256) public globalExitRootMap;
 
     // Current global exit roots stored
     uint256 public lastGlobalExitRootNum;
@@ -64,9 +64,11 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Ownable {
         }
 
         lastGlobalExitRootNum++;
-        globalExitRootMap[lastGlobalExitRootNum] = keccak256(
+
+        bytes32 newGlobalExitRoot = keccak256(
             abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
         );
+        globalExitRootMap[newGlobalExitRoot] = lastGlobalExitRootNum;
 
         emit UpdateGlobalExitRoot(
             lastGlobalExitRootNum,
@@ -79,6 +81,9 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Ownable {
      * @notice Return last global exit root
      */
     function getLastGlobalExitRoot() public view returns (bytes32) {
-        return globalExitRootMap[lastGlobalExitRootNum];
+        return
+            keccak256(
+                abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
+            );
     }
 }

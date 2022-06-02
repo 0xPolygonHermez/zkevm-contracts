@@ -107,7 +107,7 @@ contract DepositContract {
 
     /**
      * @notice Verify merkle proof
-     * @param token  Token address, 0 address is reserved for ehter
+     * @param token  Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param originalNetwork Origin Network
      * @param destinationNetwork Network destination

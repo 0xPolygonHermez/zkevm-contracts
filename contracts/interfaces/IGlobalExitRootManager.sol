@@ -7,7 +7,9 @@ interface IGlobalExitRootManager {
 
     function updateExitRoot(bytes32 newRollupExitRoot) external;
 
-    function globalExitRootMap(uint256 globalExitRootNum)
+    function globalExitRootMap(bytes32 globalExitRootNum)
         external
-        returns (bytes32);
+        returns (uint256);
+
+    function lastGlobalExitRootNum() external returns (uint256);
 }
