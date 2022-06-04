@@ -83,6 +83,20 @@ If not exist the batch, the circuit will not be able to match the hash image of 
 |`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
 
+### sequenceForceBatches
+```solidity
+  function sequenceForceBatches(
+    uint64 numForcedBatch
+  ) public
+```
+Allows anyone to sequence forced Batches if the super sequencer do not have done it in the timeout period
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`numForcedBatch` | uint64 | number of forced batches which the timeout of the super sequencer already expired
+
 ### calculateForceProverFee
 ```solidity
   function calculateForceProverFee(
@@ -113,6 +127,14 @@ Emitted when a sequencer sends a new batch of transactions
 ### ForceBatch
 ```solidity
   event ForceBatch(
+  )
+```
+
+Emitted when a batch is forced
+
+### ForceSequencedBatches
+```solidity
+  event ForceSequencedBatches(
   )
 ```
 

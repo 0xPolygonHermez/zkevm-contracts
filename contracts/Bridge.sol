@@ -203,7 +203,7 @@ contract Bridge is Ownable, DepositContract {
         require(
             globalExitRootManager.globalExitRootMap(
                 keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
-            ) > 0,
+            ) != 0,
             "Bridge::claim: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
         );
 

@@ -48,29 +48,29 @@ contract ProofOfEfficiency is Ownable {
     // Max batch byte length
     uint64 public constant MAX_BATCH_LENGTH = 1 ether; // TODO should be defined
 
+    // Force batch timeout
+    uint64 public constant FORCE_BATCH_TIMEOUT = 7 days;
+
     // Queue of forced batches with their associated data
     mapping(uint64 => ForcedBatchData) public forcedBatches;
 
     // Queue of batches that define the virtual state
     mapping(uint64 => bytes32) public sequencedBatches;
 
+    // Last timestamp
+    uint64 public lastTimestamp;
+
     // Last batch sent by the sequencers
     uint64 public lastBatchSequenced;
-
-    // Last batch verified by the aggregators
-    uint64 public lastVerifiedBatch;
-
-    // Last batch sent by the sequencers
-    uint64 public lastForceBatch;
 
     // Last forced batch included in the sequence
     uint64 public lastForceBatchSequenced;
 
-    // Last timestamp
-    uint64 public lastTimestamp;
+    // Last batch sent by the sequencers
+    uint64 public lastForceBatch;
 
-    // Last timestamp in forceBatches
-    uint64 public lastForcedTimestamp;
+    // Last batch verified by the aggregators
+    uint64 public lastVerifiedBatch;
 
     // Global Exit Root interface
     IGlobalExitRootManager public globalExitRootManager;
@@ -106,6 +106,11 @@ contract ProofOfEfficiency is Ownable {
         bytes32 lastGlobalExitRoot,
         bytes transactions
     );
+
+    /**
+     * @dev Emitted when a batch is forced
+     */
+    event ForceSequencedBatches(uint64 indexed numBatch);
 
     /**
      * @dev Emitted when a aggregator verifies a new batch
@@ -285,12 +290,8 @@ contract ProofOfEfficiency is Ownable {
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
-        emit SequencedBatches(lastBatchSequenced); // TODO
+        emit SequencedBatches(lastBatchSequenced);
     }
-
-    // TODO
-    // function sequencedForceBatch
-    //    require(timeout == true)
 
     /**
      * @notice Allows an aggregator to verify a batch
@@ -361,6 +362,47 @@ contract ProofOfEfficiency is Ownable {
 
         // delete batchData
         emit VerifyBatch(numBatch, msg.sender);
+    }
+
+    /**
+     * @notice Allows anyone to sequence forced Batches if the super sequencer do not have done it in the timeout period
+     * @param numForcedBatch number of forced batches which the timeout of the super sequencer already expired
+     */
+    function sequenceForceBatches(uint64 numForcedBatch) public {
+        require(
+            lastForceBatchSequenced < numForcedBatch &&
+                numForcedBatch <= lastForceBatch,
+            "ProofOfEfficiency::sequenceForceBatch: Force batch invalid"
+        );
+
+        require(
+            forcedBatches[numForcedBatch].timestamp + FORCE_BATCH_TIMEOUT >=
+                block.timestamp,
+            "ProofOfEfficiency::sequenceForceBatch: Forced batch is not in timeout period"
+        );
+
+        uint256 batchesToSequence = numForcedBatch - lastForceBatchSequenced;
+
+        // Store storage variables in memory, to save gas, because will be overrided multiple times
+        uint64 currentBatchSequenced = lastBatchSequenced;
+        uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
+
+        // Sequence force batches
+        for (uint256 j = 0; j < batchesToSequence; j++) {
+            currentLastForceBatchSequenced++;
+            // Instead of adding the hashData, just add a "pointer" to the forced Batch
+            currentBatchSequenced++;
+            sequencedBatches[currentBatchSequenced] = bytes32(
+                uint256(currentLastForceBatchSequenced)
+            );
+        }
+
+        // Store back the storage variables
+        lastTimestamp = forcedBatches[currentLastForceBatchSequenced].timestamp;
+        lastBatchSequenced = currentBatchSequenced;
+        lastForceBatchSequenced = currentLastForceBatchSequenced;
+
+        emit ForceSequencedBatches(lastBatchSequenced);
     }
 
     /**
