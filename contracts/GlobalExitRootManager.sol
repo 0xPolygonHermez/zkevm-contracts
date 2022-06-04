@@ -17,7 +17,7 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Ownable {
     // Mainnet exit root, this will be updated every time a deposit is made in mainnet
     bytes32 public lastMainnetExitRoot;
 
-    // Store every global exit root
+    // Store every global exit root: Root --> rootNum
     mapping(bytes32 => uint256) public globalExitRootMap;
 
     // Current global exit roots stored

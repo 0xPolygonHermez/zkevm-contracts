@@ -246,11 +246,6 @@
           "type": "uint32"
         },
         {
-          "internalType": "uint256",
-          "name": "globalExitRootNum",
-          "type": "uint256"
-        },
-        {
           "internalType": "bytes32",
           "name": "mainnetExitRoot",
           "type": "bytes32"

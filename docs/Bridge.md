@@ -48,7 +48,6 @@ Deposit add a new leaf to the merkle tree
     address destinationAddress,
     bytes32[] smtProof,
     uint32 index,
-    uint256 globalExitRootNum,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot
   ) public
@@ -66,7 +65,6 @@ Verify merkle proof and withdraw tokens/ether
 |`destinationAddress` | address | Address destination
 |`smtProof` | bytes32[] | Smt proof
 |`index` | uint32 | Index of the leaf
-|`globalExitRootNum` | uint256 | Global exit root num
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
 

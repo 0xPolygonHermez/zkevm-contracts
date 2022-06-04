@@ -26,7 +26,7 @@ contract ProofOfEfficiency is Ownable {
     struct ForcedBatchData {
         bytes32 batchHashData;
         uint256 maticFee;
-        uint256 timestamp;
+        uint64 timestamp;
     }
 
     // Modulus zkSNARK
@@ -69,7 +69,10 @@ contract ProofOfEfficiency is Ownable {
     // Last timestamp
     uint64 public lastTimestamp;
 
-    // Global Exit Root address
+    // Last timestamp in forceBatches
+    uint64 public lastForcedTimestamp;
+
+    // Global Exit Root interface
     IGlobalExitRootManager public globalExitRootManager;
 
     // Current state root
@@ -78,6 +81,7 @@ contract ProofOfEfficiency is Ownable {
     // Current local exit root
     bytes32 public currentLocalExitRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
 
+    // Rollup verifier interface
     IVerifierRollup public rollupVerifier;
 
     /**
@@ -99,8 +103,8 @@ contract ProofOfEfficiency is Ownable {
      */
     event ForceBatch(
         uint64 indexed numBatch,
-        address indexed sequencer,
-        bytes32 lastGlobalExitRoot
+        bytes32 lastGlobalExitRoot,
+        bytes transactions
     );
 
     /**
@@ -129,7 +133,7 @@ contract ProofOfEfficiency is Ownable {
     /**
      * @notice Allows a sequencer/user to force a batch of L2 transactions,
      * This tx can be front-runned by the sendBatches tx
-     * THis should be used only in extreme cases where the super sequencer does not work as expected
+     * This should be used only in extreme cases where the super sequencer does not work as expected
      * @param transactions L2 ethereum transactions EIP-155 with signature:
      * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * @param maticAmount Max amount of MATIC tokens that the sender is willing to pay
@@ -140,12 +144,12 @@ contract ProofOfEfficiency is Ownable {
 
         require(
             maticFee <= maticAmount,
-            "ProofOfEfficiency::sendBatch: NOT_ENOUGH_MATIC"
+            "ProofOfEfficiency::forceBatch: not enough matic"
         );
 
         require(
             transactions.length < MAX_BATCH_LENGTH,
-            "ProofOfEfficiency::sendBatch: NOT_ENOUGH_MATIC"
+            "ProofOfEfficiency::forceBatch: Transactions bytes overflow"
         );
 
         matic.safeTransferFrom(msg.sender, address(this), maticFee);
@@ -154,19 +158,34 @@ contract ProofOfEfficiency is Ownable {
         bytes32 lastGlobalExitRoot = globalExitRootManager
             .getLastGlobalExitRoot();
 
-        // Update sequencedBatches mapping
+        // In order to avoid same timestamp in different batches if in the same block
+        // Already happen a forcebatch, use the last timestamp used + 1
+        // if (block.timestamp <= lastForcedTimestamp) {
+        //     ++lastForcedTimestamp;
+        //     timestamp = lastForcedTimestamp;
+        // }
+        uint64 timestamp = uint64(block.timestamp);
+
+        // Update forcedBatches mapping
+        lastForceBatch++;
         forcedBatches[lastForceBatch].batchHashData = keccak256(
             abi.encodePacked(
                 transactions,
                 lastGlobalExitRoot,
-                uint64(block.timestamp),
+                timestamp,
                 msg.sender
             )
         );
         forcedBatches[lastForceBatch].maticFee = maticFee;
-        forcedBatches[lastForceBatch].timestamp = uint64(block.timestamp);
+        forcedBatches[lastForceBatch].timestamp = timestamp;
 
-        emit ForceBatch(lastForceBatch, msg.sender, lastGlobalExitRoot);
+        // In order to avoid synch attacks, if the msg.sender is not the origin
+        // Add the transaction bytes in the event
+        if (msg.sender == tx.origin) {
+            emit ForceBatch(lastForceBatch, lastGlobalExitRoot, "");
+        } else {
+            emit ForceBatch(lastForceBatch, lastGlobalExitRoot, transactions);
+        }
     }
 
     /**
@@ -178,7 +197,6 @@ contract ProofOfEfficiency is Ownable {
         uint256 sequencesNum = sequences.length;
 
         // Pay collateral for every batch submitted
-
         // TODO should sequencer pay if there's no L2 batches to send but must send batch to sequence forcedBatches?
         matic.safeTransferFrom(
             msg.sender,
@@ -186,30 +204,41 @@ contract ProofOfEfficiency is Ownable {
             PROVER_FEE * sequencesNum
         );
 
-        // Prepare to loop through sequences
+        // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currenTimestamp = lastTimestamp;
         uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
 
-        // For every sequence, do the necessary checks and add it to the sequencedBatches mapping
         for (uint256 i = 0; i < sequencesNum; i++) {
+            // The timestmap upperlimit must be or the current block number, or the first timestamp of the forced tx
+            uint64 upperLimitTimestamp;
+            if (lastForceBatch > lastForceBatchSequenced) {
+                upperLimitTimestamp = forcedBatches[lastForceBatchSequenced + 1]
+                    .timestamp;
+            } else {
+                upperLimitTimestamp = uint64(block.timestamp);
+            }
+
+            // Load current sequence
             Sequence memory currentSequence = sequences[i];
 
+            // Check Sequence parameters are correct
             require(
                 currentSequence.timestamp > currenTimestamp &&
-                    currentSequence.timestamp < block.timestamp,
-                "Timestamp must be inside range"
+                    currentSequence.timestamp < upperLimitTimestamp,
+                "ProofOfEfficiency::sequenceBatches: Timestamp must be inside range"
             );
 
             require(
                 globalExitRootManager.globalExitRootMap(
                     currentSequence.globalExitRoot
                 ) != 0,
-                "Global Exit root must exist"
+                "ProofOfEfficiency::sequenceBatches: Global exit root must exist"
             );
+
             require(
                 currentSequence.transactions.length < MAX_BATCH_LENGTH,
-                "ProofOfEfficiency::sendBatch: NOT_ENOUGH_MATIC"
+                "ProofOfEfficiency::sequenceBatches: Transactions bytes overflow"
             );
 
             // Update sequencedBatches mapping
@@ -219,40 +248,39 @@ contract ProofOfEfficiency is Ownable {
                     currentSequence.transactions,
                     currentSequence.globalExitRoot,
                     currentSequence.timestamp,
-                    currentBatchSequenced, // should be removed
                     msg.sender
                 )
             );
-            currenTimestamp = currentSequence.timestamp;
 
-            // Append forcedBatches too
-            for (uint256 j = 0; j < currentSequence.forceBatchesNum; j++) {
-                currentLastForceBatchSequenced++;
+            // Append forcedBatches if any
+            if (currentSequence.forceBatchesNum > 0) {
+                // Loop thorugh forceBatches
+                for (uint256 j = 0; j < currentSequence.forceBatchesNum; j++) {
+                    currentLastForceBatchSequenced++;
 
-                // Get current forced batch
-                ForcedBatchData storage currentForcedBatch = forcedBatches[
-                    currentLastForceBatchSequenced
-                ];
-
-                // less than current tiemstamp
-                // sequencer mess with timestamp, i'ts not ok
-                require(
-                    currentForcedBatch.timestamp > currenTimestamp,
-                    "Must increase timestamp"
-                );
+                    // Instead of adding the hashData, just add a "pointer" to the forced Batch
+                    currentBatchSequenced++;
+                    sequencedBatches[currentBatchSequenced] = bytes32(
+                        uint256(currentLastForceBatchSequenced)
+                    );
+                }
+                // Update timestamp
+                // The forced timestamp will always by higher than the sequenced timestamp
+                currenTimestamp = forcedBatches[currentLastForceBatchSequenced]
+                    .timestamp;
+            } else {
+                // Update timestamp
                 currenTimestamp = currentSequence.timestamp;
-
-                sequencedBatches[currentBatchSequenced] = bytes32(
-                    uint256(currentLastForceBatchSequenced)
-                );
             }
         }
 
+        // Sanity check, this check is done here just once for gas saving
         require(
             lastForceBatch >= currentLastForceBatchSequenced,
-            "Must increase timestamp"
+            "ProofOfEfficiency::sequenceBatches: Force batches overflow"
         );
 
+        // Store back the storage variables
         lastTimestamp = currenTimestamp;
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
@@ -266,6 +294,7 @@ contract ProofOfEfficiency is Ownable {
 
     /**
      * @notice Allows an aggregator to verify a batch
+     * @notice If not exist the batch, the circuit will not be able to match the hash image of 0
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
      * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
@@ -291,8 +320,9 @@ contract ProofOfEfficiency is Ownable {
         bytes32 batchHashData = sequencedBatches[numBatch];
         uint256 maticFee = SUPER_SEQUENCER_FEE;
 
+        // The bachHashdata stores a pointer of a forceBatch instead of a hash
         if ((batchHashData >> 64) == 0) {
-            // This is a forcedBatch
+            // The bachHashdata stores a pointer of a forceBatch instead of a hash
             batchHashData = forcedBatches[uint64(uint256(batchHashData))]
                 .batchHashData;
             maticFee = forcedBatches[uint64(uint256(batchHashData))].maticFee;
@@ -306,6 +336,7 @@ contract ProofOfEfficiency is Ownable {
                     newStateRoot,
                     newLocalExitRoot,
                     batchHashData,
+                    numBatch,
                     msg.sender // Front-running protection
                 )
             )

@@ -172,7 +172,6 @@ contract Bridge is Ownable, DepositContract {
      * @param destinationAddress Address destination
      * @param smtProof Smt proof
      * @param index Index of the leaf
-     * @param globalExitRootNum Global exit root num
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      */
@@ -184,7 +183,6 @@ contract Bridge is Ownable, DepositContract {
         address destinationAddress,
         bytes32[] memory smtProof,
         uint32 index,
-        uint256 globalExitRootNum,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot
     ) public {
@@ -203,8 +201,9 @@ contract Bridge is Ownable, DepositContract {
         // Check that the merkle proof belongs to some global exit root
         // TODO this should be a SMTproof
         require(
-            keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot)) ==
-                globalExitRootManager.globalExitRootMap(globalExitRootNum),
+            globalExitRootManager.globalExitRootMap(
+                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
+            ) > 0,
             "Bridge::claim: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
         );
 

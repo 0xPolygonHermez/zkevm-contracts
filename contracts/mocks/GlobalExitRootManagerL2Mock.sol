@@ -23,7 +23,7 @@ contract GlobalExitRootManagerL2Mock is GlobalExitRootManagerL2 {
     function setLastGlobalExitRoot(bytes32 globalExitRoot, uint256 blockNumber)
         public
     {
-        globalExitRootMap[blockNumber] = globalExitRoot;
+        globalExitRootMap[globalExitRoot] = blockNumber;
     }
 
     /**

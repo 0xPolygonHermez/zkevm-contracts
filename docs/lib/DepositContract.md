@@ -51,7 +51,7 @@ Verify merkle proof
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | address |  Token address, 0 address is reserved for ehter
+|`token` | address |  Token address, 0 address is reserved for ether
 |`amount` | uint256 | Amount of tokens
 |`originalNetwork` | uint32 | Origin Network
 |`destinationNetwork` | uint32 | Network destination

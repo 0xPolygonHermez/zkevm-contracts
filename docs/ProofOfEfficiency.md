@@ -24,25 +24,29 @@ To enter and exit of the L2 network will be used a Bridge smart contract
 |`_rollupVerifier` | contract IVerifierRollup | rollup verifier addressv
 |`genesisRoot` | bytes32 | rollup genesis root
 
-### registerSequencer
+### forceBatch
 ```solidity
-  function registerSequencer(
-    string sequencerURL
+  function forceBatch(
+    bytes transactions,
+    uint256 maticAmount
   ) public
 ```
-Allows to register a new sequencer or update the sequencer URL
+Allows a sequencer/user to force a batch of L2 transactions,
+This tx can be front-runned by the sendBatches tx
+This should be used only in extreme cases where the super sequencer does not work as expected
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`sequencerURL` | string | sequencer RPC URL
+|`transactions` | bytes | L2 ethereum transactions EIP-155 with signature:
+rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+|`maticAmount` | uint256 | Max amount of MATIC tokens that the sender is willing to pay
 
-### sendBatch
+### sequenceBatches
 ```solidity
-  function sendBatch(
-    bytes transactions,
-    uint256 maticAmount
+  function sequenceBatches(
+    struct ProofOfEfficiency.Sequence[] sequences
   ) public
 ```
 Allows a sequencer to send a batch of L2 transactions
@@ -51,9 +55,8 @@ Allows a sequencer to send a batch of L2 transactions
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`transactions` | bytes | L2 ethereum transactions EIP-155 with signature:
+|`sequences` | struct ProofOfEfficiency.Sequence[] | L2 ethereum transactions EIP-155 with signature:
 rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-|`maticAmount` | uint256 | Max amount of MATIC tokens that the sequencer is willing to pay
 
 ### verifyBatch
 ```solidity
@@ -67,6 +70,7 @@ rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
   ) public
 ```
 Allows an aggregator to verify a batch
+If not exist the batch, the circuit will not be able to match the hash image of 0
 
 
 #### Parameters:
@@ -79,9 +83,9 @@ Allows an aggregator to verify a batch
 |`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
 
-### calculateSequencerCollateral
+### calculateForceProverFee
 ```solidity
-  function calculateSequencerCollateral(
+  function calculateForceProverFee(
   ) public returns (uint256)
 ```
 Function to calculate the sequencer collateral depending on the congestion of the batches
@@ -98,13 +102,21 @@ Function to calculate the sequencer collateral depending on the congestion of th
 
 Emitted when a sequencer is registered or updated
 
-### SendBatch
+### SequencedBatches
 ```solidity
-  event SendBatch(
+  event SequencedBatches(
   )
 ```
 
 Emitted when a sequencer sends a new batch of transactions
+
+### ForceBatch
+```solidity
+  event ForceBatch(
+  )
+```
+
+Emitted when a batch is forced
 
 ### VerifyBatch
 ```solidity

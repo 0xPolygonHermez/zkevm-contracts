@@ -38,13 +38,17 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param newStateRoot New State root once the batch is processed
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param batchHashData Batch hash data
+     * @param numBatch num batch
+     * @param msgSender msg sender
      */
     function calculateCircuitInput(
         bytes32 currentStateRoot,
         bytes32 currentLocalExitRoot,
         bytes32 newStateRoot,
         bytes32 newLocalExitRoot,
-        bytes32 batchHashData
+        bytes32 batchHashData,
+        uint64 numBatch,
+        address msgSender
     ) public pure returns (uint256) {
         uint256 input = uint256(
             keccak256(
@@ -53,7 +57,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    batchHashData
+                    batchHashData,
+                    numBatch,
+                    msgSender
                 )
             )
         ) % _RFIELD;
@@ -78,7 +84,14 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
 
         // Calculate Circuit Input
-        BatchData memory currentBatch = sentBatches[numBatch];
+        bytes32 batchHashData = sequencedBatches[numBatch];
+
+        // The bachHashdata stores a pointer of a forceBatch instead of a hash
+        if ((batchHashData >> 64) == 0) {
+            // The bachHashdata stores a pointer of a forceBatch instead of a hash
+            batchHashData = forcedBatches[uint64(uint256(batchHashData))]
+                .batchHashData;
+        }
 
         uint256 input = uint256(
             keccak256(
@@ -87,7 +100,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    currentBatch.batchHashData
+                    batchHashData,
+                    numBatch,
+                    msg.sender // Front-running protection
                 )
             )
         ) % _RFIELD;
@@ -112,7 +127,14 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
 
         // Calculate Circuit Input
-        BatchData memory currentBatch = sentBatches[numBatch];
+        bytes32 batchHashData = sequencedBatches[numBatch];
+
+        // The bachHashdata stores a pointer of a forceBatch instead of a hash
+        if ((batchHashData >> 64) == 0) {
+            // The bachHashdata stores a pointer of a forceBatch instead of a hash
+            batchHashData = forcedBatches[uint64(uint256(batchHashData))]
+                .batchHashData;
+        }
 
         return
             abi.encodePacked(
@@ -120,7 +142,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 currentLocalExitRoot,
                 newStateRoot,
                 newLocalExitRoot,
-                currentBatch.batchHashData
+                batchHashData,
+                numBatch,
+                msg.sender // Front-running protection
             );
     }
 
@@ -138,41 +162,5 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      */
     function setExitRoot(bytes32 newLocalExitRoot) public onlyOwner {
         currentLocalExitRoot = newLocalExitRoot;
-    }
-
-    /**
-     * @notice Allows to register a new sequencer or update the sequencer URL
-     * @param sequencerURL sequencer RPC URL
-     */
-    function setSequencer(
-        address sequencer,
-        string memory sequencerURL,
-        uint32 chainID
-    ) public onlyOwner {
-        sequencers[sequencer].sequencerURL = sequencerURL;
-        sequencers[sequencer].chainID = chainID;
-    }
-
-    /**
-     * @notice VerifyBatchMock
-     */
-    function verifyBatchMock() public onlyOwner {
-        // Update state
-        lastVerifiedBatch++;
-        // Interact with bridge
-        globalExitRootManager.updateExitRoot(currentLocalExitRoot);
-        emit VerifyBatch(lastVerifiedBatch, msg.sender);
-    }
-
-    /**
-     * @notice Allows to set Batch
-     */
-    function setBatch(
-        bytes32 batchHashData,
-        uint256 maticCollateral,
-        uint32 batchNum
-    ) public onlyOwner {
-        sentBatches[batchNum].batchHashData = batchHashData;
-        sentBatches[batchNum].maticCollateral = maticCollateral;
     }
 }
