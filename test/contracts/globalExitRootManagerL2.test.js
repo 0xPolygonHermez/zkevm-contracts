@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 
 const zero32bytes = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
-describe('Bridge Contract', () => {
+describe('Global Exit Root L2', () => {
     let bridge;
     let globalExitRootManager;
     beforeEach('Deploy contracts', async () => {
@@ -47,12 +47,12 @@ describe('Bridge Contract', () => {
         const newRoot = ethers.utils.hexlify(ethers.utils.randomBytes(32));
         const blockNumber = 1;
         await globalExitRootManager.setLastGlobalExitRoot(newRoot, blockNumber);
-        expect(await globalExitRootManager.globalExitRootMap(blockNumber)).to.be.equal(newRoot);
+        expect(await globalExitRootManager.globalExitRootMap(newRoot)).to.be.equal(blockNumber);
         const mapStoragePosition = 0;
-        const key = blockNumber;
+        const key = newRoot;
         const storagePosition = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [key, mapStoragePosition]);
         const storageValue = await ethers.provider.getStorageAt(globalExitRootManager.address, storagePosition);
-        expect(newRoot, storageValue);
+        expect(blockNumber, storageValue);
 
         // Check rollup exit root
         const newRootRollupExitRoot = ethers.utils.hexlify(ethers.utils.randomBytes(32));

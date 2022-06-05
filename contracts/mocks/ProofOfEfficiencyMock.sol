@@ -21,13 +21,15 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         IGlobalExitRootManager _globalExitRootManager,
         IERC20 _matic,
         IVerifierRollup _rollupVerifier,
-        bytes32 genesisRoot
+        bytes32 genesisRoot,
+        address _superSequencerAddress
     )
         ProofOfEfficiency(
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
-            genesisRoot
+            genesisRoot,
+            _superSequencerAddress
         )
     {}
 
@@ -152,7 +154,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set state root
      * @param newStateRoot New State root ¡
      */
-    function setStateRoot(bytes32 newStateRoot) public onlyOwner {
+    function setStateRoot(bytes32 newStateRoot) public {
         currentStateRoot = newStateRoot;
     }
 
@@ -160,7 +162,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set Sequencer
      * @param newLocalExitRoot New exit root ¡
      */
-    function setExitRoot(bytes32 newLocalExitRoot) public onlyOwner {
+    function setExitRoot(bytes32 newLocalExitRoot) public {
         currentLocalExitRoot = newLocalExitRoot;
     }
 }

@@ -194,7 +194,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('ERC20: transfer amount exceeds balance');
@@ -212,7 +211,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         ))
@@ -235,7 +233,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::claim: ALREADY_CLAIMED');
@@ -317,7 +314,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         ))
@@ -352,7 +348,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::claim: ALREADY_CLAIMED');
@@ -532,7 +527,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('ERC20: transfer amount exceeds balance');
@@ -551,7 +545,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::claim: DESTINATION_NETWORK_DOES_NOT_MATCH');
@@ -565,7 +558,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             mainnetExitRoot, // wrong rollup root
         )).to.be.revertedWith('Bridge::claim: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH');
@@ -579,7 +571,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index + 1, // Wrong index
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::claim: SMT_INVALID');
@@ -592,7 +583,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         ))
@@ -615,7 +605,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::claim: ALREADY_CLAIMED');
@@ -683,7 +672,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::claim: ETH_TRANSFER_FAILED');
@@ -713,7 +701,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         ))
@@ -739,7 +726,6 @@ describe('Bridge Contract', () => {
             destinationAddress,
             proof,
             index,
-            lastGlobalExitRootNum,
             mainnetExitRoot,
             rollupExitRootSC,
         )).to.be.revertedWith('Bridge::claim: ALREADY_CLAIMED');

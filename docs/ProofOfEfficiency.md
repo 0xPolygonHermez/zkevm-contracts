@@ -1,7 +1,9 @@
 Contract responsible for managing the state and the updates of it of the L2 Hermez network.
-There will be sequencer, wich are able to send transactions. That transactions will be stored in the contract.
-The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
-To enter and exit of the L2 network will be used a Bridge smart contract
+There will be super sequencer, wich are able to send transactions.
+Any user can force some transaction and the sequence will have a timeout to add them in the queue
+THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
+The aggregators will be able to actually verify the sequenced state with zkProofs and able withdraws from hermez L2
+To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
 
 
 ## Functions
@@ -24,25 +26,6 @@ To enter and exit of the L2 network will be used a Bridge smart contract
 |`_rollupVerifier` | contract IVerifierRollup | rollup verifier addressv
 |`genesisRoot` | bytes32 | rollup genesis root
 
-### forceBatch
-```solidity
-  function forceBatch(
-    bytes transactions,
-    uint256 maticAmount
-  ) public
-```
-Allows a sequencer/user to force a batch of L2 transactions,
-This tx can be front-runned by the sendBatches tx
-This should be used only in extreme cases where the super sequencer does not work as expected
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`transactions` | bytes | L2 ethereum transactions EIP-155 with signature:
-rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-|`maticAmount` | uint256 | Max amount of MATIC tokens that the sender is willing to pay
-
 ### sequenceBatches
 ```solidity
   function sequenceBatches(
@@ -55,8 +38,8 @@ Allows a sequencer to send a batch of L2 transactions
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`sequences` | struct ProofOfEfficiency.Sequence[] | L2 ethereum transactions EIP-155 with signature:
-rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+|`sequences` | struct ProofOfEfficiency.Sequence[] | Struct array which contains, the transaction data
+Global exit root, timestamp and forced batches that are pop form the queue
 
 ### verifyBatch
 ```solidity
@@ -83,6 +66,25 @@ If not exist the batch, the circuit will not be able to match the hash image of 
 |`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
 
+### forceBatch
+```solidity
+  function forceBatch(
+    bytes transactions,
+    uint256 maticAmount
+  ) public
+```
+Allows a sequencer/user to force a batch of L2 transactions,
+This tx can be front-runned by the super sequencer
+This should be used only in extreme cases where the super sequencer does not work as expected
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`transactions` | bytes | L2 ethereum transactions EIP-155 with signature:
+rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+|`maticAmount` | uint256 | Max amount of MATIC tokens that the sender is willing to pay
+
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
@@ -97,6 +99,15 @@ Allows anyone to sequence forced Batches if the super sequencer do not have done
 | :--- | :--- | :------------------------------------------------------------------- |
 |`numForcedBatch` | uint64 | number of forced batches which the timeout of the super sequencer already expired
 
+### setSuperSequencer
+```solidity
+  function setSuperSequencer(
+  ) public
+```
+
+
+
+
 ### calculateForceProverFee
 ```solidity
   function calculateForceProverFee(
@@ -108,21 +119,13 @@ Function to calculate the sequencer collateral depending on the congestion of th
 
 
 ## Events
-### RegisterSequencer
-```solidity
-  event RegisterSequencer(
-  )
-```
-
-Emitted when a sequencer is registered or updated
-
 ### SequencedBatches
 ```solidity
   event SequencedBatches(
   )
 ```
 
-Emitted when a sequencer sends a new batch of transactions
+Emitted when the super sequencer sends a new batch of transactions
 
 ### ForceBatch
 ```solidity
@@ -138,7 +141,7 @@ Emitted when a batch is forced
   )
 ```
 
-Emitted when a batch is forced
+Emitted when forced batches are sequenced by not the super sequencer
 
 ### VerifyBatch
 ```solidity
