@@ -22,14 +22,16 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         IERC20 _matic,
         IVerifierRollup _rollupVerifier,
         bytes32 genesisRoot,
-        address _superSequencerAddress
+        address _superSequencerAddress,
+        bool _forceBatchAllowed
     )
         ProofOfEfficiency(
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
             genesisRoot,
-            _superSequencerAddress
+            _superSequencerAddress,
+            _forceBatchAllowed
         )
     {}
 
@@ -86,7 +88,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
 
         // Calculate Circuit Input
-        bytes32 batchHashData = sequencedBatches[numBatch];
+        bytes32 batchHashData = sequencedBatches[numBatch].batchHashData;
+        uint64 timestamp = sequencedBatches[numBatch].timestamp;
 
         // The bachHashdata stores a pointer of a forceBatch instead of a hash
         if ((batchHashData >> 64) == 0) {
@@ -104,6 +107,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     newLocalExitRoot,
                     batchHashData,
                     numBatch,
+                    timestamp,
                     msg.sender // Front-running protection
                 )
             )
@@ -129,7 +133,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
 
         // Calculate Circuit Input
-        bytes32 batchHashData = sequencedBatches[numBatch];
+        bytes32 batchHashData = sequencedBatches[numBatch].batchHashData;
+        uint64 timestamp = sequencedBatches[numBatch].timestamp;
 
         // The bachHashdata stores a pointer of a forceBatch instead of a hash
         if ((batchHashData >> 64) == 0) {
@@ -146,6 +151,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
+                timestamp,
                 msg.sender // Front-running protection
             );
     }

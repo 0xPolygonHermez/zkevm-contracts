@@ -9,7 +9,7 @@ const { ethers } = require('hardhat');
 describe('Proof of efficiency', () => {
     let deployer;
     let aggregator;
-    let superSequencer;
+    let trustedSequencer;
 
     let verifierContract;
     let bridgeContract;
@@ -24,10 +24,11 @@ describe('Proof of efficiency', () => {
     const genesisRoot = ethers.constants.HashZero;
 
     const networkIDMainnet = 0;
+    const allowForcebatches = true;
 
     beforeEach('Deploy contract', async () => {
         // load signers
-        [deployer, aggregator, superSequencer] = await ethers.getSigners();
+        [deployer, aggregator, trustedSequencer] = await ethers.getSigners();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
@@ -70,7 +71,8 @@ describe('Proof of efficiency', () => {
             maticTokenContract.address,
             verifierContract.address,
             genesisRoot,
-            superSequencer.address,
+            trustedSequencer.address,
+            allowForcebatches,
         );
         await proofOfEfficiencyContract.deployed();
 
@@ -78,7 +80,7 @@ describe('Proof of efficiency', () => {
         expect(bridgeContract.address).to.be.equal(precalculatBridgeAddress);
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(superSequencer.address, ethers.utils.parseEther('100'));
+        await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('100'));
     });
 
     it('should check the constructor parameters', async () => {
@@ -86,47 +88,116 @@ describe('Proof of efficiency', () => {
         expect(await proofOfEfficiencyContract.matic()).to.be.equal(maticTokenContract.address);
         expect(await proofOfEfficiencyContract.rollupVerifier()).to.be.equal(verifierContract.address);
         expect(await proofOfEfficiencyContract.currentStateRoot()).to.be.equal(genesisRoot);
-        expect(await proofOfEfficiencyContract.superSequencerAddress()).to.be.equal(superSequencer.address);
+        expect(await proofOfEfficiencyContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
+        expect(await proofOfEfficiencyContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
     });
 
     it('should sequence a batch as super sequencer', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await proofOfEfficiencyContract.SUPER_SEQUENCER_FEE();
+        const maticAmount = await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
+            transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: ethers.BigNumber.from(currentTimestamp),
-            forceBatchesNum: ethers.BigNumber.from(0),
-            transactions: l2txData,
+            forceBatchesTimestamp: [],
         };
 
         // revert because sender is not super sequencer
         await expect(proofOfEfficiencyContract.sequenceBatches([sequence]))
-            .to.be.revertedWith('ProofOfEfficiency::onlySuperSequencer: only super sequencer');
+            .to.be.revertedWith('ProofOfEfficiency::onlyTrustedSequencer: only trusted sequencer');
 
         // revert because tokens were not approved
-        await expect(proofOfEfficiencyContract.connect(superSequencer).sequenceBatches([sequence]))
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
             .to.be.revertedWith('ERC20: insufficient allowance');
 
         const initialOwnerBalance = await maticTokenContract.balanceOf(
-            await superSequencer.getAddress(),
+            await trustedSequencer.getAddress(),
         );
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(superSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
         const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
 
         // Sequence
-        await expect(proofOfEfficiencyContract.connect(superSequencer).sequenceBatches([sequence]))
-            .to.emit(proofOfEfficiencyContract, 'SequencedBatches')
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
+            .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
         const finalOwnerBalance = await maticTokenContract.balanceOf(
-            await superSequencer.getAddress(),
+            await trustedSequencer.getAddress(),
+        );
+        expect(finalOwnerBalance).to.equal(
+            ethers.BigNumber.from(initialOwnerBalance).sub(ethers.BigNumber.from(maticAmount)),
+        );
+    });
+
+    it('sequenceBatches should check the timestamp correctly', async () => {
+        const l2txData = '0x';
+        const maticAmount = await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE();
+
+        const sequence = {
+            transactions: l2txData,
+            globalExitRoot: ethers.constants.HashZero,
+            timestamp: 0,
+            forceBatchesTimestamp: [],
+        };
+
+        const sequence2 = {
+            transactions: l2txData,
+            globalExitRoot: ethers.constants.HashZero,
+            timestamp: 0,
+            forceBatchesTimestamp: [],
+        };
+
+        const initialOwnerBalance = await maticTokenContract.balanceOf(
+            await trustedSequencer.getAddress(),
+        );
+
+        // Approve tokens
+        await expect(
+            maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount.mul(2)),
+        ).to.emit(maticTokenContract, 'Approval');
+
+        const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
+
+        // Mess with timestamp
+        let currentTimestamp = (await ethers.provider.getBlock()).timestamp;
+        await ethers.provider.send('evm_increaseTime', [1]); // evm_setNextBlockTimestamp
+
+        sequence.timestamp = currentTimestamp + 2; // bigger than current one
+
+        // revert because sender is not super sequencer
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
+            .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Timestamp must be inside range');
+
+        currentTimestamp = (await ethers.provider.getBlock()).timestamp;
+        await ethers.provider.send('evm_increaseTime', [1]);
+
+        sequence.timestamp = currentTimestamp;
+        sequence2.timestamp = currentTimestamp - 1; // can't be smaller than the last one
+
+        // revert because sender is not super sequencer
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
+            .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Timestamp must be inside range');
+
+        currentTimestamp = (await ethers.provider.getBlock()).timestamp;
+        await ethers.provider.send('evm_increaseTime', [1]);
+
+        sequence.timestamp = currentTimestamp + 1;
+        sequence.timestamp = currentTimestamp + 1;
+
+        // Sequence
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
+            .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
+            .withArgs(lastBatchSequenced + 1);
+
+        const finalOwnerBalance = await maticTokenContract.balanceOf(
+            await trustedSequencer.getAddress(),
         );
         expect(finalOwnerBalance).to.equal(
             ethers.BigNumber.from(initialOwnerBalance).sub(ethers.BigNumber.from(maticAmount)),
@@ -205,7 +276,7 @@ describe('Proof of efficiency', () => {
 
         // sequence force batch
         await expect(proofOfEfficiencyContract.sequenceForceBatches(lastForcedBatch))
-            .to.emit(proofOfEfficiencyContract, 'ForceSequencedBatches')
+            .to.emit(proofOfEfficiencyContract, 'SequenceForceBatches')
             .withArgs(lastForcedBatch);
 
         expect(await proofOfEfficiencyContract.lastForceBatchSequenced()).to.be.equal(1);
@@ -227,13 +298,13 @@ describe('Proof of efficiency', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(superSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
         const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
         // Sequence
-        await expect(proofOfEfficiencyContract.connect(superSequencer).sequenceBatches([sequence]))
-            .to.emit(proofOfEfficiencyContract, 'SequencedBatches')
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
+            .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
         // aggregator forge the batch
@@ -296,7 +367,7 @@ describe('Proof of efficiency', () => {
 
         // sequence force batch
         await expect(proofOfEfficiencyContract.sequenceForceBatches(lastForcedBatch))
-            .to.emit(proofOfEfficiencyContract, 'ForceSequencedBatches')
+            .to.emit(proofOfEfficiencyContract, 'SequenceForceBatches')
             .withArgs(lastForcedBatch);
 
         // aggregator forge the batch
@@ -341,7 +412,7 @@ describe('Proof of efficiency', () => {
      * it('Should match the computed SC input with the Js input', async () => {
      *     const l2txData = '0x0123456789';
      *     const maticAmount = ethers.utils.parseEther('1');
-     *     const sequencerAddress = superSequencer.address;
+     *     const sequencerAddress = trustedSequencer.address;
      *     const defaultChainId = Number(await proofOfEfficiencyContract.DEFAULT_CHAIN_ID());
      *     const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
      */

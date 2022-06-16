@@ -1,5 +1,5 @@
 Contract responsible for managing the state and the updates of it of the L2 Hermez network.
-There will be super sequencer, wich are able to send transactions.
+There will be trusted sequencer, wich are able to send transactions.
 Any user can force some transaction and the sequence will have a timeout to add them in the queue
 THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
 The aggregators will be able to actually verify the sequenced state with zkProofs and able withdraws from hermez L2
@@ -23,13 +23,13 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_globalExitRootManager` | contract IGlobalExitRootManager | global exit root manager address
 |`_matic` | contract IERC20 | MATIC token address
-|`_rollupVerifier` | contract IVerifierRollup | rollup verifier addressv
+|`_rollupVerifier` | contract IVerifierRollup | rollup verifier address
 |`genesisRoot` | bytes32 | rollup genesis root
 
 ### sequenceBatches
 ```solidity
   function sequenceBatches(
-    struct ProofOfEfficiency.Sequence[] sequences
+    struct ProofOfEfficiency.BatchData[] batches
   ) public
 ```
 Allows a sequencer to send a batch of L2 transactions
@@ -38,7 +38,7 @@ Allows a sequencer to send a batch of L2 transactions
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`sequences` | struct ProofOfEfficiency.Sequence[] | Struct array which contains, the transaction data
+|`batches` | struct ProofOfEfficiency.BatchData[] | Struct array which contains, the transaction data
 Global exit root, timestamp and forced batches that are pop form the queue
 
 ### verifyBatch
@@ -74,8 +74,8 @@ If not exist the batch, the circuit will not be able to match the hash image of 
   ) public
 ```
 Allows a sequencer/user to force a batch of L2 transactions,
-This tx can be front-runned by the super sequencer
-This should be used only in extreme cases where the super sequencer does not work as expected
+This tx can be front-runned by the trusted sequencer
+This should be used only in extreme cases where the trusted sequencer does not work as expected
 
 
 #### Parameters:
@@ -88,25 +88,45 @@ rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
-    uint64 numForcedBatch
+    uint64 numForcedBatches
   ) public
 ```
-Allows anyone to sequence forced Batches if the super sequencer do not have done it in the timeout period
+Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
+Also allow in any time the trusted sequencer to append forceBatches to the sequence in order to avoid timeout issues
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`numForcedBatch` | uint64 | number of forced batches which the timeout of the super sequencer already expired
+|`numForcedBatches` | uint64 | number of forced batches tha will be added to the queue
 
-### setSuperSequencer
+### setTrustedSequencer
 ```solidity
-  function setSuperSequencer(
+  function setTrustedSequencer(
+    address newTrustedSequencer
   ) public
 ```
+Allow the current trusted sequencer to set a new trusted sequencer
 
 
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newTrustedSequencer` | address | Address of the new trusted sequuencer
 
+### setForceBatchAllowed
+```solidity
+  function setForceBatchAllowed(
+    bool _forceBatchAllowed
+  ) public
+```
+Allow the current trusted sequencer to allow/disallow the forceBatch functionality
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`_forceBatchAllowed` | bool | Whether is allowed or not the forceBatch functionality
 
 ### calculateForceProverFee
 ```solidity
@@ -119,13 +139,13 @@ Function to calculate the sequencer collateral depending on the congestion of th
 
 
 ## Events
-### SequencedBatches
+### SequenceBatches
 ```solidity
-  event SequencedBatches(
+  event SequenceBatches(
   )
 ```
 
-Emitted when the super sequencer sends a new batch of transactions
+Emitted when the trusted sequencer sends a new batch of transactions
 
 ### ForceBatch
 ```solidity
@@ -135,13 +155,13 @@ Emitted when the super sequencer sends a new batch of transactions
 
 Emitted when a batch is forced
 
-### ForceSequencedBatches
+### SequenceForceBatches
 ```solidity
-  event ForceSequencedBatches(
+  event SequenceForceBatches(
   )
 ```
 
-Emitted when forced batches are sequenced by not the super sequencer
+Emitted when forced batches are sequenced by not the trusted sequencer
 
 ### VerifyBatch
 ```solidity
