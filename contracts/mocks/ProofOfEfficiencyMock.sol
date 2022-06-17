@@ -43,6 +43,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param batchHashData Batch hash data
      * @param numBatch num batch
+     * @param timestamp num batch
      * @param msgSender msg sender
      */
     function calculateCircuitInput(
@@ -52,6 +53,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 newLocalExitRoot,
         bytes32 batchHashData,
         uint64 numBatch,
+        uint64 timestamp,
         address msgSender
     ) public pure returns (uint256) {
         uint256 input = uint256(
@@ -63,6 +65,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     newLocalExitRoot,
                     batchHashData,
                     numBatch,
+                    timestamp,
                     msgSender
                 )
             )
@@ -79,7 +82,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
     function getNextCircuitInput(
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint32 numBatch
+        uint64 numBatch
     ) public view returns (uint256) {
         // sanity check
         require(

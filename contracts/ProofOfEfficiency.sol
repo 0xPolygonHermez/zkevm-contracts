@@ -28,7 +28,7 @@ contract ProofOfEfficiency {
     struct ForcedBatchData {
         bytes32 batchHashData;
         uint256 maticFee;
-        uint64 timestamp;
+        uint64 minTimestamp;
     }
 
     struct SequencedBatch {
@@ -47,7 +47,7 @@ contract ProofOfEfficiency {
     IERC20 public immutable matic;
 
     // trusted sequencer prover Fee
-    uint256 public constant TRUSTED_SEQUENCER_FEE = 1 ether; // TODO should be defined
+    uint256 public constant TRUSTED_SEQUENCER_FEE = 0.1 ether; // TODO should be defined
 
     // Max batch byte length
     uint256 public constant MAX_BATCH_LENGTH = type(uint256).max; // TODO should be defined
@@ -230,13 +230,17 @@ contract ProofOfEfficiency {
                 // Check timestamp is inside window
                 uint64 currentForcedTimestamp = currentBatch
                     .forceBatchesTimestamp[j];
-                require(
-                    currentForcedTimestamp >= currenTimestamp &&
-                        currentForcedTimestamp <= block.timestamp,
-                    "ProofOfEfficiency::sequenceBatches: Timestamp must be inside range"
-                );
 
                 currentLastForceBatchSequenced++;
+
+                require(
+                    currentForcedTimestamp >= currenTimestamp &&
+                        currentForcedTimestamp >=
+                        forcedBatches[currentLastForceBatchSequenced]
+                            .minTimestamp &&
+                        currentForcedTimestamp <= block.timestamp,
+                    "ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be inside range"
+                );
 
                 // Instead of adding the hashData, just add a "pointer" to the forced Batch
                 // Could simply update the forceBatch array
@@ -383,7 +387,7 @@ contract ProofOfEfficiency {
             abi.encodePacked(transactions, lastGlobalExitRoot, msg.sender)
         );
         forcedBatches[lastForceBatch].maticFee = maticFee;
-        forcedBatches[lastForceBatch].timestamp = uint64(block.timestamp);
+        forcedBatches[lastForceBatch].minTimestamp = uint64(block.timestamp);
 
         // In order to avoid synch attacks, if the msg.sender is not the origin
         // Add the transaction bytes in the event
@@ -410,6 +414,12 @@ contract ProofOfEfficiency {
     {
         uint64 newLastForceBatchSequenced = lastForceBatchSequenced +
             numForcedBatches;
+
+        require(
+            numForcedBatches > 0,
+            "ProofOfEfficiency::sequenceForceBatch: Must force at least 1 batch"
+        );
+
         require(
             newLastForceBatchSequenced <= lastForceBatch,
             "ProofOfEfficiency::sequenceForceBatch: Force batch invalid"
@@ -417,9 +427,9 @@ contract ProofOfEfficiency {
 
         // If message sender is not the trusted sequencer, must wait the timeout
         if (msg.sender != trustedSequencer) {
-            // The last batch will ahve the most restrictive timestamp
+            // The last batch will have the most restrictive timestamp
             require(
-                forcedBatches[newLastForceBatchSequenced].timestamp +
+                forcedBatches[newLastForceBatchSequenced].minTimestamp +
                     FORCE_BATCH_TIMEOUT <=
                     block.timestamp,
                 "ProofOfEfficiency::sequenceForceBatch: Forced batch is not in timeout period"
@@ -438,13 +448,13 @@ contract ProofOfEfficiency {
             sequencedBatches[currentBatchSequenced].batchHashData = bytes32(
                 uint256(currentLastForceBatchSequenced)
             );
-            sequencedBatches[currentBatchSequenced].timestamp = forcedBatches[
-                currentLastForceBatchSequenced
-            ].timestamp;
+            sequencedBatches[currentBatchSequenced].timestamp = uint64(
+                block.timestamp
+            );
         }
 
         // Store back the storage variables
-        lastTimestamp = forcedBatches[currentLastForceBatchSequenced].timestamp;
+        lastTimestamp = uint64(block.timestamp);
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
