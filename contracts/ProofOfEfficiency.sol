@@ -159,8 +159,8 @@ contract ProofOfEfficiency {
     }
 
     /**
-     * @notice Allows a sequencer to send a batch of L2 transactions
-     * @param batches Struct array which contains, the transaction data
+     * @notice Allows a sequencer to send multiple batches of L2 transactions
+     * @param batches Struct array which the necessary data to append new batces ot the sequence
      * Global exit root, timestamp and forced batches that are pop form the queue
      */
     function sequenceBatches(BatchData[] memory batches)
@@ -185,7 +185,7 @@ contract ProofOfEfficiency {
             // Load current sequence
             BatchData memory currentBatch = batches[i];
 
-            // Check Sequence parameters are correct
+            // Check Batch parameters are correct
             require(
                 currentBatch.timestamp >= currenTimestamp &&
                     currentBatch.timestamp <= block.timestamp,
@@ -227,11 +227,11 @@ contract ProofOfEfficiency {
                 j < currentBatch.forceBatchesTimestamp.length;
                 j++
             ) {
+                currentLastForceBatchSequenced++;
+
                 // Check timestamp is inside window
                 uint64 currentForcedTimestamp = currentBatch
                     .forceBatchesTimestamp[j];
-
-                currentLastForceBatchSequenced++;
 
                 require(
                     currentForcedTimestamp >= currenTimestamp &&
@@ -243,7 +243,6 @@ contract ProofOfEfficiency {
                 );
 
                 // Instead of adding the hashData, just add a "pointer" to the forced Batch
-                // Could simply update the forceBatch array
                 currentBatchSequenced++;
                 sequencedBatches[currentBatchSequenced].batchHashData = bytes32(
                     uint256(currentLastForceBatchSequenced)
@@ -256,7 +255,7 @@ contract ProofOfEfficiency {
             }
         }
 
-        // Sanity check, this check is done here just once for gas saving
+        // This check is done here just once for gas saving
         require(
             currentLastForceBatchSequenced <= lastForceBatch,
             "ProofOfEfficiency::sequenceBatches: Force batches overflow"
@@ -272,7 +271,6 @@ contract ProofOfEfficiency {
 
     /**
      * @notice Allows an aggregator to verify a batch
-     * @notice If not exist the batch, the circuit will not be able to match the hash image of 0
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
      * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
@@ -304,9 +302,8 @@ contract ProofOfEfficiency {
         uint256 maticFee = TRUSTED_SEQUENCER_FEE;
         uint64 timestamp = sequencedBatches[numBatch].timestamp;
 
-        // The bachHashData stores a pointer of a forceBatch instead of a hash
+        // If comes from a force batch, the bachHashData stores a pointer to the forceBatch instead of a hash
         if ((batchHashData >> 64) == 0) {
-            // The bachHashData stores a pointer of a forceBatch instead of a hash
             ForcedBatchData memory currentForcedBatch = forcedBatches[
                 uint64(uint256(batchHashData))
             ];
@@ -346,7 +343,8 @@ contract ProofOfEfficiency {
         // Get MATIC reward
         matic.safeTransfer(msg.sender, maticFee);
 
-        // delete batchData
+        // TODO Could delete batchData
+
         emit VerifyBatch(numBatch, msg.sender);
     }
 

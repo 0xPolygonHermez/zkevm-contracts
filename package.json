@@ -57,10 +57,9 @@
   "scripts": {
     "test": "npx hardhat test test/contracts/**.test.js",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates -e ./contracts/verifiers,./contracts/mocks",
-    "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
-    "deploy:PoE1_5:hardhat": "npx hardhat run deployment/deployment_v1-5/deployPoE_v1-5.js --network hardhat",
-    "deploy:PoE1_5:goerli": "npx hardhat run deployment/deployment_v1-5/deployPoE_v1-5.js --network goerli",
-    "verify:PoE1_5:goerli": "npx hardhat run deployment/deployment_v1-5/verifyPoE_v1-5.js --network goerli",
+    "deploy:PoE2_0:hardhat": "npx hardhat run deployment/deployment_v2-0/deployPoE_v2-0.js --network hardhat",
+    "deploy:PoE2_0:goerli": "npx hardhat run deployment/deployment_v2-0/deployPoE_v2-0.js --network goerli",
+    "verify:PoE2_0:goerli": "npx hardhat run deployment/deployment_v2-0/verifyPoE_v2-0.js --network goerli",
     "lint": "npx eslint ./test && npx eslint ./docker/scripts",
     "lint:fix": "npx eslint ./test --fix && npx eslint ./docker/scripts --fix",
     "compile": "npx hardhat compile",

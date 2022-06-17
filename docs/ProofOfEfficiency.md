@@ -32,13 +32,13 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     struct ProofOfEfficiency.BatchData[] batches
   ) public
 ```
-Allows a sequencer to send a batch of L2 transactions
+Allows a sequencer to send multiple batches of L2 transactions
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct ProofOfEfficiency.BatchData[] | Struct array which contains, the transaction data
+|`batches` | struct ProofOfEfficiency.BatchData[] | Struct array which the necessary data to append new batces ot the sequence
 Global exit root, timestamp and forced batches that are pop form the queue
 
 ### verifyBatch
@@ -53,7 +53,6 @@ Global exit root, timestamp and forced batches that are pop form the queue
   ) public
 ```
 Allows an aggregator to verify a batch
-If not exist the batch, the circuit will not be able to match the hash image of 0
 
 
 #### Parameters:

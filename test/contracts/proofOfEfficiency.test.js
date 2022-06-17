@@ -122,7 +122,7 @@ describe('Proof of efficiency', () => {
 
         const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
 
-        // Sequence
+        // Sequence batch
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
@@ -177,7 +177,7 @@ describe('Proof of efficiency', () => {
 
         const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
 
-        // Sequence
+        // Sequence batches
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 2);
@@ -211,7 +211,6 @@ describe('Proof of efficiency', () => {
     });
 
     it('sequenceBatches should sequence multiple batches and force batches', async () => {
-        // Force batch
         const l2txDataForceBatch = '0x123456';
         const maticAmount = await proofOfEfficiencyContract.calculateForceProverFee();
         const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
@@ -222,6 +221,7 @@ describe('Proof of efficiency', () => {
 
         const lastForcedBatch = (await proofOfEfficiencyContract.lastForceBatch()) + 1;
 
+        // Force batch
         await expect(proofOfEfficiencyContract.forceBatch(l2txDataForceBatch, maticAmount))
             .to.emit(proofOfEfficiencyContract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
@@ -285,7 +285,7 @@ describe('Proof of efficiency', () => {
         sequence.timestamp = currentTimestamp;
         sequence.forceBatchesTimestamp.pop();
 
-        // Sequence
+        // Sequence Bathces
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 3);
@@ -351,13 +351,12 @@ describe('Proof of efficiency', () => {
 
         const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
 
-        // Mess with timestamp
         let currentTimestamp = (await ethers.provider.getBlock()).timestamp;
         await ethers.provider.send('evm_increaseTime', [1]); // evm_setNextBlockTimestamp
 
         sequence.timestamp = currentTimestamp + 2; // bigger than current block tiemstamp
 
-        // revert because sender is not super sequencer
+        // revert because timestamp is more than the current one
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
             .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Timestamp must be inside range');
 
@@ -365,9 +364,9 @@ describe('Proof of efficiency', () => {
         await ethers.provider.send('evm_increaseTime', [1]);
 
         sequence.timestamp = currentTimestamp;
-        sequence2.timestamp = currentTimestamp - 1; // can't be smaller than the last one
+        sequence2.timestamp = currentTimestamp - 1;
 
-        // revert because sender is not super sequencer
+        // revert because the second sequence has less timestamp than the previous batch
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
             .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Timestamp must be inside range');
 
@@ -377,7 +376,7 @@ describe('Proof of efficiency', () => {
         sequence.timestamp = currentTimestamp + 1; // edge case, same timestamp as the block
         sequence2.timestamp = currentTimestamp + 1;
 
-        // Sequence
+        // Sequence Batches
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 2);
@@ -414,6 +413,7 @@ describe('Proof of efficiency', () => {
 
         const lastForceBatch = await proofOfEfficiencyContract.lastForceBatch();
 
+        // Force batch
         await expect(proofOfEfficiencyContract.forceBatch(l2txData, maticAmount))
             .to.emit(proofOfEfficiencyContract, 'ForceBatch')
             .withArgs(lastForceBatch + 1, lastGlobalExitRoot, deployer.address, '0x');
@@ -508,7 +508,7 @@ describe('Proof of efficiency', () => {
         ).to.emit(maticTokenContract, 'Approval');
 
         const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
-        // Sequence
+        // Sequence Batches
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
@@ -539,6 +539,7 @@ describe('Proof of efficiency', () => {
             ),
         ).to.be.revertedWith('ProofOfEfficiency::verifyBatch: batch does not match');
 
+        // Verify batch
         await expect(
             proofOfEfficiencyContract.connect(aggregator).verifyBatch(newLocalExitRoot, newStateRoot, numBatch, proofA, proofB, proofC),
         ).to.emit(proofOfEfficiencyContract, 'VerifyBatch')
@@ -591,6 +592,7 @@ describe('Proof of efficiency', () => {
             await aggregator.getAddress(),
         );
 
+        // Verify batch
         await expect(
             proofOfEfficiencyContract.connect(aggregator).verifyBatch(
                 newLocalExitRoot,
