@@ -665,7 +665,6 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequence.timestamp,
-            deployer.address,
         );
 
         // Compute Js input
@@ -677,7 +676,6 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequence.timestamp,
-            deployer.address,
         );
 
         // Check the input parameters are correct
@@ -745,7 +743,6 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
-            deployer.address,
         );
 
         // Compute Js input
@@ -757,7 +754,6 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
-            deployer.address,
         );
 
         // Check the input parameters are correct

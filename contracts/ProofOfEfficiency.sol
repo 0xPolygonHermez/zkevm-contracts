@@ -320,15 +320,19 @@ contract ProofOfEfficiency {
                     newLocalExitRoot,
                     batchHashData,
                     numBatch,
-                    timestamp,
-                    msg.sender // Front-running protection
+                    timestamp
                 )
             )
         ) % _RFIELD;
 
         // Verify proof
         require(
-            rollupVerifier.verifyProof(proofA, proofB, proofC, [input]),
+            rollupVerifier.verifyProof(
+                proofA,
+                proofB,
+                proofC,
+                [input, uint256(uint160(msg.sender))]
+            ),
             "ProofOfEfficiency::verifyBatch: INVALID_PROOF"
         );
 
@@ -344,7 +348,6 @@ contract ProofOfEfficiency {
         matic.safeTransfer(msg.sender, maticFee);
 
         // TODO Could delete batchData
-
         emit VerifyBatch(numBatch, msg.sender);
     }
 

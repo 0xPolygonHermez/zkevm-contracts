@@ -44,7 +44,6 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param batchHashData Batch hash data
      * @param numBatch num batch
      * @param timestamp num batch
-     * @param msgSender msg sender
      */
     function calculateCircuitInput(
         bytes32 currentStateRoot,
@@ -53,8 +52,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 newLocalExitRoot,
         bytes32 batchHashData,
         uint64 numBatch,
-        uint64 timestamp,
-        address msgSender
+        uint64 timestamp
     ) public pure returns (uint256) {
         uint256 input = uint256(
             keccak256(
@@ -65,8 +63,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     newLocalExitRoot,
                     batchHashData,
                     numBatch,
-                    timestamp,
-                    msgSender
+                    timestamp
                 )
             )
         ) % _RFIELD;
@@ -110,8 +107,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     newLocalExitRoot,
                     batchHashData,
                     numBatch,
-                    timestamp,
-                    msg.sender // Front-running protection
+                    timestamp
                 )
             )
         ) % _RFIELD;
@@ -154,8 +150,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
-                timestamp,
-                msg.sender // Front-running protection
+                timestamp
             );
     }
 

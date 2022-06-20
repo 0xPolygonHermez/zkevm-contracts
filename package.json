@@ -36,7 +36,7 @@
     "@openzeppelin/contracts-upgradeable": "^4.6.0",
     "@openzeppelin/hardhat-upgrades": "^1.18.0",
     "@openzeppelin/test-helpers": "^0.5.15",
-    "@polygon-hermez/zkevm-commonjs": "github:hermeznetwork/zkevm-commonjs#feature/poeV2Hash",
+    "@polygon-hermez/zkevm-commonjs": "github:hermeznetwork/zkevm-commonjs#v0.0.27",
     "chai": "^4.3.4",
     "circomlibjs": "0.1.1",
     "dotenv": "^8.2.0",
