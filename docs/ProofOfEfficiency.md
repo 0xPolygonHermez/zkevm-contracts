@@ -13,7 +13,9 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     contract IGlobalExitRootManager _globalExitRootManager,
     contract IERC20 _matic,
     contract IVerifierRollup _rollupVerifier,
-    bytes32 genesisRoot
+    bytes32 genesisRoot,
+    address _trustedSequencer,
+    bool _forceBatchAllowed
   ) public
 ```
 
@@ -25,6 +27,8 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 |`_matic` | contract IERC20 | MATIC token address
 |`_rollupVerifier` | contract IVerifierRollup | rollup verifier address
 |`genesisRoot` | bytes32 | rollup genesis root
+|`_trustedSequencer` | address | trusted sequencer address
+|`_forceBatchAllowed` | bool | indicates wheather the force batch functionality is available
 
 ### sequenceBatches
 ```solidity
@@ -116,7 +120,7 @@ Allow the current trusted sequencer to set a new trusted sequencer
 ### setForceBatchAllowed
 ```solidity
   function setForceBatchAllowed(
-    bool _forceBatchAllowed
+    bool newForceBatchAllowed
   ) public
 ```
 Allow the current trusted sequencer to allow/disallow the forceBatch functionality
@@ -125,7 +129,21 @@ Allow the current trusted sequencer to allow/disallow the forceBatch functionali
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_forceBatchAllowed` | bool | Whether is allowed or not the forceBatch functionality
+|`newForceBatchAllowed` | bool | Whether is allowed or not the forceBatch functionality
+
+### setTrustedSequencerURL
+```solidity
+  function setTrustedSequencerURL(
+    string newTrustedSequencerURL
+  ) public
+```
+Allow the trusted sequencer to set the trusted sequencer URL
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newTrustedSequencerURL` | string | URL of trusted sequencer
 
 ### calculateForceProverFee
 ```solidity
@@ -169,4 +187,28 @@ Emitted when forced batches are sequenced by not the trusted sequencer
 ```
 
 Emitted when a aggregator verifies a new batch
+
+### SetTrustedSequencer
+```solidity
+  event SetTrustedSequencer(
+  )
+```
+
+Emitted when a trusted sequencer update his address
+
+### SetForceBatchAllowed
+```solidity
+  event SetForceBatchAllowed(
+  )
+```
+
+Emitted when a trusted sequencer update the forcebatch boolean
+
+### SetTrustedSequencerURL
+```solidity
+  event SetTrustedSequencerURL(
+  )
+```
+
+Emitted when a trusted sequencer update his URL
 

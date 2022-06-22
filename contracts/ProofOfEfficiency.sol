@@ -94,6 +94,9 @@ contract ProofOfEfficiency {
     // Rollup verifier interface
     IVerifierRollup public rollupVerifier;
 
+    // Trusted sequencer URL
+    string public trustedSequencerURL;
+
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
@@ -120,10 +123,27 @@ contract ProofOfEfficiency {
     event VerifyBatch(uint64 indexed numBatch, address indexed aggregator);
 
     /**
+     * @dev Emitted when a trusted sequencer update his address
+     */
+    event SetTrustedSequencer(address newTrustedSequencer);
+
+    /**
+     * @dev Emitted when a trusted sequencer update the forcebatch boolean
+     */
+    event SetForceBatchAllowed(bool newForceBatchAllowed);
+
+    /**
+     * @dev Emitted when a trusted sequencer update his URL
+     */
+    event SetTrustedSequencerURL(string newTrustedSequencerURL);
+
+    /**
      * @param _globalExitRootManager global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier rollup verifier address
      * @param genesisRoot rollup genesis root
+     * @param _trustedSequencer trusted sequencer address
+     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
      */
     constructor(
         IGlobalExitRootManager _globalExitRootManager,
@@ -471,17 +491,34 @@ contract ProofOfEfficiency {
         onlyTrustedSequencer
     {
         trustedSequencer = newTrustedSequencer;
+
+        emit SetTrustedSequencer(newTrustedSequencer);
     }
 
     /**
      * @notice Allow the current trusted sequencer to allow/disallow the forceBatch functionality
-     * @param _forceBatchAllowed Whether is allowed or not the forceBatch functionality
+     * @param newForceBatchAllowed Whether is allowed or not the forceBatch functionality
      */
-    function setForceBatchAllowed(bool _forceBatchAllowed)
+    function setForceBatchAllowed(bool newForceBatchAllowed)
         public
         onlyTrustedSequencer
     {
-        forceBatchAllowed = _forceBatchAllowed;
+        forceBatchAllowed = newForceBatchAllowed;
+
+        emit SetForceBatchAllowed(newForceBatchAllowed);
+    }
+
+    /**
+     * @notice Allow the trusted sequencer to set the trusted sequencer URL
+     * @param newTrustedSequencerURL URL of trusted sequencer
+     */
+    function setTrustedSequencerURL(string memory newTrustedSequencerURL)
+        public
+        onlyTrustedSequencer
+    {
+        trustedSequencerURL = newTrustedSequencerURL;
+
+        emit SetTrustedSequencerURL(newTrustedSequencerURL);
     }
 
     /**

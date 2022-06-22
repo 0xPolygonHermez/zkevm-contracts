@@ -52,7 +52,7 @@ describe('Global Exit Root L2', () => {
         const key = newRoot;
         const storagePosition = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [key, mapStoragePosition]);
         const storageValue = await ethers.provider.getStorageAt(globalExitRootManager.address, storagePosition);
-        expect(blockNumber, storageValue);
+        expect(blockNumber).to.be.equal(ethers.BigNumber.from(storageValue).toNumber());
 
         // Check rollup exit root
         const newRootRollupExitRoot = ethers.utils.hexlify(ethers.utils.randomBytes(32));

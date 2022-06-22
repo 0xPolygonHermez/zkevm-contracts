@@ -91,6 +91,37 @@ describe('Proof of efficiency', () => {
         expect(await proofOfEfficiencyContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
     });
 
+    it('should check setters of trusted sequencer', async () => {
+        expect(await proofOfEfficiencyContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
+        expect(await proofOfEfficiencyContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
+        expect(await proofOfEfficiencyContract.trustedSequencerURL()).to.be.equal('');
+
+        // setForceBatchAllowed
+        await expect(proofOfEfficiencyContract.setForceBatchAllowed(!allowForcebatches))
+            .to.be.revertedWith('ProofOfEfficiency::onlyTrustedSequencer: only trusted sequencer');
+        await expect(
+            proofOfEfficiencyContract.connect(trustedSequencer).setForceBatchAllowed(!allowForcebatches),
+        ).to.emit(proofOfEfficiencyContract, 'SetForceBatchAllowed').withArgs(!allowForcebatches);
+        expect(await proofOfEfficiencyContract.forceBatchAllowed()).to.be.equal(!allowForcebatches);
+
+        // setTrustedSequencer
+        await expect(proofOfEfficiencyContract.setTrustedSequencer(deployer.address))
+            .to.be.revertedWith('ProofOfEfficiency::onlyTrustedSequencer: only trusted sequencer');
+        await expect(
+            proofOfEfficiencyContract.connect(trustedSequencer).setTrustedSequencer(deployer.address),
+        ).to.emit(proofOfEfficiencyContract, 'SetTrustedSequencer').withArgs(deployer.address);
+        expect(await proofOfEfficiencyContract.trustedSequencer()).to.be.equal(deployer.address);
+
+        // setTrustedSequencerURL
+        const url = 'https://test';
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).setTrustedSequencerURL(url))
+            .to.be.revertedWith('ProofOfEfficiency::onlyTrustedSequencer: only trusted sequencer');
+        await expect(
+            proofOfEfficiencyContract.connect(deployer).setTrustedSequencerURL(url),
+        ).to.emit(proofOfEfficiencyContract, 'SetTrustedSequencerURL').withArgs(url);
+        expect(await proofOfEfficiencyContract.trustedSequencerURL()).to.be.equal(url);
+    });
+
     it('should sequence a batch as super sequencer', async () => {
         const l2txData = '0x123456';
         const maticAmount = await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE();

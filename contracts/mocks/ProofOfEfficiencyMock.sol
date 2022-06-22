@@ -12,17 +12,19 @@ import "hardhat/console.sol";
  */
 contract ProofOfEfficiencyMock is ProofOfEfficiency {
     /**
-     * @param _globalExitRootManager Global exit root manager address
+     * @param _globalExitRootManager global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier rollup verifier address
      * @param genesisRoot rollup genesis root
+     * @param _trustedSequencer trusted sequencer address
+     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
      */
     constructor(
         IGlobalExitRootManager _globalExitRootManager,
         IERC20 _matic,
         IVerifierRollup _rollupVerifier,
         bytes32 genesisRoot,
-        address _superSequencerAddress,
+        address _trustedSequencer,
         bool _forceBatchAllowed
     )
         ProofOfEfficiency(
@@ -30,7 +32,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             _matic,
             _rollupVerifier,
             genesisRoot,
-            _superSequencerAddress,
+            _trustedSequencer,
             _forceBatchAllowed
         )
     {}
