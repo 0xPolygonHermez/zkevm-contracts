@@ -1,8 +1,8 @@
 Contract responsible for managing the state and the updates of it of the L2 Hermez network.
-There will be trusted sequencer, wich are able to send transactions.
-Any user can force some transaction and the sequence will have a timeout to add them in the queue
+There will be a trusted sequencer, which is able to send transactions.
+Any user can force some transaction and the sequencer will have a timeout to add them in the queue
 THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
-The aggregators will be able to actually verify the sequenced state with zkProofs and able withdraws from hermez L2
+The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from hermez L2
 To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
 
 
@@ -15,7 +15,8 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     contract IVerifierRollup _rollupVerifier,
     bytes32 genesisRoot,
     address _trustedSequencer,
-    bool _forceBatchAllowed
+    bool _forceBatchAllowed,
+    string _trustedSequencerURL
   ) public
 ```
 
@@ -29,6 +30,7 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 |`genesisRoot` | bytes32 | rollup genesis root
 |`_trustedSequencer` | address | trusted sequencer address
 |`_forceBatchAllowed` | bool | indicates wheather the force batch functionality is available
+|`_trustedSequencerURL` | string | trusted sequencer URL
 
 ### sequenceBatches
 ```solidity
@@ -43,7 +45,7 @@ Allows a sequencer to send multiple batches of L2 transactions
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct ProofOfEfficiency.BatchData[] | Struct array which the necessary data to append new batces ot the sequence
-Global exit root, timestamp and forced batches that are pop form the queue
+Global exit root, timestamp and forced batches that are pop from the queue
 
 ### verifyBatch
 ```solidity
@@ -76,8 +78,7 @@ Allows an aggregator to verify a batch
     uint256 maticAmount
   ) public
 ```
-Allows a sequencer/user to force a batch of L2 transactions,
-This tx can be front-runned by the trusted sequencer
+Allows a sequencer/user to force a batch of L2 transactions.
 This should be used only in extreme cases where the trusted sequencer does not work as expected
 
 
@@ -101,7 +102,7 @@ Also allow in any time the trusted sequencer to append forceBatches to the seque
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`numForcedBatches` | uint64 | number of forced batches tha will be added to the queue
+|`numForcedBatches` | uint64 | number of forced batches that will be added to the sequence
 
 ### setTrustedSequencer
 ```solidity
