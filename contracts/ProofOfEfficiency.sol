@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.9;
+pragma solidity 0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./interfaces/IVerifierRollup.sol";
@@ -9,52 +8,93 @@ import "./interfaces/IGlobalExitRootManager.sol";
 
 /**
  * Contract responsible for managing the state and the updates of it of the L2 Hermez network.
- * There will be sequencer, wich are able to send transactions. That transactions will be stored in the contract.
- * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
- * To enter and exit of the L2 network will be used a Bridge smart contract
+ * There will be a trusted sequencer, which is able to send transactions.
+ * Any user can force some transaction and the sequencer will have a timeout to add them in the queue
+ * THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
+ * The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from hermez L2
+ * To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
  */
-contract ProofOfEfficiency is Ownable {
+contract ProofOfEfficiency {
     using SafeERC20 for IERC20;
 
-    struct Sequencer {
-        string sequencerURL;
-        uint64 chainID;
+    struct BatchData {
+        bytes transactions;
+        bytes32 globalExitRoot;
+        uint64 timestamp;
+        uint64[] forceBatchesTimestamp;
     }
 
-    struct BatchData {
+    /**
+     * @notice Struct which will be stored in the sequence mapping
+     * @param batchHashData Hash containing the necessary information to process a batch:
+     * This field will contain: keccak256(bytes transactions || bytes32 globalExitRoot || address sequencer)
+     * Note that in case of forceBatch, the previous hash is stored in the ForceBatches mapping, and this will remain empty
+     * @param timestamp Timestamp of the batch
+     * @param forceBatchNum Indicates which forceBatch is sequenced, 0 if it's a regular batch
+     */
+    struct SequencedBatch {
+        bytes32 batchHashData; // This field will contain the hashed data including the transactions
+        uint64 timestamp;
+        uint64 forceBatchNum;
+    }
+
+    /**
+     * @notice Struct which will be stored in the force batch mapping
+     * @param batchHashData Hash containing the necessary information to process a batch:
+     * This field will contain: keccak256(bytes transactions || bytes32 globalExitRoot || address sequencer)
+     * @param maticFee Matic fee that will be payed to the aggregator
+     * @param minTimestamp Timestamp that will be an down limit of the batch once this is added to the sequence
+     */
+    struct ForcedBatchData {
         bytes32 batchHashData;
-        uint256 maticCollateral;
+        uint256 maticFee;
+        uint64 minTimestamp;
     }
 
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
-    // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
-    bytes4 private constant _PERMIT_SIGNATURE = 0xd505accf;
-
-    // Default chainID
-    uint64 public constant DEFAULT_CHAIN_ID = 1000;
-
     // MATIC token address
     IERC20 public immutable matic;
 
-    // Mapping of registered sequencers
-    mapping(address => Sequencer) public sequencers;
+    // trusted sequencer prover Fee
+    uint256 public constant TRUSTED_SEQUENCER_FEE = 0.1 ether; // TODO should be defined
 
-    // Current registered sequencers
-    uint32 public numSequencers;
+    // Max batch byte length
+    uint256 public constant MAX_BATCH_LENGTH = type(uint256).max; // TODO should be defined
+
+    // Force batch timeout
+    uint64 public constant FORCE_BATCH_TIMEOUT = 7 days;
+
+    // Queue of forced batches with their associated data
+    mapping(uint64 => ForcedBatchData) public forcedBatches;
+
+    // Queue of batches that defines the virtual state
+    mapping(uint64 => SequencedBatch) public sequencedBatches;
+
+    // Last sequenced timestamp
+    uint64 public lastTimestamp;
 
     // Last batch sent by the sequencers
-    uint64 public lastBatchSent;
+    uint64 public lastBatchSequenced;
 
-    // Mapping of sent batches with their associated data
-    mapping(uint64 => BatchData) public sentBatches;
+    // Last forced batch included in the sequence
+    uint64 public lastForceBatchSequenced;
+
+    // Last forced batch
+    uint64 public lastForceBatch;
 
     // Last batch verified by the aggregators
     uint64 public lastVerifiedBatch;
 
-    // Global Exit Root address
+    // trusted sequencer address
+    address public trustedSequencer;
+
+    // Indicates whether the force batch functionality is available
+    bool public forceBatchAllowed;
+
+    // Global Exit Root interface
     IGlobalExitRootManager public globalExitRootManager;
 
     // Current state root
@@ -63,26 +103,31 @@ contract ProofOfEfficiency is Ownable {
     // Current local exit root
     bytes32 public currentLocalExitRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
 
+    // Rollup verifier interface
     IVerifierRollup public rollupVerifier;
 
+    // Trusted sequencer URL
+    string public trustedSequencerURL;
+
     /**
-     * @dev Emitted when a sequencer is registered or updated
+     * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
-    event RegisterSequencer(
-        address sequencerAddress,
-        string sequencerURL,
-        uint64 chainID
+    event SequenceBatches(uint64 indexed numBatch);
+
+    /**
+     * @dev Emitted when a batch is forced
+     */
+    event ForceBatch(
+        uint64 indexed forceBatchNum,
+        bytes32 lastGlobalExitRoot,
+        address sequencer,
+        bytes transactions
     );
 
     /**
-     * @dev Emitted when a sequencer sends a new batch of transactions
+     * @dev Emitted when forced batches are sequenced by not the trusted sequencer
      */
-    event SendBatch(
-        uint64 indexed numBatch,
-        address indexed sequencer,
-        uint64 batchChainID,
-        bytes32 lastGlobalExitRoot
-    );
+    event SequenceForceBatches(uint64 indexed numBatch);
 
     /**
      * @dev Emitted when a aggregator verifies a new batch
@@ -90,99 +135,173 @@ contract ProofOfEfficiency is Ownable {
     event VerifyBatch(uint64 indexed numBatch, address indexed aggregator);
 
     /**
+     * @dev Emitted when a trusted sequencer update his address
+     */
+    event SetTrustedSequencer(address newTrustedSequencer);
+
+    /**
+     * @dev Emitted when a trusted sequencer update the forcebatch boolean
+     */
+    event SetForceBatchAllowed(bool newForceBatchAllowed);
+
+    /**
+     * @dev Emitted when a trusted sequencer update his URL
+     */
+    event SetTrustedSequencerURL(string newTrustedSequencerURL);
+
+    /**
      * @param _globalExitRootManager global exit root manager address
      * @param _matic MATIC token address
-     * @param _rollupVerifier rollup verifier addressv
+     * @param _rollupVerifier rollup verifier address
      * @param genesisRoot rollup genesis root
+     * @param _trustedSequencer trusted sequencer address
+     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
+     * @param _trustedSequencerURL trusted sequencer URL
      */
     constructor(
         IGlobalExitRootManager _globalExitRootManager,
         IERC20 _matic,
         IVerifierRollup _rollupVerifier,
-        bytes32 genesisRoot
+        bytes32 genesisRoot,
+        address _trustedSequencer,
+        bool _forceBatchAllowed,
+        string memory _trustedSequencerURL
     ) {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
         currentStateRoot = genesisRoot;
+        trustedSequencer = _trustedSequencer;
+        forceBatchAllowed = _forceBatchAllowed;
+        trustedSequencerURL = _trustedSequencerURL;
+    }
+
+    modifier onlyTrustedSequencer() {
+        require(
+            trustedSequencer == msg.sender,
+            "ProofOfEfficiency::onlyTrustedSequencer: only trusted sequencer"
+        );
+        _;
+    }
+
+    // Only for the current version
+    modifier isForceBatchAllowed() {
+        require(
+            forceBatchAllowed == true,
+            "ProofOfEfficiency::isForceBatchAllowed: only if force batch is available"
+        );
+        _;
     }
 
     /**
-     * @notice Allows to register a new sequencer or update the sequencer URL
-     * @param sequencerURL sequencer RPC URL
+     * @notice Allows a sequencer to send multiple batches of L2 transactions
+     * @param batches Struct array which the necessary data to append new batces ot the sequence
+     * Global exit root, timestamp and forced batches that are pop from the queue
      */
-    function registerSequencer(string memory sequencerURL) public {
-        require(
-            bytes(sequencerURL).length != 0,
-            "ProofOfEfficiency::registerSequencer: NOT_VALID_URL"
-        );
+    function sequenceBatches(BatchData[] memory batches)
+        public
+        onlyTrustedSequencer
+    {
+        uint256 batchesNum = batches.length;
 
-        if (sequencers[msg.sender].chainID == 0) {
-            // New sequencer is registered
-            numSequencers++;
-            sequencers[msg.sender].sequencerURL = sequencerURL;
-            sequencers[msg.sender].chainID = DEFAULT_CHAIN_ID + numSequencers;
-        } else {
-            // Sequencer already exist, update the URL
-            sequencers[msg.sender].sequencerURL = sequencerURL;
-        }
-        emit RegisterSequencer(
+        // Pay collateral for every batch submitted
+        matic.safeTransferFrom(
             msg.sender,
-            sequencerURL,
-            sequencers[msg.sender].chainID
-        );
-    }
-
-    /**
-     * @notice Allows a sequencer to send a batch of L2 transactions
-     * @param transactions L2 ethereum transactions EIP-155 with signature:
-     * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-     * @param maticAmount Max amount of MATIC tokens that the sequencer is willing to pay
-     */
-    function sendBatch(bytes memory transactions, uint256 maticAmount) public {
-        // Calculate matic collateral
-        uint256 maticCollateral = calculateSequencerCollateral();
-
-        require(
-            maticCollateral <= maticAmount,
-            "ProofOfEfficiency::sendBatch: NOT_ENOUGH_MATIC"
+            address(this),
+            TRUSTED_SEQUENCER_FEE * batchesNum
         );
 
-        matic.safeTransferFrom(msg.sender, address(this), maticCollateral);
+        // Store storage variables in memory, to save gas, because will be overrided multiple times
+        uint64 currentTimestamp = lastTimestamp;
+        uint64 currentBatchSequenced = lastBatchSequenced;
+        uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
 
-        // Get globalExitRoot global exit root
-        bytes32 lastGlobalExitRoot = globalExitRootManager
-            .getLastGlobalExitRoot();
+        for (uint256 i = 0; i < batchesNum; i++) {
+            // Load current sequence
+            BatchData memory currentBatch = batches[i];
 
-        // Set chainID
-        uint64 batchChainID;
-        if (sequencers[msg.sender].chainID != 0) {
-            batchChainID = sequencers[msg.sender].chainID;
-        } else {
-            // If the sequencer is not registered use the default chainID
-            batchChainID = DEFAULT_CHAIN_ID;
+            // Check Batch parameters are correct
+            require(
+                currentBatch.timestamp >= currentTimestamp &&
+                    currentBatch.timestamp <= block.timestamp,
+                "ProofOfEfficiency::sequenceBatches: Timestamp must be inside range"
+            );
+
+            require(
+                currentBatch.globalExitRoot == bytes32(0) ||
+                    globalExitRootManager.globalExitRootMap(
+                        currentBatch.globalExitRoot
+                    ) !=
+                    0,
+                "ProofOfEfficiency::sequenceBatches: Global exit root must exist"
+            );
+
+            require(
+                currentBatch.transactions.length < MAX_BATCH_LENGTH,
+                "ProofOfEfficiency::sequenceBatches: Transactions bytes overflow"
+            );
+
+            // Update sequencedBatches mapping
+            currentBatchSequenced++;
+            sequencedBatches[currentBatchSequenced].batchHashData = keccak256(
+                abi.encodePacked(
+                    currentBatch.transactions,
+                    currentBatch.globalExitRoot,
+                    msg.sender
+                )
+            );
+            sequencedBatches[currentBatchSequenced].timestamp = currentBatch
+                .timestamp;
+
+            // Update timestamp
+            currentTimestamp = currentBatch.timestamp;
+
+            // Loop thorugh forceBatches
+            for (
+                uint256 j = 0;
+                j < currentBatch.forceBatchesTimestamp.length;
+                j++
+            ) {
+                currentLastForceBatchSequenced++;
+
+                // Check timestamp is inside window
+                uint64 currentForcedTimestamp = currentBatch
+                    .forceBatchesTimestamp[j];
+
+                require(
+                    currentForcedTimestamp >= currentTimestamp &&
+                        currentForcedTimestamp >=
+                        forcedBatches[currentLastForceBatchSequenced]
+                            .minTimestamp &&
+                        currentForcedTimestamp <= block.timestamp,
+                    "ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be inside range"
+                );
+
+                currentBatchSequenced++;
+                // Add forceBatch to the sequence
+                // Instead of adding the hashData, just add a "pointer" to the forced Batch
+                sequencedBatches[currentBatchSequenced]
+                    .forceBatchNum = currentLastForceBatchSequenced;
+                sequencedBatches[currentBatchSequenced]
+                    .timestamp = currentForcedTimestamp;
+
+                // Update timestamp
+                currentTimestamp = currentForcedTimestamp;
+            }
         }
 
-        // Update sentBatches mapping
-        lastBatchSent++;
-        sentBatches[lastBatchSent].batchHashData = keccak256(
-            abi.encodePacked(
-                transactions,
-                lastGlobalExitRoot,
-                uint64(block.timestamp),
-                msg.sender,
-                batchChainID,
-                lastBatchSent
-            )
+        // This check is done here just once for gas saving
+        require(
+            currentLastForceBatchSequenced <= lastForceBatch,
+            "ProofOfEfficiency::sequenceBatches: Force batches overflow"
         );
-        sentBatches[lastBatchSent].maticCollateral = maticCollateral;
 
-        emit SendBatch(
-            lastBatchSent,
-            msg.sender,
-            batchChainID,
-            lastGlobalExitRoot
-        );
+        // Store back the storage variables
+        lastTimestamp = currentTimestamp;
+        lastBatchSequenced = currentBatchSequenced;
+        lastForceBatchSequenced = currentLastForceBatchSequenced;
+
+        emit SequenceBatches(lastBatchSequenced);
     }
 
     /**
@@ -205,11 +324,30 @@ contract ProofOfEfficiency is Ownable {
         // sanity check
         require(
             numBatch == lastVerifiedBatch + 1,
-            "ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH"
+            "ProofOfEfficiency::verifyBatch: batch does not match"
+        );
+
+        require(
+            numBatch <= lastBatchSequenced,
+            "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
         );
 
         // Calculate Circuit Input
-        BatchData memory currentBatch = sentBatches[numBatch];
+        uint64 timestamp = sequencedBatches[numBatch].timestamp;
+        bytes32 batchHashData;
+        uint256 maticFee;
+
+        // If it's a force batch, forcebatchNum indicates which one is, otherwise is a regular batch
+        if (sequencedBatches[numBatch].forceBatchNum == 0) {
+            batchHashData = sequencedBatches[numBatch].batchHashData;
+            maticFee = TRUSTED_SEQUENCER_FEE;
+        } else {
+            ForcedBatchData memory currentForcedBatch = forcedBatches[
+                sequencedBatches[numBatch].forceBatchNum
+            ];
+            batchHashData = currentForcedBatch.batchHashData;
+            maticFee = currentForcedBatch.maticFee;
+        }
 
         uint256 input = uint256(
             keccak256(
@@ -218,14 +356,21 @@ contract ProofOfEfficiency is Ownable {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    currentBatch.batchHashData
+                    batchHashData,
+                    numBatch,
+                    timestamp
                 )
             )
         ) % _RFIELD;
 
         // Verify proof
         require(
-            rollupVerifier.verifyProof(proofA, proofB, proofC, [input]),
+            rollupVerifier.verifyProof(
+                proofA,
+                proofB,
+                proofC,
+                [input, uint256(uint160(msg.sender))]
+            ),
             "ProofOfEfficiency::verifyBatch: INVALID_PROOF"
         );
 
@@ -238,16 +383,167 @@ contract ProofOfEfficiency is Ownable {
         globalExitRootManager.updateExitRoot(currentLocalExitRoot);
 
         // Get MATIC reward
-        matic.safeTransfer(msg.sender, currentBatch.maticCollateral);
+        matic.safeTransfer(msg.sender, maticFee);
 
+        // TODO Could delete batchData
         emit VerifyBatch(numBatch, msg.sender);
+    }
+
+    /**
+     * @notice Allows a sequencer/user to force a batch of L2 transactions.
+     * This should be used only in extreme cases where the trusted sequencer does not work as expected
+     * @param transactions L2 ethereum transactions EIP-155 with signature:
+     * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * @param maticAmount Max amount of MATIC tokens that the sender is willing to pay
+     */
+    function forceBatch(bytes memory transactions, uint256 maticAmount)
+        public
+        isForceBatchAllowed
+    {
+        // Calculate matic collateral
+        uint256 maticFee = calculateForceProverFee();
+
+        require(
+            maticFee <= maticAmount,
+            "ProofOfEfficiency::forceBatch: not enough matic"
+        );
+
+        require(
+            transactions.length < MAX_BATCH_LENGTH,
+            "ProofOfEfficiency::forceBatch: Transactions bytes overflow"
+        );
+
+        matic.safeTransferFrom(msg.sender, address(this), maticFee);
+
+        // Get globalExitRoot global exit root
+        bytes32 lastGlobalExitRoot = globalExitRootManager
+            .getLastGlobalExitRoot();
+
+        // Update forcedBatches mapping
+        lastForceBatch++;
+        forcedBatches[lastForceBatch].batchHashData = keccak256(
+            abi.encodePacked(transactions, lastGlobalExitRoot, msg.sender)
+        );
+        forcedBatches[lastForceBatch].maticFee = maticFee;
+        forcedBatches[lastForceBatch].minTimestamp = uint64(block.timestamp);
+
+        // In order to avoid synch attacks, if the msg.sender is not the origin
+        // Add the transaction bytes in the event
+        if (msg.sender == tx.origin) {
+            emit ForceBatch(lastForceBatch, lastGlobalExitRoot, msg.sender, "");
+        } else {
+            emit ForceBatch(
+                lastForceBatch,
+                lastGlobalExitRoot,
+                msg.sender,
+                transactions
+            );
+        }
+    }
+
+    /**
+     * @notice Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
+     * Also allow in any time the trusted sequencer to append forceBatches to the sequence in order to avoid timeout issues
+     * @param numForcedBatches number of forced batches that will be added to the sequence
+     */
+    function sequenceForceBatches(uint64 numForcedBatches)
+        public
+        isForceBatchAllowed
+    {
+        uint64 newLastForceBatchSequenced = lastForceBatchSequenced +
+            numForcedBatches;
+
+        require(
+            numForcedBatches > 0,
+            "ProofOfEfficiency::sequenceForceBatch: Must force at least 1 batch"
+        );
+
+        require(
+            newLastForceBatchSequenced <= lastForceBatch,
+            "ProofOfEfficiency::sequenceForceBatch: Force batch invalid"
+        );
+
+        // If message sender is not the trusted sequencer, must wait the timeout
+        if (msg.sender != trustedSequencer) {
+            // The last batch will have the most restrictive timestamp
+            require(
+                forcedBatches[newLastForceBatchSequenced].minTimestamp +
+                    FORCE_BATCH_TIMEOUT <=
+                    block.timestamp,
+                "ProofOfEfficiency::sequenceForceBatch: Forced batch is not in timeout period"
+            );
+        }
+
+        // Store storage variables in memory, to save gas, because will be overrided multiple times
+        uint64 currentBatchSequenced = lastBatchSequenced;
+        uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
+
+        // Sequence force batches
+        for (uint256 j = 0; j < numForcedBatches; j++) {
+            currentLastForceBatchSequenced++;
+
+            // Add forceBatch to the sequence
+            // Instead of adding the hashData, just add a "pointer" to the forced Batch
+            currentBatchSequenced++;
+            sequencedBatches[currentBatchSequenced]
+                .forceBatchNum = currentLastForceBatchSequenced;
+            sequencedBatches[currentBatchSequenced].timestamp = uint64(
+                block.timestamp
+            );
+        }
+
+        // Store back the storage variables
+        lastTimestamp = uint64(block.timestamp);
+        lastBatchSequenced = currentBatchSequenced;
+        lastForceBatchSequenced = currentLastForceBatchSequenced;
+
+        emit SequenceForceBatches(lastBatchSequenced);
+    }
+
+    /**
+     * @notice Allow the current trusted sequencer to set a new trusted sequencer
+     * @param newTrustedSequencer Address of the new trusted sequuencer
+     */
+    function setTrustedSequencer(address newTrustedSequencer)
+        public
+        onlyTrustedSequencer
+    {
+        trustedSequencer = newTrustedSequencer;
+
+        emit SetTrustedSequencer(newTrustedSequencer);
+    }
+
+    /**
+     * @notice Allow the current trusted sequencer to allow/disallow the forceBatch functionality
+     * @param newForceBatchAllowed Whether is allowed or not the forceBatch functionality
+     */
+    function setForceBatchAllowed(bool newForceBatchAllowed)
+        public
+        onlyTrustedSequencer
+    {
+        forceBatchAllowed = newForceBatchAllowed;
+
+        emit SetForceBatchAllowed(newForceBatchAllowed);
+    }
+
+    /**
+     * @notice Allow the trusted sequencer to set the trusted sequencer URL
+     * @param newTrustedSequencerURL URL of trusted sequencer
+     */
+    function setTrustedSequencerURL(string memory newTrustedSequencerURL)
+        public
+        onlyTrustedSequencer
+    {
+        trustedSequencerURL = newTrustedSequencerURL;
+
+        emit SetTrustedSequencerURL(newTrustedSequencerURL);
     }
 
     /**
      * @notice Function to calculate the sequencer collateral depending on the congestion of the batches
      // TODO
      */
-    function calculateSequencerCollateral() public view returns (uint256) {
-        return 1 ether * uint256(1 + lastBatchSent - lastVerifiedBatch);
+    function calculateForceProverFee() public view returns (uint256) {
+        return 1 ether * uint256(1 + lastForceBatch - lastForceBatchSequenced);
     }
 }

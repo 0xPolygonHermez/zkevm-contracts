@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.9;
+pragma solidity 0.8.15;
 
 import "../GlobalExitRootManager.sol";
 
@@ -21,6 +21,6 @@ contract GlobalExitRootManagerMock is GlobalExitRootManager {
      * @param globalExitRoot New global exit root
      */
     function setLastGlobalExitRoot(bytes32 globalExitRoot) public {
-        globalExitRootMap[lastGlobalExitRootNum] = globalExitRoot;
+        globalExitRootMap[globalExitRoot] = lastGlobalExitRootNum;
     }
 }

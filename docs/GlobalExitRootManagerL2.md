@@ -30,12 +30,3 @@ Update the exit root of one of the networks and the global exit root
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newRoot` | bytes32 | new exit tree root
 
-### getLastGlobalExitRoot
-```solidity
-  function getLastGlobalExitRoot(
-  ) public returns (bytes32)
-```
-Return last global exit root
-
-
-

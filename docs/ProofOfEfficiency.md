@@ -1,7 +1,9 @@
 Contract responsible for managing the state and the updates of it of the L2 Hermez network.
-There will be sequencer, wich are able to send transactions. That transactions will be stored in the contract.
-The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
-To enter and exit of the L2 network will be used a Bridge smart contract
+There will be a trusted sequencer, which is able to send transactions.
+Any user can force some transaction and the sequencer will have a timeout to add them in the queue
+THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
+The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from hermez L2
+To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
 
 
 ## Functions
@@ -11,7 +13,10 @@ To enter and exit of the L2 network will be used a Bridge smart contract
     contract IGlobalExitRootManager _globalExitRootManager,
     contract IERC20 _matic,
     contract IVerifierRollup _rollupVerifier,
-    bytes32 genesisRoot
+    bytes32 genesisRoot,
+    address _trustedSequencer,
+    bool _forceBatchAllowed,
+    string _trustedSequencerURL
   ) public
 ```
 
@@ -21,39 +26,26 @@ To enter and exit of the L2 network will be used a Bridge smart contract
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_globalExitRootManager` | contract IGlobalExitRootManager | global exit root manager address
 |`_matic` | contract IERC20 | MATIC token address
-|`_rollupVerifier` | contract IVerifierRollup | rollup verifier addressv
+|`_rollupVerifier` | contract IVerifierRollup | rollup verifier address
 |`genesisRoot` | bytes32 | rollup genesis root
+|`_trustedSequencer` | address | trusted sequencer address
+|`_forceBatchAllowed` | bool | indicates wheather the force batch functionality is available
+|`_trustedSequencerURL` | string | trusted sequencer URL
 
-### registerSequencer
+### sequenceBatches
 ```solidity
-  function registerSequencer(
-    string sequencerURL
+  function sequenceBatches(
+    struct ProofOfEfficiency.BatchData[] batches
   ) public
 ```
-Allows to register a new sequencer or update the sequencer URL
+Allows a sequencer to send multiple batches of L2 transactions
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`sequencerURL` | string | sequencer RPC URL
-
-### sendBatch
-```solidity
-  function sendBatch(
-    bytes transactions,
-    uint256 maticAmount
-  ) public
-```
-Allows a sequencer to send a batch of L2 transactions
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`transactions` | bytes | L2 ethereum transactions EIP-155 with signature:
-rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-|`maticAmount` | uint256 | Max amount of MATIC tokens that the sequencer is willing to pay
+|`batches` | struct ProofOfEfficiency.BatchData[] | Struct array which the necessary data to append new batces ot the sequence
+Global exit root, timestamp and forced batches that are pop from the queue
 
 ### verifyBatch
 ```solidity
@@ -79,9 +71,84 @@ Allows an aggregator to verify a batch
 |`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
 
-### calculateSequencerCollateral
+### forceBatch
 ```solidity
-  function calculateSequencerCollateral(
+  function forceBatch(
+    bytes transactions,
+    uint256 maticAmount
+  ) public
+```
+Allows a sequencer/user to force a batch of L2 transactions.
+This should be used only in extreme cases where the trusted sequencer does not work as expected
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`transactions` | bytes | L2 ethereum transactions EIP-155 with signature:
+rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+|`maticAmount` | uint256 | Max amount of MATIC tokens that the sender is willing to pay
+
+### sequenceForceBatches
+```solidity
+  function sequenceForceBatches(
+    uint64 numForcedBatches
+  ) public
+```
+Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
+Also allow in any time the trusted sequencer to append forceBatches to the sequence in order to avoid timeout issues
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`numForcedBatches` | uint64 | number of forced batches that will be added to the sequence
+
+### setTrustedSequencer
+```solidity
+  function setTrustedSequencer(
+    address newTrustedSequencer
+  ) public
+```
+Allow the current trusted sequencer to set a new trusted sequencer
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newTrustedSequencer` | address | Address of the new trusted sequuencer
+
+### setForceBatchAllowed
+```solidity
+  function setForceBatchAllowed(
+    bool newForceBatchAllowed
+  ) public
+```
+Allow the current trusted sequencer to allow/disallow the forceBatch functionality
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newForceBatchAllowed` | bool | Whether is allowed or not the forceBatch functionality
+
+### setTrustedSequencerURL
+```solidity
+  function setTrustedSequencerURL(
+    string newTrustedSequencerURL
+  ) public
+```
+Allow the trusted sequencer to set the trusted sequencer URL
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newTrustedSequencerURL` | string | URL of trusted sequencer
+
+### calculateForceProverFee
+```solidity
+  function calculateForceProverFee(
   ) public returns (uint256)
 ```
 Function to calculate the sequencer collateral depending on the congestion of the batches
@@ -90,21 +157,29 @@ Function to calculate the sequencer collateral depending on the congestion of th
 
 
 ## Events
-### RegisterSequencer
+### SequenceBatches
 ```solidity
-  event RegisterSequencer(
+  event SequenceBatches(
   )
 ```
 
-Emitted when a sequencer is registered or updated
+Emitted when the trusted sequencer sends a new batch of transactions
 
-### SendBatch
+### ForceBatch
 ```solidity
-  event SendBatch(
+  event ForceBatch(
   )
 ```
 
-Emitted when a sequencer sends a new batch of transactions
+Emitted when a batch is forced
+
+### SequenceForceBatches
+```solidity
+  event SequenceForceBatches(
+  )
+```
+
+Emitted when forced batches are sequenced by not the trusted sequencer
 
 ### VerifyBatch
 ```solidity
@@ -113,4 +188,28 @@ Emitted when a sequencer sends a new batch of transactions
 ```
 
 Emitted when a aggregator verifies a new batch
+
+### SetTrustedSequencer
+```solidity
+  event SetTrustedSequencer(
+  )
+```
+
+Emitted when a trusted sequencer update his address
+
+### SetForceBatchAllowed
+```solidity
+  event SetForceBatchAllowed(
+  )
+```
+
+Emitted when a trusted sequencer update the forcebatch boolean
+
+### SetTrustedSequencerURL
+```solidity
+  event SetTrustedSequencerURL(
+  )
+```
+
+Emitted when a trusted sequencer update his URL
 

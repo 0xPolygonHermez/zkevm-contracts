@@ -12,6 +12,8 @@ const genesis = require("./genesis.json")
 async function main() {
     const deployer = (await ethers.getSigners())[0];
     const networkIDMainnet = 0;
+    const forceBatchAllowed = true;
+    const trustedSequencer = deployer.address;
 
     /*
         Deployment MATIC
@@ -85,6 +87,8 @@ async function main() {
     console.log('maticTokenAddress:', maticTokenContract.address);
     console.log('verifierAddress:', verifierContract.address);
     console.log('genesisRoot:', genesisRootHex);
+    console.log('trustedSequencer:', trustedSequencer);
+    console.log('forceBatchAllowed:', forceBatchAllowed);
 
     const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
@@ -92,6 +96,8 @@ async function main() {
         maticTokenContract.address,
         verifierContract.address,
         genesisRootHex,
+        trustedSequencer,
+        forceBatchAllowed
     );
     await proofOfEfficiencyContract.deployed();
     expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
@@ -100,7 +106,6 @@ async function main() {
     console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
 
     const deploymentBlockNumber = (await proofOfEfficiencyContract.deployTransaction.wait()).blockNumber;
-    const defaultChainID = await proofOfEfficiencyContract.DEFAULT_CHAIN_ID();
 
     console.log('\n#######################');
     console.log('#####    Checks    #####');
@@ -109,7 +114,8 @@ async function main() {
     console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
     console.log('verifierMockAddress:', await proofOfEfficiencyContract.rollupVerifier());
     console.log('genesiRoot:', await proofOfEfficiencyContract.currentStateRoot());
-    console.log('DEFAULT_CHAIN_ID:', defaultChainID);
+    console.log('trustedSequencer:', await proofOfEfficiencyContract.trustedSequencer());
+    console.log('forceBatchAllowed:', await proofOfEfficiencyContract.forceBatchAllowed());
 
     // calculate address and private Keys:
     const DEFAULT_MNEMONIC = 'test test test test test test test test test test test junk';
@@ -147,10 +153,11 @@ async function main() {
         maticTokenAddress: maticTokenContract.address,
         verifierAddress: verifierContract.address,
         deployerAddress: deployer.address,
-        defaultChainID: defaultChainID.toNumber(),
         deploymentBlockNumber,
         genesisRoot: genesisRootHex,
         accountsL1Array,
+        trustedSequencer: deployer.address,
+        forceBatchAllowed
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
