@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.9;
+pragma solidity 0.8.15;
 
 import "../ProofOfEfficiency.sol";
 import "hardhat/console.sol";
@@ -18,6 +18,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param genesisRoot rollup genesis root
      * @param _trustedSequencer trusted sequencer address
      * @param _forceBatchAllowed indicates wheather the force batch functionality is available
+     * @param _trustedSequencerURL trusted sequencer URL
      */
     constructor(
         IGlobalExitRootManager _globalExitRootManager,
@@ -25,7 +26,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         IVerifierRollup _rollupVerifier,
         bytes32 genesisRoot,
         address _trustedSequencer,
-        bool _forceBatchAllowed
+        bool _forceBatchAllowed,
+        string memory _trustedSequencerURL
     )
         ProofOfEfficiency(
             _globalExitRootManager,
@@ -33,7 +35,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             _rollupVerifier,
             genesisRoot,
             _trustedSequencer,
-            _forceBatchAllowed
+            _forceBatchAllowed,
+            _trustedSequencerURL
         )
     {}
 
@@ -90,14 +93,20 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
 
         // Calculate Circuit Input
-        bytes32 batchHashData = sequencedBatches[numBatch].batchHashData;
         uint64 timestamp = sequencedBatches[numBatch].timestamp;
+        bytes32 batchHashData;
+        uint256 maticFee;
 
-        // The bachHashdata stores a pointer of a forceBatch instead of a hash
-        if ((batchHashData >> 64) == 0) {
-            // The bachHashdata stores a pointer of a forceBatch instead of a hash
-            batchHashData = forcedBatches[uint64(uint256(batchHashData))]
-                .batchHashData;
+        // If it's a force batch, forcebatchNum indicates which one is, otherwise is a regular batch
+        if (sequencedBatches[numBatch].forceBatchNum == 0) {
+            batchHashData = sequencedBatches[numBatch].batchHashData;
+            maticFee = TRUSTED_SEQUENCER_FEE;
+        } else {
+            ForcedBatchData memory currentForcedBatch = forcedBatches[
+                sequencedBatches[numBatch].forceBatchNum
+            ];
+            batchHashData = currentForcedBatch.batchHashData;
+            maticFee = currentForcedBatch.maticFee;
         }
 
         uint256 input = uint256(
@@ -134,14 +143,20 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
 
         // Calculate Circuit Input
-        bytes32 batchHashData = sequencedBatches[numBatch].batchHashData;
         uint64 timestamp = sequencedBatches[numBatch].timestamp;
+        bytes32 batchHashData;
+        uint256 maticFee;
 
-        // The bachHashdata stores a pointer of a forceBatch instead of a hash
-        if ((batchHashData >> 64) == 0) {
-            // The bachHashdata stores a pointer of a forceBatch instead of a hash
-            batchHashData = forcedBatches[uint64(uint256(batchHashData))]
-                .batchHashData;
+        // If it's a force batch, forcebatchNum indicates which one is, otherwise is a regular batch
+        if (sequencedBatches[numBatch].forceBatchNum == 0) {
+            batchHashData = sequencedBatches[numBatch].batchHashData;
+            maticFee = TRUSTED_SEQUENCER_FEE;
+        } else {
+            ForcedBatchData memory currentForcedBatch = forcedBatches[
+                sequencedBatches[numBatch].forceBatchNum
+            ];
+            batchHashData = currentForcedBatch.batchHashData;
+            maticFee = currentForcedBatch.maticFee;
         }
 
         return

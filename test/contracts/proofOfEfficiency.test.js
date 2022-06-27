@@ -24,6 +24,7 @@ describe('Proof of efficiency', () => {
 
     const networkIDMainnet = 0;
     const allowForcebatches = true;
+    const urlSequencer = 'https://testURl';
 
     beforeEach('Deploy contract', async () => {
         // load signers
@@ -72,6 +73,7 @@ describe('Proof of efficiency', () => {
             genesisRoot,
             trustedSequencer.address,
             allowForcebatches,
+            urlSequencer,
         );
         await proofOfEfficiencyContract.deployed();
 
@@ -94,7 +96,7 @@ describe('Proof of efficiency', () => {
     it('should check setters of trusted sequencer', async () => {
         expect(await proofOfEfficiencyContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
         expect(await proofOfEfficiencyContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
-        expect(await proofOfEfficiencyContract.trustedSequencerURL()).to.be.equal('');
+        expect(await proofOfEfficiencyContract.trustedSequencerURL()).to.be.equal(urlSequencer);
 
         // setForceBatchAllowed
         await expect(proofOfEfficiencyContract.setForceBatchAllowed(!allowForcebatches))
@@ -341,7 +343,8 @@ describe('Proof of efficiency', () => {
 
         const batchStruct2 = await proofOfEfficiencyContract.sequencedBatches(2);
         expect(batchStruct2.timestamp).to.be.equal(sequence.forceBatchesTimestamp[0]);
-        expect(batchStruct2.batchHashData).to.be.equal(ethers.utils.hexZeroPad(1, 32));
+        expect(batchStruct2.batchHashData).to.be.equal(ethers.utils.hexZeroPad(0, 32));
+        expect(batchStruct2.forceBatchNum).to.be.equal(1);
 
         const batchStruct3 = await proofOfEfficiencyContract.sequencedBatches(3);
         expect(batchStruct3.timestamp).to.be.equal(sequence2.timestamp);
@@ -518,7 +521,8 @@ describe('Proof of efficiency', () => {
         expect(batchStruct.timestamp).to.be.equal((await ethers.provider.getBlock()).timestamp);
 
         // Batch hash data contains pointer to force batch instead
-        expect(batchStruct.batchHashData).to.be.equal(ethers.utils.hexZeroPad(1, 32));
+        expect(batchStruct.batchHashData).to.be.equal(ethers.utils.hexZeroPad(0, 32));
+        expect(batchStruct.forceBatchNum).to.be.equal(1);
     });
 
     it('should verify a sequenced batch', async () => {
@@ -755,7 +759,8 @@ describe('Proof of efficiency', () => {
         expect(forcedBatchStruct.maticFee).to.be.equal(maticAmount);
 
         const sequencedBatch = await proofOfEfficiencyContract.sequencedBatches(lastForcedBatch);
-        expect(sequencedBatch.batchHashData).to.be.equal(ethers.utils.hexZeroPad(1, 32));
+        expect(sequencedBatch.batchHashData).to.be.equal(ethers.utils.hexZeroPad(0, 32));
+        expect(sequencedBatch.forceBatchNum).to.be.equal(1);
         expect(sequencedBatch.timestamp).to.be.equal(sequencedTimestmap);
 
         // Compute circuit input with the SC function
