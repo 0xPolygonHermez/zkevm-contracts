@@ -12,8 +12,9 @@ const genesis = require("./genesis.json")
 async function main() {
     const deployer = (await ethers.getSigners())[0];
     const networkIDMainnet = 0;
-    const forceBatchAllowed = true;
+    const forceBatchAllowed = deployParameters.forceBatchAllowed;
     const trustedSequencer = deployer.address;
+    const trustedSequencerURL = deployParameters.trustedSequencerURL || "https://testURl";
 
     /*
         Deployment MATIC
@@ -89,6 +90,7 @@ async function main() {
     console.log('genesisRoot:', genesisRootHex);
     console.log('trustedSequencer:', trustedSequencer);
     console.log('forceBatchAllowed:', forceBatchAllowed);
+    console.log('trustedSequencerURL:', trustedSequencerURL);
 
     const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
     const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
@@ -97,7 +99,8 @@ async function main() {
         verifierContract.address,
         genesisRootHex,
         trustedSequencer,
-        forceBatchAllowed
+        forceBatchAllowed,
+        trustedSequencerURL
     );
     await proofOfEfficiencyContract.deployed();
     expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
@@ -116,6 +119,7 @@ async function main() {
     console.log('genesiRoot:', await proofOfEfficiencyContract.currentStateRoot());
     console.log('trustedSequencer:', await proofOfEfficiencyContract.trustedSequencer());
     console.log('forceBatchAllowed:', await proofOfEfficiencyContract.forceBatchAllowed());
+    console.log('trustedSequencerURL:', await proofOfEfficiencyContract.trustedSequencerURL());
 
     // calculate address and private Keys:
     const DEFAULT_MNEMONIC = 'test test test test test test test test test test test junk';
@@ -157,7 +161,8 @@ async function main() {
         genesisRoot: genesisRootHex,
         accountsL1Array,
         trustedSequencer: deployer.address,
-        forceBatchAllowed
+        forceBatchAllowed,
+        trustedSequencerURL
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }

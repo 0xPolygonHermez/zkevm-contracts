@@ -80,6 +80,7 @@ async function main() {
           deployOutputParameters.genesisRoot,
           deployOutputParameters.trustedSequencer,
           deployOutputParameters.forceBatchAllowed,
+          deployOutputParameters.trustedSequencerURL,
         ]
       }
     );
