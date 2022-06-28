@@ -6,7 +6,7 @@ function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
 }
 const zero32bytes = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
-describe('Bridge Contract', () => {
+describe('Global Exit Root', () => {
     let rollup;
     let bridge;
 

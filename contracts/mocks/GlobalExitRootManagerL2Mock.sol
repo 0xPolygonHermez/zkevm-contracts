@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.9;
+pragma solidity 0.8.15;
 
 import "../GlobalExitRootManagerL2.sol";
 
@@ -23,7 +23,7 @@ contract GlobalExitRootManagerL2Mock is GlobalExitRootManagerL2 {
     function setLastGlobalExitRoot(bytes32 globalExitRoot, uint256 blockNumber)
         public
     {
-        globalExitRootMap[blockNumber] = globalExitRoot;
+        globalExitRootMap[globalExitRoot] = blockNumber;
     }
 
     /**

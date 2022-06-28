@@ -1,7 +1,7 @@
 {
   "name": "@polygon-hermez/contracts-zkevm",
   "description": "Core contracts for the Polygon Hermez zkEVM",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hermeznetwork/contracts-zkEVM.git"
@@ -30,13 +30,13 @@
   "license": "GPL-3.0",
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
-    "@nomiclabs/hardhat-etherscan": "^3.0.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/contracts": "^4.6.0",
     "@openzeppelin/contracts-upgradeable": "^4.6.0",
-    "@openzeppelin/hardhat-upgrades": "^1.11.0",
+    "@openzeppelin/hardhat-upgrades": "^1.18.0",
     "@openzeppelin/test-helpers": "^0.5.15",
-    "@polygon-hermez/zkevm-commonjs": "github:hermeznetwork/zkevm-commonjs#v0.0.12",
+    "@polygon-hermez/zkevm-commonjs": "github:hermeznetwork/zkevm-commonjs#v0.0.31",
     "chai": "^4.3.4",
     "circomlibjs": "0.1.1",
     "dotenv": "^8.2.0",
@@ -50,17 +50,16 @@
     "hardhat-gas-reporter": "^1.0.4",
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
-    "solc-0.8": "npm:solc@0.8.9",
+    "solc-0.8": "npm:solc@0.8.15",
     "solidity-coverage": "^0.7.17",
     "solidity-docgen": "^0.5.16"
   },
   "scripts": {
     "test": "npx hardhat test test/contracts/**.test.js",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates -e ./contracts/verifiers,./contracts/mocks",
-    "deploy:PoE:hardhat": "npx hardhat run deployment/testnet/deployPoETestnet.js --network hardhat",
-    "deploy:PoE1_5:hardhat": "npx hardhat run deployment/deployment_v1-5/deployPoE_v1-5.js --network hardhat",
-    "deploy:PoE1_5:goerli": "npx hardhat run deployment/deployment_v1-5/deployPoE_v1-5.js --network goerli",
-    "verify:PoE1_5:goerli": "npx hardhat run deployment/deployment_v1-5/verifyPoE_v1-5.js --network goerli",
+    "deploy:PoE2_0:hardhat": "npx hardhat run deployment/deployment_v2-0/deployPoE_v2-0.js --network hardhat",
+    "deploy:PoE2_0:goerli": "npx hardhat run deployment/deployment_v2-0/deployPoE_v2-0.js --network goerli",
+    "verify:PoE2_0:goerli": "npx hardhat run deployment/deployment_v2-0/verifyPoE_v2-0.js --network goerli",
     "lint": "npx eslint ./test && npx eslint ./docker/scripts",
     "lint:fix": "npx eslint ./test --fix && npx eslint ./docker/scripts --fix",
     "compile": "npx hardhat compile",

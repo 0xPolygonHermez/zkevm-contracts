@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.15;
 
 interface IGlobalExitRootManager {
     function getLastGlobalExitRoot() external view returns (bytes32);
 
     function updateExitRoot(bytes32 newRollupExitRoot) external;
 
-    function globalExitRootMap(uint256 globalExitRootNum)
+    function globalExitRootMap(bytes32 globalExitRootNum)
         external
-        returns (bytes32);
+        returns (uint256);
+
+    function lastGlobalExitRootNum() external returns (uint256);
 }

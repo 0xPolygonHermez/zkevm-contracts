@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.9;
+pragma solidity 0.8.15;
 
 import "../ProofOfEfficiency.sol";
 import "hardhat/console.sol";
@@ -12,22 +12,31 @@ import "hardhat/console.sol";
  */
 contract ProofOfEfficiencyMock is ProofOfEfficiency {
     /**
-     * @param _globalExitRootManager Global exit root manager address
+     * @param _globalExitRootManager global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier rollup verifier address
      * @param genesisRoot rollup genesis root
+     * @param _trustedSequencer trusted sequencer address
+     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
+     * @param _trustedSequencerURL trusted sequencer URL
      */
     constructor(
         IGlobalExitRootManager _globalExitRootManager,
         IERC20 _matic,
         IVerifierRollup _rollupVerifier,
-        bytes32 genesisRoot
+        bytes32 genesisRoot,
+        address _trustedSequencer,
+        bool _forceBatchAllowed,
+        string memory _trustedSequencerURL
     )
         ProofOfEfficiency(
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
-            genesisRoot
+            genesisRoot,
+            _trustedSequencer,
+            _forceBatchAllowed,
+            _trustedSequencerURL
         )
     {}
 
@@ -38,13 +47,17 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param newStateRoot New State root once the batch is processed
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param batchHashData Batch hash data
+     * @param numBatch num batch
+     * @param timestamp num batch
      */
     function calculateCircuitInput(
         bytes32 currentStateRoot,
         bytes32 currentLocalExitRoot,
         bytes32 newStateRoot,
         bytes32 newLocalExitRoot,
-        bytes32 batchHashData
+        bytes32 batchHashData,
+        uint64 numBatch,
+        uint64 timestamp
     ) public pure returns (uint256) {
         uint256 input = uint256(
             keccak256(
@@ -53,7 +66,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    batchHashData
+                    batchHashData,
+                    numBatch,
+                    timestamp
                 )
             )
         ) % _RFIELD;
@@ -69,7 +84,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
     function getNextCircuitInput(
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint32 numBatch
+        uint64 numBatch
     ) public view returns (uint256) {
         // sanity check
         require(
@@ -78,7 +93,21 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
 
         // Calculate Circuit Input
-        BatchData memory currentBatch = sentBatches[numBatch];
+        uint64 timestamp = sequencedBatches[numBatch].timestamp;
+        bytes32 batchHashData;
+        uint256 maticFee;
+
+        // If it's a force batch, forcebatchNum indicates which one is, otherwise is a regular batch
+        if (sequencedBatches[numBatch].forceBatchNum == 0) {
+            batchHashData = sequencedBatches[numBatch].batchHashData;
+            maticFee = TRUSTED_SEQUENCER_FEE;
+        } else {
+            ForcedBatchData memory currentForcedBatch = forcedBatches[
+                sequencedBatches[numBatch].forceBatchNum
+            ];
+            batchHashData = currentForcedBatch.batchHashData;
+            maticFee = currentForcedBatch.maticFee;
+        }
 
         uint256 input = uint256(
             keccak256(
@@ -87,7 +116,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     currentLocalExitRoot,
                     newStateRoot,
                     newLocalExitRoot,
-                    currentBatch.batchHashData
+                    batchHashData,
+                    numBatch,
+                    timestamp
                 )
             )
         ) % _RFIELD;
@@ -112,7 +143,21 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         );
 
         // Calculate Circuit Input
-        BatchData memory currentBatch = sentBatches[numBatch];
+        uint64 timestamp = sequencedBatches[numBatch].timestamp;
+        bytes32 batchHashData;
+        uint256 maticFee;
+
+        // If it's a force batch, forcebatchNum indicates which one is, otherwise is a regular batch
+        if (sequencedBatches[numBatch].forceBatchNum == 0) {
+            batchHashData = sequencedBatches[numBatch].batchHashData;
+            maticFee = TRUSTED_SEQUENCER_FEE;
+        } else {
+            ForcedBatchData memory currentForcedBatch = forcedBatches[
+                sequencedBatches[numBatch].forceBatchNum
+            ];
+            batchHashData = currentForcedBatch.batchHashData;
+            maticFee = currentForcedBatch.maticFee;
+        }
 
         return
             abi.encodePacked(
@@ -120,7 +165,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 currentLocalExitRoot,
                 newStateRoot,
                 newLocalExitRoot,
-                currentBatch.batchHashData
+                batchHashData,
+                numBatch,
+                timestamp
             );
     }
 
@@ -128,7 +175,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set state root
      * @param newStateRoot New State root ¡
      */
-    function setStateRoot(bytes32 newStateRoot) public onlyOwner {
+    function setStateRoot(bytes32 newStateRoot) public {
         currentStateRoot = newStateRoot;
     }
 
@@ -136,43 +183,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set Sequencer
      * @param newLocalExitRoot New exit root ¡
      */
-    function setExitRoot(bytes32 newLocalExitRoot) public onlyOwner {
+    function setExitRoot(bytes32 newLocalExitRoot) public {
         currentLocalExitRoot = newLocalExitRoot;
-    }
-
-    /**
-     * @notice Allows to register a new sequencer or update the sequencer URL
-     * @param sequencerURL sequencer RPC URL
-     */
-    function setSequencer(
-        address sequencer,
-        string memory sequencerURL,
-        uint32 chainID
-    ) public onlyOwner {
-        sequencers[sequencer].sequencerURL = sequencerURL;
-        sequencers[sequencer].chainID = chainID;
-    }
-
-    /**
-     * @notice VerifyBatchMock
-     */
-    function verifyBatchMock() public onlyOwner {
-        // Update state
-        lastVerifiedBatch++;
-        // Interact with bridge
-        globalExitRootManager.updateExitRoot(currentLocalExitRoot);
-        emit VerifyBatch(lastVerifiedBatch, msg.sender);
-    }
-
-    /**
-     * @notice Allows to set Batch
-     */
-    function setBatch(
-        bytes32 batchHashData,
-        uint256 maticCollateral,
-        uint32 batchNum
-    ) public onlyOwner {
-        sentBatches[batchNum].batchHashData = batchHashData;
-        sentBatches[batchNum].maticCollateral = maticCollateral;
     }
 }

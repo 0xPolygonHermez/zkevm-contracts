@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.15;
 
 /**
  * @dev Define interface verifier
@@ -10,6 +10,6 @@ interface IVerifierRollup {
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC,
-        uint256[1] calldata input
+        uint256[2] calldata input
     ) external view returns (bool);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.9;
+pragma solidity 0.8.15;
 
 /**
  * This contract will be used as a helper for all the sparse merkle tree related functions
@@ -107,7 +107,7 @@ contract DepositContract {
 
     /**
      * @notice Verify merkle proof
-     * @param token  Token address, 0 address is reserved for ehter
+     * @param token  Token address, 0 address is reserved for ether
      * @param amount Amount of tokens
      * @param originalNetwork Origin Network
      * @param destinationNetwork Network destination

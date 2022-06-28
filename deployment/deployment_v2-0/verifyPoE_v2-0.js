@@ -77,7 +77,10 @@ async function main() {
           deployOutputParameters.globalExitRootManagerAddress,
           deployOutputParameters.maticTokenAddress,
           deployOutputParameters.verifierAddress,
-          deployOutputParameters.genesisRoot
+          deployOutputParameters.genesisRoot,
+          deployOutputParameters.trustedSequencer,
+          deployOutputParameters.forceBatchAllowed,
+          deployOutputParameters.trustedSequencerURL,
         ]
       }
     );
