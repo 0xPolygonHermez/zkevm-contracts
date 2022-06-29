@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 const MerkleTreeBridge = require('@polygon-hermez/zkevm-commonjs').MTBridge;
 const {
     verifyMerkleProof,
-    calculateLeafValue,
+    getLeafValue,
 } = require('@polygon-hermez/zkevm-commonjs').mtBridgeUtils;
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
@@ -71,11 +71,14 @@ describe('Bridge Contract', () => {
 
     it('should bridge and verify merkle proof', async () => {
         const depositCount = await bridgeContract.depositCount();
-        const originalNetwork = networkIDMainnet;
+        const originNetwork = networkIDMainnet;
         const tokenAddress = tokenContract.address;
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
+
+        const metadata = ethers.constants.HashZero;
+        const metadataHash = ethers.utils.solidityKeccak256(['bytes32'], [metadata]);
 
         const balanceDeployer = await tokenContract.balanceOf(deployer.address);
         const balanceBridge = await tokenContract.balanceOf(bridgeContract.address);
@@ -91,13 +94,13 @@ describe('Bridge Contract', () => {
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 
-        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress))
+        await expect(bridgeContract.bridge(tokenAddress, destinationNetwork, destinationAddress, amount))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress, depositCount)
+            .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
             .withArgs(lastGlobalExitRootNum + 1, rootJSMainnet, rollupExitRoot);
 
@@ -115,11 +118,7 @@ describe('Bridge Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originalNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValue,
             proof,
             index,
             rootSCMainnet,
@@ -130,11 +129,14 @@ describe('Bridge Contract', () => {
     });
 
     it('should claim tokens from Mainnet to Mainnet', async () => {
-        const originalNetwork = networkIDMainnet;
+        const originNetwork = networkIDMainnet;
         const tokenAddress = tokenContract.address;
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = networkIDMainnet;
         const destinationAddress = acc1.address;
+
+        const metadata = ethers.utils.HashZero;
+        const metadataHash = ethers.utils.solidityKeccak256(['bytes32'], [metadata]);
 
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
         let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
@@ -142,7 +144,7 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, amount, destinationNetwork, destinationAddress, metadataHash);
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -174,7 +176,7 @@ describe('Bridge Contract', () => {
         expect(await bridgeContract.verifyMerkleProof(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -189,7 +191,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -206,7 +208,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -217,7 +219,7 @@ describe('Bridge Contract', () => {
             .to.emit(bridgeContract, 'ClaimEvent')
             .withArgs(
                 index,
-                originalNetwork,
+                originNetwork,
                 tokenAddress,
                 amount,
                 destinationAddress,
@@ -228,7 +230,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -239,7 +241,7 @@ describe('Bridge Contract', () => {
     });
 
     it('should claim tokens from Rollup to Mainnet', async () => {
-        const originalNetwork = networkIDRollup;
+        const originNetwork = networkIDRollup;
         const tokenAddress = ethers.utils.getAddress(ethers.utils.hexlify(ethers.utils.randomBytes(20)));
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = networkIDMainnet;
@@ -251,7 +253,7 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTreeRollup = new MerkleTreeBridge(height);
-        const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
         merkleTreeRollup.add(leafValue);
 
         // check merkle root with SC
@@ -283,7 +285,7 @@ describe('Bridge Contract', () => {
         expect(await bridgeContract.verifyMerkleProof(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -309,7 +311,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -320,30 +322,30 @@ describe('Bridge Contract', () => {
             .to.emit(bridgeContract, 'ClaimEvent')
             .withArgs(
                 index,
-                originalNetwork,
+                originNetwork,
                 tokenAddress,
                 amount,
                 destinationAddress,
             ).to.emit(bridgeContract, 'NewWrappedToken')
-            .withArgs(originalNetwork, tokenAddress, precalculateWrappedErc20)
+            .withArgs(originNetwork, tokenAddress, precalculateWrappedErc20)
             .to.emit(newWrappedToken, 'Transfer')
             .withArgs(ethers.constants.AddressZero, deployer.address, amount);
 
         // Assert maps created
-        const newTokenInfo = await bridgeContract.addressToTokenInfo(precalculateWrappedErc20);
+        const newTokenInfo = await bridgeContract.wrappedTokenToTokenInfo(precalculateWrappedErc20);
 
-        expect(newTokenInfo.originalNetwork).to.be.equal(networkIDRollup);
+        expect(newTokenInfo.originNetwork).to.be.equal(networkIDRollup);
         expect(newTokenInfo.originalTokenAddress).to.be.equal(tokenAddress);
         expect(await bridgeContract.getTokenWrappedAddress(networkIDRollup, tokenAddress)).to.be.equal(precalculateWrappedErc20);
         expect(await bridgeContract.getTokenWrappedAddress(networkIDRollup, tokenAddress)).to.be.equal(precalculateWrappedErc20);
 
-        expect(await bridgeContract.tokenInfoToAddress(salt)).to.be.equal(precalculateWrappedErc20);
+        expect(await bridgeContract.tokenInfoToWrappedToken(salt)).to.be.equal(precalculateWrappedErc20);
 
         // Can't claim because nullifier
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -375,8 +377,8 @@ describe('Bridge Contract', () => {
         const merkleTreeMainnet = new MerkleTreeBridge(height);
         // Imporant calcualte leaf with origin token address no wrapped token address
         const originalTokenAddress = tokenAddress;
-        const leafValueMainnet = calculateLeafValue(
-            originalNetwork,
+        const leafValueMainnet = getLeafValue(
+            originNetwork,
             originalTokenAddress,
             amount,
             newDestinationNetwork,
@@ -388,7 +390,7 @@ describe('Bridge Contract', () => {
         // Tokens are burnt
         await expect(bridgeContract.bridge(wrappedTokenAddress, amount, newDestinationNetwork, destinationAddress))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(originalTokenAddress, amount, originalNetwork, newDestinationNetwork, destinationAddress, depositCount)
+            .withArgs(originalTokenAddress, amount, originNetwork, newDestinationNetwork, destinationAddress, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
             .withArgs(Number(lastGlobalExitRootNum) + 1, rootJSMainnet, rollupExitRoot)
             .to.emit(newWrappedToken, 'Transfer')
@@ -411,7 +413,7 @@ describe('Bridge Contract', () => {
         expect(await bridgeContract.verifyMerkleProof(
             originalTokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             newDestinationNetwork,
             destinationAddress,
             proofMainnet,
@@ -425,7 +427,7 @@ describe('Bridge Contract', () => {
 
     it('should bridge and sync the current root with events', async () => {
         const depositCount = await bridgeContract.depositCount();
-        const originalNetwork = networkIDMainnet;
+        const originNetwork = networkIDMainnet;
         const tokenAddress = ethers.constants.AddressZero; // Ether
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = networkIDRollup;
@@ -434,13 +436,13 @@ describe('Bridge Contract', () => {
         // create 3 new deposit
         await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress, depositCount);
+            .withArgs(tokenAddress, amount, originNetwork, destinationNetwork, destinationAddress, depositCount);
         await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress, 1);
+            .withArgs(tokenAddress, amount, originNetwork, destinationNetwork, destinationAddress, 1);
         await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress, 2);
+            .withArgs(tokenAddress, amount, originNetwork, destinationNetwork, destinationAddress, 2);
 
         // Prepare merkle tree
         const height = 32;
@@ -451,8 +453,8 @@ describe('Bridge Contract', () => {
         const events = await bridgeContract.queryFilter(filter, 0, 'latest');
         events.forEach((e) => {
             const { args } = e;
-            const leafValue = calculateLeafValue(
-                originalNetwork,
+            const leafValue = getLeafValue(
+                originNetwork,
                 args.tokenAddres,
                 args.amount,
                 args.destinationNetwork,
@@ -470,7 +472,7 @@ describe('Bridge Contract', () => {
 
     it('should claim testing all the asserts', async () => {
         // Add a claim leaf to rollup exit tree
-        const originalNetwork = networkIDMainnet;
+        const originNetwork = networkIDMainnet;
         const tokenAddress = tokenContract.address;
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = networkIDMainnet;
@@ -482,7 +484,7 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -510,7 +512,7 @@ describe('Bridge Contract', () => {
         expect(await bridgeContract.verifyMerkleProof(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -522,7 +524,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -540,7 +542,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             networkIDRollup, // destination network rollup
             destinationAddress,
             proof,
@@ -553,7 +555,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -566,7 +568,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -578,7 +580,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -589,7 +591,7 @@ describe('Bridge Contract', () => {
             .to.emit(bridgeContract, 'ClaimEvent')
             .withArgs(
                 index,
-                originalNetwork,
+                originNetwork,
                 tokenAddress,
                 amount,
                 destinationAddress,
@@ -600,7 +602,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -612,7 +614,7 @@ describe('Bridge Contract', () => {
 
     it('should claim ether', async () => {
         // Add a claim leaf to rollup exit tree
-        const originalNetwork = networkIDMainnet;
+        const originNetwork = networkIDMainnet;
         const tokenAddress = ethers.constants.AddressZero; // ether
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = networkIDMainnet;
@@ -624,7 +626,7 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -652,7 +654,7 @@ describe('Bridge Contract', () => {
         expect(await bridgeContract.verifyMerkleProof(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -667,7 +669,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -696,7 +698,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,
@@ -707,7 +709,7 @@ describe('Bridge Contract', () => {
             .to.emit(bridgeContract, 'ClaimEvent')
             .withArgs(
                 index,
-                originalNetwork,
+                originNetwork,
                 tokenAddress,
                 amount,
                 destinationAddress,
@@ -721,7 +723,7 @@ describe('Bridge Contract', () => {
         await expect(bridgeContract.claim(
             tokenAddress,
             amount,
-            originalNetwork,
+            originNetwork,
             destinationNetwork,
             destinationAddress,
             proof,

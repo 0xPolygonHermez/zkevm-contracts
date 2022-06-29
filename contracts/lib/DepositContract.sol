@@ -56,28 +56,10 @@ contract DepositContract {
 
     /**
      * @notice Add a new leaf to the merkle tree
-     * @param token Token address, 0 address is reserved for ether
-     * @param amount Amount of tokens
-     * @param destinationNetwork Network destination
-     * @param destinationAddress Address destination
+     * @param leafHash Leaf hash
      */
-    function _deposit(
-        address token,
-        uint256 amount,
-        uint32 originalNetwork,
-        uint32 destinationNetwork,
-        address destinationAddress
-    ) internal {
-        // Compute new leaf
-        bytes32 node = keccak256(
-            abi.encodePacked(
-                originalNetwork,
-                token,
-                amount,
-                destinationNetwork,
-                destinationAddress
-            )
-        );
+    function _deposit(bytes32 leafHash) internal {
+        bytes32 node = leafHash;
 
         // Avoid overflowing the Merkle tree (and prevent edge case in computing `_branch`)
         require(
@@ -107,35 +89,18 @@ contract DepositContract {
 
     /**
      * @notice Verify merkle proof
-     * @param token  Token address, 0 address is reserved for ether
-     * @param amount Amount of tokens
-     * @param originalNetwork Origin Network
-     * @param destinationNetwork Network destination
-     * @param destinationAddress Address destination
+     * @param leafHash Leaf hash
      * @param smtProof Smt proof
      * @param index Index of the leaf
      * @param root Merkle root
      */
     function verifyMerkleProof(
-        address token,
-        uint256 amount,
-        uint32 originalNetwork,
-        uint32 destinationNetwork,
-        address destinationAddress,
+        bytes32 leafHash,
         bytes32[] memory smtProof,
         uint64 index,
         bytes32 root
     ) public pure returns (bool) {
-        // Calculate node
-        bytes32 node = keccak256(
-            abi.encodePacked(
-                originalNetwork,
-                token,
-                amount,
-                destinationNetwork,
-                destinationAddress
-            )
-        );
+        bytes32 node = leafHash;
 
         // Check merkle proof
         uint256 currrentIndex = index;
@@ -151,5 +116,35 @@ contract DepositContract {
         }
 
         return node == root;
+    }
+
+    /**
+     * @notice Given the leaf data returns the leaf value
+     * @param originNetwork Origin Network
+     * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param destinationNetwork Destination network
+     * @param destinationAddress Destination address
+     * @param amount Amount of tokens
+     * @param metadataHash Hash of the metadata
+     */
+    function getLeafValue(
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes32 metadataHash
+    ) public pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(
+                    originNetwork,
+                    originTokenAddress,
+                    destinationNetwork,
+                    destinationAddress,
+                    amount,
+                    metadataHash
+                )
+            );
     }
 }

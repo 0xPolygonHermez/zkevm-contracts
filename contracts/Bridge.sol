@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon Hermez
@@ -16,10 +17,10 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 contract Bridge is Ownable, DepositContract {
     using SafeERC20 for IERC20;
 
-    // Token information struct
+    // Wrapped Token information struct
     struct TokenInformation {
-        uint32 originalNetwork;
-        address originalTokenAddress;
+        uint32 originNetwork;
+        address originTokenAddress;
     }
 
     // Mainnet indentifier
@@ -31,11 +32,14 @@ contract Bridge is Ownable, DepositContract {
     // Leaf index --> claimed
     mapping(uint256 => bool) public claimNullifier;
 
-    // keccak256(OriginalNetwork || tokenAddress) --> L2 token address
-    mapping(bytes32 => address) public tokenInfoToAddress;
+    // keccak256(OriginNetwork || tokenAddress) --> Wrapped token address
+    mapping(bytes32 => address) public tokenInfoToWrappedToken;
 
-    // L2 token Address --> original token information
-    mapping(address => TokenInformation) public addressToTokenInfo;
+    // Wrapped token Address --> Origin token information
+    mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
+
+    // keccak256(tokenAddress || destinationNetwork) --> Is wrapped created
+    mapping(bytes32 => bool) public isWrappedCreated;
 
     // Global Exit Root address
     IGlobalExitRootManager public globalExitRootManager;
@@ -60,11 +64,12 @@ contract Bridge is Ownable, DepositContract {
      * @dev Emitted when a bridge some tokens to another network
      */
     event BridgeEvent(
-        address tokenAddres,
-        uint256 amount,
+        address originTokenAddress,
         uint32 originNetwork,
         uint32 destinationNetwork,
         address destinationAddress,
+        uint256 amount,
+        bytes metadata,
         uint32 depositCount
     );
 
@@ -73,41 +78,42 @@ contract Bridge is Ownable, DepositContract {
      */
     event ClaimEvent(
         uint32 index,
-        uint32 originalNetwork,
-        address token,
-        uint256 amount,
-        address destinationAddress
+        uint32 originNetwork,
+        address originTokenAddress,
+        address destinationAddress,
+        uint256 amount
     );
 
     /**
      * @dev Emitted when a a new wrapped token is created
      */
     event NewWrappedToken(
-        uint32 originalNetwork,
-        address originalTokenAddress,
+        uint32 originNetwork,
+        address originTokenAddress,
         address wrappedTokenAddress
     );
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
      * @param token Token address, 0 address is reserved for ether
-     * @param amount Amount of tokens
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
+     * @param amount Amount of tokens
      */
     function bridge(
         address token,
-        uint256 amount,
         uint32 destinationNetwork,
-        address destinationAddress
+        address destinationAddress,
+        uint256 amount
     ) public payable {
         require(
             destinationNetwork != networkID,
             "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
         );
 
-        address originalTokenAddress;
+        address originTokenAddress;
         uint32 originNetwork;
+        bytes memory metadata;
 
         if (token == address(0)) {
             // Ether transfer
@@ -119,16 +125,16 @@ contract Bridge is Ownable, DepositContract {
             // Ether is treated as ether from mainnet
             originNetwork = MAINNET_NETWORK_ID;
         } else {
-            TokenInformation memory tokenInfo = addressToTokenInfo[token];
+            TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[token];
 
-            if (tokenInfo.originalTokenAddress != address(0)) {
+            if (tokenInfo.originTokenAddress != address(0)) {
                 // The token is a wrapped token from another network
 
                 // Burn tokens
                 TokenWrapped(token).burn(msg.sender, amount);
 
-                originalTokenAddress = tokenInfo.originalTokenAddress;
-                originNetwork = tokenInfo.originalNetwork;
+                originTokenAddress = tokenInfo.originTokenAddress;
+                originNetwork = tokenInfo.originNetwork;
             } else {
                 // The token is from this network.
                 IERC20(token).safeTransferFrom(
@@ -137,26 +143,43 @@ contract Bridge is Ownable, DepositContract {
                     amount
                 );
 
-                originalTokenAddress = token;
+                originTokenAddress = token;
                 originNetwork = networkID;
+
+                // Check if the wrapped token is already
+                bytes32 isWrappedCreatedHash = keccak256(
+                    abi.encodePacked(token, destinationNetwork)
+                );
+                if (!isWrappedCreated[isWrappedCreatedHash]) {
+                    isWrappedCreated[isWrappedCreatedHash] = true;
+                    metadata = abi.encode(
+                        IERC20Metadata(token).name(),
+                        IERC20Metadata(token).symbol(),
+                        IERC20Metadata(token).decimals()
+                    );
+                }
             }
         }
 
         emit BridgeEvent(
-            originalTokenAddress,
-            amount,
+            originTokenAddress,
             originNetwork,
             destinationNetwork,
             destinationAddress,
+            amount,
+            metadata,
             uint32(depositCount)
         );
 
         _deposit(
-            originalTokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress
+            getLeafValue(
+                originNetwork,
+                originTokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                keccak256(metadata)
+            )
         );
 
         // Update the new exit root to the exit root manager
@@ -165,37 +188,33 @@ contract Bridge is Ownable, DepositContract {
 
     /**
      * @notice Verify merkle proof and withdraw tokens/ether
-     * @param originalTokenAddress  Original token address, 0 address is reserved for ether
-     * @param amount Amount of tokens
-     * @param originalNetwork Original network
-     * @param destinationNetwork Network destination, must be 0 ( mainnet)
-     * @param destinationAddress Address destination
      * @param smtProof Smt proof
      * @param index Index of the leaf
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
+     * @param originNetwork Origin network
+     * @param originTokenAddress  Origin token address, 0 address is reserved for ether
+     * @param destinationNetwork Network destination, must be 0 ( mainnet)
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens
+     * @param metadata abi encoded metadata if any, empty otherwise
      */
     function claim(
-        address originalTokenAddress,
-        uint256 amount,
-        uint32 originalNetwork,
-        uint32 destinationNetwork,
-        address destinationAddress,
         bytes32[] memory smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
-        bytes32 rollupExitRoot
+        bytes32 rollupExitRoot,
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes memory metadata
     ) public {
         // Check nullifier
         require(
             claimNullifier[index] == false,
             "Bridge::claim: ALREADY_CLAIMED"
-        );
-
-        // Destination network must be networkID
-        require(
-            destinationNetwork == networkID,
-            "Bridge::claim: DESTINATION_NETWORK_DOES_NOT_MATCH"
         );
 
         // Check that the merkle proof belongs to some global exit root
@@ -207,15 +226,24 @@ contract Bridge is Ownable, DepositContract {
             "Bridge::claim: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
         );
 
+        // Destination network must be networkID
+        require(
+            destinationNetwork == networkID,
+            "Bridge::claim: DESTINATION_NETWORK_DOES_NOT_MATCH"
+        );
+
         if (networkID == MAINNET_NETWORK_ID) {
             // Verify merkle proof using rollup exit root
             require(
                 verifyMerkleProof(
-                    originalTokenAddress,
-                    amount,
-                    originalNetwork,
-                    destinationNetwork,
-                    destinationAddress,
+                    getLeafValue(
+                        originNetwork,
+                        originTokenAddress,
+                        destinationNetwork,
+                        destinationAddress,
+                        amount,
+                        keccak256(metadata)
+                    ),
                     smtProof,
                     index,
                     rollupExitRoot
@@ -226,11 +254,14 @@ contract Bridge is Ownable, DepositContract {
             // Verify merkle proof using mainnet exit root
             require(
                 verifyMerkleProof(
-                    originalTokenAddress,
-                    amount,
-                    originalNetwork,
-                    destinationNetwork,
-                    destinationAddress,
+                    getLeafValue(
+                        originNetwork,
+                        originTokenAddress,
+                        destinationNetwork,
+                        destinationAddress,
+                        amount,
+                        keccak256(metadata)
+                    ),
                     smtProof,
                     index,
                     mainnetExitRoot
@@ -243,7 +274,7 @@ contract Bridge is Ownable, DepositContract {
         claimNullifier[index] = true;
 
         // Transfer funds
-        if (originalTokenAddress == address(0)) {
+        if (originTokenAddress == address(0)) {
             // Transfer ether
             /* solhint-disable avoid-low-level-calls */
             (bool success, ) = destinationAddress.call{value: amount}(
@@ -252,9 +283,9 @@ contract Bridge is Ownable, DepositContract {
             require(success, "Bridge::claim: ETH_TRANSFER_FAILED");
         } else {
             // Transfer tokens
-            if (originalNetwork == networkID) {
+            if (originNetwork == networkID) {
                 // The token is an ERC20 from this network
-                IERC20(originalTokenAddress).safeTransfer(
+                IERC20(originTokenAddress).safeTransfer(
                     destinationAddress,
                     amount
                 );
@@ -262,9 +293,9 @@ contract Bridge is Ownable, DepositContract {
                 // The tokens is not from this network
                 // Create a wrapper for the token if not exist yet
                 bytes32 tokenInfoHash = keccak256(
-                    abi.encodePacked(originalNetwork, originalTokenAddress)
+                    abi.encodePacked(originNetwork, originTokenAddress)
                 );
-                address wrappedToken = tokenInfoToAddress[tokenInfoHash];
+                address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
 
                 if (wrappedToken == address(0)) {
                     // Create a new wrapped erc20
@@ -275,26 +306,34 @@ contract Bridge is Ownable, DepositContract {
                         )
                     );
 
+                    // Get ERC20 metadata
+                    (
+                        string memory name,
+                        string memory symbol,
+                        uint8 decimals
+                    ) = abi.decode(metadata, (string, string, uint8));
+
+                    // Initialize wrapped token
                     newWrappedToken.initialize(
-                        "name",
-                        "symbol",
-                        18,
+                        name,
+                        symbol,
+                        decimals,
                         destinationAddress,
                         amount
                     );
 
                     // Create mappings
-                    tokenInfoToAddress[tokenInfoHash] = address(
+                    tokenInfoToWrappedToken[tokenInfoHash] = address(
                         newWrappedToken
                     );
 
-                    addressToTokenInfo[
+                    wrappedTokenToTokenInfo[
                         address(newWrappedToken)
-                    ] = TokenInformation(originalNetwork, originalTokenAddress);
+                    ] = TokenInformation(originNetwork, originTokenAddress);
 
                     emit NewWrappedToken(
-                        originalNetwork,
-                        originalTokenAddress,
+                        originNetwork,
+                        originTokenAddress,
                         address(newWrappedToken)
                     );
                 } else {
@@ -306,42 +345,40 @@ contract Bridge is Ownable, DepositContract {
 
         emit ClaimEvent(
             index,
-            originalNetwork,
-            originalTokenAddress,
-            amount,
-            destinationAddress
+            originNetwork,
+            originTokenAddress,
+            destinationAddress,
+            amount
         );
     }
 
     /**
      * @notice Returns the precalculated address of a wrapper using the token information
-     * @param originalNetwork Original network
-     * @param originalTokenAddress Original token address, 0 address is reserved for ether
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin token address, 0 address is reserved for ether
      */
     function precalculatedWrapperAddress(
-        uint32 originalNetwork,
-        address originalTokenAddress
+        uint32 originNetwork,
+        address originTokenAddress
     ) public view returns (address) {
         bytes32 salt = keccak256(
-            abi.encodePacked(originalNetwork, originalTokenAddress)
+            abi.encodePacked(originNetwork, originTokenAddress)
         );
         return Clones.predictDeterministicAddress(tokenImplementation, salt);
     }
 
     /**
      * @notice Returns the address of a wrapper using the token information if already exist
-     * @param originalNetwork Original network
-     * @param originalTokenAddress Original token address, 0 address is reserved for ether
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin token address, 0 address is reserved for ether
      */
     function getTokenWrappedAddress(
-        uint32 originalNetwork,
-        address originalTokenAddress
+        uint32 originNetwork,
+        address originTokenAddress
     ) public view returns (address) {
         return
-            tokenInfoToAddress[
-                keccak256(
-                    abi.encodePacked(originalNetwork, originalTokenAddress)
-                )
+            tokenInfoToWrappedToken[
+                keccak256(abi.encodePacked(originNetwork, originTokenAddress))
             ];
     }
 }

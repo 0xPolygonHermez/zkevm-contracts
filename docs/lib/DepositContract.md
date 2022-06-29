@@ -15,10 +15,7 @@ Computes and returns the merkle root
 ### _deposit
 ```solidity
   function _deposit(
-    address token,
-    uint256 amount,
-    uint32 destinationNetwork,
-    uint32 destinationAddress
+    bytes32 leafHash
   ) internal
 ```
 Add a new leaf to the merkle tree
@@ -27,19 +24,12 @@ Add a new leaf to the merkle tree
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | address | Token address, 0 address is reserved for ether
-|`amount` | uint256 | Amount of tokens
-|`destinationNetwork` | uint32 | Network destination
-|`destinationAddress` | uint32 | Address destination
+|`leafHash` | bytes32 | Leaf hash
 
 ### verifyMerkleProof
 ```solidity
   function verifyMerkleProof(
-    address token,
-    uint256 amount,
-    uint32 originalNetwork,
-    uint32 destinationNetwork,
-    address destinationAddress,
+    bytes32 leafHash,
     bytes32[] smtProof,
     uint64 index,
     bytes32 root
@@ -51,12 +41,32 @@ Verify merkle proof
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | address |  Token address, 0 address is reserved for ether
-|`amount` | uint256 | Amount of tokens
-|`originalNetwork` | uint32 | Origin Network
-|`destinationNetwork` | uint32 | Network destination
-|`destinationAddress` | address | Address destination
+|`leafHash` | bytes32 | Leaf hash
 |`smtProof` | bytes32[] | Smt proof
 |`index` | uint64 | Index of the leaf
 |`root` | bytes32 | Merkle root
+
+### getLeafValue
+```solidity
+  function getLeafValue(
+    uint32 originNetwork,
+    address originTokenAddress,
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amount,
+    bytes32 metadataHash
+  ) public returns (bytes32)
+```
+Given the leaf data returns the leaf value
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`originNetwork` | uint32 | Origin Network
+|`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
+|`destinationNetwork` | uint32 | Destination network
+|`destinationAddress` | address | Destination address
+|`amount` | uint256 | Amount of tokens
+|`metadataHash` | bytes32 | Hash of the metadata
 

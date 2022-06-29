@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 const MerkleTreeBridge = require('@polygon-hermez/zkevm-commonjs').MTBridge;
 const {
     verifyMerkleProof,
-    calculateLeafValue,
+    getLeafValue,
 } = require('@polygon-hermez/zkevm-commonjs').mtBridgeUtils;
 
 describe('Deposit Contract', () => {
@@ -22,19 +22,37 @@ describe('Deposit Contract', () => {
     });
 
     it('should deposit and verify merkle proof', async () => {
-        const originalNetwork = 0;
+        const originNetwork = 0;
         const tokenAddress = deployer.address;
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = 1;
         const destinationAddress = deployer.address;
+        const metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
-        await depositContractMock.deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
+        await depositContractMock.deposit(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
-        merkleTree.add(leafValue);
+        const leafValueJs = getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+        const leafValueSC = await depositContractMock.getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+        expect(leafValueJs).to.be.equal(leafValueSC);
+
+        merkleTree.add(leafValueJs);
 
         const rootSC = await depositContractMock.getDepositRoot();
         const rootJS = merkleTree.getRoot();
@@ -46,13 +64,10 @@ describe('Deposit Contract', () => {
         const proof = merkleTree.getProofTreeByIndex(index);
 
         // verify merkle proof
-        expect(verifyMerkleProof(leafValue, proof, index, rootSC)).to.be.equal(true);
+        expect(verifyMerkleProof(leafValueJs, proof, index, rootSC)).to.be.equal(true);
+
         expect(await depositContractMock.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originalNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValueJs,
             proof,
             index,
             rootSC,
@@ -60,23 +75,71 @@ describe('Deposit Contract', () => {
     });
 
     it('should deposit and verify merkle proof with 2 leafs', async () => {
-        const originalNetwork = 0;
+        const originNetwork = 0;
         const tokenAddress = deployer.address;
         const amount = ethers.utils.parseEther('10');
         const destinationNetwork = 1;
         const destinationAddress = deployer.address;
+        const metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
-        await depositContractMock.deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
-        await depositContractMock.deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
+        await depositContractMock.deposit(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+        await depositContractMock.deposit(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
-        const leafValue2 = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValueJs = getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+        const leafValueJs2 = getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+        const leafValueSC = await depositContractMock.getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+        const leafValueSC2 = await depositContractMock.getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
 
-        merkleTree.add(leafValue);
-        merkleTree.add(leafValue2);
+        expect(leafValueJs).to.be.equal(leafValueSC);
+        expect(leafValueJs2).to.be.equal(leafValueSC2);
+
+        merkleTree.add(leafValueJs);
+        merkleTree.add(leafValueJs2);
 
         const rootSC = await depositContractMock.getDepositRoot();
         const rootJS = merkleTree.getRoot();
@@ -88,13 +151,9 @@ describe('Deposit Contract', () => {
         const proof = merkleTree.getProofTreeByIndex(index);
 
         // verify merkle proof
-        expect(verifyMerkleProof(leafValue, proof, index, rootSC)).to.be.equal(true);
+        expect(verifyMerkleProof(leafValueJs, proof, index, rootSC)).to.be.equal(true);
         expect(await depositContractMock.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originalNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValueJs,
             proof,
             index,
             rootSC,
@@ -106,18 +165,44 @@ describe('Deposit Contract', () => {
          * Different deposits will be created and verified one by one
          * Deposit 1
          */
-        let originalNetwork = 0; // mainnet
+        let originNetwork = 0; // mainnet
         let tokenAddress = deployer.address;
         let amount = ethers.utils.parseEther('10');
         let destinationNetwork = 1;
         let destinationAddress = deployer.address;
+        let metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
-        await depositContractMock.deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
+        await depositContractMock.deposit(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        let leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        let leafValue = getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+        const leafValueSC = await depositContractMock.getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+
+        expect(leafValue).to.be.equal(leafValueSC);
+
         merkleTree.add(leafValue);
 
         let rootSC = await depositContractMock.getDepositRoot();
@@ -130,29 +215,45 @@ describe('Deposit Contract', () => {
         let proof = merkleTree.getProofTreeByIndex(index);
 
         // verify merkle proof
-        expect(verifyMerkleProof(leafValue, proof, index, rootSC)).to.be.equal(true);
+        expect(verifyMerkleProof(
+            leafValue,
+            proof,
+            index,
+            rootSC,
+        )).to.be.equal(true);
         expect(await depositContractMock.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originalNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValue,
             proof,
             index,
             rootSC,
         )).to.be.equal(true);
 
         // Deposit 2 - different address and amount
-        originalNetwork = 0;
+        originNetwork = 0;
         tokenAddress = deployer.address;
         amount = ethers.utils.parseEther('1');
         destinationNetwork = 1;
         destinationAddress = acc2.address;
+        metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
-        await depositContractMock.connect(acc2).deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
+        await depositContractMock.connect(acc2).deposit(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
 
         // compute root merkle tree in Js
-        leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        leafValue = getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
 
         rootSC = await depositContractMock.getDepositRoot();
@@ -167,26 +268,38 @@ describe('Deposit Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSC)).to.be.equal(true);
         expect(await depositContractMock.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originalNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValue,
             proof,
             index,
             rootSC,
         )).to.be.equal(true);
 
         // Deposit 3 - deposit ether
-        originalNetwork = 0;
+        originNetwork = 0;
         tokenAddress = ethers.constants.AddressZero; // ether
         amount = ethers.utils.parseEther('100');
         destinationNetwork = 1;
         destinationAddress = acc2.address;
-        await depositContractMock.connect(acc2).deposit(tokenAddress, amount, originalNetwork, destinationNetwork, destinationAddress);
+        metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+
+        await depositContractMock.connect(acc2).deposit(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
 
         // compute root merkle tree in Js
-        leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        leafValue = getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
 
         rootSC = await depositContractMock.getDepositRoot();
@@ -201,11 +314,7 @@ describe('Deposit Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSC)).to.be.equal(true);
         expect(await depositContractMock.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originalNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValue,
             proof,
             index,
             rootSC,
@@ -215,15 +324,23 @@ describe('Deposit Contract', () => {
         const txCount = 100;
         const depositCount = Number(await depositContractMock.depositCount());
         amount = ethers.utils.parseEther('0.01');
-        leafValue = calculateLeafValue(originalNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        leafValue = getLeafValue(
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         const results = [];
         for (let i = 0; i < txCount; i++) {
             const p = depositContractMock.connect(acc2).deposit(
+                originNetwork,
                 tokenAddress,
-                amount,
-                originalNetwork,
                 destinationNetwork,
                 destinationAddress,
+                amount,
+                metadataHash,
             ).then(() => {
                 merkleTree.add(leafValue);
             });
@@ -248,11 +365,7 @@ describe('Deposit Contract', () => {
             // verify merkle proof
             expect(verifyMerkleProof(leafValue, proof, index, rootSC)).to.be.equal(true);
             const p = depositContractMock.verifyMerkleProof(
-                tokenAddress,
-                amount,
-                originalNetwork,
-                destinationNetwork,
-                destinationAddress,
+                leafValue,
                 proof,
                 index,
                 rootSC,
