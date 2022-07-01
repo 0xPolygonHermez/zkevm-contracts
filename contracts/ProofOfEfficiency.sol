@@ -17,6 +17,15 @@ import "./interfaces/IGlobalExitRootManager.sol";
 contract ProofOfEfficiency {
     using SafeERC20 for IERC20;
 
+    /**
+     * @notice Struct which will be used to call sequenceBatches
+     * @param transactions L2 ethereum transactions EIP-155 with signature:
+     * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * @param globalExitRoot Global exit root of the batch
+     * @param timestamp Timestamp of the batch
+     * @param forceBatchesTimestamp Every element of the array indicates the timestamp of the forceBatch
+     * that will be popped from the queue and added to the sequence
+     */
     struct BatchData {
         bytes transactions;
         bytes32 globalExitRoot;

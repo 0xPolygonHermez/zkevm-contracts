@@ -38,9 +38,6 @@ contract Bridge is Ownable, DepositContract {
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
-    // keccak256(tokenAddress || destinationNetwork) --> Is wrapped created
-    mapping(bytes32 => bool) public isWrappedCreated;
-
     // Global Exit Root address
     IGlobalExitRootManager public globalExitRootManager;
 
@@ -64,8 +61,8 @@ contract Bridge is Ownable, DepositContract {
      * @dev Emitted when a bridge some tokens to another network
      */
     event BridgeEvent(
-        address originTokenAddress,
         uint32 originNetwork,
+        address originTokenAddress,
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
@@ -146,31 +143,24 @@ contract Bridge is Ownable, DepositContract {
                 originTokenAddress = token;
                 originNetwork = networkID;
 
-                // Check if the wrapped token is already
-                bytes32 isWrappedCreatedHash = keccak256(
-                    abi.encodePacked(token, destinationNetwork)
+                // Encode metadata
+                metadata = abi.encode(
+                    IERC20Metadata(token).name(),
+                    IERC20Metadata(token).symbol(),
+                    IERC20Metadata(token).decimals()
                 );
-                if (!isWrappedCreated[isWrappedCreatedHash]) {
-                    isWrappedCreated[isWrappedCreatedHash] = true;
-                    metadata = abi.encode(
-                        IERC20Metadata(token).name(),
-                        IERC20Metadata(token).symbol(),
-                        IERC20Metadata(token).decimals()
-                    );
-                }
             }
         }
 
         emit BridgeEvent(
-            originTokenAddress,
             originNetwork,
+            originTokenAddress,
             destinationNetwork,
             destinationAddress,
             amount,
             metadata,
             uint32(depositCount)
         );
-
         _deposit(
             getLeafValue(
                 originNetwork,

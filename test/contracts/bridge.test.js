@@ -21,7 +21,12 @@ describe('Bridge Contract', () => {
 
     const tokenName = 'Matic Token';
     const tokenSymbol = 'MATIC';
+    const decimals = 18;
     const tokenInitialBalance = ethers.utils.parseEther('20000000');
+    const metadataToken = ethers.utils.defaultAbiCoder.encode(
+        ['string', 'string', 'uint8'],
+        [tokenName, tokenSymbol, decimals],
+    );
 
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
@@ -77,8 +82,8 @@ describe('Bridge Contract', () => {
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
-        const metadata = ethers.constants.HashZero;
-        const metadataHash = ethers.utils.solidityKeccak256(['bytes32'], [metadata]);
+        const metadata = metadataToken;
+        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
 
         const balanceDeployer = await tokenContract.balanceOf(deployer.address);
         const balanceBridge = await tokenContract.balanceOf(bridgeContract.address);
@@ -135,8 +140,8 @@ describe('Bridge Contract', () => {
         const destinationNetwork = networkIDMainnet;
         const destinationAddress = acc1.address;
 
-        const metadata = ethers.utils.HashZero;
-        const metadataHash = ethers.utils.solidityKeccak256(['bytes32'], [metadata]);
+        const metadata = metadataToken;
+        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
 
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
         let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
@@ -144,7 +149,7 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(originNetwork, tokenAddress, amount, destinationNetwork, destinationAddress, metadataHash);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -174,11 +179,7 @@ describe('Bridge Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootJSRollup)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValue,
             proof,
             index,
             rootJSRollup,
@@ -189,15 +190,16 @@ describe('Bridge Contract', () => {
          * Can't claim without tokens
          */
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('ERC20: transfer amount exceeds balance');
 
         // transfer tokens, then claim
@@ -206,37 +208,39 @@ describe('Bridge Contract', () => {
             .withArgs(deployer.address, bridgeContract.address, amount);
 
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         ))
             .to.emit(bridgeContract, 'ClaimEvent')
             .withArgs(
                 index,
                 originNetwork,
                 tokenAddress,
-                amount,
                 destinationAddress,
+                amount,
             ).to.emit(tokenContract, 'Transfer')
             .withArgs(bridgeContract.address, acc1.address, amount);
 
         // Can't claim because nullifier
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('Bridge::claim: ALREADY_CLAIMED');
     });
 
@@ -247,13 +251,16 @@ describe('Bridge Contract', () => {
         const destinationNetwork = networkIDMainnet;
         const destinationAddress = deployer.address;
 
+        const metadata = metadataToken; // since we are inserting in the exit root can be anything
+        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
+
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
         let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTreeRollup = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(originNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
         merkleTreeRollup.add(leafValue);
 
         // check merkle root with SC
@@ -283,11 +290,7 @@ describe('Bridge Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootJSRollup)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValue,
             proof,
             index,
             rootJSRollup,
@@ -309,23 +312,24 @@ describe('Bridge Contract', () => {
         const newWrappedToken = tokenWrappedFactory.attach(precalculateWrappedErc20);
 
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         ))
             .to.emit(bridgeContract, 'ClaimEvent')
             .withArgs(
                 index,
                 originNetwork,
                 tokenAddress,
-                amount,
                 destinationAddress,
+                amount,
             ).to.emit(bridgeContract, 'NewWrappedToken')
             .withArgs(originNetwork, tokenAddress, precalculateWrappedErc20)
             .to.emit(newWrappedToken, 'Transfer')
@@ -335,23 +339,29 @@ describe('Bridge Contract', () => {
         const newTokenInfo = await bridgeContract.wrappedTokenToTokenInfo(precalculateWrappedErc20);
 
         expect(newTokenInfo.originNetwork).to.be.equal(networkIDRollup);
-        expect(newTokenInfo.originalTokenAddress).to.be.equal(tokenAddress);
+        expect(newTokenInfo.originTokenAddress).to.be.equal(tokenAddress);
         expect(await bridgeContract.getTokenWrappedAddress(networkIDRollup, tokenAddress)).to.be.equal(precalculateWrappedErc20);
         expect(await bridgeContract.getTokenWrappedAddress(networkIDRollup, tokenAddress)).to.be.equal(precalculateWrappedErc20);
 
         expect(await bridgeContract.tokenInfoToWrappedToken(salt)).to.be.equal(precalculateWrappedErc20);
 
+        // Check the wrapper info
+        expect(await newWrappedToken.name()).to.be.equal(tokenName);
+        expect(await newWrappedToken.symbol()).to.be.equal(tokenSymbol);
+        expect(await newWrappedToken.decimals()).to.be.equal(decimals);
+
         // Can't claim because nullifier
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('Bridge::claim: ALREADY_CLAIMED');
 
         // Check new token
@@ -376,21 +386,35 @@ describe('Bridge Contract', () => {
          */
         const merkleTreeMainnet = new MerkleTreeBridge(height);
         // Imporant calcualte leaf with origin token address no wrapped token address
-        const originalTokenAddress = tokenAddress;
+        const originTokenAddress = tokenAddress;
+        const metadataMainnet = '0x'; // since the token does not belong to this network
+        const metadataHashMainnet = ethers.utils.solidityKeccak256(['bytes'], [metadataMainnet]);
+
         const leafValueMainnet = getLeafValue(
             originNetwork,
-            originalTokenAddress,
-            amount,
+            originTokenAddress,
             newDestinationNetwork,
             destinationAddress,
+            amount,
+            metadataHashMainnet,
         );
+        const leafValueMainnetSC = await bridgeContract.getLeafValue(
+            originNetwork,
+            originTokenAddress,
+            newDestinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHashMainnet,
+        );
+
+        expect(leafValueMainnet).to.be.equal(leafValueMainnetSC);
         merkleTreeMainnet.add(leafValueMainnet);
         const rootJSMainnet = merkleTreeMainnet.getRoot();
 
         // Tokens are burnt
-        await expect(bridgeContract.bridge(wrappedTokenAddress, amount, newDestinationNetwork, destinationAddress))
+        await expect(bridgeContract.bridge(wrappedTokenAddress, newDestinationNetwork, destinationAddress, amount))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(originalTokenAddress, amount, originNetwork, newDestinationNetwork, destinationAddress, depositCount)
+            .withArgs(originNetwork, originTokenAddress, newDestinationNetwork, destinationAddress, amount, metadataMainnet, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
             .withArgs(Number(lastGlobalExitRootNum) + 1, rootJSMainnet, rollupExitRoot)
             .to.emit(newWrappedToken, 'Transfer')
@@ -411,11 +435,7 @@ describe('Bridge Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValueMainnet, proofMainnet, indexMainnet, rootSCMainnet)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
-            originalTokenAddress,
-            amount,
-            originNetwork,
-            newDestinationNetwork,
-            destinationAddress,
+            leafValueMainnet,
             proofMainnet,
             indexMainnet,
             rootSCMainnet,
@@ -433,16 +453,18 @@ describe('Bridge Contract', () => {
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
+        const metadata = '0x';// since is ether does not have metadata
+
         // create 3 new deposit
-        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
+        await expect(bridgeContract.bridge(tokenAddress, destinationNetwork, destinationAddress, amount, { value: amount }))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(tokenAddress, amount, originNetwork, destinationNetwork, destinationAddress, depositCount);
-        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
+            .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount);
+        await expect(bridgeContract.bridge(tokenAddress, destinationNetwork, destinationAddress, amount, { value: amount }))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(tokenAddress, amount, originNetwork, destinationNetwork, destinationAddress, 1);
-        await expect(bridgeContract.bridge(tokenAddress, amount, destinationNetwork, destinationAddress, { value: amount }))
+            .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount.add(1));
+        await expect(bridgeContract.bridge(tokenAddress, destinationNetwork, destinationAddress, amount, { value: amount }))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(tokenAddress, amount, originNetwork, destinationNetwork, destinationAddress, 2);
+            .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount.add(2));
 
         // Prepare merkle tree
         const height = 32;
@@ -454,11 +476,12 @@ describe('Bridge Contract', () => {
         events.forEach((e) => {
             const { args } = e;
             const leafValue = getLeafValue(
-                originNetwork,
-                args.tokenAddres,
-                args.amount,
+                args.originNetwork,
+                args.originTokenAddress,
                 args.destinationNetwork,
                 args.destinationAddress,
+                args.amount,
+                ethers.utils.solidityKeccak256(['bytes'], [args.metadata]),
             );
             merkleTree.add(leafValue);
         });
@@ -478,13 +501,16 @@ describe('Bridge Contract', () => {
         const destinationNetwork = networkIDMainnet;
         const destinationAddress = deployer.address;
 
+        const metadata = metadataToken;
+        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
+
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
         let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(originNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -510,11 +536,7 @@ describe('Bridge Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootJSRollup)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValue,
             proof,
             index,
             rootJSRollup,
@@ -522,15 +544,16 @@ describe('Bridge Contract', () => {
 
         // Can't claim without tokens
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('ERC20: transfer amount exceeds balance');
 
         // transfer tokens, then claim
@@ -540,75 +563,80 @@ describe('Bridge Contract', () => {
 
         // Check DESTINATION_NETWORK_DOES_NOT_MATCH assert
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            networkIDRollup, // destination network rollup
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            networkIDRollup, // Wrong destination network
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('Bridge::claim: DESTINATION_NETWORK_DOES_NOT_MATCH');
 
         // Check GLOBAL_EXIT_ROOT_DOES_NOT_MATCH assert
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
-            mainnetExitRoot, // wrong rollup root
+            mainnetExitRoot, // Wrong rollup Root
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('Bridge::claim: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH');
 
         // Check SMT_INVALID assert
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index + 1, // Wrong index
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('Bridge::claim: SMT_INVALID');
 
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         ))
             .to.emit(bridgeContract, 'ClaimEvent')
             .withArgs(
                 index,
                 originNetwork,
                 tokenAddress,
-                amount,
                 destinationAddress,
+                amount,
             ).to.emit(tokenContract, 'Transfer')
             .withArgs(bridgeContract.address, deployer.address, amount);
 
         // Check ALREADY_CLAIMED_claim
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('Bridge::claim: ALREADY_CLAIMED');
     });
 
@@ -620,13 +648,16 @@ describe('Bridge Contract', () => {
         const destinationNetwork = networkIDMainnet;
         const destinationAddress = deployer.address;
 
+        const metadata = '0x'; // since is ether does not have metadata
+        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
+
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
         let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(originNetwork, tokenAddress, amount, destinationNetwork, destinationAddress);
+        const leafValue = getLeafValue(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -652,11 +683,7 @@ describe('Bridge Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootJSRollup)).to.be.equal(true);
         expect(await bridgeContract.verifyMerkleProof(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
+            leafValue,
             proof,
             index,
             rootJSRollup,
@@ -667,15 +694,16 @@ describe('Bridge Contract', () => {
          * Can't claim without ether
          */
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('Bridge::claim: ETH_TRANSFER_FAILED');
 
         const balanceDeployer = await ethers.provider.getBalance(deployer.address);
@@ -683,36 +711,56 @@ describe('Bridge Contract', () => {
          * Create a deposit to add ether to the Bridge
          * Check deposit amount ether asserts
          */
-        await expect(bridgeContract.bridge(tokenAddress, amount, networkIDRollup, destinationAddress, { value: ethers.utils.parseEther('100') })).to.be.revertedWith('Bridge::bridge: AMOUNT_DOES_NOT_MATCH_MSG_VALUE');
+        await expect(bridgeContract.bridge(
+            tokenAddress,
+            networkIDRollup,
+            destinationAddress,
+            amount,
+            { value: ethers.utils.parseEther('100') },
+        )).to.be.revertedWith('Bridge::bridge: AMOUNT_DOES_NOT_MATCH_MSG_VALUE');
 
         // Check mainnet destination assert
-        await expect(bridgeContract.bridge(tokenAddress, amount, networkIDMainnet, destinationAddress, { value: amount })).to.be.revertedWith('Bridge::bridge: DESTINATION_CANT_BE_ITSELF');
+        await expect(bridgeContract.bridge(
+            tokenAddress,
+            networkIDMainnet,
+            destinationAddress,
+            amount,
+            { value: amount },
+        )).to.be.revertedWith('Bridge::bridge: DESTINATION_CANT_BE_ITSELF');
 
         // This is used just to pay ether to the bridge smart contract and be able to claim it afterwards.
-        expect(await bridgeContract.bridge(tokenAddress, amount, networkIDRollup, destinationAddress, { value: amount }));
+        expect(await bridgeContract.bridge(
+            tokenAddress,
+            networkIDRollup,
+            destinationAddress,
+            amount,
+            { value: amount },
+        ));
 
         // Check balances before claim
         expect(await ethers.provider.getBalance(bridgeContract.address)).to.be.equal(amount);
         expect(await ethers.provider.getBalance(deployer.address)).to.be.lte(balanceDeployer.sub(amount));
 
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
+
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         ))
             .to.emit(bridgeContract, 'ClaimEvent')
             .withArgs(
                 index,
                 originNetwork,
                 tokenAddress,
-                amount,
                 destinationAddress,
+                amount,
             );
 
         // Check balances after claim
@@ -721,15 +769,16 @@ describe('Bridge Contract', () => {
 
         // Can't claim because nullifier
         await expect(bridgeContract.claim(
-            tokenAddress,
-            amount,
-            originNetwork,
-            destinationNetwork,
-            destinationAddress,
             proof,
             index,
             mainnetExitRoot,
             rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
         )).to.be.revertedWith('Bridge::claim: ALREADY_CLAIMED');
     });
 });
