@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
+import "./interfaces/IBridge.sol";
 
 /**
  * Contract responsible for managing the state and the updates of it of the L2 Hermez network.
@@ -118,6 +119,9 @@ contract ProofOfEfficiency {
     // Trusted sequencer URL
     string public trustedSequencerURL;
 
+    // Bridge interface
+    IBridge public bridge;
+
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
@@ -174,7 +178,8 @@ contract ProofOfEfficiency {
         bytes32 genesisRoot,
         address _trustedSequencer,
         bool _forceBatchAllowed,
-        string memory _trustedSequencerURL
+        string memory _trustedSequencerURL,
+        IBridge _bridge
     ) {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
@@ -183,6 +188,7 @@ contract ProofOfEfficiency {
         trustedSequencer = _trustedSequencer;
         forceBatchAllowed = _forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
+        bridge = _bridge;
     }
 
     modifier onlyTrustedSequencer() {
@@ -200,6 +206,10 @@ contract ProofOfEfficiency {
             "ProofOfEfficiency::isForceBatchAllowed: only if force batch is available"
         );
         _;
+    }
+
+    function prepareBatch() public {
+        bridge.pushCurrentRoot();
     }
 
     /**

@@ -11,5 +11,5 @@ interface IGlobalExitRootManager {
         external
         returns (uint256);
 
-    function lastGlobalExitRootNum() external returns (uint256);
+    function getLastGlobalExitRootNum() external returns (uint256);
 }

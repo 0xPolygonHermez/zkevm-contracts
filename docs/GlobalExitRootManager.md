@@ -40,6 +40,15 @@ Return last global exit root
 
 
 
+### getLastGlobalExitRootNum
+```solidity
+  function getLastGlobalExitRootNum(
+  ) public returns (uint256)
+```
+Return last global exit root
+
+
+
 ## Events
 ### UpdateGlobalExitRoot
 ```solidity

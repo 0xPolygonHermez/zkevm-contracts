@@ -22,7 +22,7 @@ describe('Global Exit Root', () => {
     });
 
     it('should check the constructor parameters', async () => {
-        expect(await globalExitRootManager.lastGlobalExitRootNum()).to.be.equal(0);
+        expect(await globalExitRootManager.getLastGlobalExitRootNum()).to.be.equal(0);
         expect(await globalExitRootManager.rollupAddress()).to.be.equal(rollup.address);
         expect(await globalExitRootManager.bridgeAddress()).to.be.equal(bridge.address);
         expect(await globalExitRootManager.lastRollupExitRoot()).to.be.equal(zero32bytes);
@@ -30,7 +30,7 @@ describe('Global Exit Root', () => {
     });
 
     it('should update root and check global exit root', async () => {
-        let lastGlobalExitRootNum = Number(await globalExitRootManager.lastGlobalExitRootNum());
+        let lastGlobalExitRootNum = Number(await globalExitRootManager.getLastGlobalExitRootNum());
         const newRootRollup = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
         await expect(globalExitRootManager.updateExitRoot(newRootRollup))

@@ -27,7 +27,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 genesisRoot,
         address _trustedSequencer,
         bool _forceBatchAllowed,
-        string memory _trustedSequencerURL
+        string memory _trustedSequencerURL,
+        IBridge _bridge
     )
         ProofOfEfficiency(
             _globalExitRootManager,
@@ -36,7 +37,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             genesisRoot,
             _trustedSequencer,
             _forceBatchAllowed,
-            _trustedSequencerURL
+            _trustedSequencerURL,
+            _bridge
         )
     {}
 

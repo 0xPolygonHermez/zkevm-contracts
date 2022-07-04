@@ -18,9 +18,6 @@ contract GlobalExitRootManager is IGlobalExitRootManager {
     // Store every global exit root: Root --> rootNum
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // Current global exit roots stored
-    uint256 public lastGlobalExitRootNum;
-
     // Bridge address
     address public bridgeAddress;
 
@@ -54,6 +51,9 @@ contract GlobalExitRootManager is IGlobalExitRootManager {
             msg.sender == rollupAddress || msg.sender == bridgeAddress,
             "GlobalExitRootManager::updateExitRoot: ONLY_ALLOWED_CONTRACTS"
         );
+
+        uint256 currentGlobalExitRootNum = getLastGlobalExitRootNum();
+
         if (msg.sender == rollupAddress) {
             lastRollupExitRoot = newRoot;
         }
@@ -61,15 +61,10 @@ contract GlobalExitRootManager is IGlobalExitRootManager {
             lastMainnetExitRoot = newRoot;
         }
 
-        lastGlobalExitRootNum++;
-
-        bytes32 newGlobalExitRoot = keccak256(
-            abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
-        );
-        globalExitRootMap[newGlobalExitRoot] = lastGlobalExitRootNum;
+        globalExitRootMap[getLastGlobalExitRoot()] = ++currentGlobalExitRootNum;
 
         emit UpdateGlobalExitRoot(
-            lastGlobalExitRootNum,
+            currentGlobalExitRootNum,
             lastMainnetExitRoot,
             lastRollupExitRoot
         );
@@ -83,5 +78,12 @@ contract GlobalExitRootManager is IGlobalExitRootManager {
             keccak256(
                 abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
             );
+    }
+
+    /**
+     * @notice Return last global exit root
+     */
+    function getLastGlobalExitRootNum() public view returns (uint256) {
+        return globalExitRootMap[getLastGlobalExitRoot()];
     }
 }

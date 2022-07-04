@@ -32,6 +32,15 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 |`_forceBatchAllowed` | bool | indicates wheather the force batch functionality is available
 |`_trustedSequencerURL` | string | trusted sequencer URL
 
+### prepareBatch
+```solidity
+  function prepareBatch(
+  ) public
+```
+
+
+
+
 ### sequenceBatches
 ```solidity
   function sequenceBatches(

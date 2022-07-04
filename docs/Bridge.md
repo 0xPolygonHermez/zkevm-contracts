@@ -70,6 +70,15 @@ Verify merkle proof and withdraw tokens/ether
 |`amount` | uint256 | Amount of tokens
 |`metadata` | bytes | abi encoded metadata if any, empty otherwise
 
+### pushCurrentRoot
+```solidity
+  function pushCurrentRoot(
+  ) public
+```
+
+
+
+
 ### precalculatedWrapperAddress
 ```solidity
   function precalculatedWrapperAddress(

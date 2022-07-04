@@ -9,12 +9,13 @@ import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./interfaces/IBridge.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon Hermez
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is Ownable, DepositContract {
+contract Bridge is Ownable, DepositContract, IBridge {
     using SafeERC20 for IERC20;
 
     // Wrapped Token information struct
@@ -171,9 +172,6 @@ contract Bridge is Ownable, DepositContract {
                 keccak256(metadata)
             )
         );
-
-        // Update the new exit root to the exit root manager
-        globalExitRootManager.updateExitRoot(getDepositRoot());
     }
 
     /**
@@ -340,6 +338,11 @@ contract Bridge is Ownable, DepositContract {
             destinationAddress,
             amount
         );
+    }
+
+    function pushCurrentRoot() public {
+        // Update the current root to the exit root manager
+        globalExitRootManager.updateExitRoot(getDepositRoot());
     }
 
     /**

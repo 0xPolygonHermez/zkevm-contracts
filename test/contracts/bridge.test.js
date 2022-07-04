@@ -89,7 +89,7 @@ describe('Bridge Contract', () => {
         const balanceBridge = await tokenContract.balanceOf(bridgeContract.address);
 
         const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
-        const lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
+        const lastGlobalExitRootNum = await globalExitRootManager.getLastGlobalExitRootNum();
 
         // create a new deposit
         await expect(tokenContract.approve(bridgeContract.address, amount))
@@ -144,7 +144,7 @@ describe('Bridge Contract', () => {
         const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
 
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
-        let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
+        let lastGlobalExitRootNum = await globalExitRootManager.getLastGlobalExitRootNum();
 
         // compute root merkle tree in Js
         const height = 32;
@@ -255,7 +255,7 @@ describe('Bridge Contract', () => {
         const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
 
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
-        let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
+        let lastGlobalExitRootNum = await globalExitRootManager.getLastGlobalExitRootNum();
 
         // compute root merkle tree in Js
         const height = 32;
@@ -373,7 +373,7 @@ describe('Bridge Contract', () => {
         const newDestinationNetwork = networkIDRollup;
 
         const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
-        lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
+        lastGlobalExitRootNum = await globalExitRootManager.getLastGlobalExitRootNum();
 
         // create a new deposit
         await expect(newWrappedToken.approve(bridgeContract.address, amount))
@@ -505,7 +505,7 @@ describe('Bridge Contract', () => {
         const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
 
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
-        let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
+        let lastGlobalExitRootNum = await globalExitRootManager.getLastGlobalExitRootNum();
 
         // compute root merkle tree in Js
         const height = 32;
@@ -652,7 +652,7 @@ describe('Bridge Contract', () => {
         const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
 
         const mainnetExitRoot = await globalExitRootManager.lastMainnetExitRoot();
-        let lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
+        let lastGlobalExitRootNum = await globalExitRootManager.getLastGlobalExitRootNum();
 
         // compute root merkle tree in Js
         const height = 32;
