@@ -9,26 +9,31 @@ import "hardhat/console.sol";
  */
 contract DepositContractMock is DepositContract {
     /**
-     * @notice Add a new leaf to the merkle tree
-     * @param token Token address, 0 address is reserved for ehter
+     * @notice Given the leaf data returns the leaf value
+     * @param originNetwork Origin Network
+     * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param destinationNetwork Destination network
+     * @param destinationAddress Destination address
      * @param amount Amount of tokens
-     * @param originalNetwork Network origin
-     * @param destinationNetwork Network destination
-     * @param destinationAddress Address destination
+     * @param metadataHash Hash of the metadata
      */
     function deposit(
-        address token,
-        uint256 amount,
-        uint32 originalNetwork,
+        uint32 originNetwork,
+        address originTokenAddress,
         uint32 destinationNetwork,
-        address destinationAddress
+        address destinationAddress,
+        uint256 amount,
+        bytes32 metadataHash
     ) public {
         _deposit(
-            token,
-            amount,
-            originalNetwork,
-            destinationNetwork,
-            destinationAddress
+            getLeafValue(
+                originNetwork,
+                originTokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadataHash
+            )
         );
     }
 }
