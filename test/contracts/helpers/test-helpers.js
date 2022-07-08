@@ -1,5 +1,5 @@
 /* eslint-disable no-await-in-loop */
-const { stateUtils } = require('@polygon-hermez/zkevm-commonjs');
+const { stateUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
 async function setGenesisBlock(addressArray, amountArray, nonceArray, smt) {
     let currentRoot = smt.empty;

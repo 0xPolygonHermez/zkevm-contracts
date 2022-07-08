@@ -1,10 +1,10 @@
 {
-  "name": "@polygon-hermez/contracts-zkevm",
+  "name": "@0xpolygonhermez/contracts-zkevm",
   "description": "Core contracts for the Polygon Hermez zkEVM",
   "version": "0.0.5",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hermeznetwork/contracts-zkEVM.git"
+    "url": "git+https://github.com/0xPolygonHermez/contracts-zkEVM.git"
   },
   "main": "index.js",
   "keywords": [
@@ -17,18 +17,19 @@
     "ethereum",
     "blockchain"
   ],
-  "author": "polygon-hermez",
+  "author": "0xPolygonHermez",
   "files": [
     "contracts",
     "index.js",
     "compiled-contracts"
   ],
   "bugs": {
-    "url": "https://github.com/hermeznetwork/contracts-zkEVM/issues"
+    "url": "https://github.com/0xPolygonHermez/contracts-zkEVM/issues"
   },
-  "homepage": "https://github.com/hermeznetwork/contracts-zkEVM#readme",
+  "homepage": "https://github.com/0xPolygonHermez/contracts-zkEVM#readme",
   "license": "GPL-3.0",
   "dependencies": {
+    "@0xpolygonhermez/zkevm-commonjs": "github:0xPolygonHermez/zkevm-commonjs#v0.0.33",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
@@ -36,7 +37,6 @@
     "@openzeppelin/contracts-upgradeable": "^4.6.0",
     "@openzeppelin/hardhat-upgrades": "^1.18.0",
     "@openzeppelin/test-helpers": "^0.5.15",
-    "@polygon-hermez/zkevm-commonjs": "github:hermeznetwork/zkevm-commonjs#v0.0.33",
     "chai": "^4.3.4",
     "circomlibjs": "0.1.1",
     "dotenv": "^8.2.0",
