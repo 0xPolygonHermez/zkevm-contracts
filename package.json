@@ -27,7 +27,7 @@
     "url": "https://github.com/0xPolygonHermez/contracts-zkEVM/issues"
   },
   "homepage": "https://github.com/0xPolygonHermez/contracts-zkEVM#readme",
-  "license": "GPL-3.0",
+  "license": "pending",
   "dependencies": {
     "@0xpolygonhermez/zkevm-commonjs": "github:0xPolygonHermez/zkevm-commonjs#v0.0.33",
     "@nomiclabs/hardhat-ethers": "^2.0.2",

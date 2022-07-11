@@ -1,6 +1,10 @@
-# contracts-zkEVM
+# zkevm-contracts
 
-Smart contract implementation which will be used by the zkEVM
+Smart contract implementation which will be used by the polygon-hermez zkevm
+
+[![Main CI](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml)
+
+> **WARNING**: All code here is in WIP
 
 ## Requirements
 
@@ -9,9 +13,13 @@ Smart contract implementation which will be used by the zkEVM
 
 ## Repository structure
 
-- `contracts`: zkEVM contracts
+- `contracts`: zkevm contracts
+  - `Bridge.sol`: transfer assets between chains
+    - `GlobalExitRootManager.sol`: manage global exit root in L1
+    - `GlobalExitRootManagerL2.sol`: manage global exit root in L2
+  - `ProofOfEfficiency.sol`: consensus algorithm used by polyhon hermez zkevm
 - `docs`: specs and useful links
-- `test`: test of all repository
+- `test`: contracts tests
 
 ## Activate github hook
 
@@ -48,7 +56,7 @@ npm run lint:fix
 ## Deploy on hardhat
 
 ```
-npm run deploy:PoE:hardhat
+npm run deploy:PoE2_0:hardhat
 ```
 
 ## Build dockers
@@ -63,5 +71,7 @@ The deployment output can be found in: `docker/deploymentOutput/deploy_output.js
 To run the docker you can use: `docker run -p 8545:8545 hermez-geth1.3:latest`
 
 ## License
-
-`hermeznetwork/hez-matic-merge` is part of the Hermez project copyright 2020 HermezDAO and published with GPL-3 license. Please check the LICENSE file for more details.
+Copyright
+Polygon `zkevm-contracts` was developed by Polygon. While we plan to adopt an open source license, we haven’t selected one yet, so all rights are reserved for the time being. Please reach out to us if you have thoughts on licensing.
+Disclaimer
+This code has not yet been audited, and should not be used in any production systems.
