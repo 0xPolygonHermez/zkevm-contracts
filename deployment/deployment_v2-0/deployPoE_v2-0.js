@@ -12,7 +12,7 @@ const genesis = require("./genesis.json")
 async function main() {
     const deployer = (await ethers.getSigners())[0];
     const networkIDMainnet = 0;
-    const forceBatchAllowed = deployParameters.forceBatchAllowed;
+    const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployer.address;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || "https://testURl";
 
@@ -124,7 +124,7 @@ async function main() {
     // calculate address and private Keys:
     const DEFAULT_MNEMONIC = 'test test test test test test test test test test test junk';
     const menmonic = deployParameters.mnemonic || DEFAULT_MNEMONIC;
-    const numAccounts = deployParameters.numFundAccounts;
+    const numAccounts = deployParameters.numFundAccounts || 5;
 
     const accountsL1Array = [];
     for (let i = 0; i < numAccounts; i++) {

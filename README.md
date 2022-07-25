@@ -6,6 +6,10 @@ Smart contract implementation which will be used by the polygon-hermez zkevm
 
 > **WARNING**: All code here is in WIP
 
+## Note
+
+Private keys and mnemonics contained in this repository are used for internal test exclusively. Do not use them in production environments
+
 ## Requirements
 
 - node version: 14.x
@@ -71,8 +75,11 @@ The deployment output can be found in: `docker/deploymentOutput/deploy_output.js
 To run the docker you can use: `docker run -p 8545:8545 hermez-geth1.3:latest`
 
 ## License
+
 ### Copyright
+
 Polygon `zkevm-contracts` was developed by Polygon. While we plan to adopt an open source license, we haven’t selected one yet, so all rights are reserved for the time being. Please reach out to us if you have thoughts on licensing.
 
 ### Disclaimer
+
 This code has not yet been audited, and should not be used in any production systems.
