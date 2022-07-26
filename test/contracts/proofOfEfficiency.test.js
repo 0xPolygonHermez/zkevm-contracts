@@ -24,7 +24,7 @@ describe('Proof of efficiency', () => {
 
     const networkIDMainnet = 0;
     const allowForcebatches = true;
-    const urlSequencer = 'https://testURl';
+    const urlSequencer = 'http://zkevm-json-rpc:8123';
 
     beforeEach('Deploy contract', async () => {
         // load signers

@@ -1,6 +1,6 @@
 #!/bin/bash
 sudo rm -rf docker/gethData/geth_data
-DEV_PERIOD=0 docker-compose -f docker/docker-compose.geth.yml up -d geth
+DEV_PERIOD=1 docker-compose -f docker/docker-compose.geth.yml up -d geth
 sleep 5
 node docker/scripts/fund-accounts.js
 npx hardhat run deployment/deployment_v2-0/deployPoE_v2-0.js --network localhost
