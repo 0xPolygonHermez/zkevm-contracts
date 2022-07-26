@@ -14,7 +14,7 @@ async function main() {
     const networkIDMainnet = 0;
     const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployer.address;
-    const trustedSequencerURL = deployParameters.trustedSequencerURL || "https://testURl";
+    const trustedSequencerURL = deployParameters.trustedSequencerURL || "http://zkevm-json-rpc:8123";
 
     /*
         Deployment MATIC
