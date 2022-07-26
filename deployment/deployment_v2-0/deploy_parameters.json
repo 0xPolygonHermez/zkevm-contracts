@@ -1,6 +1,6 @@
 {
- "mnemonic": "unknown purity process december property proof answer leave raise claw there gloom",
- "numFundAccounts": 5,
- "trustedSequencerURL": "https://testURl",
- "forceBatchAllowed": false
+    "mnemonic": "test test test test test test test test test test test junk",
+    "numFundAccounts": 5,
+    "trustedSequencerURL": "https://testURl",
+    "forceBatchAllowed": false
 }

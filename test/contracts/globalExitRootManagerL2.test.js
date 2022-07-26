@@ -8,16 +8,9 @@ describe('Global Exit Root L2', () => {
     let globalExitRootManager;
     beforeEach('Deploy contracts', async () => {
         const networkIDRollup = 1;
-        const pvtKeyDeployment = '0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f';
 
         // load signers
-        const deployer = new ethers.Wallet(pvtKeyDeployment, ethers.provider);
-
-        const params = [{
-            to: deployer.address.toString(),
-            value: '0x3635C9ADC5DEA00000',
-        }];
-        await ethers.provider.send('eth_sendTransaction', params);
+        const deployer = (await ethers.getSigners())[0];
 
         // deploy bridge
         const precalculatBridgeAddress = await ethers.utils.getContractAddress(
