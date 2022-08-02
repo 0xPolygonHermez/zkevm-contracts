@@ -1,7 +1,7 @@
 {
   "name": "@0xpolygonhermez/contracts-zkevm",
   "description": "Core contracts for the Polygon Hermez zkEVM",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPolygonHermez/contracts-zkEVM.git"
@@ -29,7 +29,7 @@
   "homepage": "https://github.com/0xPolygonHermez/contracts-zkEVM#readme",
   "license": "pending",
   "dependencies": {
-    "@0xpolygonhermez/zkevm-commonjs": "github:0xPolygonHermez/zkevm-commonjs#v0.0.36",
+    "@0xpolygonhermez/zkevm-commonjs": "github:0xPolygonHermez/zkevm-commonjs#v0.0.37",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@nomiclabs/hardhat-waffle": "^2.0.3",

@@ -1,8 +1,8 @@
-Contract responsible for managing the state and the updates of it of the L2 Hermez network.
+Contract responsible for managing the states and the updates of L2 network
 There will be a trusted sequencer, which is able to send transactions.
 Any user can force some transaction and the sequencer will have a timeout to add them in the queue
 THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
-The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from hermez L2
+The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from L2 network
 To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
 
 
