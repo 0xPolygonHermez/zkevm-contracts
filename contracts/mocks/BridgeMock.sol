@@ -3,7 +3,7 @@ pragma solidity 0.8.15;
 import "../Bridge.sol";
 
 /**
- * Bridge that will be deployed on both networks Ethereum and Polygon Hermez
+ * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
 contract BridgeMock is Bridge {

@@ -5,8 +5,8 @@ import "../ProofOfEfficiency.sol";
 import "hardhat/console.sol";
 
 /**
- * Contract responsible for managing the state and the updates of it of the L2 Hermez network.
- * There will be sequencer, wich are able to send transactions. That transactions will be stored in the contract.
+ * Contract responsible for managing the state and the updates of the L2 network
+ * There will be sequencer, which are able to send transactions. That transactions will be stored in the contract.
  * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
  * To enter and exit of the L2 network will be used a Bridge smart contract
  */
@@ -41,16 +41,16 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
     {}
 
     /**
-     * @notice Calculate the circuit input
+     * @notice Calculate the stark input
      * @param currentStateRoot Current state Root
      * @param currentLocalExitRoot Current local exit root
      * @param newStateRoot New State root once the batch is processed
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param batchHashData Batch hash data
      * @param numBatch num batch
-     * @param timestamp num batch
+     * @param timestamp unix timestamp
      */
-    function calculateCircuitInput(
+    function calculateStarkInput(
         bytes32 currentStateRoot,
         bytes32 currentLocalExitRoot,
         bytes32 newStateRoot,
@@ -71,8 +71,46 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     timestamp
                 )
             )
-        ) % _RFIELD;
+        );
         return input;
+    }
+
+    /**
+     * @notice Calculate the snark  input
+     * @param currentStateRoot Current state Root
+     * @param currentLocalExitRoot Current local exit root
+     * @param newStateRoot New State root once the batch is processed
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param batchHashData Batch hash data
+     * @param numBatch num batch
+     * @param timestamp unix timestamp
+     * @param aggregatorAddress aggregatorAddress
+     */
+    function calculateSnarkInput(
+        bytes32 currentStateRoot,
+        bytes32 currentLocalExitRoot,
+        bytes32 newStateRoot,
+        bytes32 newLocalExitRoot,
+        bytes32 batchHashData,
+        uint64 numBatch,
+        uint64 timestamp,
+        address aggregatorAddress
+    ) public pure returns (uint256) {
+        bytes32 inputStark = bytes32(calculateStarkInput(
+            currentStateRoot,
+            currentLocalExitRoot,
+            newStateRoot,
+            newLocalExitRoot,
+            batchHashData,
+            numBatch,
+            timestamp
+        ));
+
+        uint256 inputSnark = uint256(
+            sha256(abi.encodePacked(inputStark, aggregatorAddress))
+        ) % _RFIELD;
+
+        return inputSnark;
     }
 
     /**
@@ -81,7 +119,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
-    function getNextCircuitInput(
+    function getNextStarkInput(
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         uint64 numBatch
@@ -121,7 +159,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                     timestamp
                 )
             )
-        ) % _RFIELD;
+        );
         return input;
     }
 

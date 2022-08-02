@@ -9,7 +9,7 @@ contract VerifierRollupHelperMock is IVerifierRollup {
         uint256[2] calldata a,
         uint256[2][2] calldata b,
         uint256[2] calldata c,
-        uint256[2] calldata input
+        uint256[1] calldata input
     ) public view override returns (bool) {
         return true;
     }
