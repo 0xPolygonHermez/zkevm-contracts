@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
- * Bridge that will be deployed on both networks Ethereum and Polygon Hermez
+ * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
 contract Bridge is Ownable, DepositContract {

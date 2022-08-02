@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 
 const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
-const { calculateSnarkInput, calculateBatchHashData } = contractUtils;
+const { calculateSnarkInput, calculateBatchHashData, calculateStarkInput } = contractUtils;
 
 describe('Proof of efficiency', () => {
     let deployer;
@@ -651,7 +651,7 @@ describe('Proof of efficiency', () => {
         );
     });
 
-    it('Should match the computed SC input with the Js input', async () => {
+    it('should match the computed SC input with the Js input', async () => {
         const l2txData = '0x123456';
         const maticAmount = await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
@@ -692,7 +692,7 @@ describe('Proof of efficiency', () => {
         const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
 
         // Compute Js input
-        const circuitInputSC = await proofOfEfficiencyContract.calculateCircuitInput(
+        const circuitInputSC = await proofOfEfficiencyContract.calculateStarkInput(
             currentStateRoot,
             currentLocalExitRoot,
             newStateRoot,
@@ -703,7 +703,7 @@ describe('Proof of efficiency', () => {
         );
 
         // Compute Js input
-        const circuitInputJS = calculateSnarkInput(
+        const circuitInputJS = calculateStarkInput(
             currentStateRoot,
             currentLocalExitRoot,
             newStateRoot,
@@ -714,16 +714,41 @@ describe('Proof of efficiency', () => {
         );
 
         // Check the input parameters are correct
-        const circuitNextInputSC = await proofOfEfficiencyContract.getNextCircuitInput(
+        const circuitNextInputSC = await proofOfEfficiencyContract.getNextStarkInput(
             newLocalExitRoot,
             newStateRoot,
             numBatch,
         );
         expect(circuitNextInputSC).to.be.equal(circuitInputSC);
         expect(circuitNextInputSC).to.be.equal(circuitInputJS);
+
+        // Check snark input
+        const inputSnarkSC = await proofOfEfficiencyContract.calculateSnarkInput(
+            currentStateRoot,
+            currentLocalExitRoot,
+            newStateRoot,
+            newLocalExitRoot,
+            batchHashData,
+            numBatch,
+            sequence.timestamp,
+            aggregator.address,
+        );
+
+        const inputSnarkJS = await calculateSnarkInput(
+            currentStateRoot,
+            currentLocalExitRoot,
+            newStateRoot,
+            newLocalExitRoot,
+            batchHashData,
+            numBatch,
+            sequence.timestamp,
+            aggregator.address,
+        );
+
+        expect(inputSnarkSC).to.be.equal(inputSnarkJS);
     });
 
-    it('Should match the computed SC input with the Js input in force batches', async () => {
+    it('should match the computed SC input with the Js input in force batches', async () => {
         const l2txData = '0x123456';
         const maticAmount = await proofOfEfficiencyContract.calculateForceProverFee();
         const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
@@ -771,7 +796,7 @@ describe('Proof of efficiency', () => {
         const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
 
         // Compute Js input
-        const circuitInputSC = await proofOfEfficiencyContract.calculateCircuitInput(
+        const circuitInputSC = await proofOfEfficiencyContract.calculateStarkInput(
             currentStateRoot,
             currentLocalExitRoot,
             newStateRoot,
@@ -782,7 +807,7 @@ describe('Proof of efficiency', () => {
         );
 
         // Compute Js input
-        const circuitInputJS = calculateSnarkInput(
+        const circuitInputJS = calculateStarkInput(
             currentStateRoot,
             currentLocalExitRoot,
             newStateRoot,
@@ -793,12 +818,36 @@ describe('Proof of efficiency', () => {
         );
 
         // Check the input parameters are correct
-        const circuitNextInputSC = await proofOfEfficiencyContract.getNextCircuitInput(
+        const circuitNextInputSC = await proofOfEfficiencyContract.getNextStarkInput(
             newLocalExitRoot,
             newStateRoot,
             numBatch,
         );
         expect(circuitNextInputSC).to.be.equal(circuitInputSC);
         expect(circuitNextInputSC).to.be.equal(circuitInputJS);
+
+        // Check snark input
+        const inputSnarkSC = await proofOfEfficiencyContract.calculateSnarkInput(
+            currentStateRoot,
+            currentLocalExitRoot,
+            newStateRoot,
+            newLocalExitRoot,
+            batchHashData,
+            numBatch,
+            sequencedTimestmap,
+            aggregator.address,
+        );
+
+        const inputSnarkJS = await calculateSnarkInput(
+            currentStateRoot,
+            currentLocalExitRoot,
+            newStateRoot,
+            newLocalExitRoot,
+            batchHashData,
+            numBatch,
+            sequencedTimestmap,
+            aggregator.address,
+        );
+        expect(inputSnarkSC).to.be.equal(inputSnarkJS);
     });
 });
