@@ -1,9 +1,9 @@
-Contract responsible for managing the states and the updates of L2 network
+Contract responsible for managing the states and the updates of L2 network.
 There will be a trusted sequencer, which is able to send transactions.
-Any user can force some transaction and the sequencer will have a timeout to add them in the queue
-THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
-The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from L2 network
-To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
+Any user can force some transaction and the sequencer will have a timeout to add them in the queue.
+The sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof.
+The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from L2 network.
+To enter and exit of the L2 network, a Bridge smart contract that will be deployed in both networks will be used.
 
 
 ## Functions
@@ -38,7 +38,7 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     struct ProofOfEfficiency.BatchData[] batches
   ) public
 ```
-Allows a sequencer to send multiple batches of L2 transactions
+Allows a sequencer to send multiple batches of L2 transactions.
 
 
 #### Parameters:
@@ -58,7 +58,7 @@ Global exit root, timestamp and forced batches that are pop from the queue
     uint256[2] proofC
   ) public
 ```
-Allows an aggregator to verify a batch
+Allows an aggregator to verify a batch.
 
 
 #### Parameters:
@@ -79,7 +79,7 @@ Allows an aggregator to verify a batch
   ) public
 ```
 Allows a sequencer/user to force a batch of L2 transactions.
-This should be used only in extreme cases where the trusted sequencer does not work as expected
+This should be used only in extreme cases where the trusted sequencer does not work as expected.
 
 
 #### Parameters:
@@ -95,8 +95,8 @@ rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
     uint64 numForcedBatches
   ) public
 ```
-Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
-Also allow in any time the trusted sequencer to append forceBatches to the sequence in order to avoid timeout issues
+Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period.
+Also allow in any time the trusted sequencer to append forceBatches to the sequence in order to avoid timeout issues.
 
 
 #### Parameters:
@@ -110,7 +110,7 @@ Also allow in any time the trusted sequencer to append forceBatches to the seque
     address newTrustedSequencer
   ) public
 ```
-Allow the current trusted sequencer to set a new trusted sequencer
+Allow the current trusted sequencer to set a new trusted sequencer.
 
 
 #### Parameters:
@@ -124,7 +124,7 @@ Allow the current trusted sequencer to set a new trusted sequencer
     bool newForceBatchAllowed
   ) public
 ```
-Allow the current trusted sequencer to allow/disallow the forceBatch functionality
+Allow the current trusted sequencer to allow/disallow the forceBatch functionality.
 
 
 #### Parameters:
@@ -138,7 +138,7 @@ Allow the current trusted sequencer to allow/disallow the forceBatch functionali
     string newTrustedSequencerURL
   ) public
 ```
-Allow the trusted sequencer to set the trusted sequencer URL
+Allow the trusted sequencer to set the trusted sequencer URL.
 
 
 #### Parameters:
@@ -151,7 +151,7 @@ Allow the trusted sequencer to set the trusted sequencer URL
   function calculateForceProverFee(
   ) public returns (uint256)
 ```
-Function to calculate the sequencer collateral depending on the congestion of the batches
+Function to calculate the sequencer collateral depending on the congestion of the batches.
      // TODO
 
 
@@ -187,7 +187,7 @@ Emitted when forced batches are sequenced by not the trusted sequencer
   )
 ```
 
-Emitted when a aggregator verifies a new batch
+Emitted when a aggregator verifies a new batch.
 
 ### SetTrustedSequencer
 ```solidity
@@ -195,7 +195,7 @@ Emitted when a aggregator verifies a new batch
   )
 ```
 
-Emitted when a trusted sequencer update his address
+Emitted when a trusted sequencer update his address.
 
 ### SetForceBatchAllowed
 ```solidity
@@ -203,7 +203,7 @@ Emitted when a trusted sequencer update his address
   )
 ```
 
-Emitted when a trusted sequencer update the forcebatch boolean
+Emitted when a trusted sequencer update the forcebatch boolean.
 
 ### SetTrustedSequencerURL
 ```solidity
@@ -211,5 +211,5 @@ Emitted when a trusted sequencer update the forcebatch boolean
   )
 ```
 
-Emitted when a trusted sequencer update his URL
+Emitted when a trusted sequencer update his URL.
 

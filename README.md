@@ -1,14 +1,14 @@
 # zkevm-contracts
 
-Smart contract implementation which will be used by the polygon-hermez zkevm
+Smart contract implementation which will be used by the polygon-hermez zkevm.
 
 [![Main CI](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml)
 
-> **WARNING**: All code here is in WIP
+> **WARNING**: All code here is in WIP.
 
 ## Note
 
-Private keys and mnemonics contained in this repository are used for internal test exclusively. Do not use them in production environments
+Private keys and mnemonics contained in this repository are used for internal test exclusively. Do not use them in production environments.
 
 ## Requirements
 
@@ -69,10 +69,10 @@ npm run deploy:PoE2_0:hardhat
 npm run docker:contracts
 ```
 
-A new docker `hermez-geth1.3:latest` will be created
-This docker will contain a geth node with the deployed contracts
-The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`
-To run the docker you can use: `docker run -p 8545:8545 hermez-geth1.3:latest`
+A new docker `hermez-geth1.3:latest` will be created.
+This docker will contain a geth node with the deployed contracts.
+The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`.
+To run the docker you can use: `docker run -p 8545:8545 hermez-geth1.3:latest`.
 
 ## License
 

@@ -1,4 +1,4 @@
-Contract responsible for managing the exit roots across multiple networks
+Contract responsible for managing the exit roots across multiple networks.
 
 
 ## Functions
@@ -23,7 +23,7 @@ Contract responsible for managing the exit roots across multiple networks
     bytes32 newRoot
   ) external
 ```
-Update the exit root of one of the networks and the global exit root
+Update the exit root of one of the networks and the global exit root.
 
 
 #### Parameters:
@@ -36,7 +36,7 @@ Update the exit root of one of the networks and the global exit root
   function getLastGlobalExitRoot(
   ) public returns (bytes32)
 ```
-Return last global exit root
+Return last global exit root.
 
 
 
@@ -47,5 +47,5 @@ Return last global exit root
   )
 ```
 
-Emitted when the the global exit root is updated
+Emitted when the the global exit root is updated.
 

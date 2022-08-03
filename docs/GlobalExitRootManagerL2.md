@@ -1,5 +1,5 @@
-Contract responsible for managing the exit roots for the L2 and global exit roots
-The special circuit variables will be accesed and updated directly by the circuit
+Contract responsible for managing the exit roots for the L2 and global exit roots.
+The special circuit variables will be accesed and updated directly by the circuit.
 
 
 ## Functions
@@ -22,7 +22,7 @@ The special circuit variables will be accesed and updated directly by the circui
     bytes32 newRoot
   ) external
 ```
-Update the exit root of one of the networks and the global exit root
+Update the exit root of one of the networks and the global exit root.
 
 
 #### Parameters:

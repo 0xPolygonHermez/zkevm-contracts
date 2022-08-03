@@ -1,5 +1,5 @@
-Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
-Contract responsible to manage the token interactions with other networks
+Bridge that will be deployed on both networks Ethereum and Polygon zkEVM.
+Contract responsible to manage the token interactions with other networks.
 
 
 ## Functions
@@ -27,7 +27,7 @@ Contract responsible to manage the token interactions with other networks
     uint256 amount
   ) public
 ```
-Deposit add a new leaf to the merkle tree
+Deposit add a new leaf to the merkle tree.
 
 
 #### Parameters:
@@ -53,7 +53,7 @@ Deposit add a new leaf to the merkle tree
     bytes metadata
   ) public
 ```
-Verify merkle proof and withdraw tokens/ether
+Verify merkle proof and withdraw tokens/ether.
 
 
 #### Parameters:
@@ -77,7 +77,7 @@ Verify merkle proof and withdraw tokens/ether
     address originTokenAddress
   ) public returns (address)
 ```
-Returns the precalculated address of a wrapper using the token information
+Returns the precalculated address of a wrapper using the token information.
 
 
 #### Parameters:
@@ -93,7 +93,7 @@ Returns the precalculated address of a wrapper using the token information
     address originTokenAddress
   ) public returns (address)
 ```
-Returns the address of a wrapper using the token information if already exist
+Returns the address of a wrapper using the token information if already exist.
 
 
 #### Parameters:
@@ -109,7 +109,7 @@ Returns the address of a wrapper using the token information if already exist
   )
 ```
 
-Emitted when a bridge some tokens to another network
+Emitted when bridge some tokens to another network.
 
 ### ClaimEvent
 ```solidity
@@ -117,7 +117,7 @@ Emitted when a bridge some tokens to another network
   )
 ```
 
-Emitted when a claim is done from another network
+Emitted when a claim is done from another network.
 
 ### NewWrappedToken
 ```solidity
@@ -125,5 +125,5 @@ Emitted when a claim is done from another network
   )
 ```
 
-Emitted when a a new wrapped token is created
+Emitted when a new wrapped token is created.
 

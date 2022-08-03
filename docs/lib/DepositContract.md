@@ -1,5 +1,5 @@
-This contract will be used as a helper for all the sparse merkle tree related functions
-Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
+This contract will be used as a helper for all the sparse merkle tree related functions.
+Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol.
 
 
 ## Functions
@@ -8,7 +8,7 @@ Based on the implementation of the deposit eth2.0 contract https://github.com/et
   function getDepositRoot(
   ) public returns (bytes32)
 ```
-Computes and returns the merkle root
+Computes and returns the merkle root.
 
 
 
@@ -18,7 +18,7 @@ Computes and returns the merkle root
     bytes32 leafHash
   ) internal
 ```
-Add a new leaf to the merkle tree
+Add a new leaf to the merkle tree.
 
 
 #### Parameters:
@@ -35,7 +35,7 @@ Add a new leaf to the merkle tree
     bytes32 root
   ) public returns (bool)
 ```
-Verify merkle proof
+Verify merkle proof.
 
 
 #### Parameters:
@@ -57,7 +57,7 @@ Verify merkle proof
     bytes32 metadataHash
   ) public returns (bytes32)
 ```
-Given the leaf data returns the leaf value
+Given the leaf data returns the leaf value.
 
 
 #### Parameters:
