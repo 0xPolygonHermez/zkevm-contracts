@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
-import "hardhat/console.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network
@@ -384,10 +383,10 @@ contract ProofOfEfficiency {
             // extra bytes at the end for word manipulation
             mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
 
-            // Set the actua length of the input bytes
+            // Set the actual length of the input bytes
             mstore(snarkHashBytes, _SNARK_SHA_BYTES)
 
-            // Set the pointer at the begining of the byte array
+            // Set the pointer at the beginning of the byte array
             let ptr := add(snarkHashBytes, 32)
 
             // store aggregator address

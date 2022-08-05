@@ -93,7 +93,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         uint64 numBatch,
         uint64 timestamp,
         address aggregatorAddress
-    ) public view returns (uint256) {
+    ) public pure returns (uint256) {
         bytes32 inputStark = calculateStarkInput(
             currentStateRoot,
             currentLocalExitRoot,
