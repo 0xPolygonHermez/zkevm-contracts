@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
+import "hardhat/console.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network
@@ -75,6 +76,10 @@ contract ProofOfEfficiency {
 
     // Force batch timeout
     uint64 public constant FORCE_BATCH_TIMEOUT = 7 days;
+
+    // Byte length of the sha256 that will be used as a input of the snark
+    // 8 Fields * 8 Bytes (Stark input in Field Array form) + 20 bytes (aggregator address)
+    uint256 internal constant _SNARK_SHA_BYTES = 84;
 
     // Queue of forced batches with their associated data
     mapping(uint64 => ForcedBatchData) public forcedBatches;
@@ -370,18 +375,46 @@ contract ProofOfEfficiency {
             )
         );
 
-        uint256 inputSnark = uint256(
-            sha256(abi.encodePacked(inputStark, msg.sender))
-        ) % _RFIELD;
+        bytes memory snarkHashBytes;
+        assembly {
+            // Set snarkHashBytes to the next free memory pointer
+            snarkHashBytes := mload(0x40)
+
+            // Reserve the memory. 32 for the length , the input bytes and 32
+            // extra bytes at the end for word manipulation
+            mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
+
+            // Set the actua length of the input bytes
+            mstore(snarkHashBytes, _SNARK_SHA_BYTES)
+
+            // Set the pointer at the begining of the byte array
+            let ptr := add(snarkHashBytes, 32)
+
+            // store aggregator address
+            mstore(ptr, shl(96, caller())) // 256 - 160 = 96
+            ptr := add(ptr, 20)
+
+            for {
+                let i := 0
+            } lt(i, 8) {
+                i := add(i, 1)
+            } {
+                // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
+                // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
+                // Then shift left 256 - 32 (224) bits to the left.
+                // AS a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
+                // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
+                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), inputStark))))
+                ptr := add(ptr, 8) // write the next 8 bytes
+            }
+        }
+
+        // calulate the snark input
+        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
         require(
-            rollupVerifier.verifyProof(
-                proofA,
-                proofB,
-                proofC,
-                [inputSnark]
-            ),
+            rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
             "ProofOfEfficiency::verifyBatch: INVALID_PROOF"
         );
 

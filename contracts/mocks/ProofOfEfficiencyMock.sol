@@ -58,18 +58,16 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 batchHashData,
         uint64 numBatch,
         uint64 timestamp
-    ) public pure returns (uint256) {
-        uint256 input = uint256(
-            keccak256(
-                abi.encodePacked(
-                    currentStateRoot,
-                    currentLocalExitRoot,
-                    newStateRoot,
-                    newLocalExitRoot,
-                    batchHashData,
-                    numBatch,
-                    timestamp
-                )
+    ) public pure returns (bytes32) {
+        bytes32 input = keccak256(
+            abi.encodePacked(
+                currentStateRoot,
+                currentLocalExitRoot,
+                newStateRoot,
+                newLocalExitRoot,
+                batchHashData,
+                numBatch,
+                timestamp
             )
         );
         return input;
@@ -95,8 +93,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         uint64 numBatch,
         uint64 timestamp,
         address aggregatorAddress
-    ) public pure returns (uint256) {
-        bytes32 inputStark = bytes32(calculateStarkInput(
+    ) public view returns (uint256) {
+        bytes32 inputStark = calculateStarkInput(
             currentStateRoot,
             currentLocalExitRoot,
             newStateRoot,
@@ -104,11 +102,42 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             batchHashData,
             numBatch,
             timestamp
-        ));
+        );
 
-        uint256 inputSnark = uint256(
-            sha256(abi.encodePacked(inputStark, aggregatorAddress))
-        ) % _RFIELD;
+        bytes memory snarkHashBytes;
+        assembly {
+            // Set snarkHashBytes to the next free memory space
+            snarkHashBytes := mload(0x40)
+
+            // Reserve the memory. 32 for the length , the input bytes and 32
+            // extra bytes at the end for word manipulation
+            mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
+
+            // Set the actua length of the input bytes
+            mstore(snarkHashBytes, _SNARK_SHA_BYTES)
+
+            // Set the pointer at the begining of the byte array
+            let ptr := add(snarkHashBytes, 32)
+
+            // store aggregator address
+            mstore(ptr, shl(96, aggregatorAddress)) // 256 - 160 = 96
+            ptr := add(ptr, 20)
+
+            for {
+                let i := 0
+            } lt(i, 8) {
+                i := add(i, 1)
+            } {
+                // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
+                // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
+                // Then shift left 256 - 32 (224) bits to the left.
+                // AS a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
+                // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
+                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), inputStark))))
+                ptr := add(ptr, 8) // write the next 8 bytes
+            }
+        }
+        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         return inputSnark;
     }
@@ -119,7 +148,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
-    function getNextStarkInput(
+    function getNextSnarkInput(
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         uint64 numBatch
@@ -147,20 +176,55 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             maticFee = currentForcedBatch.maticFee;
         }
 
-        uint256 input = uint256(
-            keccak256(
-                abi.encodePacked(
-                    currentStateRoot,
-                    currentLocalExitRoot,
-                    newStateRoot,
-                    newLocalExitRoot,
-                    batchHashData,
-                    numBatch,
-                    timestamp
-                )
+        bytes32 inputStark = keccak256(
+            abi.encodePacked(
+                currentStateRoot,
+                currentLocalExitRoot,
+                newStateRoot,
+                newLocalExitRoot,
+                batchHashData,
+                numBatch,
+                timestamp
             )
         );
-        return input;
+
+        bytes memory snarkHashBytes;
+
+        assembly {
+            // Set snarkHashBytes to the next free memory space
+            snarkHashBytes := mload(0x40)
+
+            // Reserve the memory. 32 for the length , the input bytes and 32
+            // extra bytes at the end for word manipulation
+            mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
+
+            // Set the actua length of the input bytes
+            mstore(snarkHashBytes, _SNARK_SHA_BYTES)
+
+            // Set the pointer at the begining of the byte array
+            let ptr := add(snarkHashBytes, 32)
+
+            // store aggregator address
+            mstore(ptr, shl(96, caller())) // 256 - 160 = 96
+            ptr := add(ptr, 20)
+
+            for {
+                let i := 0
+            } lt(i, 8) {
+                i := add(i, 1)
+            } {
+                // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
+                // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
+                // Then shift left 256 - 32 (224) bits to the left.
+                // AS a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
+                // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
+                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), inputStark))))
+                ptr := add(ptr, 8) // write the next 8 bytes
+            }
+        }
+        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
+
+        return inputSnark;
     }
 
     /**
