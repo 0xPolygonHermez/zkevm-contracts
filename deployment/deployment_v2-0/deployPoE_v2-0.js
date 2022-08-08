@@ -13,9 +13,8 @@ async function main() {
     const deployer = (await ethers.getSigners())[0];
     const networkIDMainnet = 0;
     const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
-    const trustedSequencer = deployer.address;
+    const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || "http://zkevm-json-rpc:8123";
-
     /*
         Deployment MATIC
     */
@@ -121,34 +120,18 @@ async function main() {
     console.log('forceBatchAllowed:', await proofOfEfficiencyContract.forceBatchAllowed());
     console.log('trustedSequencerURL:', await proofOfEfficiencyContract.trustedSequencerURL());
 
-    // calculate address and private Keys:
-    const DEFAULT_MNEMONIC = 'test test test test test test test test test test test junk';
-    const menmonic = deployParameters.mnemonic || DEFAULT_MNEMONIC;
-    const numAccounts = deployParameters.numFundAccounts || 5;
-
-    const accountsL1Array = [];
-    for (let i = 0; i < numAccounts; i++) {
-        const path = `m/44'/60'/0'/0/${i}`;
-        const wallet = ethers.Wallet.fromMnemonic(menmonic, path);
-        accountsL1Array.push({
-            address: wallet.address,
-            pvtKey: wallet.privateKey,
-        });
-
-        // fund account with tokens and ether if it have less than 0.5 ether.
-        const balanceEther = await ethers.provider.getBalance(wallet.address);
-        const minEtherBalance = ethers.utils.parseEther('0.1');
-        if (balanceEther < minEtherBalance) {
-            const params = {
-                to: wallet.address,
-                value: minEtherBalance,
-            };
-            await deployer.sendTransaction(params);
-        }
-        const tokensBalance = ethers.utils.parseEther('100000');
-        await maticTokenContract.transfer(wallet.address, tokensBalance);
-        console.log(`Account ${i} funded`);
+    // fund account with tokens and ether if it have less than 0.1 ether.
+    const balanceEther = await ethers.provider.getBalance(trustedSequencer);
+    const minEtherBalance = ethers.utils.parseEther('0.1');
+    if (balanceEther < minEtherBalance) {
+        const params = {
+            to: trustedSequencer,
+            value: minEtherBalance,
+        };
+        await deployer.sendTransaction(params);
     }
+    const tokensBalance = ethers.utils.parseEther('100000');
+    await maticTokenContract.transfer(trustedSequencer, tokensBalance);
 
     const outputJson = {
         proofOfEfficiencyAddress: proofOfEfficiencyContract.address,
@@ -159,8 +142,7 @@ async function main() {
         deployerAddress: deployer.address,
         deploymentBlockNumber,
         genesisRoot: genesisRootHex,
-        accountsL1Array,
-        trustedSequencer: deployer.address,
+        trustedSequencer: trustedSequencer,
         forceBatchAllowed,
         trustedSequencerURL
     };
