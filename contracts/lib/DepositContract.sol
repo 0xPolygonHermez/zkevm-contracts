@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.15;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
 /**
  * This contract will be used as a helper for all the sparse merkle tree related functions
  * Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
  */
-contract DepositContract {
+contract DepositContract is Initializable {
     // Merkle tree levels
     uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
@@ -23,7 +25,7 @@ contract DepositContract {
     // Counter of current deposits
     uint256 public depositCount;
 
-    constructor() {
+    function __DepositContract_init() internal onlyInitializing {
         // Compute hashes in empty sparse Merkle tree
         for (
             uint256 height = 0;

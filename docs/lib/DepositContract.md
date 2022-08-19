@@ -3,6 +3,15 @@ Based on the implementation of the deposit eth2.0 contract https://github.com/et
 
 
 ## Functions
+### __DepositContract_init
+```solidity
+  function __DepositContract_init(
+  ) internal
+```
+
+
+
+
 ### getDepositRoot
 ```solidity
   function getDepositRoot(

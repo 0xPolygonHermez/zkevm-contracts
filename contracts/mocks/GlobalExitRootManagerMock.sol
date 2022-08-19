@@ -12,9 +12,9 @@ contract GlobalExitRootManagerMock is GlobalExitRootManager {
      * @param _rollupAddress Rollup contract address
      * @param _bridgeAddress Bridge contract address
      */
-    constructor(address _rollupAddress, address _bridgeAddress)
-        GlobalExitRootManager(_rollupAddress, _bridgeAddress)
-    {}
+    constructor(address _rollupAddress, address _bridgeAddress) {
+        initialize(_rollupAddress, _bridgeAddress);
+    }
 
     /**
      * @notice Set last global exit root

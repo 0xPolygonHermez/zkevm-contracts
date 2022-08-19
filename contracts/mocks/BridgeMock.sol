@@ -14,9 +14,11 @@ contract BridgeMock is Bridge {
     constructor(
         uint32 _networkID,
         IGlobalExitRootManager _globalExitRootManager
-    ) Bridge(_networkID, _globalExitRootManager) {}
+    ) {
+        initialize(_networkID, _globalExitRootManager);
+    }
 
-    function setNetworkID(uint32 _networkID) public onlyOwner {
+    function setNetworkID(uint32 _networkID) public {
         networkID = _networkID;
     }
 }

@@ -2,20 +2,19 @@
 
 pragma solidity 0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/DepositContract.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is Ownable, DepositContract {
-    using SafeERC20 for IERC20;
+contract Bridge is DepositContract {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Wrapped Token information struct
     struct TokenInformation {
@@ -42,19 +41,20 @@ contract Bridge is Ownable, DepositContract {
     IGlobalExitRootManager public globalExitRootManager;
 
     // Addres of the token wrapped implementation
-    address public immutable tokenImplementation;
+    address public tokenImplementation;
 
     /**
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
      */
-    constructor(
+    function initialize(
         uint32 _networkID,
         IGlobalExitRootManager _globalExitRootManager
-    ) {
+    ) public initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         tokenImplementation = address(new TokenWrapped());
+        __DepositContract_init();
     }
 
     /**
@@ -102,7 +102,7 @@ contract Bridge is Ownable, DepositContract {
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount
-    ) public payable {
+    ) public payable initializer {
         require(
             destinationNetwork != networkID,
             "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
@@ -134,7 +134,7 @@ contract Bridge is Ownable, DepositContract {
                 originNetwork = tokenInfo.originNetwork;
             } else {
                 // The token is from this network.
-                IERC20(token).safeTransferFrom(
+                IERC20Upgradeable(token).safeTransferFrom(
                     msg.sender,
                     address(this),
                     amount
@@ -145,9 +145,9 @@ contract Bridge is Ownable, DepositContract {
 
                 // Encode metadata
                 metadata = abi.encode(
-                    IERC20Metadata(token).name(),
-                    IERC20Metadata(token).symbol(),
-                    IERC20Metadata(token).decimals()
+                    IERC20MetadataUpgradeable(token).name(),
+                    IERC20MetadataUpgradeable(token).symbol(),
+                    IERC20MetadataUpgradeable(token).decimals()
                 );
             }
         }
@@ -275,7 +275,7 @@ contract Bridge is Ownable, DepositContract {
             // Transfer tokens
             if (originNetwork == networkID) {
                 // The token is an ERC20 from this network
-                IERC20(originTokenAddress).safeTransfer(
+                IERC20Upgradeable(originTokenAddress).safeTransfer(
                     destinationAddress,
                     amount
                 );
@@ -290,7 +290,7 @@ contract Bridge is Ownable, DepositContract {
                 if (wrappedToken == address(0)) {
                     // Create a new wrapped erc20
                     TokenWrapped newWrappedToken = TokenWrapped(
-                        Clones.cloneDeterministic(
+                        ClonesUpgradeable.cloneDeterministic(
                             tokenImplementation,
                             tokenInfoHash
                         )
@@ -354,7 +354,11 @@ contract Bridge is Ownable, DepositContract {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
-        return Clones.predictDeterministicAddress(tokenImplementation, salt);
+        return
+            ClonesUpgradeable.predictDeterministicAddress(
+                tokenImplementation,
+                salt
+            );
     }
 
     /**

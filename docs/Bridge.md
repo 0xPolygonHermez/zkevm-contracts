@@ -3,9 +3,9 @@ Contract responsible to manage the token interactions with other networks
 
 
 ## Functions
-### constructor
+### initialize
 ```solidity
-  function constructor(
+  function initialize(
     uint32 _networkID,
     contract IGlobalExitRootManager _globalExitRootManager
   ) public

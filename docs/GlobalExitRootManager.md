@@ -2,9 +2,9 @@ Contract responsible for managing the exit roots across multiple networks
 
 
 ## Functions
-### constructor
+### initialize
 ```solidity
-  function constructor(
+  function initialize(
     address _rollupAddress,
     address _bridgeAddress
   ) public

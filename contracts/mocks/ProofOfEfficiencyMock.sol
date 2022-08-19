@@ -22,14 +22,14 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      */
     constructor(
         IGlobalExitRootManager _globalExitRootManager,
-        IERC20 _matic,
+        IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         bytes32 genesisRoot,
         address _trustedSequencer,
         bool _forceBatchAllowed,
         string memory _trustedSequencerURL
-    )
-        ProofOfEfficiency(
+    ) {
+        initialize(
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
@@ -37,8 +37,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             _trustedSequencer,
             _forceBatchAllowed,
             _trustedSequencerURL
-        )
-    {}
+        );
+    }
 
     /**
      * @notice Calculate the stark input

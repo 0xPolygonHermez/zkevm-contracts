@@ -8,6 +8,14 @@ import "hardhat/console.sol";
  * Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
  */
 contract DepositContractMock is DepositContract {
+    constructor() {
+        initialize();
+    }
+
+    function initialize() public initializer {
+        __DepositContract_init();
+    }
+
     /**
      * @notice Given the leaf data returns the leaf value
      * @param originNetwork Origin Network
