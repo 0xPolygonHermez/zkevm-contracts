@@ -59,33 +59,34 @@ async function main() {
     /*
     *Deployment Global exit root manager
     */
-    const precalculateBridgeAddress = await ethers.utils.getContractAddress(
-        { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
-    );
-
-    const precalculatePoEAddress = await ethers.utils.getContractAddress(
-        { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2 },
-    );
+    // deploy global exit root manager
     const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-    const globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculateBridgeAddress);
-    await globalExitRootManager.deployed();
+    globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
+
+    // deploy bridge
+    const bridgeFactory = await ethers.getContractFactory('Bridge');
+    bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
+
+    // deploy PoE
+    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
+    proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
+
+    await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
+
 
     console.log('#######################\n');
     console.log('globalExitRootManager deployed to:', globalExitRootManager.address);
 
     /*
-     *Deployment Bridge
+     * Initialize Bridge
      */
-    const BridgeFactory = await ethers.getContractFactory('BridgeMock');
-    const bridgeContract = await BridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
-    await bridgeContract.deployed();
-    expect(bridgeContract.address).to.be.equal(precalculateBridgeAddress);
+    await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
 
     console.log('#######################\n');
     console.log('Bridge deployed to:', bridgeContract.address);
 
     /*
-        Deploy proof of efficiency
+     * Initialize proof of efficiency
     */
     // Check genesis file
     const genesisRootHex = genesis.root;
@@ -102,8 +103,7 @@ async function main() {
     console.log('forceBatchAllowed:', forceBatchAllowed);
     console.log('trustedSequencerURL:', trustedSequencerURL);
 
-    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
-    const proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
+    await proofOfEfficiencyContract.initialize(
         globalExitRootManager.address,
         maticTokenContract.address,
         verifierContract.address,
@@ -112,8 +112,6 @@ async function main() {
         forceBatchAllowed,
         trustedSequencerURL
     );
-    await proofOfEfficiencyContract.deployed();
-    expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
 
     console.log('#######################\n');
     console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
