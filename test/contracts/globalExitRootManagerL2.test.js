@@ -1,11 +1,12 @@
 const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 
 const zero32bytes = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 describe('Global Exit Root L2', () => {
     let bridge;
     let globalExitRootManager;
+
     beforeEach('Deploy contracts', async () => {
         const networkIDRollup = 1;
 
@@ -13,21 +14,13 @@ describe('Global Exit Root L2', () => {
         const deployer = (await ethers.getSigners())[0];
 
         // deploy bridge
-        const precalculatBridgeAddress = await ethers.utils.getContractAddress(
-            { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
-        );
-
+        const bridgeFactory = await ethers.getContractFactory('Bridge');
+        bridge = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerL2Mock', deployer);
-        globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatBridgeAddress);
-        await globalExitRootManager.deployed();
+        globalExitRootManager = await globalExitRootManagerFactory.deploy(bridge.address);
 
-        // deploy bridge
-        const bridgeFactory = await ethers.getContractFactory('Bridge', deployer);
-        bridge = await bridgeFactory.deploy(networkIDRollup, globalExitRootManager.address);
-        await bridge.deployed();
-
-        expect(bridge.address).to.be.equal(precalculatBridgeAddress);
+        await bridge.initialize(networkIDRollup, globalExitRootManager.address);
     });
 
     it('should check the constructor parameters', async () => {

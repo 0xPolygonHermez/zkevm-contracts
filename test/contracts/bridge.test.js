@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 const MerkleTreeBridge = require('@0xpolygonhermez/zkevm-commonjs').MTBridge;
 const {
     verifyMerkleProof,
@@ -35,22 +35,16 @@ describe('Bridge Contract', () => {
         // load signers
         [deployer, rollup, acc1] = await ethers.getSigners();
 
-        // deploy bridge
-        const precalculatBridgeAddress = await ethers.utils.getContractAddress(
-            { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
-        );
-
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-        globalExitRootManager = await globalExitRootManagerFactory.deploy(rollup.address, precalculatBridgeAddress);
-        await globalExitRootManager.deployed();
+        globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
 
         // deploy bridge
         const bridgeFactory = await ethers.getContractFactory('Bridge');
-        bridgeContract = await bridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
-        await bridgeContract.deployed();
+        bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
 
-        expect(bridgeContract.address).to.be.equal(precalculatBridgeAddress);
+        await globalExitRootManager.initialize(rollup.address, bridgeContract.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');

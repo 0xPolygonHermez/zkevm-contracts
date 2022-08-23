@@ -102,7 +102,7 @@ contract Bridge is DepositContract {
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount
-    ) public payable initializer {
+    ) public payable {
         require(
             destinationNetwork != networkID,
             "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
