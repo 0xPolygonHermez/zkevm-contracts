@@ -22,6 +22,9 @@ contract Bridge is DepositContract {
         address originTokenAddress;
     }
 
+    // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
+    bytes4 constant _PERMIT_SIGNATURE = 0xd505accf;
+
     // Mainnet indentifier
     uint32 public constant MAINNET_NETWORK_ID = 0;
 
@@ -96,12 +99,14 @@ contract Bridge is DepositContract {
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
+     * @param permitData Raw data of the call `permit` of the token
      */
     function bridge(
         address token,
         uint32 destinationNetwork,
         address destinationAddress,
-        uint256 amount
+        uint256 amount,
+        bytes calldata permitData
     ) public payable {
         require(
             destinationNetwork != networkID,
@@ -133,6 +138,10 @@ contract Bridge is DepositContract {
                 originTokenAddress = tokenInfo.originTokenAddress;
                 originNetwork = tokenInfo.originNetwork;
             } else {
+                // Use permit if any
+                if (permitData.length != 0) {
+                    _permit(token, amount, permitData);
+                }
                 // The token is from this network.
                 IERC20Upgradeable(token).safeTransferFrom(
                     msg.sender,
@@ -374,5 +383,78 @@ contract Bridge is DepositContract {
             tokenInfoToWrappedToken[
                 keccak256(abi.encodePacked(originNetwork, originTokenAddress))
             ];
+    }
+
+    /**
+     * @notice Function to extract the selector of a bytes calldata
+     * @param _data The calldata bytes
+     */
+    function _getSelector(bytes memory _data)
+        private
+        pure
+        returns (bytes4 sig)
+    {
+        assembly {
+            sig := mload(add(_data, 32))
+        }
+    }
+
+    /**
+     * @notice Function to call token permit method of extended ERC20
+     + @param token ERC20 token address
+     * @param amount Quantity that is expected to be allowed
+     * @param permitData Raw data of the call `permit` of the token
+     */
+    function _permit(
+        address token,
+        uint256 amount,
+        bytes calldata permitData
+    ) internal {
+        bytes4 sig = _getSelector(permitData);
+        require(
+            sig == _PERMIT_SIGNATURE,
+            "HezMaticMerge::_permit: NOT_VALID_CALL"
+        );
+        (
+            address owner,
+            address spender,
+            uint256 value,
+            uint256 deadline,
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        ) = abi.decode(
+                permitData[4:],
+                (address, address, uint256, uint256, uint8, bytes32, bytes32)
+            );
+        require(
+            owner == msg.sender,
+            "HezMaticMerge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
+        );
+        require(
+            spender == address(this),
+            "HezMaticMerge::_permit: SPENDER_MUST_BE_THIS"
+        );
+        require(
+            value == amount,
+            "HezMaticMerge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
+        );
+
+        // we call without checking the result, in case it fails and he doesn't have enough balance
+        // the following transferFrom should be fail. This prevents DoS attacks from using a signature
+        // before the smartcontract call
+        /* solhint-disable avoid-low-level-calls */
+        address(token).call(
+            abi.encodeWithSelector(
+                _PERMIT_SIGNATURE,
+                owner,
+                spender,
+                value,
+                deadline,
+                v,
+                r,
+                s
+            )
+        );
     }
 }

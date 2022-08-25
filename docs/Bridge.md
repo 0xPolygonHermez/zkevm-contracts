@@ -24,7 +24,8 @@ Contract responsible to manage the token interactions with other networks
     address token,
     uint32 destinationNetwork,
     address destinationAddress,
-    uint256 amount
+    uint256 amount,
+    bytes permitData
   ) public
 ```
 Deposit add a new leaf to the merkle tree
@@ -37,6 +38,7 @@ Deposit add a new leaf to the merkle tree
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
 |`amount` | uint256 | Amount of tokens
+|`permitData` | bytes | Raw data of the call `permit` of the token
 
 ### claim
 ```solidity
@@ -101,6 +103,23 @@ Returns the address of a wrapper using the token information if already exist
 | :--- | :--- | :------------------------------------------------------------------- |
 |`originNetwork` | uint32 | Origin network
 |`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
+
+### _permit
+```solidity
+  function _permit(
+    address amount,
+    uint256 permitData
+  ) internal
+```
+Function to call token permit method of extended ERC20
+     + @param token ERC20 token address
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`amount` | address | Quantity that is expected to be allowed
+|`permitData` | uint256 | Raw data of the call `permit` of the token
 
 ## Events
 ### BridgeEvent
