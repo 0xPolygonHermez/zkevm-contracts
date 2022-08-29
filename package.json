@@ -1,7 +1,7 @@
 {
   "name": "@0xpolygonhermez/contracts-zkevm",
   "description": "Core contracts for the Polygon Hermez zkEVM",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPolygonHermez/contracts-zkEVM.git"
