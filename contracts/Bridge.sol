@@ -413,7 +413,7 @@ contract Bridge is DepositContract {
         bytes4 sig = _getSelector(permitData);
         require(
             sig == _PERMIT_SIGNATURE,
-            "HezMaticMerge::_permit: NOT_VALID_CALL"
+            "Bridge::_permit: NOT_VALID_CALL"
         );
         (
             address owner,
@@ -429,15 +429,15 @@ contract Bridge is DepositContract {
             );
         require(
             owner == msg.sender,
-            "HezMaticMerge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
+            "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
         );
         require(
             spender == address(this),
-            "HezMaticMerge::_permit: SPENDER_MUST_BE_THIS"
+            "Bridge::_permit: SPENDER_MUST_BE_THIS"
         );
         require(
             value == amount,
-            "HezMaticMerge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
+            "Bridge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
         );
 
         // we call without checking the result, in case it fails and he doesn't have enough balance
