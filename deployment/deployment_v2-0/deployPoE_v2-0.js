@@ -15,6 +15,7 @@ async function main() {
     const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || "http://zkevm-json-rpc:8123";
+    const realVerifier = deployParameters.realVerifier || false;
     /*
         Deployment MATIC
     */
@@ -35,13 +36,23 @@ async function main() {
     console.log('Matic deployed to:', maticTokenContract.address);
 
     /*
-        Deployment Mock verifier
+        Deployment verifier
     */
-    const VerifierRollupHelperFactory = await ethers.getContractFactory(
-        'VerifierRollupHelperMock',
-    );
-    const verifierContract = await VerifierRollupHelperFactory.deploy();
-    await verifierContract.deployed();
+    let verifierContract;
+    if (realVerifier === true) {
+        const VerifierRollup = await ethers.getContractFactory(
+            'Verifier',
+        );
+        verifierContract = await VerifierRollup.deploy();
+        await verifierContract.deployed();
+    }
+    else {
+        const VerifierRollupHelperFactory = await ethers.getContractFactory(
+            'VerifierRollupHelperMock',
+        );
+        verifierContract = await VerifierRollupHelperFactory.deploy();
+        await verifierContract.deployed();
+    }
 
     console.log('#######################\n');
     console.log('Verifier deployed to:', verifierContract.address);
