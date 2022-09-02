@@ -1,5 +1,5 @@
 {
-  "name": "@0xpolygonhermez/contracts-zkevm",
+  "name": "@0xpolygonhermez/zkevm-contracts",
   "description": "Core contracts for the Polygon Hermez zkEVM",
   "version": "0.0.7",
   "repository": {
@@ -21,7 +21,8 @@
   "files": [
     "contracts",
     "index.js",
-    "compiled-contracts"
+    "compiled-contracts",
+    "src"
   ],
   "bugs": {
     "url": "https://github.com/0xPolygonHermez/contracts-zkEVM/issues"

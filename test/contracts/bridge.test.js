@@ -9,7 +9,7 @@ const {
 const {
     createPermitSignature,
     ifacePermit,
-} = require('./helpers/permit-helper');
+} = require('../../src/permit-helper');
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
