@@ -3,6 +3,16 @@ const {
 } = require('hardhat');
 const { expect } = require('chai');
 
+/**
+ * Create a permit signature with the EIP-712 standar
+ * @param {Object} tokenContractInstance - EthersJS contract instance of the token
+ * @param {Object} wallet - EthersJs wallet instance that will sign the permit
+ * @param {String} spenderAddress - Spender address, usually the contract that the permit will interact with
+ * @param {String} value - Value of the permit
+ * @param {String} nonce - Nonce of the permit
+ * @param {String} deadline - Deadline of the permit
+ * @returns {Object} - Signature obejct, { v, r, s}
+ */
 async function createPermitSignature(tokenContractInstance, wallet, spenderAddress, value, nonce, deadline) {
     const chainId = (await tokenContractInstance.getChainId());
     const name = await tokenContractInstance.name();
@@ -43,6 +53,9 @@ async function createPermitSignature(tokenContractInstance, wallet, spenderAddre
     return signature;
 }
 
+/**
+ * Permit interface
+ */
 const ifacePermit = new ethers.utils.Interface(['function permit(address,address,uint256,uint256,uint8,bytes32,bytes32)']);
 
 module.exports = {
