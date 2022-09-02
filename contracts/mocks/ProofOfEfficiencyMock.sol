@@ -2,7 +2,6 @@
 pragma solidity 0.8.15;
 
 import "../ProofOfEfficiency.sol";
-import "hardhat/console.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
@@ -11,35 +10,6 @@ import "hardhat/console.sol";
  * To enter and exit of the L2 network will be used a Bridge smart contract
  */
 contract ProofOfEfficiencyMock is ProofOfEfficiency {
-    /**
-     * @param _globalExitRootManager global exit root manager address
-     * @param _matic MATIC token address
-     * @param _rollupVerifier rollup verifier address
-     * @param genesisRoot rollup genesis root
-     * @param _trustedSequencer trusted sequencer address
-     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
-     * @param _trustedSequencerURL trusted sequencer URL
-     */
-    constructor(
-        IGlobalExitRootManager _globalExitRootManager,
-        IERC20 _matic,
-        IVerifierRollup _rollupVerifier,
-        bytes32 genesisRoot,
-        address _trustedSequencer,
-        bool _forceBatchAllowed,
-        string memory _trustedSequencerURL
-    )
-        ProofOfEfficiency(
-            _globalExitRootManager,
-            _matic,
-            _rollupVerifier,
-            genesisRoot,
-            _trustedSequencer,
-            _forceBatchAllowed,
-            _trustedSequencerURL
-        )
-    {}
-
     /**
      * @notice Calculate the stark input
      * @param currentStateRoot Current state Root

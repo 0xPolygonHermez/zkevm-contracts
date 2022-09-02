@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 
 const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
@@ -46,27 +46,21 @@ describe('Proof of efficiency', () => {
         );
         await maticTokenContract.deployed();
 
-        const precalculatBridgeAddress = await ethers.utils.getContractAddress(
-            { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1 },
-        );
-
-        const precalculatePoEAddress = await ethers.utils.getContractAddress(
-            { from: deployer.address, nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2 },
-        );
-
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-        globalExitRootManager = await globalExitRootManagerFactory.deploy(precalculatePoEAddress, precalculatBridgeAddress);
-        await globalExitRootManager.deployed();
+        globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
 
         // deploy bridge
         const bridgeFactory = await ethers.getContractFactory('Bridge');
-        bridgeContract = await bridgeFactory.deploy(networkIDMainnet, globalExitRootManager.address);
-        await bridgeContract.deployed();
+        bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
 
-        // deploy proof of efficiency
+        // deploy PoE
         const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
-        proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
+        proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
+
+        await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
+        await proofOfEfficiencyContract.initialize(
             globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
@@ -75,10 +69,6 @@ describe('Proof of efficiency', () => {
             allowForcebatches,
             urlSequencer,
         );
-        await proofOfEfficiencyContract.deployed();
-
-        expect(proofOfEfficiencyContract.address).to.be.equal(precalculatePoEAddress);
-        expect(bridgeContract.address).to.be.equal(precalculatBridgeAddress);
 
         // fund sequencer address with Matic tokens
         await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('100'));

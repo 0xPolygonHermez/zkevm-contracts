@@ -1,11 +1,11 @@
 const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 
 const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
 const { calculateSnarkInput, calculateStarkInput } = contractUtils;
 
-describe('Proof of efficiency', () => {
+describe('Proof of efficiency snark stark input test', () => {
     let proofOfEfficiencyContract;
     const genesisRoot = ethers.constants.HashZero;
 
@@ -18,14 +18,17 @@ describe('Proof of efficiency', () => {
 
         // deploy proof of efficiency
         const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
-        proofOfEfficiencyContract = await ProofOfEfficiencyFactory.deploy(
-            randomSigner.address,
-            randomSigner.address,
-            randomSigner.address,
-            genesisRoot,
-            randomSigner.address,
-            allowForcebatches,
-            urlSequencer,
+        proofOfEfficiencyContract = await upgrades.deployProxy(
+            ProofOfEfficiencyFactory,
+            [
+                randomSigner.address,
+                randomSigner.address,
+                randomSigner.address,
+                genesisRoot,
+                randomSigner.address,
+                allowForcebatches,
+                urlSequencer,
+            ],
         );
         await proofOfEfficiencyContract.deployed();
     });

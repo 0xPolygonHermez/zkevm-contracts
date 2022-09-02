@@ -7,11 +7,11 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 
 
 ## Functions
-### constructor
+### initialize
 ```solidity
-  function constructor(
+  function initialize(
     contract IGlobalExitRootManager _globalExitRootManager,
-    contract IERC20 _matic,
+    contract IERC20Upgradeable _matic,
     contract IVerifierRollup _rollupVerifier,
     bytes32 genesisRoot,
     address _trustedSequencer,
@@ -25,7 +25,7 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_globalExitRootManager` | contract IGlobalExitRootManager | global exit root manager address
-|`_matic` | contract IERC20 | MATIC token address
+|`_matic` | contract IERC20Upgradeable | MATIC token address
 |`_rollupVerifier` | contract IVerifierRollup | rollup verifier address
 |`genesisRoot` | bytes32 | rollup genesis root
 |`_trustedSequencer` | address | trusted sequencer address

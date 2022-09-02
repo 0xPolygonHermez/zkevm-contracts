@@ -2,26 +2,28 @@
 
 pragma solidity 0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/DepositContract.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is Ownable, DepositContract {
-    using SafeERC20 for IERC20;
+contract Bridge is DepositContract {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Wrapped Token information struct
     struct TokenInformation {
         uint32 originNetwork;
         address originTokenAddress;
     }
+
+    // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
+    bytes4 constant _PERMIT_SIGNATURE = 0xd505accf;
 
     // Mainnet indentifier
     uint32 public constant MAINNET_NETWORK_ID = 0;
@@ -42,19 +44,20 @@ contract Bridge is Ownable, DepositContract {
     IGlobalExitRootManager public globalExitRootManager;
 
     // Addres of the token wrapped implementation
-    address public immutable tokenImplementation;
+    address public tokenImplementation;
 
     /**
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
      */
-    constructor(
+    function initialize(
         uint32 _networkID,
         IGlobalExitRootManager _globalExitRootManager
-    ) {
+    ) public initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         tokenImplementation = address(new TokenWrapped());
+        __DepositContract_init();
     }
 
     /**
@@ -96,12 +99,14 @@ contract Bridge is Ownable, DepositContract {
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
+     * @param permitData Raw data of the call `permit` of the token
      */
     function bridge(
         address token,
         uint32 destinationNetwork,
         address destinationAddress,
-        uint256 amount
+        uint256 amount,
+        bytes calldata permitData
     ) public payable {
         require(
             destinationNetwork != networkID,
@@ -133,8 +138,12 @@ contract Bridge is Ownable, DepositContract {
                 originTokenAddress = tokenInfo.originTokenAddress;
                 originNetwork = tokenInfo.originNetwork;
             } else {
+                // Use permit if any
+                if (permitData.length != 0) {
+                    _permit(token, amount, permitData);
+                }
                 // The token is from this network.
-                IERC20(token).safeTransferFrom(
+                IERC20Upgradeable(token).safeTransferFrom(
                     msg.sender,
                     address(this),
                     amount
@@ -145,9 +154,9 @@ contract Bridge is Ownable, DepositContract {
 
                 // Encode metadata
                 metadata = abi.encode(
-                    IERC20Metadata(token).name(),
-                    IERC20Metadata(token).symbol(),
-                    IERC20Metadata(token).decimals()
+                    IERC20MetadataUpgradeable(token).name(),
+                    IERC20MetadataUpgradeable(token).symbol(),
+                    IERC20MetadataUpgradeable(token).decimals()
                 );
             }
         }
@@ -275,7 +284,7 @@ contract Bridge is Ownable, DepositContract {
             // Transfer tokens
             if (originNetwork == networkID) {
                 // The token is an ERC20 from this network
-                IERC20(originTokenAddress).safeTransfer(
+                IERC20Upgradeable(originTokenAddress).safeTransfer(
                     destinationAddress,
                     amount
                 );
@@ -290,7 +299,7 @@ contract Bridge is Ownable, DepositContract {
                 if (wrappedToken == address(0)) {
                     // Create a new wrapped erc20
                     TokenWrapped newWrappedToken = TokenWrapped(
-                        Clones.cloneDeterministic(
+                        ClonesUpgradeable.cloneDeterministic(
                             tokenImplementation,
                             tokenInfoHash
                         )
@@ -354,7 +363,11 @@ contract Bridge is Ownable, DepositContract {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
-        return Clones.predictDeterministicAddress(tokenImplementation, salt);
+        return
+            ClonesUpgradeable.predictDeterministicAddress(
+                tokenImplementation,
+                salt
+            );
     }
 
     /**
@@ -370,5 +383,78 @@ contract Bridge is Ownable, DepositContract {
             tokenInfoToWrappedToken[
                 keccak256(abi.encodePacked(originNetwork, originTokenAddress))
             ];
+    }
+
+    /**
+     * @notice Function to extract the selector of a bytes calldata
+     * @param _data The calldata bytes
+     */
+    function _getSelector(bytes memory _data)
+        private
+        pure
+        returns (bytes4 sig)
+    {
+        assembly {
+            sig := mload(add(_data, 32))
+        }
+    }
+
+    /**
+     * @notice Function to call token permit method of extended ERC20
+     + @param token ERC20 token address
+     * @param amount Quantity that is expected to be allowed
+     * @param permitData Raw data of the call `permit` of the token
+     */
+    function _permit(
+        address token,
+        uint256 amount,
+        bytes calldata permitData
+    ) internal {
+        bytes4 sig = _getSelector(permitData);
+        require(
+            sig == _PERMIT_SIGNATURE,
+            "Bridge::_permit: NOT_VALID_CALL"
+        );
+        (
+            address owner,
+            address spender,
+            uint256 value,
+            uint256 deadline,
+            uint8 v,
+            bytes32 r,
+            bytes32 s
+        ) = abi.decode(
+                permitData[4:],
+                (address, address, uint256, uint256, uint8, bytes32, bytes32)
+            );
+        require(
+            owner == msg.sender,
+            "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
+        );
+        require(
+            spender == address(this),
+            "Bridge::_permit: SPENDER_MUST_BE_THIS"
+        );
+        require(
+            value == amount,
+            "Bridge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
+        );
+
+        // we call without checking the result, in case it fails and he doesn't have enough balance
+        // the following transferFrom should be fail. This prevents DoS attacks from using a signature
+        // before the smartcontract call
+        /* solhint-disable avoid-low-level-calls */
+        address(token).call(
+            abi.encodeWithSelector(
+                _PERMIT_SIGNATURE,
+                owner,
+                spender,
+                value,
+                deadline,
+                v,
+                r,
+                s
+            )
+        );
     }
 }

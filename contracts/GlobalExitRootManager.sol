@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.15;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract GlobalExitRootManager is IGlobalExitRootManager {
+contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
 
@@ -40,7 +40,10 @@ contract GlobalExitRootManager is IGlobalExitRootManager {
      * @param _rollupAddress Rollup contract address
      * @param _bridgeAddress Bridge contract address
      */
-    constructor(address _rollupAddress, address _bridgeAddress) {
+    function initialize(address _rollupAddress, address _bridgeAddress)
+        public
+        initializer
+    {
         rollupAddress = _rollupAddress;
         bridgeAddress = _bridgeAddress;
     }

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.15;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network
@@ -14,8 +15,8 @@ import "./interfaces/IGlobalExitRootManager.sol";
  * The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from L2 network
  * To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
  */
-contract ProofOfEfficiency {
-    using SafeERC20 for IERC20;
+contract ProofOfEfficiency is Initializable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
      * @notice Struct which will be used to call sequenceBatches
@@ -65,7 +66,7 @@ contract ProofOfEfficiency {
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
     // MATIC token address
-    IERC20 public immutable matic;
+    IERC20Upgradeable public matic;
 
     // trusted sequencer prover Fee
     uint256 public constant TRUSTED_SEQUENCER_FEE = 0.1 ether; // TODO should be defined
@@ -171,15 +172,15 @@ contract ProofOfEfficiency {
      * @param _forceBatchAllowed indicates wheather the force batch functionality is available
      * @param _trustedSequencerURL trusted sequencer URL
      */
-    constructor(
+    function initialize(
         IGlobalExitRootManager _globalExitRootManager,
-        IERC20 _matic,
+        IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         bytes32 genesisRoot,
         address _trustedSequencer,
         bool _forceBatchAllowed,
         string memory _trustedSequencerURL
-    ) {
+    ) public initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
@@ -401,14 +402,13 @@ contract ProofOfEfficiency {
                 // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
                 // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
                 // Then shift left 256 - 32 (224) bits to the left.
-                // AS a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
+                // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
                 // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), inputStark))))
                 ptr := add(ptr, 8) // write the next 8 bytes
             }
         }
 
-        // calulate the snark input
+        // Calulate the snark input
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
