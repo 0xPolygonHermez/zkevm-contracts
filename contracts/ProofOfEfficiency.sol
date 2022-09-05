@@ -404,10 +404,10 @@ contract ProofOfEfficiency is Initializable {
                 // Then shift left 256 - 32 (224) bits to the left.
                 // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
                 // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
+                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), inputStark))))
                 ptr := add(ptr, 8) // write the next 8 bytes
             }
         }
-
         // Calulate the snark input
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
