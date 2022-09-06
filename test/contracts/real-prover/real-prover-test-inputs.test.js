@@ -8,7 +8,7 @@ const { generateSolidityInputs } = contractUtils;
 const proofJson = require('./test-inputs/proof.json');
 const publicJson = require('./test-inputs/public.json');
 
-describe('Real prover test', () => {
+describe('Real flow test', () => {
     let verifierContract;
 
     beforeEach('Deploy contract', async () => {

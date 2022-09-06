@@ -83,6 +83,7 @@ module.exports = {
       },
     },
     hardhat: {
+      initialDate: "0",
       accounts: {
         mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
         path: "m/44'/60'/0'/0",
