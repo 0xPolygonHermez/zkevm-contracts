@@ -1,6 +1,4 @@
-const {
-    ethers,
-} = require('hardhat');
+const ethers = require('ethers');
 const { expect } = require('chai');
 
 /**
