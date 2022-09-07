@@ -103,7 +103,7 @@ async function main() {
     console.log('forceBatchAllowed:', forceBatchAllowed);
     console.log('trustedSequencerURL:', trustedSequencerURL);
 
-    await proofOfEfficiencyContract.initialize(
+    await (await proofOfEfficiencyContract.initialize(
         globalExitRootManager.address,
         maticTokenContract.address,
         verifierContract.address,
@@ -111,7 +111,7 @@ async function main() {
         trustedSequencer,
         forceBatchAllowed,
         trustedSequencerURL
-    );
+    )).wait();
 
     console.log('#######################\n');
     console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
