@@ -1,6 +1,6 @@
 {
     "trustedSequencerURL": "http://zkevm-json-rpc:8123",
     "forceBatchAllowed": false,
-    "trustedSequencerAddress":"0x37907f9947a124e78f053a1508eee8002ffc3f50",
+    "trustedSequencerAddress":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
     "realVerifier": false
 }
