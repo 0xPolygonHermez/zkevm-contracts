@@ -12,7 +12,7 @@ const proofJson = require('./test-inputs/proof.json');
 const publicJson = require('./test-inputs/public.json');
 const inputJson = require('./test-inputs/input.json');
 
-describe('Real prover test', () => {
+describe('Real flow test', () => {
     let verifierContract;
     let maticTokenContract;
     let bridgeContract;
@@ -152,20 +152,7 @@ describe('Real prover test', () => {
             value: ethers.utils.parseEther('4'),
         });
 
-        /*
-         * Verify batch
-         * await expect(
-         *     proofOfEfficiencyContract.connect(aggregator).verifyBatch(
-         *         newLocalExitRoot,
-         *         newStateRoot,
-         *         numBatch,
-         *         proofA,
-         *         proofB,
-         *         proofC,
-         *     ),
-         * ).to.emit(proofOfEfficiencyContract, 'VerifyBatch')
-         *     .withArgs(numBatch, aggregator.address)
-         */
+        // Verify batch
         await expect(
             proofOfEfficiencyContract.connect(aggregator).verifyBatch(
                 newLocalExitRoot,
@@ -175,6 +162,7 @@ describe('Real prover test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ERC20: transfer to the zero address');
+        ).to.emit(proofOfEfficiencyContract, 'VerifyBatch')
+            .withArgs(numBatch, aggregator.address);
     });
 });

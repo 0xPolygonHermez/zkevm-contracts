@@ -3,6 +3,7 @@ sudo rm -rf docker/gethData/geth_data
 DEV_PERIOD=1 docker-compose -f docker/docker-compose.geth.yml up -d geth
 sleep 5
 node docker/scripts/fund-accounts.js
+cp docker/scripts/deploy_parameters_docker.json deployment/deployment_v2-0/deploy_parameters.json
 npx hardhat run deployment/deployment_v2-0/deployPoE_v2-0.js --network localhost
 mkdir docker/deploymentOutput
 mv deployment/deployment_v2-0/deploy_output.json docker/deploymentOutput

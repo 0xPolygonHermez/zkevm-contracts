@@ -4,6 +4,7 @@ const hre = require("hardhat");
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
+const openzeppelinUpgrade = require(`../../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 const pathDeployOutputParameters = path.join(__dirname, "./deploy_output.json");
 const deployOutputParameters = require(pathDeployOutputParameters);
 
@@ -50,59 +51,15 @@ async function main() {
     expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
   }
 
-  // verify bridge
-  try {
-    // verify governance
-    await hre.run("verify:verify",
-      {
-        address: deployOutputParameters.bridgeAddress,
-        constructorArguments: [
-          networkIDMainnet,
-          deployOutputParameters.globalExitRootManagerAddress
-        ]
-      }
-    );
-  } catch (error) {
-    console.log(error.message)
-    expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
-  }
-
-  // verify PoE
-  try {
-    // verify governance
-    await hre.run("verify:verify",
-      {
-        address: deployOutputParameters.proofOfEfficiencyAddress,
-        constructorArguments: [
-          deployOutputParameters.globalExitRootManagerAddress,
-          deployOutputParameters.maticTokenAddress,
-          deployOutputParameters.verifierAddress,
-          deployOutputParameters.genesisRoot,
-          deployOutputParameters.trustedSequencer,
-          deployOutputParameters.forceBatchAllowed,
-          deployOutputParameters.trustedSequencerURL,
-        ]
-      }
-    );
-  } catch (error) {
-    expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
-  }
-
-    // verify GlobalExtiRootManager
+  // verify upgradable SC (hermez and Auction)
+  for (const implementation in openzeppelinUpgrade.impls) {
+    const address = openzeppelinUpgrade.impls[implementation].address;
     try {
-      // verify governance
-      await hre.run("verify:verify",
-        {
-          address: deployOutputParameters.globalExitRootManagerAddress,
-          constructorArguments: [
-            deployOutputParameters.proofOfEfficiencyAddress,
-            deployOutputParameters.bridgeAddress
-          ]
-        }
-      );
+      await hre.run("verify:verify", { address });
     } catch (error) {
       expect(error.message.toLowerCase().includes("already verified")).to.be.equal(true);
     }
+  }
 }
 
 main()
