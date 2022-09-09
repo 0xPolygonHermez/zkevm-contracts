@@ -16,6 +16,8 @@ async function main() {
     const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || "http://zkevm-json-rpc:8123";
     const realVerifier = deployParameters.realVerifier || false;
+    console.log("real Verifier:", realVerifier);
+
     /*
         Deployment MATIC
     */
