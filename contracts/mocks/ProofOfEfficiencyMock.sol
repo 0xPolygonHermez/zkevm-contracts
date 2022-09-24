@@ -252,10 +252,18 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
     }
 
     /**
-     * @notice Set Sequencer
+     * @notice Set Exit Root
      * @param newLocalExitRoot New exit root ¡
      */
     function setExitRoot(bytes32 newLocalExitRoot) public {
         currentLocalExitRoot = newLocalExitRoot;
+    }
+
+    /**
+     * @notice Set Sequencer
+     * @param _rollupVerifier New verifier
+     */
+    function setVerifier(IVerifierRollup _rollupVerifier) public {
+        rollupVerifier = _rollupVerifier;
     }
 }
