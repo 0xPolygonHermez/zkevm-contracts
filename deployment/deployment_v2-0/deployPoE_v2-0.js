@@ -2,6 +2,7 @@ const { ethers } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
 const { Scalar } = require('ffjavascript');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
 
@@ -10,14 +11,23 @@ const deployParameters = require('./deploy_parameters.json');
 const genesis = require("./genesis.json")
 
 async function main() {
-    const deployer = (await ethers.getSigners())[0];
     const networkIDMainnet = 0;
     const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || "http://zkevm-json-rpc:8123";
     const realVerifier = deployParameters.realVerifier || false;
     const atemptsDeployProxy = 20;
-    console.log("real Verifier:", realVerifier);
+
+    const deployer = (await ethers.getSigners())[0];
+    // Use this only if necessary, override the hardhat gas parameters
+    // const FEE_DATA = {
+    //     maxFeePerGas: ethers.utils.parseUnits('10', 'gwei'),
+    //     maxPriorityFeePerGas: ethers.utils.parseUnits('4', 'gwei'),
+    // };
+    // const currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
+
+    // currentProvider.getFeeData = async () => FEE_DATA;
+    // const deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/0`).connect(currentProvider);
 
     /*
         Deployment MATIC
@@ -26,7 +36,7 @@ async function main() {
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
-    const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
+    const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock', deployer);
     const maticTokenContract = await maticTokenFactory.deploy(
         maticTokenName,
         maticTokenSymbol,
@@ -44,14 +54,14 @@ async function main() {
     let verifierContract;
     if (realVerifier === true) {
         const VerifierRollup = await ethers.getContractFactory(
-            'Verifier',
+            'Verifier', deployer
         );
         verifierContract = await VerifierRollup.deploy();
         await verifierContract.deployed();
     }
     else {
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
-            'VerifierRollupHelperMock',
+            'VerifierRollupHelperMock', deployer
         );
         verifierContract = await VerifierRollupHelperFactory.deploy();
         await verifierContract.deployed();
@@ -64,7 +74,7 @@ async function main() {
     */
 
     // deploy global exit root manager
-    const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
+    const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager', deployer);
     let globalExitRootManager;
     for (let i = 0; i < atemptsDeployProxy; i++) {
         try {
@@ -78,7 +88,7 @@ async function main() {
     }
 
     // deploy bridge
-    const bridgeFactory = await ethers.getContractFactory('Bridge');
+    const bridgeFactory = await ethers.getContractFactory('Bridge', deployer);
     let bridgeContract;
     for (let i = 0; i < atemptsDeployProxy; i++) {
         try {
@@ -92,7 +102,7 @@ async function main() {
     }
 
     // deploy PoE
-    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
+    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock', deployer);
     let proofOfEfficiencyContract;
     for (let i = 0; i < atemptsDeployProxy; i++) {
         try {
