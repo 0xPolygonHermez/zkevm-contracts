@@ -72,11 +72,12 @@ contract ProofOfEfficiency is Initializable {
     uint256 public constant TRUSTED_SEQUENCER_FEE = 0.1 ether; // TODO should be defined
 
     // Max batch byte length
-    // Max keccaks circuit = (2**23 / 158418) * 9 = 476
+    // Max keccaks circuit = (2**23 / 158418) * 9 = 468
     // Bytes per keccak = 136
     // Minimum Static keccaks batch = 4
-    // MAx bytes allowed = (476 - 4) * 136 = 64192 bytes
-    uint256 public constant MAX_BATCH_LENGTH = 64192;
+    // Max bytes allowed = (468 - 4) * 136 = 63104 bytes - 1 byte padding
+    // Rounded to 60000 bytes
+    uint256 public constant MAX_BATCH_LENGTH = 60000;
 
     // Force batch timeout
     uint64 public constant FORCE_BATCH_TIMEOUT = 7 days;
