@@ -266,4 +266,20 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
     function setVerifier(IVerifierRollup _rollupVerifier) public {
         rollupVerifier = _rollupVerifier;
     }
+
+    /**
+     * @notice Set Sequencer
+     * @param _numBatch New verifier
+     */
+    function setVerifiedBatch(uint64 _numBatch) public {
+        lastVerifiedBatch = _numBatch;
+    }
+
+    /**
+     * @notice Set Sequencer
+     * @param _numBatch New verifier
+     */
+    function setSequencedBatch(uint64 _numBatch) public {
+        lastBatchSequenced = _numBatch;
+    }
 }
