@@ -180,7 +180,7 @@ contract ProofOfEfficiency is Initializable {
         address _trustedSequencer,
         bool _forceBatchAllowed,
         string memory _trustedSequencerURL
-    ) public initializer {
+    ) public virtual initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
