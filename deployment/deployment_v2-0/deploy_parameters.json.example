@@ -3,6 +3,10 @@
     "forceBatchAllowed": false,
     "trustedSequencerAddress":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
     "realVerifier": false,
-    "chainID": 1000,
-    "networkName": "zkevm"
+    "chainID": 1001,
+    "networkName": "zkevm",
+    "privateKey": "",
+    "maxFeePerGas":0,
+    "maxPriorityFeePerGas":0,
+    "multiplierGas": 0
 }
