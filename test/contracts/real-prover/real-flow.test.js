@@ -116,7 +116,6 @@ describe('Real flow test', () => {
         ).to.emit(maticTokenContract, 'Approval');
 
         // set timestamp for the sendBatch call
-        const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
         const sequence = {
             transactions: inputJson.batchL2Data,
             globalExitRoot: inputJson.globalExitRoot,
@@ -128,12 +127,17 @@ describe('Real flow test', () => {
         await globalExitRootManager.setLastGlobalExitRootNum(1);
         await globalExitRootManager.setLastGlobalExitRoot(sequence.globalExitRoot);
 
+        await proofOfEfficiencyContract.setVerifiedBatch(inputJson.numBatch - 1);
+        await proofOfEfficiencyContract.setSequencedBatch(inputJson.numBatch - 1);
+
+        const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
+
         await ethers.provider.send('evm_setNextBlockTimestamp', [sequence.timestamp]);
 
         // Sequence Batches
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
-            .withArgs(lastBatchSequenced + 1);
+            .withArgs(Number(lastBatchSequenced) + 1);
 
         // aggregator forge the batch
         const { newLocalExitRoot } = inputJson;

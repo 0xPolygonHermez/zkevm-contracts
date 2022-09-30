@@ -2,6 +2,7 @@ const { ethers } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
 const { Scalar } = require('ffjavascript');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
 
@@ -10,13 +11,23 @@ const deployParameters = require('./deploy_parameters.json');
 const genesis = require("./genesis.json")
 
 async function main() {
-    const deployer = (await ethers.getSigners())[0];
     const networkIDMainnet = 0;
     const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || "http://zkevm-json-rpc:8123";
     const realVerifier = deployParameters.realVerifier || false;
-    console.log("real Verifier:", realVerifier);
+    const atemptsDeployProxy = 20;
+
+    const deployer = (await ethers.getSigners())[0];
+    // Use this only if necessary, override the hardhat gas parameters
+    // const FEE_DATA = {
+    //     maxFeePerGas: ethers.utils.parseUnits('10', 'gwei'),
+    //     maxPriorityFeePerGas: ethers.utils.parseUnits('4', 'gwei'),
+    // };
+    // const currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
+
+    // currentProvider.getFeeData = async () => FEE_DATA;
+    // const deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/0`).connect(currentProvider);
 
     /*
         Deployment MATIC
@@ -25,12 +36,12 @@ async function main() {
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
-    const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
+    const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock', deployer);
     const maticTokenContract = await maticTokenFactory.deploy(
         maticTokenName,
         maticTokenSymbol,
         deployer.address,
-        maticTokenInitialBalance,
+        maticTokenInitialBalance
     );
     await maticTokenContract.deployed();
 
@@ -43,14 +54,14 @@ async function main() {
     let verifierContract;
     if (realVerifier === true) {
         const VerifierRollup = await ethers.getContractFactory(
-            'Verifier',
+            'Verifier', deployer
         );
         verifierContract = await VerifierRollup.deploy();
         await verifierContract.deployed();
     }
     else {
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
-            'VerifierRollupHelperMock',
+            'VerifierRollupHelperMock', deployer
         );
         verifierContract = await VerifierRollupHelperFactory.deploy();
         await verifierContract.deployed();
@@ -61,20 +72,50 @@ async function main() {
     /*
     *Deployment Global exit root manager
     */
+
     // deploy global exit root manager
-    const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-    globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
+    const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager', deployer);
+    let globalExitRootManager;
+    for (let i = 0; i < atemptsDeployProxy; i++) {
+        try {
+            globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
+            break;
+        }
+        catch (error) {
+            console.log(`attempt ${atemptsDeployProxy}`);
+            console.log("upgrades.deployProxy of hermezAuctionProtocol ", error);
+        }
+    }
 
     // deploy bridge
-    const bridgeFactory = await ethers.getContractFactory('Bridge');
-    bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
+    const bridgeFactory = await ethers.getContractFactory('Bridge', deployer);
+    let bridgeContract;
+    for (let i = 0; i < atemptsDeployProxy; i++) {
+        try {
+            bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
+            break;
+        }
+        catch (error) {
+            console.log(`attempt ${atemptsDeployProxy}`);
+            console.log("upgrades.deployProxy of hermezAuctionProtocol ", error);
+        }
+    }
 
     // deploy PoE
-    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
-    proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
+    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock', deployer);
+    let proofOfEfficiencyContract;
+    for (let i = 0; i < atemptsDeployProxy; i++) {
+        try {
+            proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
+            break;
+        }
+        catch (error) {
+            console.log(`attempt ${atemptsDeployProxy}`);
+            console.log("upgrades.deployProxy of hermezAuctionProtocol ", error);
+        }
+    }
 
     await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
-
 
     console.log('#######################\n');
     console.log('globalExitRootManager deployed to:', globalExitRootManager.address);
