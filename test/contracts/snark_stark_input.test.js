@@ -11,6 +11,8 @@ describe('Proof of efficiency snark stark input test', () => {
 
     const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
+    const chainID = 1000;
+    const networkName = 'zkevm';
 
     beforeEach('Deploy contract', async () => {
         // load signers
@@ -28,6 +30,8 @@ describe('Proof of efficiency snark stark input test', () => {
                 randomSigner.address,
                 allowForcebatches,
                 urlSequencer,
+                chainID,
+                networkName,
             ],
         );
         await proofOfEfficiencyContract.deployed();
@@ -44,8 +48,8 @@ describe('Proof of efficiency snark stark input test', () => {
         const sequencedTimestmap = 1944498031;
         const aggregatorAddress = '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266';
 
-        const expectedSnarkInput = '14918438705377636817563619860509474434188349281706594260803853913155748736842';
-        const expectedStarkInput = '0xd072c5e95f2a1aa8dee6f1e0667f72f9e66ed47f7ff5f5e3ad6f504379c73c26';
+        const expectedSnarkInput = '10255818422543031151914919891467894274520264482506602925880735498991910195507';
+        const expectedStarkInput = '0x55f4c373d62dd577ef6160a1980130db83f0686dab8afe5e32e641ca6abeab4c';
         // Compute Js input
         const inputStarkSC = await proofOfEfficiencyContract.calculateStarkInput(
             currentStateRoot,
@@ -55,6 +59,7 @@ describe('Proof of efficiency snark stark input test', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
+            chainID,
         );
 
         // Compute Js input
@@ -66,6 +71,7 @@ describe('Proof of efficiency snark stark input test', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
+            chainID,
         );
 
         expect(inputStarkSC).to.be.equal(inputStarkJS);
@@ -80,6 +86,7 @@ describe('Proof of efficiency snark stark input test', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
+            chainID,
             aggregatorAddress,
         );
 
@@ -91,6 +98,7 @@ describe('Proof of efficiency snark stark input test', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
+            chainID,
             aggregatorAddress,
         );
 
