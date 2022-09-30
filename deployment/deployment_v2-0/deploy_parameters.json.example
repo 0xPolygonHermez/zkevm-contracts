@@ -2,5 +2,12 @@
     "trustedSequencerURL": "http://zkevm-json-rpc:8123",
     "forceBatchAllowed": false,
     "trustedSequencerAddress":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-    "realVerifier": false
+    "realVerifier": false,
+    "chainID": 1001,
+    "networkName": "zkevm",
+    "privateKey": "",
+    "maxFeePerGas":0,
+    "maxPriorityFeePerGas":0,
+    "multiplierGas": 0,
+    "trustedSequencerPvtKey":""
 }

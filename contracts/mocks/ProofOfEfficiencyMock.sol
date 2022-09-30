@@ -19,6 +19,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
      * @param _trustedSequencer trusted sequencer address
      * @param _forceBatchAllowed indicates wheather the force batch functionality is available
      * @param _trustedSequencerURL trusted sequencer URL
+     * @param _chainID L2 chainID
+     * @param _networkName L2 network name
      */
     function initialize(
         IGlobalExitRootManager _globalExitRootManager,
@@ -27,7 +29,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         bytes32 genesisRoot,
         address _trustedSequencer,
         bool _forceBatchAllowed,
-        string memory _trustedSequencerURL
+        string memory _trustedSequencerURL,
+        uint64 _chainID,
+        string memory _networkName
     ) public override initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
@@ -36,6 +40,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         trustedSequencer = _trustedSequencer;
         forceBatchAllowed = _forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
+        chainID = _chainID;
+        networkName = _networkName;
         __Ownable_init();
     }
 
@@ -48,6 +54,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
      * @param batchHashData Batch hash data
      * @param numBatch num batch
      * @param timestamp unix timestamp
+     * @param chainID L2 chain ID
      */
     function calculateStarkInput(
         bytes32 currentStateRoot,
@@ -56,7 +63,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         bytes32 newLocalExitRoot,
         bytes32 batchHashData,
         uint64 numBatch,
-        uint64 timestamp
+        uint64 timestamp,
+        uint64 chainID
     ) public pure returns (bytes32) {
         bytes32 input = keccak256(
             abi.encodePacked(
@@ -66,7 +74,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
-                timestamp
+                timestamp,
+                chainID
             )
         );
         return input;
@@ -81,6 +90,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
      * @param batchHashData Batch hash data
      * @param numBatch num batch
      * @param timestamp unix timestamp
+     * @param chainID L2 chain ID
      * @param aggregatorAddress aggregatorAddress
      */
     function calculateSnarkInput(
@@ -91,6 +101,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         bytes32 batchHashData,
         uint64 numBatch,
         uint64 timestamp,
+        uint64 chainID,
         address aggregatorAddress
     ) public pure returns (uint256) {
         bytes32 inputStark = calculateStarkInput(
@@ -100,7 +111,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
             newLocalExitRoot,
             batchHashData,
             numBatch,
-            timestamp
+            timestamp,
+            chainID
         );
 
         bytes memory snarkHashBytes;
@@ -183,7 +195,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
-                timestamp
+                timestamp,
+                chainID
             )
         );
 
@@ -268,7 +281,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
-                timestamp
+                timestamp,
+                chainID
             );
     }
 

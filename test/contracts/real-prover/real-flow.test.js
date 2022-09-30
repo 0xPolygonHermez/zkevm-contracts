@@ -30,6 +30,8 @@ describe('Real flow test', () => {
     const networkIDMainnet = 0;
     const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
+    const chainID = 1000;
+    const networkName = 'zkevm';
 
     beforeEach('Deploy contract', async () => {
         // load signers
@@ -80,6 +82,8 @@ describe('Real flow test', () => {
             trustedSequencer.address,
             allowForcebatches,
             urlSequencer,
+            chainID,
+            networkName,
         );
 
         // fund sequencer address with Matic tokens

@@ -1,28 +1,38 @@
+/* eslint-disable no-await-in-loop */
 const { ethers } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
 const { Scalar } = require('ffjavascript');
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
 
 const { expect } = require('chai');
 const deployParameters = require('./deploy_parameters.json');
-const genesis = require("./genesis.json")
+const genesis = require('./genesis.json');
 
 async function main() {
     const networkIDMainnet = 0;
     const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployParameters.trustedSequencerAddress;
-    const trustedSequencerURL = deployParameters.trustedSequencerURL || "http://zkevm-json-rpc:8123";
+    const trustedSequencerURL = deployParameters.trustedSequencerURL || 'http://zkevm-json-rpc:8123';
     const realVerifier = deployParameters.realVerifier || false;
+    const { chainID, networkName } = deployParameters;
     const atemptsDeployProxy = 20;
 
     let currentProvider = ethers.provider;
     if(deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK != "hardhat") {
             currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
-            if (deployParameters.multiplierGas) {
+            if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
+                console.log(`Hardcoded gas used: MaxPriority${deployParameters.maxPriorityFeePerGas} gwei, MaxFee${deployParameters.maxFeePerGas} gwei`);
+                const FEE_DATA = {
+                    maxFeePerGas: ethers.utils.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
+                    maxPriorityFeePerGas: ethers.utils.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
+                };
+                currentProvider.getFeeData = async () => FEE_DATA;
+            } else {
+                console.log("Multiplier gas used: ", deployParameters.multiplierGas)
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
                     return {
@@ -31,27 +41,20 @@ async function main() {
                     };
                 }
                 currentProvider.getFeeData = overrideFeeData;
-            } else {
-                const FEE_DATA = {
-                    maxFeePerGas: ethers.utils.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
-                    maxPriorityFeePerGas: ethers.utils.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
-                };
-                currentProvider.getFeeData = async () => FEE_DATA;
             }  
         }
     }
     
     let deployer;
     if(deployParameters.privateKey) {
-        deployer = new ethers.Wallet(deployParameters.privateKey);
-        deployer = deployer.connect(currentProvider);
+        deployer = new ethers.Wallet(deployParameters.privateKey, currentProvider);
     } else {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/0`).connect(currentProvider);
     }
 
     /*
-        Deployment MATIC
-    */
+     *Deployment MATIC
+     */
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
@@ -61,7 +64,7 @@ async function main() {
         maticTokenName,
         maticTokenSymbol,
         deployer.address,
-        maticTokenInitialBalance
+        maticTokenInitialBalance,
     );
     await maticTokenContract.deployed();
 
@@ -69,20 +72,15 @@ async function main() {
     console.log('Matic deployed to:', maticTokenContract.address);
 
     /*
-        Deployment verifier
-    */
+     *Deployment verifier
+     */
     let verifierContract;
     if (realVerifier === true) {
-        const VerifierRollup = await ethers.getContractFactory(
-            'Verifier', deployer
-        );
+        const VerifierRollup = await ethers.getContractFactory('Verifier', deployer);
         verifierContract = await VerifierRollup.deploy();
         await verifierContract.deployed();
-    }
-    else {
-        const VerifierRollupHelperFactory = await ethers.getContractFactory(
-            'VerifierRollupHelperMock', deployer
-        );
+    } else {
+        const VerifierRollupHelperFactory = await ethers.getContractFactory('VerifierRollupHelperMock', deployer);
         verifierContract = await VerifierRollupHelperFactory.deploy();
         await verifierContract.deployed();
     }
@@ -90,8 +88,8 @@ async function main() {
     console.log('#######################\n');
     console.log('Verifier deployed to:', verifierContract.address);
     /*
-    *Deployment Global exit root manager
-    */
+     *Deployment Global exit root manager
+     */
 
     // deploy global exit root manager
     const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager', deployer);
@@ -150,7 +148,7 @@ async function main() {
 
     /*
      * Initialize proof of efficiency
-    */
+     */
     // Check genesis file
     const genesisRootHex = genesis.root;
 
@@ -165,6 +163,8 @@ async function main() {
     console.log('trustedSequencer:', trustedSequencer);
     console.log('forceBatchAllowed:', forceBatchAllowed);
     console.log('trustedSequencerURL:', trustedSequencerURL);
+    console.log('chainID:', chainID);
+    console.log('networkName:', networkName);
 
     await (await proofOfEfficiencyContract.initialize(
         globalExitRootManager.address,
@@ -173,7 +173,9 @@ async function main() {
         genesisRootHex,
         trustedSequencer,
         forceBatchAllowed,
-        trustedSequencerURL
+        trustedSequencerURL,
+        chainID,
+        networkName,
     )).wait();
 
     console.log('#######################\n');
@@ -191,6 +193,8 @@ async function main() {
     console.log('trustedSequencer:', await proofOfEfficiencyContract.trustedSequencer());
     console.log('forceBatchAllowed:', await proofOfEfficiencyContract.forceBatchAllowed());
     console.log('trustedSequencerURL:', await proofOfEfficiencyContract.trustedSequencerURL());
+    console.log('chainID:', Number(await proofOfEfficiencyContract.chainID()));
+    console.log('networkName:', await proofOfEfficiencyContract.networkName());
 
     // fund account with tokens and ether if it have less than 0.1 ether.
     const balanceEther = await ethers.provider.getBalance(trustedSequencer);
@@ -203,8 +207,13 @@ async function main() {
         await deployer.sendTransaction(params);
     }
     const tokensBalance = ethers.utils.parseEther('100000');
-    await maticTokenContract.transfer(trustedSequencer, tokensBalance);
+    await (await maticTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
 
+    // approve tokens
+    if (deployParameters.trustedSequencerPvtKey) {
+        const trustedSequencerWallet = new ethers.Wallet(deployParameters.trustedSequencerPvtKey, currentProvider);
+        await maticTokenContract.connect(trustedSequencerWallet).approve(proofOfEfficiencyContract.address, ethers.constants.MaxUint256);
+    }
     const outputJson = {
         proofOfEfficiencyAddress: proofOfEfficiencyContract.address,
         bridgeAddress: bridgeContract.address,
@@ -214,9 +223,11 @@ async function main() {
         deployerAddress: deployer.address,
         deploymentBlockNumber,
         genesisRoot: genesisRootHex,
-        trustedSequencer: trustedSequencer,
+        trustedSequencer,
         forceBatchAllowed,
-        trustedSequencerURL
+        trustedSequencerURL,
+        chainID,
+        networkName,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }

@@ -16,7 +16,9 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     bytes32 genesisRoot,
     address _trustedSequencer,
     bool _forceBatchAllowed,
-    string _trustedSequencerURL
+    string _trustedSequencerURL,
+    uint64 _chainID,
+    string _networkName
   ) public
 ```
 
@@ -31,6 +33,8 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 |`_trustedSequencer` | address | trusted sequencer address
 |`_forceBatchAllowed` | bool | indicates wheather the force batch functionality is available
 |`_trustedSequencerURL` | string | trusted sequencer URL
+|`_chainID` | uint64 | L2 chainID
+|`_networkName` | string | L2 network name
 
 ### sequenceBatches
 ```solidity
