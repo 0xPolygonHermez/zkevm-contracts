@@ -18,16 +18,36 @@ async function main() {
     const realVerifier = deployParameters.realVerifier || false;
     const atemptsDeployProxy = 20;
 
-    const deployer = (await ethers.getSigners())[0];
-    // Use this only if necessary, override the hardhat gas parameters
-    // const FEE_DATA = {
-    //     maxFeePerGas: ethers.utils.parseUnits('10', 'gwei'),
-    //     maxPriorityFeePerGas: ethers.utils.parseUnits('4', 'gwei'),
-    // };
-    // const currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
-
-    // currentProvider.getFeeData = async () => FEE_DATA;
-    // const deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/0`).connect(currentProvider);
+    let currentProvider = ethers.provider;
+    if(deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
+        if (process.env.HARDHAT_NETWORK != "hardhat") {
+            currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
+            if (deployParameters.multiplierGas) {
+                async function overrideFeeData() {
+                    const feedata = await ethers.provider.getFeeData();
+                    return {
+                        maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas),
+                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas),
+                    };
+                }
+                currentProvider.getFeeData = overrideFeeData;
+            } else {
+                const FEE_DATA = {
+                    maxFeePerGas: ethers.utils.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
+                    maxPriorityFeePerGas: ethers.utils.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
+                };
+                currentProvider.getFeeData = async () => FEE_DATA;
+            }  
+        }
+    }
+    
+    let deployer;
+    if(deployParameters.privateKey) {
+        deployer = new ethers.Wallet(deployParameters.privateKey);
+        deployer = deployer.connect(currentProvider);
+    } else {
+        deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/0`).connect(currentProvider);
+    }
 
     /*
         Deployment MATIC
@@ -82,8 +102,8 @@ async function main() {
             break;
         }
         catch (error) {
-            console.log(`attempt ${atemptsDeployProxy}`);
-            console.log("upgrades.deployProxy of hermezAuctionProtocol ", error);
+            console.log(`attempt ${i}`);
+            console.log("upgrades.deployProxy of globalExitRootManager ", error);
         }
     }
 
@@ -96,8 +116,8 @@ async function main() {
             break;
         }
         catch (error) {
-            console.log(`attempt ${atemptsDeployProxy}`);
-            console.log("upgrades.deployProxy of hermezAuctionProtocol ", error);
+            console.log(`attempt ${i}`);
+            console.log("upgrades.deployProxy of bridgeContract ", error);
         }
     }
 
@@ -110,8 +130,8 @@ async function main() {
             break;
         }
         catch (error) {
-            console.log(`attempt ${atemptsDeployProxy}`);
-            console.log("upgrades.deployProxy of hermezAuctionProtocol ", error);
+            console.log(`attempt ${i}`);
+            console.log("upgrades.deployProxy of proofOfEfficiencyContract ", error);
         }
     }
 
