@@ -24,7 +24,15 @@ async function main() {
     if(deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK != "hardhat") {
             currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
-            if (deployParameters.multiplierGas) {
+            if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
+                console.log(`Hardcoded gas used: MaxPriority${deployParameters.maxPriorityFeePerGas} gwei, MaxFee${deployParameters.maxFeePerGas} gwei`);
+                const FEE_DATA = {
+                    maxFeePerGas: ethers.utils.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
+                    maxPriorityFeePerGas: ethers.utils.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
+                };
+                currentProvider.getFeeData = async () => FEE_DATA;
+            } else {
+                console.log("Multiplier gas used: ", deployParameters.multiplierGas)
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
                     return {
@@ -33,20 +41,13 @@ async function main() {
                     };
                 }
                 currentProvider.getFeeData = overrideFeeData;
-            } else {
-                const FEE_DATA = {
-                    maxFeePerGas: ethers.utils.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
-                    maxPriorityFeePerGas: ethers.utils.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
-                };
-                currentProvider.getFeeData = async () => FEE_DATA;
             }  
         }
     }
     
     let deployer;
     if(deployParameters.privateKey) {
-        deployer = new ethers.Wallet(deployParameters.privateKey);
-        deployer = deployer.connect(currentProvider);
+        deployer = new ethers.Wallet(deployParameters.privateKey, currentProvider);
     } else {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/0`).connect(currentProvider);
     }
@@ -206,8 +207,13 @@ async function main() {
         await deployer.sendTransaction(params);
     }
     const tokensBalance = ethers.utils.parseEther('100000');
-    await maticTokenContract.transfer(trustedSequencer, tokensBalance);
+    await (await maticTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
 
+    // approve tokens
+    if (deployParameters.trustedSequencerPvtKey) {
+        const trustedSequencerWallet = new ethers.Wallet(deployParameters.trustedSequencerPvtKey, currentProvider);
+        await maticTokenContract.connect(trustedSequencerWallet).approve(proofOfEfficiencyContract.address, ethers.constants.MaxUint256);
+    }
     const outputJson = {
         proofOfEfficiencyAddress: proofOfEfficiencyContract.address,
         bridgeAddress: bridgeContract.address,

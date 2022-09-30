@@ -8,5 +8,6 @@
     "privateKey": "",
     "maxFeePerGas":0,
     "maxPriorityFeePerGas":0,
-    "multiplierGas": 0
+    "multiplierGas": 0,
+    "trustedSequencerPvtKey":""
 }
