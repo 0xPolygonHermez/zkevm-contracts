@@ -327,6 +327,14 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
     }
 
     /**
+     * @notice Set network name
+     * @param _networkName New verifier
+     */
+    function setNetworkName(string memory _networkName) public onlyOwner {
+        networkName = _networkName;
+    }
+
+    /**
      * @notice Allows an aggregator to verify a batch
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed

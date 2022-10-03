@@ -21,7 +21,7 @@ async function main() {
     const atemptsDeployProxy = 20;
 
     let currentProvider = ethers.provider;
-    if(deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
+    if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK != "hardhat") {
             currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
             if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
@@ -41,12 +41,12 @@ async function main() {
                     };
                 }
                 currentProvider.getFeeData = overrideFeeData;
-            }  
+            }
         }
     }
-    
+
     let deployer;
-    if(deployParameters.privateKey) {
+    if (deployParameters.privateKey) {
         deployer = new ethers.Wallet(deployParameters.privateKey, currentProvider);
     } else {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/0`).connect(currentProvider);
@@ -106,7 +106,13 @@ async function main() {
     }
 
     // deploy bridge
-    const bridgeFactory = await ethers.getContractFactory('Bridge', deployer);
+    let bridgeFactory;
+    if (deployParameters.bridgeMock) {
+        bridgeFactory = await ethers.getContractFactory('BridgeMock', deployer);
+    } else {
+        bridgeFactory = await ethers.getContractFactory('Bridge', deployer);
+    }
+
     let bridgeContract;
     for (let i = 0; i < atemptsDeployProxy; i++) {
         try {

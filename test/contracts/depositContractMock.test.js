@@ -15,7 +15,7 @@ describe('Deposit Contract', () => {
         // load signers
         [deployer, acc2] = await ethers.getSigners();
 
-        // deploy bridgeMock
+        // deploy deposit contract mock
         const depositFactory = await ethers.getContractFactory('DepositContractMock');
         depositContractMock = await depositFactory.deploy();
         await depositContractMock.deployed();
