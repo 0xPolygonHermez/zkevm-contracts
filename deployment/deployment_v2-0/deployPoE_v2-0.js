@@ -1,13 +1,13 @@
 /* eslint-disable no-await-in-loop */
+/* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
+
 const { ethers } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
-const { Scalar } = require('ffjavascript');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
 
-const { expect } = require('chai');
 const deployParameters = require('./deploy_parameters.json');
 const genesis = require('./genesis.json');
 
@@ -22,7 +22,7 @@ async function main() {
 
     let currentProvider = ethers.provider;
     if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
-        if (process.env.HARDHAT_NETWORK != "hardhat") {
+        if (process.env.HARDHAT_NETWORK !== 'hardhat') {
             currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
             if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
                 console.log(`Hardcoded gas used: MaxPriority${deployParameters.maxPriorityFeePerGas} gwei, MaxFee${deployParameters.maxFeePerGas} gwei`);
@@ -32,7 +32,7 @@ async function main() {
                 };
                 currentProvider.getFeeData = async () => FEE_DATA;
             } else {
-                console.log("Multiplier gas used: ", deployParameters.multiplierGas)
+                console.log('Multiplier gas used: ', deployParameters.multiplierGas);
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
                     return {
@@ -49,7 +49,7 @@ async function main() {
     if (deployParameters.privateKey) {
         deployer = new ethers.Wallet(deployParameters.privateKey, currentProvider);
     } else {
-        deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, `m/44'/60'/0'/0/0`).connect(currentProvider);
+        deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0').connect(currentProvider);
     }
 
     /*
@@ -98,10 +98,9 @@ async function main() {
         try {
             globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
             break;
-        }
-        catch (error) {
+        } catch (error) {
             console.log(`attempt ${i}`);
-            console.log("upgrades.deployProxy of globalExitRootManager ", error);
+            console.log('upgrades.deployProxy of globalExitRootManager ', error);
         }
     }
 
@@ -118,10 +117,9 @@ async function main() {
         try {
             bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
             break;
-        }
-        catch (error) {
+        } catch (error) {
             console.log(`attempt ${i}`);
-            console.log("upgrades.deployProxy of bridgeContract ", error);
+            console.log('upgrades.deployProxy of bridgeContract ', error);
         }
     }
 
@@ -132,10 +130,9 @@ async function main() {
         try {
             proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
             break;
-        }
-        catch (error) {
+        } catch (error) {
             console.log(`attempt ${i}`);
-            console.log("upgrades.deployProxy of proofOfEfficiencyContract ", error);
+            console.log('upgrades.deployProxy of proofOfEfficiencyContract ', error);
         }
     }
 

@@ -1,6 +1,5 @@
 
 {
-  "defaultChainId": 1000,
   "sequencerAddress": "0xC949254d682D8c9ad5682521675b8F43b102aec4",
   "genesis": [
     {
