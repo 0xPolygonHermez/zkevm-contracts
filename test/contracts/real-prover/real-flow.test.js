@@ -30,7 +30,7 @@ describe('Real flow test', () => {
     const networkIDMainnet = 0;
     const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
-    const chainID = 1000;
+    const chainID = inputJson.chainId;
     const networkName = 'zkevm';
 
     beforeEach('Deploy contract', async () => {
@@ -109,6 +109,7 @@ describe('Real flow test', () => {
             batchHashData,
             inputJson.numBatch,
             inputJson.timestamp,
+            inputJson.chainId,
             inputJson.aggregatorAddress,
         );
         expect(circuitInputStarkJS).to.be.eq(Scalar.e(input[0]));

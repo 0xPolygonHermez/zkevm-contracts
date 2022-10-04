@@ -1,11 +1,12 @@
+/* eslint-disable import/no-unresolved */
 const fs = require('fs');
 const path = require('path');
 
-const deployParameters = require("./deploy_parameters.json");
+const deployParameters = require('./deploy_parameters.json');
+
 const pathOutputJson = path.join(__dirname, './deploy_parameters.json');
 
-const addressTable =
-    `
+const addressTable = `
     |                  Address                   |      Owner      |
     |:------------------------------------------:|:---------------:|
     | 0xA67CD3f603E42dcBF674ffBa511872Bd397EB895 |                 |
@@ -32,19 +33,20 @@ const addressTable =
     |                                            |                 |
     |                                            |                 |
     |                                            |                 |    
-`
+`;
 // Get address array
-let currentIndex = addressTable.indexOf("0x");;
+let currentIndex = addressTable.indexOf('0x');
 const addressArray = [];
-while (currentIndex != -1) {
-    const currentAddres = addressTable.slice(currentIndex, currentIndex + 42) // 20bytes * 2 character/byte + 0x(2 characters) = 42 characters
+while (currentIndex !== -1) {
+    // 20bytes * 2 character/byte + 0x(2 characters) = 42 characters
+    const currentAddres = addressTable.slice(currentIndex, currentIndex + 42);
     addressArray.push(currentAddres);
-    currentIndex = addressTable.indexOf("0x", currentIndex + 1);
+    currentIndex = addressTable.indexOf('0x', currentIndex + 1);
 }
 
 // Edit genesis array from file
-const genesis = deployParameters.genesis;
-const addressesGenesis = genesis.map(accountObject => accountObject.address)
+const { genesis } = deployParameters;
+const addressesGenesis = genesis.map((accountObject) => accountObject.address);
 
 for (let i = 0; i < addressArray.length; i++) {
     const currentAddres = addressArray[i];

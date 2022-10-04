@@ -9,5 +9,6 @@
     "maxFeePerGas":0,
     "maxPriorityFeePerGas":0,
     "multiplierGas": 0,
-    "trustedSequencerPvtKey":""
+    "trustedSequencerPvtKey":"",
+    "bridgeMock":false
 }

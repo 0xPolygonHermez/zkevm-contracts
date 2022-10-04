@@ -32,3 +32,7 @@ To verify contracts run `npm run verify:PoE2_0:${network}`, for example:
 ```
 npm run verify:PoE2_0:goerli
 ```
+
+## Notes
+
+- `gensis.json` has been generated using the tool: `https://github.com/0xPolygonHermez/zkevm-commonjs/blob/main/tools/fill-genesis/create-genesis.js` using as generator file: `genesis-gen.json`
