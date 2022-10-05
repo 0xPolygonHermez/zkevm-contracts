@@ -72,7 +72,12 @@ contract ProofOfEfficiency is Initializable {
     uint256 public constant TRUSTED_SEQUENCER_FEE = 0.1 ether; // TODO should be defined
 
     // Max batch byte length
-    uint256 public constant MAX_BATCH_LENGTH = type(uint256).max; // TODO should be defined
+    // Max keccaks circuit = (2**23 / 158418) * 9 = 468
+    // Bytes per keccak = 136
+    // Minimum Static keccaks batch = 4
+    // Max bytes allowed = (468 - 4) * 136 = 63104 bytes - 1 byte padding
+    // Rounded to 60000 bytes
+    uint256 public constant MAX_BATCH_LENGTH = 60000;
 
     // Force batch timeout
     uint64 public constant FORCE_BATCH_TIMEOUT = 7 days;
@@ -123,6 +128,12 @@ contract ProofOfEfficiency is Initializable {
     // Trusted sequencer URL
     string public trustedSequencerURL;
 
+    // L2 chain identifier
+    uint64 public chainID;
+
+    // L2 network name
+    string public networkName;
+
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
@@ -171,6 +182,8 @@ contract ProofOfEfficiency is Initializable {
      * @param _trustedSequencer trusted sequencer address
      * @param _forceBatchAllowed indicates wheather the force batch functionality is available
      * @param _trustedSequencerURL trusted sequencer URL
+     * @param _chainID L2 chainID
+     * @param _networkName L2 network name
      */
     function initialize(
         IGlobalExitRootManager _globalExitRootManager,
@@ -179,8 +192,10 @@ contract ProofOfEfficiency is Initializable {
         bytes32 genesisRoot,
         address _trustedSequencer,
         bool _forceBatchAllowed,
-        string memory _trustedSequencerURL
-    ) public initializer {
+        string memory _trustedSequencerURL,
+        uint64 _chainID,
+        string memory _networkName
+    ) public virtual initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
@@ -188,6 +203,8 @@ contract ProofOfEfficiency is Initializable {
         trustedSequencer = _trustedSequencer;
         forceBatchAllowed = _forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
+        chainID = _chainID;
+        networkName = _networkName;
     }
 
     modifier onlyTrustedSequencer() {
@@ -371,7 +388,8 @@ contract ProofOfEfficiency is Initializable {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
-                timestamp
+                timestamp,
+                chainID
             )
         );
 

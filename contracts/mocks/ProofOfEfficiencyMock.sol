@@ -2,6 +2,7 @@
 pragma solidity 0.8.15;
 
 import "../ProofOfEfficiency.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
@@ -9,7 +10,41 @@ import "../ProofOfEfficiency.sol";
  * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
  * To enter and exit of the L2 network will be used a Bridge smart contract
  */
-contract ProofOfEfficiencyMock is ProofOfEfficiency {
+contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
+    /**
+     * @param _globalExitRootManager global exit root manager address
+     * @param _matic MATIC token address
+     * @param _rollupVerifier rollup verifier address
+     * @param genesisRoot rollup genesis root
+     * @param _trustedSequencer trusted sequencer address
+     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
+     * @param _trustedSequencerURL trusted sequencer URL
+     * @param _chainID L2 chainID
+     * @param _networkName L2 network name
+     */
+    function initialize(
+        IGlobalExitRootManager _globalExitRootManager,
+        IERC20Upgradeable _matic,
+        IVerifierRollup _rollupVerifier,
+        bytes32 genesisRoot,
+        address _trustedSequencer,
+        bool _forceBatchAllowed,
+        string memory _trustedSequencerURL,
+        uint64 _chainID,
+        string memory _networkName
+    ) public override initializer {
+        globalExitRootManager = _globalExitRootManager;
+        matic = _matic;
+        rollupVerifier = _rollupVerifier;
+        currentStateRoot = genesisRoot;
+        trustedSequencer = _trustedSequencer;
+        forceBatchAllowed = _forceBatchAllowed;
+        trustedSequencerURL = _trustedSequencerURL;
+        chainID = _chainID;
+        networkName = _networkName;
+        __Ownable_init();
+    }
+
     /**
      * @notice Calculate the stark input
      * @param currentStateRoot Current state Root
@@ -19,6 +54,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param batchHashData Batch hash data
      * @param numBatch num batch
      * @param timestamp unix timestamp
+     * @param chainID L2 chain ID
      */
     function calculateStarkInput(
         bytes32 currentStateRoot,
@@ -27,7 +63,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 newLocalExitRoot,
         bytes32 batchHashData,
         uint64 numBatch,
-        uint64 timestamp
+        uint64 timestamp,
+        uint64 chainID
     ) public pure returns (bytes32) {
         bytes32 input = keccak256(
             abi.encodePacked(
@@ -37,7 +74,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
-                timestamp
+                timestamp,
+                chainID
             )
         );
         return input;
@@ -52,6 +90,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param batchHashData Batch hash data
      * @param numBatch num batch
      * @param timestamp unix timestamp
+     * @param chainID L2 chain ID
      * @param aggregatorAddress aggregatorAddress
      */
     function calculateSnarkInput(
@@ -62,6 +101,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 batchHashData,
         uint64 numBatch,
         uint64 timestamp,
+        uint64 chainID,
         address aggregatorAddress
     ) public pure returns (uint256) {
         bytes32 inputStark = calculateStarkInput(
@@ -71,7 +111,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             newLocalExitRoot,
             batchHashData,
             numBatch,
-            timestamp
+            timestamp,
+            chainID
         );
 
         bytes memory snarkHashBytes;
@@ -154,7 +195,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
-                timestamp
+                timestamp,
+                chainID
             )
         );
 
@@ -239,7 +281,8 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 newLocalExitRoot,
                 batchHashData,
                 numBatch,
-                timestamp
+                timestamp,
+                chainID
             );
     }
 
@@ -247,15 +290,83 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set state root
      * @param newStateRoot New State root ¡
      */
-    function setStateRoot(bytes32 newStateRoot) public {
+    function setStateRoot(bytes32 newStateRoot) public onlyOwner {
         currentStateRoot = newStateRoot;
     }
 
     /**
-     * @notice Set Sequencer
+     * @notice Set Exit Root
      * @param newLocalExitRoot New exit root ¡
      */
-    function setExitRoot(bytes32 newLocalExitRoot) public {
+    function setExitRoot(bytes32 newLocalExitRoot) public onlyOwner {
         currentLocalExitRoot = newLocalExitRoot;
+    }
+
+    /**
+     * @notice Set Sequencer
+     * @param _rollupVerifier New verifier
+     */
+    function setVerifier(IVerifierRollup _rollupVerifier) public onlyOwner {
+        rollupVerifier = _rollupVerifier;
+    }
+
+    /**
+     * @notice Set Sequencer
+     * @param _numBatch New verifier
+     */
+    function setVerifiedBatch(uint64 _numBatch) public onlyOwner {
+        lastVerifiedBatch = _numBatch;
+    }
+
+    /**
+     * @notice Set Sequencer
+     * @param _numBatch New verifier
+     */
+    function setSequencedBatch(uint64 _numBatch) public onlyOwner {
+        lastBatchSequenced = _numBatch;
+    }
+
+    /**
+     * @notice Set network name
+     * @param _networkName New verifier
+     */
+    function setNetworkName(string memory _networkName) public onlyOwner {
+        networkName = _networkName;
+    }
+
+    /**
+     * @notice Allows an aggregator to verify a batch
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
+     */
+    function verifyBatchMock(
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint64 numBatch,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC
+    ) public onlyOwner {
+        // sanity check
+        require(
+            numBatch == lastVerifiedBatch + 1,
+            "ProofOfEfficiency::verifyBatch: batch does not match"
+        );
+
+        require(
+            numBatch <= lastBatchSequenced,
+            "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
+        );
+
+        // Update state
+        lastVerifiedBatch++;
+        currentStateRoot = newStateRoot;
+        currentLocalExitRoot = newLocalExitRoot;
+
+        // Interact with globalExitRoot
+        globalExitRootManager.updateExitRoot(currentLocalExitRoot);
+
+        emit VerifyBatch(numBatch, msg.sender);
     }
 }

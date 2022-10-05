@@ -25,6 +25,8 @@ describe('Proof of efficiency', () => {
     const networkIDMainnet = 0;
     const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
+    const chainID = 1000;
+    const networkName = 'zkevm';
 
     beforeEach('Deploy contract', async () => {
         // load signers
@@ -68,6 +70,8 @@ describe('Proof of efficiency', () => {
             trustedSequencer.address,
             allowForcebatches,
             urlSequencer,
+            chainID,
+            networkName,
         );
 
         // fund sequencer address with Matic tokens
@@ -690,6 +694,7 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequence.timestamp,
+            chainID,
         );
 
         // Compute Js input
@@ -701,6 +706,7 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequence.timestamp,
+            chainID,
         );
 
         expect(circuitInpuStarktSC).to.be.equal(circuitInputStarkJS);
@@ -714,6 +720,7 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequence.timestamp,
+            chainID,
             aggregator.address,
         );
 
@@ -725,6 +732,7 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequence.timestamp,
+            chainID,
             aggregator.address,
         );
 
@@ -795,6 +803,7 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
+            chainID,
         );
 
         // Compute Js input
@@ -806,6 +815,7 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
+            chainID,
         );
 
         expect(circuitInputSC).to.be.equal(circuitInputJS);
@@ -819,6 +829,7 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
+            chainID,
             aggregator.address,
         );
 
@@ -830,6 +841,7 @@ describe('Proof of efficiency', () => {
             batchHashData,
             numBatch,
             sequencedTimestmap,
+            chainID,
             aggregator.address,
         );
 

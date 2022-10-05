@@ -1,5 +1,5 @@
 {
-  "root": "0x2e74f6d94403b0d39545d0b1e229fd9887f5d82336e71d6597496acd1309e365",
+  "root": "0xb33635210b9f5d07769cf70bf5a3cbf241ecbaf79a9b66ef79b28d920da1f776",
   "genesis": [
     {
       "balance": "0",
@@ -65,6 +65,12 @@
       "nonce": "3",
       "address": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
       "pvtKey": "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
+    },
+    {
+      "balance": "100000000000000000000000",
+      "nonce": "0",
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "pvtKey": "0x00"
     },
     {
       "balance": "0",

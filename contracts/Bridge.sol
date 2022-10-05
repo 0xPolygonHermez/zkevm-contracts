@@ -53,7 +53,7 @@ contract Bridge is DepositContract {
     function initialize(
         uint32 _networkID,
         IGlobalExitRootManager _globalExitRootManager
-    ) public initializer {
+    ) public virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         tokenImplementation = address(new TokenWrapped());
@@ -107,7 +107,7 @@ contract Bridge is DepositContract {
         address destinationAddress,
         uint256 amount,
         bytes calldata permitData
-    ) public payable {
+    ) public payable virtual {
         require(
             destinationNetwork != networkID,
             "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
@@ -411,10 +411,7 @@ contract Bridge is DepositContract {
         bytes calldata permitData
     ) internal {
         bytes4 sig = _getSelector(permitData);
-        require(
-            sig == _PERMIT_SIGNATURE,
-            "Bridge::_permit: NOT_VALID_CALL"
-        );
+        require(sig == _PERMIT_SIGNATURE, "Bridge::_permit: NOT_VALID_CALL");
         (
             address owner,
             address spender,

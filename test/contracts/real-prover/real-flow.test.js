@@ -30,6 +30,8 @@ describe('Real flow test', () => {
     const networkIDMainnet = 0;
     const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
+    const chainID = inputJson.chainId;
+    const networkName = 'zkevm';
 
     beforeEach('Deploy contract', async () => {
         // load signers
@@ -80,6 +82,8 @@ describe('Real flow test', () => {
             trustedSequencer.address,
             allowForcebatches,
             urlSequencer,
+            chainID,
+            networkName,
         );
 
         // fund sequencer address with Matic tokens
@@ -105,6 +109,7 @@ describe('Real flow test', () => {
             batchHashData,
             inputJson.numBatch,
             inputJson.timestamp,
+            inputJson.chainId,
             inputJson.aggregatorAddress,
         );
         expect(circuitInputStarkJS).to.be.eq(Scalar.e(input[0]));
@@ -116,7 +121,6 @@ describe('Real flow test', () => {
         ).to.emit(maticTokenContract, 'Approval');
 
         // set timestamp for the sendBatch call
-        const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
         const sequence = {
             transactions: inputJson.batchL2Data,
             globalExitRoot: inputJson.globalExitRoot,
@@ -128,12 +132,17 @@ describe('Real flow test', () => {
         await globalExitRootManager.setLastGlobalExitRootNum(1);
         await globalExitRootManager.setLastGlobalExitRoot(sequence.globalExitRoot);
 
+        await proofOfEfficiencyContract.setVerifiedBatch(inputJson.numBatch - 1);
+        await proofOfEfficiencyContract.setSequencedBatch(inputJson.numBatch - 1);
+
+        const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
+
         await ethers.provider.send('evm_setNextBlockTimestamp', [sequence.timestamp]);
 
         // Sequence Batches
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
-            .withArgs(lastBatchSequenced + 1);
+            .withArgs(Number(lastBatchSequenced) + 1);
 
         // aggregator forge the batch
         const { newLocalExitRoot } = inputJson;
