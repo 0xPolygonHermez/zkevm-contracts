@@ -101,7 +101,7 @@ contract Bridge is DepositContract {
      * @param amount Amount of tokens
      * @param permitData Raw data of the call `permit` of the token
      */
-    function bridge(
+    function bridgeAsset(
         address token,
         uint32 destinationNetwork,
         address destinationAddress,
@@ -177,6 +177,46 @@ contract Bridge is DepositContract {
                 destinationNetwork,
                 destinationAddress,
                 amount,
+                keccak256(metadata)
+            )
+        );
+
+        // Update the new exit root to the exit root manager
+        globalExitRootManager.updateExitRoot(getDepositRoot());
+    }
+
+    /**
+     * @notice Bridge message
+     * @param destinationNetwork Network destination
+     * @param destinationAddress Address destination
+     * @param metadata Message metadata
+     */
+    function bridgeMessage(
+        uint32 destinationNetwork,
+        address destinationAddress,
+        bytes memory metadata
+    ) public payable virtual {
+        require(
+            destinationNetwork != networkID,
+            "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
+        );
+
+        emit BridgeEvent(
+            networkID,
+            address(0),
+            destinationNetwork,
+            destinationAddress,
+            msg.value,
+            metadata,
+            uint32(depositCount)
+        );
+        _deposit(
+            getLeafValue(
+                networkID,
+                address(0),
+                destinationNetwork,
+                destinationAddress,
+                msg.value,
                 keccak256(metadata)
             )
         );

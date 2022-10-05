@@ -42,7 +42,7 @@ contract BridgeMock is Bridge, OwnableUpgradeable {
      * @param amount Amount of tokens
      * @param permitData Raw data of the call `permit` of the token
      */
-    function bridge(
+    function bridgeAsset(
         address token,
         uint32 destinationNetwork,
         address destinationAddress,
@@ -53,7 +53,7 @@ contract BridgeMock is Bridge, OwnableUpgradeable {
             msg.value <= maxEtherBridge,
             "Bridge::bridge: Cannot bridge more than maxEtherBridge in internal testnet"
         );
-        super.bridge(
+        super.bridgeAsset(
             token,
             destinationNetwork,
             destinationAddress,
