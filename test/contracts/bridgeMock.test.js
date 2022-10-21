@@ -30,6 +30,8 @@ describe('Bridge Contract', () => {
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
 
+    const LEAF_TYPE_ASSET = 0;
+
     beforeEach('Deploy contracts', async () => {
         // load signers
         [deployer, rollup] = await ethers.getSigners();
@@ -92,11 +94,11 @@ describe('Bridge Contract', () => {
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 
-        await expect(bridgeContract.bridge(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
+        await expect(bridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
             .to.emit(bridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
@@ -133,7 +135,7 @@ describe('Bridge Contract', () => {
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
-        await expect(bridgeContract.bridge(
+        await expect(bridgeContract.bridgeAsset(
             tokenAddress,
             destinationNetwork,
             destinationAddress,
@@ -142,7 +144,7 @@ describe('Bridge Contract', () => {
             { value: ethers.utils.parseEther('10') },
         )).to.be.revertedWith('Bridge::bridge: Cannot bridge more than maxEtherBridge in internal testnet');
 
-        await bridgeContract.bridge(
+        await bridgeContract.bridgeAsset(
             tokenAddress,
             destinationNetwork,
             destinationAddress,

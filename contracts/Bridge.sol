@@ -6,6 +6,7 @@ import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
+import "./interfaces/IBridgeMessageReceiver.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
@@ -27,6 +28,12 @@ contract Bridge is DepositContract {
 
     // Mainnet indentifier
     uint32 public constant MAINNET_NETWORK_ID = 0;
+
+    // Leaf type asset
+    uint8 public constant LEAF_TYPE_ASSET = 0;
+
+    // Leaf type message
+    uint8 public constant LEAF_TYPE_MESSAGE = 1;
 
     // Network identifier
     uint32 public networkID;
@@ -64,8 +71,9 @@ contract Bridge is DepositContract {
      * @dev Emitted when a bridge some tokens to another network
      */
     event BridgeEvent(
+        uint8 leafType,
         uint32 originNetwork,
-        address originTokenAddress,
+        address originAddress,
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
@@ -79,7 +87,7 @@ contract Bridge is DepositContract {
     event ClaimEvent(
         uint32 index,
         uint32 originNetwork,
-        address originTokenAddress,
+        address originAddress,
         address destinationAddress,
         uint256 amount
     );
@@ -162,6 +170,7 @@ contract Bridge is DepositContract {
         }
 
         emit BridgeEvent(
+            LEAF_TYPE_ASSET,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
@@ -172,6 +181,7 @@ contract Bridge is DepositContract {
         );
         _deposit(
             getLeafValue(
+                LEAF_TYPE_ASSET,
                 originNetwork,
                 originTokenAddress,
                 destinationNetwork,
@@ -202,8 +212,9 @@ contract Bridge is DepositContract {
         );
 
         emit BridgeEvent(
+            LEAF_TYPE_MESSAGE,
             networkID,
-            address(0),
+            msg.sender,
             destinationNetwork,
             destinationAddress,
             msg.value,
@@ -212,8 +223,9 @@ contract Bridge is DepositContract {
         );
         _deposit(
             getLeafValue(
+                LEAF_TYPE_MESSAGE,
                 networkID,
-                address(0),
+                msg.sender,
                 destinationNetwork,
                 destinationAddress,
                 msg.value,
@@ -238,7 +250,7 @@ contract Bridge is DepositContract {
      * @param amount Amount of tokens
      * @param metadata abi encoded metadata if any, empty otherwise
      */
-    function claim(
+    function claimAsset(
         bytes32[] memory smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
@@ -276,6 +288,7 @@ contract Bridge is DepositContract {
             require(
                 verifyMerkleProof(
                     getLeafValue(
+                        LEAF_TYPE_ASSET,
                         originNetwork,
                         originTokenAddress,
                         destinationNetwork,
@@ -294,6 +307,7 @@ contract Bridge is DepositContract {
             require(
                 verifyMerkleProof(
                     getLeafValue(
+                        LEAF_TYPE_ASSET,
                         originNetwork,
                         originTokenAddress,
                         destinationNetwork,
@@ -386,6 +400,116 @@ contract Bridge is DepositContract {
             index,
             originNetwork,
             originTokenAddress,
+            destinationAddress,
+            amount
+        );
+    }
+
+    /**
+     * @notice Verify merkle proof and execute message
+     * @param smtProof Smt proof
+     * @param index Index of the leaf
+     * @param mainnetExitRoot Mainnet exit root
+     * @param rollupExitRoot Rollup exit root
+     * @param originNetwork Origin network
+     * @param originAddress  Origin token address, 0 address is reserved for ether
+     * @param destinationNetwork Network destination, must be 0 ( mainnet)
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens
+     * @param metadata abi encoded metadata if any, empty otherwise
+     */
+    function claimMessage(
+        bytes32[] memory smtProof,
+        uint32 index,
+        bytes32 mainnetExitRoot,
+        bytes32 rollupExitRoot,
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes memory metadata
+    ) public {
+        // Should check if is a claimMessage or a claimAssetl
+        // Check nullifier
+        require(
+            claimNullifier[index] == false,
+            "Bridge::claimMessage: ALREADY_CLAIMED"
+        );
+
+        // Check that the merkle proof belongs to some global exit root
+        // TODO this should be a SMTproof
+        require(
+            globalExitRootManager.globalExitRootMap(
+                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
+            ) != 0,
+            "Bridge::claimMessage: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
+        );
+
+        // Destination network must be networkID
+        require(
+            destinationNetwork == networkID,
+            "Bridge::claimMessage: DESTINATION_NETWORK_DOES_NOT_MATCH"
+        );
+
+        if (networkID == MAINNET_NETWORK_ID) {
+            // Verify merkle proof using rollup exit root
+            require(
+                verifyMerkleProof(
+                    getLeafValue(
+                        LEAF_TYPE_MESSAGE,
+                        originNetwork,
+                        originAddress,
+                        destinationNetwork,
+                        destinationAddress,
+                        amount,
+                        keccak256(metadata)
+                    ),
+                    smtProof,
+                    index,
+                    rollupExitRoot
+                ),
+                "Bridge::claimMessage: SMT_INVALID"
+            );
+        } else {
+            // Verify merkle proof using mainnet exit root
+            require(
+                verifyMerkleProof(
+                    getLeafValue(
+                        LEAF_TYPE_MESSAGE,
+                        originNetwork,
+                        originAddress,
+                        destinationNetwork,
+                        destinationAddress,
+                        amount,
+                        keccak256(metadata)
+                    ),
+                    smtProof,
+                    index,
+                    mainnetExitRoot
+                ),
+                "Bridge::claimMessage: SMT_INVALID"
+            );
+        }
+
+        // Update nullifier
+        claimNullifier[index] = true;
+
+        // Execute message
+        // Transfer ether
+        /* solhint-disable avoid-low-level-calls */
+        (bool success, ) = destinationAddress.call{value: amount}(
+            abi.encodeCall(
+                IBridgeMessageReceiver.onMessageReceived,
+                (originAddress, originNetwork, metadata)
+            )
+        );
+        require(success, "Bridge::claimMessage: MESSAGE_FAILED");
+
+        emit ClaimEvent(
+            index,
+            originNetwork,
+            originAddress,
             destinationAddress,
             amount
         );
