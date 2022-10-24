@@ -614,90 +614,41 @@ contract ProofOfEfficiency is Initializable {
             // Set the pointer at the beginning of the byte array
             let ptr := add(snarkHashBytes, 32)
 
-            // function add32BytesToInputSnark(bytesToAdd, ptrInit) -> ptrFinal {
-            //     ptrFinal := ptrInit
-            //     for {
-            //         let i := 0
-            //     } lt(i, 8) {
-            //         i := add(i, 1)
-            //     } {
-            //         // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
-            //         // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
-            //         // Then shift left 256 - 32 (224) bits to the left.
-            //         // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
-            //         // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-            //         mstore(
-            //             ptrFinal,
-            //             shr(32, shl(224, shr(mul(i, 32), bytesToAdd)))
-            //         )
-            //         ptrFinal := add(ptrFinal, 8) // write the next 8 bytes
-            //     }
-            //
-            // }
+            // function defined to add 32 bytes into the snark btye array on a prover friendly method
+            function add32BytesToInputSnark(bytesToAdd, ptrInit) -> ptrFinal {
+                ptrFinal := ptrInit
+                for {
+                    let i := 0
+                } lt(i, 8) {
+                    i := add(i, 1)
+                } {
+                    // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
+                    // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
+                    // Then shift left 256 - 32 (224) bits to the left.
+                    // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
+                    // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
+                    mstore(
+                        ptrFinal,
+                        shr(32, shl(224, shr(mul(i, 32), bytesToAdd)))
+                    )
+                    ptrFinal := add(ptrFinal, 8) // write the next 8 bytes
+                }
+            }
 
             // Add currentStateRoot
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
-                // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
-                // Then shift left 256 - 32 (224) bits to the left.
-                // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
-                // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-                mstore(
-                    ptr,
-                    shr(
-                        32,
-                        shl(224, shr(mul(i, 32), sload(currentStateRoot.slot)))
-                    )
-                )
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
+            ptr := add32BytesToInputSnark(sload(currentStateRoot.slot), ptr)
 
             // Add newStateRoot
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), newStateRoot))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
+            ptr := add32BytesToInputSnark(newStateRoot, ptr)
 
             // Add oldAccInputHash
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), oldAccInputHash))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
+            ptr := add32BytesToInputSnark(oldAccInputHash, ptr)
 
             // Add newAccInputHash
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), newAccInputHash))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
+            ptr := add32BytesToInputSnark(newAccInputHash, ptr)
 
             // Add newLocalExitRoot
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                mstore(
-                    ptr,
-                    shr(32, shl(224, shr(mul(i, 32), newLocalExitRoot)))
-                )
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
+            ptr := add32BytesToInputSnark(newLocalExitRoot, ptr)
 
             // add firstNumBatch
             mstore(ptr, shl(192, _lastVerifiedBatch)) // 256 - 64 = 192
