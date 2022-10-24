@@ -95,7 +95,15 @@ describe('Bridge Contract', () => {
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 
@@ -179,7 +187,15 @@ describe('Bridge Contract', () => {
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 
@@ -229,7 +245,15 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -340,7 +364,15 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTreeRollup = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTreeRollup.add(leafValue);
 
         // check merkle root with SC
@@ -916,11 +948,10 @@ describe('Bridge Contract', () => {
             rootJSRollup,
         )).to.be.equal(true);
 
-
         /*
-        * claim
-        * Can't claim a message as an assets
-        */
+         * claim
+         * Can't claim a message as an assets
+         */
         await expect(bridgeContract.claimAsset(
             proof,
             index,
@@ -933,8 +964,6 @@ describe('Bridge Contract', () => {
             amount,
             metadata,
         )).to.be.revertedWith('Bridge::claim: SMT_INVALID');
-
-
 
         /*
          * claim

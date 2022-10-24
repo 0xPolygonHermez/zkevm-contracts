@@ -335,38 +335,61 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
     }
 
     /**
-     * @notice Allows an aggregator to verify a batch
+     * @notice Allows an aggregator mock to verify a batch
+     * @param _lastVerifiedBatch Last verified Batch, used as a sanity check
+     * @param newVerifiedBatch Last batch that the aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
+     * @param proofA zk-snark input
+     * @param proofB zk-snark input
+     * @param proofC zk-snark input
      */
-    function verifyBatchMock(
+    function verifyBatchesMock(
+        uint64 _lastVerifiedBatch,
+        uint64 newVerifiedBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint64 numBatch,
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public onlyOwner {
         // sanity check
         require(
-            numBatch == lastVerifiedBatch + 1,
-            "ProofOfEfficiency::verifyBatch: batch does not match"
+            _lastVerifiedBatch == lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatch: _lastVerifiedBatch does not match"
         );
 
         require(
-            numBatch <= lastBatchSequenced,
+            newVerifiedBatch > _lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatch: last numBatch must be bigger than lastVerifiedBatch"
+        );
+
+        require(
+            newVerifiedBatch <= _lastVerifiedBatch,
             "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
         );
 
+        bytes32 oldAccInputHash = sequencedBatches[_lastVerifiedBatch];
+        bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
+
+        require(
+            newAccInputHash != bytes32(0),
+            "ProofOfEfficiency::verifyBatch: newAccInputHash does not exist"
+        );
+
+        // Get MATIC reward
+        matic.safeTransfer(
+            msg.sender,
+            calculateRewardPerBatch() * (newVerifiedBatch - _lastVerifiedBatch)
+        );
+
         // Update state
-        lastVerifiedBatch++;
+        lastVerifiedBatch = newVerifiedBatch;
         currentStateRoot = newStateRoot;
-        currentLocalExitRoot = newLocalExitRoot;
 
         // Interact with globalExitRoot
-        globalExitRootManager.updateExitRoot(currentLocalExitRoot);
+        globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit VerifyBatch(numBatch, msg.sender);
+        emit VerifyBatch(newVerifiedBatch, msg.sender);
     }
 }

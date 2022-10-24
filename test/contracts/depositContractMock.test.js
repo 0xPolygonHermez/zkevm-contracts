@@ -11,7 +11,6 @@ describe('Deposit Contract', () => {
     let acc2;
     let depositContractMock;
 
-
     const LEAF_TYPE_ASSET = 0;
     const MESSAGE_TYPE_ASSET = 1;
 
