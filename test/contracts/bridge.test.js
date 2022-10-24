@@ -570,22 +570,87 @@ describe('Bridge Contract', () => {
         const metadata = '0x';// since is ether does not have metadata
 
         // create 3 new deposit
-        await expect(bridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x', { value: amount }))
-            .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount);
-        await expect(bridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x', { value: amount }))
-            .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount.add(1));
-        await expect(bridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x', { value: amount }))
-            .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount.add(2));
+        await expect(bridgeContract.bridgeAsset(
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            '0x',
+            { value: amount },
+        ))
+            .to.emit(
+                bridgeContract,
+                'BridgeEvent',
+            )
+            .withArgs(
+                LEAF_TYPE_ASSET,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                depositCount,
+            );
+
+        await expect(bridgeContract.bridgeAsset(
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            '0x',
+            { value: amount },
+        ))
+            .to.emit(
+                bridgeContract,
+                'BridgeEvent',
+            )
+            .withArgs(
+                LEAF_TYPE_ASSET,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                depositCount.add(1),
+            );
+
+        await expect(bridgeContract.bridgeAsset(
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            '0x',
+            { value: amount },
+        ))
+            .to.emit(
+                bridgeContract,
+                'BridgeEvent',
+            )
+            .withArgs(
+                LEAF_TYPE_ASSET,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                depositCount.add(2),
+            );
 
         // Prepare merkle tree
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
 
         // Get the deposit's events
-        const filter = bridgeContract.filters.BridgeEvent(null, null, null, null, null);
+        const filter = bridgeContract.filters.BridgeEvent(
+            null,
+            null,
+            null,
+            null,
+            null,
+        );
         const events = await bridgeContract.queryFilter(filter, 0, 'latest');
         events.forEach((e) => {
             const { args } = e;
@@ -625,7 +690,15 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -772,7 +845,15 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
 
         // check merkle root with SC
@@ -916,7 +997,15 @@ describe('Bridge Contract', () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(MESSAGE_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(
+            MESSAGE_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
 
         // check merkle root with SC

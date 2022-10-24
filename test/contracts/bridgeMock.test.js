@@ -94,7 +94,15 @@ describe('Bridge Contract', () => {
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 

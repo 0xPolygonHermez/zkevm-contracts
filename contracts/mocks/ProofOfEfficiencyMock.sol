@@ -84,7 +84,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         uint64 newVerifiedBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot
-    ) public view returns (bytes32) {
+    ) public view returns (uint256) {
         // sanity check
         require(
             _lastVerifiedBatch == lastVerifiedBatch,
@@ -93,11 +93,11 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
 
         require(
             newVerifiedBatch > _lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: last numBatch must be bigger than lastVerifiedBatch"
+            "ProofOfEfficiency::verifyBatch: newVerifiedBatch must be bigger than lastVerifiedBatch"
         );
 
         require(
-            newVerifiedBatch <= _lastVerifiedBatch,
+            newVerifiedBatch <= lastBatchSequenced,
             "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
         );
 
@@ -109,7 +109,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         );
 
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
-        return bytes32(inputSnark);
+        return inputSnark;
     }
 
     /**
@@ -153,6 +153,18 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
     }
 
     /**
+     * @notice Set sequencedBatches
+     * @param batchNum bathc num
+     * @param accInputData accInputData
+     */
+    function setSequencedBatches(uint64 batchNum, bytes32 accInputData)
+        public
+        onlyOwner
+    {
+        sequencedBatches[batchNum] = accInputData;
+    }
+
+    /**
      * @notice Allows an aggregator mock to verify a batch
      * @param _lastVerifiedBatch Last verified Batch, used as a sanity check
      * @param newVerifiedBatch Last batch that the aggregator intends to verify
@@ -179,11 +191,11 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
 
         require(
             newVerifiedBatch > _lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: last numBatch must be bigger than lastVerifiedBatch"
+            "ProofOfEfficiency::verifyBatch: newVerifiedBatch must be bigger than lastVerifiedBatch"
         );
 
         require(
-            newVerifiedBatch <= _lastVerifiedBatch,
+            newVerifiedBatch <= lastBatchSequenced,
             "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
         );
 

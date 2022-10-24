@@ -3,7 +3,7 @@ const { ethers, upgrades } = require('hardhat');
 
 const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
-const { calculateSnarkInput, calculateBatchHashData, calculateStarkInput } = contractUtils;
+const { calculateSnarkInput, calculateAccInputHash, calculateBatchHashData } = contractUtils;
 
 describe('Proof of efficiency', () => {
     let deployer;
@@ -127,7 +127,7 @@ describe('Proof of efficiency', () => {
             transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: ethers.BigNumber.from(currentTimestamp),
-            forceBatchesTimestamp: [],
+            minForcedTimestamp: 0,
         };
 
         // revert because sender is not super sequencer
@@ -162,15 +162,16 @@ describe('Proof of efficiency', () => {
         );
 
         // Check batch mapping
-        const batchStruct = await proofOfEfficiencyContract.sequencedBatches(1);
+        const batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(1);
 
-        expect(batchStruct.timestamp).to.be.equal(sequence.timestamp);
-        const batchHashData = calculateBatchHashData(
-            sequence.transactions,
+        const batchAccInputHashJs = calculateAccInputHash(
+            await proofOfEfficiencyContract.sequencedBatches(0),
+            calculateBatchHashData(sequence.transactions),
             sequence.globalExitRoot,
+            sequence.timestamp,
             trustedSequencer.address,
         );
-        expect(batchStruct.batchHashData).to.be.equal(batchHashData);
+        expect(batchAccInputHash).to.be.equal(batchAccInputHashJs);
     });
 
     it('sequenceBatches should sequence multiple batches', async () => {
@@ -183,14 +184,14 @@ describe('Proof of efficiency', () => {
             transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
-            forceBatchesTimestamp: [],
+            minForcedTimestamp: 0,
         };
 
         const sequence2 = {
             transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
-            forceBatchesTimestamp: [],
+            minForcedTimestamp: 0,
         };
 
         const initialOwnerBalance = await maticTokenContract.balanceOf(
@@ -218,23 +219,31 @@ describe('Proof of efficiency', () => {
         );
 
         // Check batch mapping
-        const batchStruct = await proofOfEfficiencyContract.sequencedBatches(1);
-        expect(batchStruct.timestamp).to.be.equal(sequence.timestamp);
-        const batchHashData = calculateBatchHashData(
-            sequence.transactions,
-            sequence.globalExitRoot,
-            trustedSequencer.address,
-        );
-        expect(batchStruct.batchHashData).to.be.equal(batchHashData);
+        let batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(1);
 
-        const batchStruct2 = await proofOfEfficiencyContract.sequencedBatches(2);
-        expect(batchStruct2.timestamp).to.be.equal(sequence2.timestamp);
-        const batchHashData2 = calculateBatchHashData(
-            sequence2.transactions,
-            sequence2.globalExitRoot,
+        // Only last batch is added to the mapping
+        expect(batchAccInputHash).to.be.equal(ethers.constants.HashZero);
+
+        batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(2);
+
+        // Calcultate input Hahs for batch 1
+        let batchAccInputHashJs = calculateAccInputHash(
+            ethers.constants.HashZero,
+            calculateBatchHashData(sequence.transactions),
+            sequence.globalExitRoot,
+            sequence.timestamp,
             trustedSequencer.address,
         );
-        expect(batchStruct2.batchHashData).to.be.equal(batchHashData2);
+
+        // Calcultate input Hahs for batch 2
+        batchAccInputHashJs = calculateAccInputHash(
+            batchAccInputHashJs,
+            calculateBatchHashData(sequence2.transactions),
+            sequence2.globalExitRoot,
+            sequence2.timestamp,
+            trustedSequencer.address,
+        );
+        expect(batchAccInputHash).to.be.equal(batchAccInputHashJs);
     });
 
     it('sequenceBatches should sequence multiple batches and force batches', async () => {
@@ -253,26 +262,24 @@ describe('Proof of efficiency', () => {
             .to.emit(proofOfEfficiencyContract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
-        const forcedTimestamp = (await proofOfEfficiencyContract.forcedBatches(lastForcedBatch)).minTimestamp;
-
         // sequence 2 batches
         const l2txData = '0x1234';
-        const maticAmountSequence = (await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE()).mul(2);
+        const maticAmountSequence = (await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE()).mul(1);
 
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
-            transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            transactions: l2txDataForceBatch,
+            globalExitRoot: lastGlobalExitRoot,
             timestamp: currentTimestamp,
-            forceBatchesTimestamp: [currentTimestamp],
+            minForcedTimestamp: currentTimestamp,
         };
 
         const sequence2 = {
             transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
-            forceBatchesTimestamp: [],
+            minForcedTimestamp: 0,
         };
 
         const initialOwnerBalance = await maticTokenContract.balanceOf(
@@ -287,35 +294,30 @@ describe('Proof of efficiency', () => {
         const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
 
         // Assert that the timestamp requirements must accomplish with force batches too
-        sequence.forceBatchesTimestamp[0] += 1;
+        sequence.minForcedTimestamp += 1;
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
+            .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Forced batches data must match');
+        sequence.minForcedTimestamp -= 1;
+
+        sequence.timestamp -= 1;
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
+            .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be bigger or equal than min');
+        sequence.timestamp += 1;
+
+        sequence.timestamp = currentTimestamp + 10;
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
             .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Timestamp must be inside range');
-        sequence.forceBatchesTimestamp[0] -= 1;
-
-        sequence.forceBatchesTimestamp[0] -= 1;
-        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
-            .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be inside range');
-        sequence.forceBatchesTimestamp[0] += 1;
-
-        // Assert force batch must be at least the minTimestamp
-        sequence.timestamp = forcedTimestamp - 1;
-        sequence.forceBatchesTimestamp[0] = forcedTimestamp - 1;
-        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
-            .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be inside range');
         sequence.timestamp = currentTimestamp;
-        sequence.forceBatchesTimestamp[0] = currentTimestamp;
 
-        // Assert force batch cant pop more batches than queued
-        sequence.forceBatchesTimestamp.push(currentTimestamp);
+        sequence2.timestamp -= 1;
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
-            .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Force batches overflow');
-        sequence.timestamp = currentTimestamp;
-        sequence.forceBatchesTimestamp.pop();
+            .to.be.revertedWith('ProofOfEfficiency::sequenceBatches: Timestamp must be inside range');
+        sequence2.timestamp += 1;
 
         // Sequence Bathces
         await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2]))
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
-            .withArgs(lastBatchSequenced + 3);
+            .withArgs(Number(lastBatchSequenced) + 2);
 
         const finalOwnerBalance = await maticTokenContract.balanceOf(
             await trustedSequencer.getAddress(),
@@ -326,28 +328,32 @@ describe('Proof of efficiency', () => {
         );
 
         // Check batch mapping
-        const batchStruct = await proofOfEfficiencyContract.sequencedBatches(1);
-        expect(batchStruct.timestamp).to.be.equal(sequence.timestamp);
-        const batchHashData = calculateBatchHashData(
-            sequence.transactions,
+        let batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(1);
+        // Only last batch is added to the mapping
+        expect(batchAccInputHash).to.be.equal(ethers.constants.HashZero);
+
+        /*
+         * Check batch mapping
+         * Calcultate input Hahs for batch 1
+         */
+        let batchAccInputHashJs = calculateAccInputHash(
+            ethers.constants.HashZero,
+            calculateBatchHashData(sequence.transactions),
             sequence.globalExitRoot,
+            sequence.timestamp,
             trustedSequencer.address,
         );
-        expect(batchStruct.batchHashData).to.be.equal(batchHashData);
 
-        const batchStruct2 = await proofOfEfficiencyContract.sequencedBatches(2);
-        expect(batchStruct2.timestamp).to.be.equal(sequence.forceBatchesTimestamp[0]);
-        expect(batchStruct2.batchHashData).to.be.equal(ethers.utils.hexZeroPad(0, 32));
-        expect(batchStruct2.forceBatchNum).to.be.equal(1);
-
-        const batchStruct3 = await proofOfEfficiencyContract.sequencedBatches(3);
-        expect(batchStruct3.timestamp).to.be.equal(sequence2.timestamp);
-        const batchHashData3 = calculateBatchHashData(
-            sequence2.transactions,
+        // Calcultate input Hahs for batch 2
+        batchAccInputHashJs = calculateAccInputHash(
+            batchAccInputHashJs,
+            calculateBatchHashData(sequence2.transactions),
             sequence2.globalExitRoot,
+            sequence2.timestamp,
             trustedSequencer.address,
         );
-        expect(batchStruct3.batchHashData).to.be.equal(batchHashData3);
+        batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(2);
+        expect(batchAccInputHash).to.be.equal(batchAccInputHashJs);
     });
 
     it('sequenceBatches should check the timestamp correctly', async () => {

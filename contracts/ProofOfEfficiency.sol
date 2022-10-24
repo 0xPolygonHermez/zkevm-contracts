@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "hardhat/console.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network
@@ -257,6 +258,21 @@ contract ProofOfEfficiency is Initializable {
                     currentBatch.timestamp >= currentBatch.minForcedTimestamp,
                     "ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be bigger or equal than min"
                 );
+            } else {
+                // Check global exit root exist, and proper batch length, this checks are already done in the force Batches call
+                require(
+                    currentBatch.globalExitRoot == bytes32(0) ||
+                        globalExitRootManager.globalExitRootMap(
+                            currentBatch.globalExitRoot
+                        ) !=
+                        0,
+                    "ProofOfEfficiency::sequenceBatches: Global exit root must exist"
+                );
+
+                require(
+                    currentBatch.transactions.length < MAX_BATCH_LENGTH,
+                    "ProofOfEfficiency::sequenceBatches: Transactions bytes overflow"
+                );
             }
 
             // Check Batch parameters are correct
@@ -264,20 +280,6 @@ contract ProofOfEfficiency is Initializable {
                 currentBatch.timestamp >= currentTimestamp &&
                     currentBatch.timestamp <= block.timestamp,
                 "ProofOfEfficiency::sequenceBatches: Timestamp must be inside range"
-            );
-
-            require(
-                currentBatch.globalExitRoot == bytes32(0) ||
-                    globalExitRootManager.globalExitRootMap(
-                        currentBatch.globalExitRoot
-                    ) !=
-                    0,
-                "ProofOfEfficiency::sequenceBatches: Global exit root must exist"
-            );
-
-            require(
-                currentBatch.transactions.length < MAX_BATCH_LENGTH,
-                "ProofOfEfficiency::sequenceBatches: Transactions bytes overflow"
             );
 
             // Calculate next acc input hash
@@ -298,7 +300,7 @@ contract ProofOfEfficiency is Initializable {
             currentTimestamp = currentBatch.timestamp;
         }
 
-        // This check is done here just once for gas saving
+        // Sanity check, should not be accesible never
         require(
             currentLastForceBatchSequenced <= lastForceBatch,
             "ProofOfEfficiency::sequenceBatches: Force batches overflow"
@@ -350,11 +352,11 @@ contract ProofOfEfficiency is Initializable {
 
         require(
             newVerifiedBatch > _lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: last numBatch must be bigger than lastVerifiedBatch"
+            "ProofOfEfficiency::verifyBatch: newVerifiedBatch must be bigger than lastVerifiedBatch"
         );
 
         require(
-            newVerifiedBatch <= _lastVerifiedBatch,
+            newVerifiedBatch <= lastBatchSequenced,
             "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
         );
 
@@ -421,11 +423,12 @@ contract ProofOfEfficiency is Initializable {
 
         // Update forcedBatches mapping
         lastForceBatch++;
+
         forcedBatches[lastForceBatch] = keccak256(
             abi.encodePacked(
                 keccak256(transactions),
                 lastGlobalExitRoot,
-                block.timestamp
+                uint64(block.timestamp)
             )
         );
 
@@ -593,7 +596,7 @@ contract ProofOfEfficiency is Initializable {
 
         require(
             newAccInputHash != bytes32(0),
-            "ProofOfEfficiency::verifyBatch: newAccInputHash does not exist"
+            "ProofOfEfficiency::getInputSnarkBytes: newAccInputHash does not exist"
         );
 
         bytes memory snarkHashBytes;

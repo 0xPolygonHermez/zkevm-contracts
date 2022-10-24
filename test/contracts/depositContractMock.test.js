@@ -32,7 +32,15 @@ describe('Deposit Contract', () => {
         const destinationAddress = deployer.address;
         const metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
-        await depositContractMock.deposit(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        await depositContractMock.deposit(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
 
         // compute root merkle tree in Js
         const height = 32;
