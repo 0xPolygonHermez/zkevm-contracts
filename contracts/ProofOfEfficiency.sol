@@ -358,130 +358,12 @@ contract ProofOfEfficiency is Initializable {
             "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
         );
 
-        bytes32 oldAccInputHash = sequencedBatches[_lastVerifiedBatch];
-        bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
-
-        require(
-            newAccInputHash != bytes32(0),
-            "ProofOfEfficiency::verifyBatch: newAccInputHash does not exist"
+        bytes memory snarkHashBytes = getInputSnarkBytes(
+            _lastVerifiedBatch,
+            newVerifiedBatch,
+            newLocalExitRoot,
+            newStateRoot
         );
-
-        bytes memory snarkHashBytes;
-        assembly {
-            // Set snarkHashBytes to the next free memory pointer
-            snarkHashBytes := mload(0x40)
-
-            // Reserve the memory. 32 for the length , the input bytes and 32
-            // extra bytes at the end for word manipulation
-            mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
-
-            // Set the actual length of the input bytes
-            mstore(snarkHashBytes, _SNARK_SHA_BYTES)
-
-            // Set the pointer at the beginning of the byte array
-            let ptr := add(snarkHashBytes, 32)
-
-            // function add32BytesToInputSnark(bytesToAdd, ptrInit) -> ptrFinal {
-            //     ptrFinal := ptrInit
-            //     for {
-            //         let i := 0
-            //     } lt(i, 8) {
-            //         i := add(i, 1)
-            //     } {
-            //         // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
-            //         // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
-            //         // Then shift left 256 - 32 (224) bits to the left.
-            //         // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
-            //         // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-            //         mstore(
-            //             ptrFinal,
-            //             shr(32, shl(224, shr(mul(i, 32), bytesToAdd)))
-            //         )
-            //         ptrFinal := add(ptrFinal, 8) // write the next 8 bytes
-            //     }
-            //
-            // }
-
-            // Add currentStateRoot
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
-                // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
-                // Then shift left 256 - 32 (224) bits to the left.
-                // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
-                // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-                mstore(
-                    ptr,
-                    shr(
-                        32,
-                        shl(224, shr(mul(i, 32), sload(currentStateRoot.slot)))
-                    )
-                )
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
-
-            // Add newStateRoot
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), newStateRoot))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
-
-            // Add oldAccInputHash
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), oldAccInputHash))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
-
-            // Add newAccInputHash
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), newAccInputHash))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
-
-            // Add newLocalExitRoot
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                mstore(
-                    ptr,
-                    shr(32, shl(224, shr(mul(i, 32), newLocalExitRoot)))
-                )
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
-
-            // add firstNumBatch
-            mstore(ptr, shl(192, _lastVerifiedBatch)) // 256 - 64 = 192
-            ptr := add(ptr, 8)
-
-            // add lastNumBatch
-            mstore(ptr, shl(192, newVerifiedBatch)) // 256 - 64 = 192
-            ptr := add(ptr, 8)
-
-            // add chainID
-            mstore(ptr, shl(192, sload(chainID.slot))) // 256 - 64 = 192
-            ptr := add(ptr, 8)
-
-            // add aggregator address
-            mstore(ptr, shl(96, caller())) // 256 - 160 = 96
-            ptr := add(ptr, 20)
-        }
 
         // Calulate the snark input
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
@@ -700,7 +582,12 @@ contract ProofOfEfficiency is Initializable {
         return currentBalance / totalBatchesToVerify;
     }
 
-    function calculateInputSnark(bytes32 newStateRoot, bytes32 oldAccInputHash, ) {
+    function getInputSnarkBytes(
+        uint64 _lastVerifiedBatch,
+        uint64 newVerifiedBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot
+    ) public view returns (bytes memory) {
         bytes32 oldAccInputHash = sequencedBatches[_lastVerifiedBatch];
         bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
 
@@ -709,7 +596,7 @@ contract ProofOfEfficiency is Initializable {
             "ProofOfEfficiency::verifyBatch: newAccInputHash does not exist"
         );
 
-         bytes memory snarkHashBytes;
+        bytes memory snarkHashBytes;
         assembly {
             // Set snarkHashBytes to the next free memory pointer
             snarkHashBytes := mload(0x40)
@@ -825,5 +712,6 @@ contract ProofOfEfficiency is Initializable {
             mstore(ptr, shl(96, caller())) // 256 - 160 = 96
             ptr := add(ptr, 20)
         }
+        return snarkHashBytes;
     }
 }

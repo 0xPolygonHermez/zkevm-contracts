@@ -46,244 +46,70 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
     }
 
     /**
-     * @notice Calculate the stark input
-     * @param currentStateRoot Current state Root
-     * @param currentLocalExitRoot Current local exit root
-     * @param newStateRoot New State root once the batch is processed
-     * @param newLocalExitRoot  New local exit root once the batch is processed
-     * @param batchHashData Batch hash data
-     * @param numBatch num batch
-     * @param timestamp unix timestamp
-     * @param chainID L2 chain ID
+     * @notice calculate accumulate input hash from parameters
+     * @param currentAccInputHash Accumulate input hash
+     * @param transactions Transactions
+     * @param globalExitRoot Global Exit Root
+     * @param timestamp Timestamp
+     * @param sequencerAddress Sequencer address
      */
-    function calculateStarkInput(
-        bytes32 currentStateRoot,
-        bytes32 currentLocalExitRoot,
-        bytes32 newStateRoot,
-        bytes32 newLocalExitRoot,
-        bytes32 batchHashData,
-        uint64 numBatch,
+    function calculateAccInputHash(
+        bytes32 currentAccInputHash,
+        bytes memory transactions,
+        bytes32 globalExitRoot,
         uint64 timestamp,
-        uint64 chainID
+        address sequencerAddress
     ) public pure returns (bytes32) {
-        bytes32 input = keccak256(
-            abi.encodePacked(
-                currentStateRoot,
-                currentLocalExitRoot,
-                newStateRoot,
-                newLocalExitRoot,
-                batchHashData,
-                numBatch,
-                timestamp,
-                chainID
-            )
-        );
-        return input;
+        return
+            keccak256(
+                abi.encodePacked(
+                    currentAccInputHash,
+                    keccak256(transactions),
+                    globalExitRoot,
+                    timestamp,
+                    sequencerAddress
+                )
+            );
     }
 
     /**
-     * @notice Calculate the snark  input
-     * @param currentStateRoot Current state Root
-     * @param currentLocalExitRoot Current local exit root
-     * @param newStateRoot New State root once the batch is processed
+     * @notice Return the next snark input
+     * @param _lastVerifiedBatch Last verified Batch, used as a sanity check
+     * @param newVerifiedBatch Last batch that the aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
-     * @param batchHashData Batch hash data
-     * @param numBatch num batch
-     * @param timestamp unix timestamp
-     * @param chainID L2 chain ID
-     * @param aggregatorAddress aggregatorAddress
-     */
-    function calculateSnarkInput(
-        bytes32 currentStateRoot,
-        bytes32 currentLocalExitRoot,
-        bytes32 newStateRoot,
-        bytes32 newLocalExitRoot,
-        bytes32 batchHashData,
-        uint64 numBatch,
-        uint64 timestamp,
-        uint64 chainID,
-        address aggregatorAddress
-    ) public pure returns (uint256) {
-        bytes32 inputStark = calculateStarkInput(
-            currentStateRoot,
-            currentLocalExitRoot,
-            newStateRoot,
-            newLocalExitRoot,
-            batchHashData,
-            numBatch,
-            timestamp,
-            chainID
-        );
-
-        bytes memory snarkHashBytes;
-        assembly {
-            // Set snarkHashBytes to the next free memory space
-            snarkHashBytes := mload(0x40)
-
-            // Reserve the memory. 32 for the length , the input bytes and 32
-            // extra bytes at the end for word manipulation
-            mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
-
-            // Set the actua length of the input bytes
-            mstore(snarkHashBytes, _SNARK_SHA_BYTES)
-
-            // Set the pointer at the begining of the byte array
-            let ptr := add(snarkHashBytes, 32)
-
-            // store aggregator address
-            mstore(ptr, shl(96, aggregatorAddress)) // 256 - 160 = 96
-            ptr := add(ptr, 20)
-
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
-                // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
-                // Then shift left 256 - 32 (224) bits to the left.
-                // AS a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
-                // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), inputStark))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
-        }
-        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
-
-        return inputSnark;
-    }
-
-    /**
-     * @notice Calculate the circuit input
      * @param newStateRoot New State root once the batch is processed
-     * @param newLocalExitRoot  New local exit root once the batch is processed
-     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      */
     function getNextSnarkInput(
+        uint64 _lastVerifiedBatch,
+        uint64 newVerifiedBatch,
         bytes32 newLocalExitRoot,
-        bytes32 newStateRoot,
-        uint64 numBatch
-    ) public view returns (uint256) {
+        bytes32 newStateRoot
+    ) public view returns (bytes32) {
         // sanity check
         require(
-            numBatch == lastVerifiedBatch + 1,
-            "ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH"
+            _lastVerifiedBatch == lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatch: _lastVerifiedBatch does not match"
         );
 
-        // Calculate Circuit Input
-        uint64 timestamp = sequencedBatches[numBatch].timestamp;
-        bytes32 batchHashData;
-        uint256 maticFee;
-
-        // If it's a force batch, forcebatchNum indicates which one is, otherwise is a regular batch
-        if (sequencedBatches[numBatch].forceBatchNum == 0) {
-            batchHashData = sequencedBatches[numBatch].batchHashData;
-            maticFee = TRUSTED_SEQUENCER_FEE;
-        } else {
-            ForcedBatchData memory currentForcedBatch = forcedBatches[
-                sequencedBatches[numBatch].forceBatchNum
-            ];
-            batchHashData = currentForcedBatch.batchHashData;
-            maticFee = currentForcedBatch.maticFee;
-        }
-
-        bytes32 inputStark = keccak256(
-            abi.encodePacked(
-                currentStateRoot,
-                currentLocalExitRoot,
-                newStateRoot,
-                newLocalExitRoot,
-                batchHashData,
-                numBatch,
-                timestamp,
-                chainID
-            )
+        require(
+            newVerifiedBatch > _lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatch: last numBatch must be bigger than lastVerifiedBatch"
         );
 
-        bytes memory snarkHashBytes;
+        require(
+            newVerifiedBatch <= _lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
+        );
 
-        assembly {
-            // Set snarkHashBytes to the next free memory space
-            snarkHashBytes := mload(0x40)
+        bytes memory snarkHashBytes = getInputSnarkBytes(
+            _lastVerifiedBatch,
+            newVerifiedBatch,
+            newLocalExitRoot,
+            newStateRoot
+        );
 
-            // Reserve the memory. 32 for the length , the input bytes and 32
-            // extra bytes at the end for word manipulation
-            mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
-
-            // Set the actua length of the input bytes
-            mstore(snarkHashBytes, _SNARK_SHA_BYTES)
-
-            // Set the pointer at the begining of the byte array
-            let ptr := add(snarkHashBytes, 32)
-
-            // store aggregator address
-            mstore(ptr, shl(96, caller())) // 256 - 160 = 96
-            ptr := add(ptr, 20)
-
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
-                // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
-                // Then shift left 256 - 32 (224) bits to the left.
-                // AS a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
-                // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), inputStark))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
-        }
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
-
-        return inputSnark;
-    }
-
-    /**
-     * @notice Return the input hash parameters
-     * @param newStateRoot New State root once the batch is processed
-     * @param newLocalExitRoot  New local exit root once the batch is processed
-     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
-     */
-    function returnInputHashParameters(
-        bytes32 newLocalExitRoot,
-        bytes32 newStateRoot,
-        uint32 numBatch
-    ) public view returns (bytes memory) {
-        // sanity check
-        require(
-            numBatch == lastVerifiedBatch + 1,
-            "ProofOfEfficiency::verifyBatch: BATCH_DOES_NOT_MATCH"
-        );
-
-        // Calculate Circuit Input
-        uint64 timestamp = sequencedBatches[numBatch].timestamp;
-        bytes32 batchHashData;
-        uint256 maticFee;
-
-        // If it's a force batch, forcebatchNum indicates which one is, otherwise is a regular batch
-        if (sequencedBatches[numBatch].forceBatchNum == 0) {
-            batchHashData = sequencedBatches[numBatch].batchHashData;
-            maticFee = TRUSTED_SEQUENCER_FEE;
-        } else {
-            ForcedBatchData memory currentForcedBatch = forcedBatches[
-                sequencedBatches[numBatch].forceBatchNum
-            ];
-            batchHashData = currentForcedBatch.batchHashData;
-            maticFee = currentForcedBatch.maticFee;
-        }
-
-        return
-            abi.encodePacked(
-                currentStateRoot,
-                currentLocalExitRoot,
-                newStateRoot,
-                newLocalExitRoot,
-                batchHashData,
-                numBatch,
-                timestamp,
-                chainID
-            );
+        return bytes32(inputSnark);
     }
 
     /**
@@ -292,14 +118,6 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
      */
     function setStateRoot(bytes32 newStateRoot) public onlyOwner {
         currentStateRoot = newStateRoot;
-    }
-
-    /**
-     * @notice Set Exit Root
-     * @param newLocalExitRoot New exit root ¡
-     */
-    function setExitRoot(bytes32 newLocalExitRoot) public onlyOwner {
-        currentLocalExitRoot = newLocalExitRoot;
     }
 
     /**
@@ -369,7 +187,6 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
             "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
         );
 
-        bytes32 oldAccInputHash = sequencedBatches[_lastVerifiedBatch];
         bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
 
         require(
@@ -377,11 +194,11 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
             "ProofOfEfficiency::verifyBatch: newAccInputHash does not exist"
         );
 
-        // Get MATIC reward
-        matic.safeTransfer(
-            msg.sender,
-            calculateRewardPerBatch() * (newVerifiedBatch - _lastVerifiedBatch)
-        );
+        // // Get MATIC reward
+        // matic.safeTransfer(
+        //     msg.sender,
+        //     calculateRewardPerBatch() * (newVerifiedBatch - _lastVerifiedBatch)
+        // );
 
         // Update state
         lastVerifiedBatch = newVerifiedBatch;
