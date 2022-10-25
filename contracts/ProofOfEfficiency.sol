@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "hardhat/console.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network
@@ -75,14 +74,14 @@ contract ProofOfEfficiency is Initializable {
 
     // Queue of forced batches with their associated data
     // ForceBatchNum --> hashedForceBatchData
-    // hashedForceBatchData:  hash containing the necessary information to force a batch:
-    // keccak256(keccak256(l2TxData), bytes32 globalExitRoot, unint64 minTimestamp)
+    // hashedForceBatchData: hash containing the necessary information to force a batch:
+    // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minTimestamp)
     mapping(uint64 => bytes32) public forcedBatches;
 
     // Queue of batches that defines the virtual state
     // SequenceBatchNum --> accInputHash
-    // accInputHash is a hash chain that contains all the information to process a batch:
-    // keccak256(bytes32 oldAccInputHash, keccak256(bytes l2TxData), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
+    // accInputHash: hash chain that contains all the information to process a batch:
+    // keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
     mapping(uint64 => bytes32) public sequencedBatches;
 
     // Last sequenced timestamp

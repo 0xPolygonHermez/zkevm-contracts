@@ -221,6 +221,7 @@ contract Bridge is DepositContract {
             metadata,
             uint32(depositCount)
         );
+
         _deposit(
             getLeafValue(
                 LEAF_TYPE_MESSAGE,
