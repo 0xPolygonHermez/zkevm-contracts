@@ -58,6 +58,7 @@ Verify merkle proof
 ### getLeafValue
 ```solidity
   function getLeafValue(
+    uint8 leafType,
     uint32 originNetwork,
     address originTokenAddress,
     uint32 destinationNetwork,
@@ -72,6 +73,7 @@ Given the leaf data returns the leaf value
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
+|`leafType` | uint8 | Leaf type
 |`originNetwork` | uint32 | Origin Network
 |`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
 |`destinationNetwork` | uint32 | Destination network

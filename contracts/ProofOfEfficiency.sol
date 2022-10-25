@@ -147,7 +147,7 @@ contract ProofOfEfficiency is Initializable {
     /**
      * @dev Emitted when a aggregator verifies a new batch
      */
-    event VerifyBatch(uint64 indexed numBatch, address indexed aggregator);
+    event VerifyBatches(uint64 indexed numBatch, address indexed aggregator);
 
     /**
      * @dev Emitted when a trusted sequencer update his address
@@ -300,7 +300,7 @@ contract ProofOfEfficiency is Initializable {
             currentTimestamp = currentBatch.timestamp;
         }
 
-        // Sanity check, should not be accesible never
+        // Sanity check, should not be unreachable
         require(
             currentLastForceBatchSequenced <= lastForceBatch,
             "ProofOfEfficiency::sequenceBatches: Force batches overflow"
@@ -347,17 +347,17 @@ contract ProofOfEfficiency is Initializable {
         // sanity check
         require(
             _lastVerifiedBatch == lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: _lastVerifiedBatch does not match"
+            "ProofOfEfficiency::verifyBatches: _lastVerifiedBatch does not match"
         );
 
         require(
             newVerifiedBatch > _lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: newVerifiedBatch must be bigger than lastVerifiedBatch"
+            "ProofOfEfficiency::verifyBatches: newVerifiedBatch must be bigger than lastVerifiedBatch"
         );
 
         require(
             newVerifiedBatch <= lastBatchSequenced,
-            "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
+            "ProofOfEfficiency::verifyBatches: batch does not have been sequenced"
         );
 
         bytes memory snarkHashBytes = getInputSnarkBytes(
@@ -373,7 +373,7 @@ contract ProofOfEfficiency is Initializable {
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "ProofOfEfficiency::verifyBatch: INVALID_PROOF"
+            "ProofOfEfficiency::verifyBatches: INVALID_PROOF"
         );
 
         // Get MATIC reward
@@ -389,7 +389,7 @@ contract ProofOfEfficiency is Initializable {
         // Interact with globalExitRoot
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit VerifyBatch(newVerifiedBatch, msg.sender);
+        emit VerifyBatches(newVerifiedBatch, msg.sender);
     }
 
     /**
@@ -614,7 +614,7 @@ contract ProofOfEfficiency is Initializable {
             // Set the pointer at the beginning of the byte array
             let ptr := add(snarkHashBytes, 32)
 
-            // function defined to add 32 bytes into the snark btye array on a prover friendly method
+            // Function defined to add 32 bytes into the snark btye array on a prover friendly method
             function add32BytesToInputSnark(bytesToAdd, ptrInit) -> ptrFinal {
                 ptrFinal := ptrInit
                 for {

@@ -219,6 +219,6 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         // Interact with globalExitRoot
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit VerifyBatch(newVerifiedBatch, msg.sender);
+        emit VerifyBatches(newVerifiedBatch, msg.sender);
     }
 }

@@ -58,9 +58,9 @@ Bridge message
 |`destinationAddress` | address | Address destination
 |`metadata` | bytes | Message metadata
 
-### claim
+### claimAsset
 ```solidity
-  function claim(
+  function claimAsset(
     bytes32[] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
@@ -85,6 +85,38 @@ Verify merkle proof and withdraw tokens/ether
 |`rollupExitRoot` | bytes32 | Rollup exit root
 |`originNetwork` | uint32 | Origin network
 |`originTokenAddress` | address |  Origin token address, 0 address is reserved for ether
+|`destinationNetwork` | uint32 | Network destination, must be 0 ( mainnet)
+|`destinationAddress` | address | Address destination
+|`amount` | uint256 | Amount of tokens
+|`metadata` | bytes | abi encoded metadata if any, empty otherwise
+
+### claimMessage
+```solidity
+  function claimMessage(
+    bytes32[] smtProof,
+    uint32 index,
+    bytes32 mainnetExitRoot,
+    bytes32 rollupExitRoot,
+    uint32 originNetwork,
+    address originAddress,
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amount,
+    bytes metadata
+  ) public
+```
+Verify merkle proof and execute message
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`smtProof` | bytes32[] | Smt proof
+|`index` | uint32 | Index of the leaf
+|`mainnetExitRoot` | bytes32 | Mainnet exit root
+|`rollupExitRoot` | bytes32 | Rollup exit root
+|`originNetwork` | uint32 | Origin network
+|`originAddress` | address |  Origin token address, 0 address is reserved for ether
 |`destinationNetwork` | uint32 | Network destination, must be 0 ( mainnet)
 |`destinationAddress` | address | Address destination
 |`amount` | uint256 | Amount of tokens

@@ -364,14 +364,14 @@ describe('Proof of efficiency', () => {
             transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: 0,
-            forceBatchesTimestamp: [],
+            minForcedTimestamp: 0,
         };
 
         const sequence2 = {
             transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: 0,
-            forceBatchesTimestamp: [],
+            minForcedTimestamp: 0,
         };
 
         const initialOwnerBalance = await maticTokenContract.balanceOf(
@@ -460,16 +460,18 @@ describe('Proof of efficiency', () => {
         );
 
         // Check force batches struct
-        const batchStruct = await proofOfEfficiencyContract.forcedBatches(1);
+        const batchHash = await proofOfEfficiencyContract.forcedBatches(1);
+        const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
 
-        expect(batchStruct.maticFee).to.be.equal(maticAmount);
-        expect(batchStruct.minTimestamp).to.be.equal((await ethers.provider.getBlock()).timestamp);
-        const batchHashData = calculateBatchHashData(
-            l2txData,
-            lastGlobalExitRoot,
-            deployer.address,
+        const batchHashJs = ethers.utils.solidityKeccak256(
+            ['bytes32', 'bytes32', 'uint64'],
+            [
+                calculateBatchHashData(l2txData),
+                lastGlobalExitRoot,
+                timestampForceBatch,
+            ],
         );
-        expect(batchStruct.batchHashData).to.be.equal(batchHashData);
+        expect(batchHashJs).to.be.equal(batchHash);
     });
 
     it('should sequence force batches using sequenceForceBatches', async () => {
@@ -487,42 +489,65 @@ describe('Proof of efficiency', () => {
             .to.emit(proofOfEfficiencyContract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
-        const initialTimestamp = (await proofOfEfficiencyContract.forcedBatches(lastForcedBatch)).minTimestamp;
+        const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
+
+        const forceBatchHash = await proofOfEfficiencyContract.forcedBatches(1);
+
+        const batchHashJs = ethers.utils.solidityKeccak256(
+            ['bytes32', 'bytes32', 'uint64'],
+            [
+                calculateBatchHashData(l2txData),
+                lastGlobalExitRoot,
+                timestampForceBatch,
+            ],
+        );
+        expect(batchHashJs).to.be.equal(forceBatchHash);
 
         // Check storage variables before call
         expect(await proofOfEfficiencyContract.lastForceBatchSequenced()).to.be.equal(0);
         expect(await proofOfEfficiencyContract.lastForceBatch()).to.be.equal(1);
         expect(await proofOfEfficiencyContract.lastBatchSequenced()).to.be.equal(0);
 
+        const forceBatchStruct = {
+            transactions: l2txData,
+            globalExitRoot: lastGlobalExitRoot,
+            minForcedTimestamp: timestampForceBatch,
+        };
+
         // revert because the timeout is not expired
-        await expect(proofOfEfficiencyContract.sequenceForceBatches(0))
+        await expect(proofOfEfficiencyContract.sequenceForceBatches([]))
             .to.be.revertedWith('ProofOfEfficiency::sequenceForceBatch: Must force at least 1 batch');
 
         // revert because the timeout is not expired
-        await expect(proofOfEfficiencyContract.sequenceForceBatches(1))
+        await expect(proofOfEfficiencyContract.sequenceForceBatches([forceBatchStruct]))
             .to.be.revertedWith('ProofOfEfficiency::sequenceForceBatch: Forced batch is not in timeout period');
 
         // Increment timestamp
         const forceBatchTimeout = await proofOfEfficiencyContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [(initialTimestamp.add(forceBatchTimeout)).toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
 
         // sequence force batch
-        await expect(proofOfEfficiencyContract.sequenceForceBatches(lastForcedBatch))
+        await expect(proofOfEfficiencyContract.sequenceForceBatches([forceBatchStruct]))
             .to.emit(proofOfEfficiencyContract, 'SequenceForceBatches')
-            .withArgs(lastForcedBatch);
+            .withArgs(1);
+
+        const timestampSequenceBatch = (await ethers.provider.getBlock()).timestamp;
 
         expect(await proofOfEfficiencyContract.lastForceBatchSequenced()).to.be.equal(1);
         expect(await proofOfEfficiencyContract.lastForceBatch()).to.be.equal(1);
         expect(await proofOfEfficiencyContract.lastBatchSequenced()).to.be.equal(1);
 
         // Check force batches struct
-        const batchStruct = await proofOfEfficiencyContract.sequencedBatches(1);
+        const batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(1);
 
-        expect(batchStruct.timestamp).to.be.equal((await ethers.provider.getBlock()).timestamp);
-
-        // Batch hash data contains pointer to force batch instead
-        expect(batchStruct.batchHashData).to.be.equal(ethers.utils.hexZeroPad(0, 32));
-        expect(batchStruct.forceBatchNum).to.be.equal(1);
+        const batchAccInputHashJs = calculateAccInputHash(
+            ethers.constants.HashZero,
+            calculateBatchHashData(l2txData),
+            lastGlobalExitRoot,
+            timestampSequenceBatch,
+            deployer.address,
+        );
+        expect(batchAccInputHash).to.be.equal(batchAccInputHashJs);
     });
 
     it('should verify a sequenced batch', async () => {
@@ -534,7 +559,7 @@ describe('Proof of efficiency', () => {
             transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
-            forceBatchesTimestamp: [],
+            minForcedTimestamp: 0,
         };
 
         // Approve tokens
@@ -564,20 +589,53 @@ describe('Proof of efficiency', () => {
         );
 
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatch(
+            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+                numBatch,
+                numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                numBatch - 1,
                 proofA,
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::verifyBatch: batch does not match');
+        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: _lastVerifiedBatch does not match');
+
+        await expect(
+            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+                numBatch - 1,
+                numBatch - 1,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: newVerifiedBatch must be bigger than lastVerifiedBatch');
+
+        await expect(
+            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+                numBatch - 1,
+                numBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: batch does not have been sequenced');
 
         // Verify batch
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatch(newLocalExitRoot, newStateRoot, numBatch, proofA, proofB, proofC),
-        ).to.emit(proofOfEfficiencyContract, 'VerifyBatch')
+            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+                numBatch - 1,
+                numBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(proofOfEfficiencyContract, 'VerifyBatches')
             .withArgs(numBatch, aggregator.address);
 
         const finalAggregatorMatic = await maticTokenContract.balanceOf(
@@ -602,13 +660,19 @@ describe('Proof of efficiency', () => {
             .to.emit(proofOfEfficiencyContract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
-        const initialTimestamp = (await proofOfEfficiencyContract.forcedBatches(lastForcedBatch)).minTimestamp;
+        const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
         // Increment timestamp
         const forceBatchTimeout = await proofOfEfficiencyContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [(initialTimestamp.add(forceBatchTimeout)).toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
+
+        const forceBatchStruct = {
+            transactions: l2txData,
+            globalExitRoot: lastGlobalExitRoot,
+            minForcedTimestamp: timestampForceBatch,
+        };
 
         // sequence force batch
-        await expect(proofOfEfficiencyContract.sequenceForceBatches(lastForcedBatch))
+        await expect(proofOfEfficiencyContract.sequenceForceBatches([forceBatchStruct]))
             .to.emit(proofOfEfficiencyContract, 'SequenceForceBatches')
             .withArgs(lastForcedBatch);
 
@@ -629,10 +693,11 @@ describe('Proof of efficiency', () => {
 
         // Verify batch
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatch(
+            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+                numBatch - 1,
+                numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                numBatch,
                 proofA,
                 proofB,
                 proofC,
@@ -660,7 +725,7 @@ describe('Proof of efficiency', () => {
             transactions: l2txData,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
-            forceBatchesTimestamp: [],
+            minForcedTimestamp: 0,
         };
 
         // Approve tokens
@@ -675,82 +740,46 @@ describe('Proof of efficiency', () => {
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
-        const sentBatch = await proofOfEfficiencyContract.sequencedBatches(lastBatchSequenced + 1);
+        const sentBatchHash = await proofOfEfficiencyContract.sequencedBatches(lastBatchSequenced + 1);
+        const oldAccInputHash = await proofOfEfficiencyContract.sequencedBatches(0);
 
-        const batchHashData = calculateBatchHashData(
-            sequence.transactions,
+        const batchAccInputHashJs = calculateAccInputHash(
+            oldAccInputHash,
+            calculateBatchHashData(sequence.transactions),
             sequence.globalExitRoot,
+            sequence.timestamp,
             trustedSequencer.address,
         );
-        expect(sentBatch.batchHashData).to.be.equal(batchHashData);
+        expect(sentBatchHash).to.be.equal(batchAccInputHashJs);
 
         // Compute circuit input with the SC function
         const currentStateRoot = await proofOfEfficiencyContract.currentStateRoot();
-        const currentLocalExitRoot = await proofOfEfficiencyContract.currentLocalExitRoot();
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
         const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
 
         // Compute Js input
-        const circuitInpuStarktSC = await proofOfEfficiencyContract.calculateStarkInput(
+        const inputSnarkJS = await calculateSnarkInput(
             currentStateRoot,
-            currentLocalExitRoot,
             newStateRoot,
             newLocalExitRoot,
-            batchHashData,
+            oldAccInputHash,
+            batchAccInputHashJs,
+            numBatch - 1,
             numBatch,
-            sequence.timestamp,
             chainID,
+            deployer.address,
         );
 
         // Compute Js input
-        const circuitInputStarkJS = calculateStarkInput(
-            currentStateRoot,
-            currentLocalExitRoot,
-            newStateRoot,
-            newLocalExitRoot,
-            batchHashData,
+        const circuitInpuSnarkSC = await proofOfEfficiencyContract.getNextSnarkInput(
+            numBatch - 1,
             numBatch,
-            sequence.timestamp,
-            chainID,
-        );
-
-        expect(circuitInpuStarktSC).to.be.equal(circuitInputStarkJS);
-
-        // Check snark input
-        const inputSnarkSC = await proofOfEfficiencyContract.calculateSnarkInput(
-            currentStateRoot,
-            currentLocalExitRoot,
-            newStateRoot,
-            newLocalExitRoot,
-            batchHashData,
-            numBatch,
-            sequence.timestamp,
-            chainID,
-            aggregator.address,
-        );
-
-        const inputSnarkJS = await calculateSnarkInput(
-            currentStateRoot,
-            currentLocalExitRoot,
-            newStateRoot,
-            newLocalExitRoot,
-            batchHashData,
-            numBatch,
-            sequence.timestamp,
-            chainID,
-            aggregator.address,
-        );
-
-        // Check the input parameters are correct
-        const circuitNextInputSnarkSC = await proofOfEfficiencyContract.connect(aggregator).getNextSnarkInput(
             newLocalExitRoot,
             newStateRoot,
-            numBatch,
         );
 
-        expect(inputSnarkSC).to.be.equal(inputSnarkJS);
-        expect(circuitNextInputSnarkSC).to.be.equal(inputSnarkSC);
+        expect(circuitInpuSnarkSC).to.be.equal(inputSnarkJS);
     });
 
     it('should match the computed SC input with the Js input in force batches', async () => {
@@ -762,103 +791,68 @@ describe('Proof of efficiency', () => {
             maticTokenContract.approve(proofOfEfficiencyContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastForcedBatch = (await proofOfEfficiencyContract.lastForceBatch()) + 1;
+        const lastForcedBatch = (await proofOfEfficiencyContract.lastForceBatch()).toNumber() + 1;
         await expect(proofOfEfficiencyContract.forceBatch(l2txData, maticAmount))
             .to.emit(proofOfEfficiencyContract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
-        const initialTimestamp = (await proofOfEfficiencyContract.forcedBatches(lastForcedBatch)).minTimestamp;
+        const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
+
         // Increment timestamp
         const forceBatchTimeout = await proofOfEfficiencyContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [(initialTimestamp.add(forceBatchTimeout)).toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
+
+        const forceBatchStruct = {
+            transactions: l2txData,
+            globalExitRoot: lastGlobalExitRoot,
+            minForcedTimestamp: timestampForceBatch,
+        };
 
         // sequence force batch
-        await expect(proofOfEfficiencyContract.sequenceForceBatches(lastForcedBatch))
+        await expect(proofOfEfficiencyContract.sequenceForceBatches([forceBatchStruct]))
             .to.emit(proofOfEfficiencyContract, 'SequenceForceBatches')
             .withArgs(lastForcedBatch);
 
         const sequencedTimestmap = (await ethers.provider.getBlock()).timestamp;
-        const forcedBatchStruct = await proofOfEfficiencyContract.forcedBatches(lastForcedBatch);
+        const oldAccInputHash = await proofOfEfficiencyContract.sequencedBatches(0);
+        const batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(1);
 
-        const batchHashData = calculateBatchHashData(
-            l2txData,
+        const batchAccInputHashJs = calculateAccInputHash(
+            oldAccInputHash,
+            calculateBatchHashData(l2txData),
             lastGlobalExitRoot,
+            sequencedTimestmap,
             deployer.address,
         );
-        expect(forcedBatchStruct.batchHashData).to.be.equal(batchHashData);
-        expect(forcedBatchStruct.maticFee).to.be.equal(maticAmount);
-
-        const sequencedBatch = await proofOfEfficiencyContract.sequencedBatches(lastForcedBatch);
-        expect(sequencedBatch.batchHashData).to.be.equal(ethers.utils.hexZeroPad(0, 32));
-        expect(sequencedBatch.forceBatchNum).to.be.equal(1);
-        expect(sequencedBatch.timestamp).to.be.equal(sequencedTimestmap);
+        expect(batchAccInputHash).to.be.equal(batchAccInputHashJs);
 
         // Compute circuit input with the SC function
         const currentStateRoot = await proofOfEfficiencyContract.currentStateRoot();
-        const currentLocalExitRoot = await proofOfEfficiencyContract.currentLocalExitRoot();
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
         const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
 
         // Compute Js input
-        const circuitInputSC = await proofOfEfficiencyContract.calculateStarkInput(
+        const inputSnarkJS = await calculateSnarkInput(
             currentStateRoot,
-            currentLocalExitRoot,
             newStateRoot,
             newLocalExitRoot,
-            batchHashData,
+            oldAccInputHash,
+            batchAccInputHashJs,
+            numBatch - 1,
             numBatch,
-            sequencedTimestmap,
             chainID,
+            deployer.address,
         );
 
         // Compute Js input
-        const circuitInputJS = calculateStarkInput(
-            currentStateRoot,
-            currentLocalExitRoot,
-            newStateRoot,
-            newLocalExitRoot,
-            batchHashData,
+        const circuitInpuSnarkSC = await proofOfEfficiencyContract.getNextSnarkInput(
+            numBatch - 1,
             numBatch,
-            sequencedTimestmap,
-            chainID,
-        );
-
-        expect(circuitInputSC).to.be.equal(circuitInputJS);
-
-        // Check snark input
-        const inputSnarkSC = await proofOfEfficiencyContract.calculateSnarkInput(
-            currentStateRoot,
-            currentLocalExitRoot,
-            newStateRoot,
-            newLocalExitRoot,
-            batchHashData,
-            numBatch,
-            sequencedTimestmap,
-            chainID,
-            aggregator.address,
-        );
-
-        const inputSnarkJS = await calculateSnarkInput(
-            currentStateRoot,
-            currentLocalExitRoot,
-            newStateRoot,
-            newLocalExitRoot,
-            batchHashData,
-            numBatch,
-            sequencedTimestmap,
-            chainID,
-            aggregator.address,
-        );
-
-        // Check the input parameters are correct
-        const circuitNextInputSC = await proofOfEfficiencyContract.connect(aggregator).getNextSnarkInput(
             newLocalExitRoot,
             newStateRoot,
-            numBatch,
         );
 
-        expect(inputSnarkSC).to.be.equal(inputSnarkJS);
-        expect(circuitNextInputSC).to.be.equal(inputSnarkJS);
+        expect(circuitInpuSnarkSC).to.be.equal(inputSnarkJS);
     });
 });
