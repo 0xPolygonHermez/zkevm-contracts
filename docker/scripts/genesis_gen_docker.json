@@ -14,6 +14,12 @@
       "pvtKey": "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f",
       "balance": "0",
       "nonce": "0"
+    },
+    {
+      "balance": "100000000000000000000000",
+      "nonce": "0",
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "pvtKey": "0x00"
     }
   ],
   "txs": [

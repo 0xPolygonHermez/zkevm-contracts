@@ -598,73 +598,17 @@ contract ProofOfEfficiency is Initializable {
             "ProofOfEfficiency::getInputSnarkBytes: newAccInputHash does not exist"
         );
 
-        bytes memory snarkHashBytes;
-        assembly {
-            // Set snarkHashBytes to the next free memory pointer
-            snarkHashBytes := mload(0x40)
-
-            // Reserve the memory. 32 for the length , the input bytes and 32
-            // extra bytes at the end for word manipulation
-            mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
-
-            // Set the actual length of the input bytes
-            mstore(snarkHashBytes, _SNARK_SHA_BYTES)
-
-            // Set the pointer at the beginning of the byte array
-            let ptr := add(snarkHashBytes, 32)
-
-            // Function defined to add 32 bytes into the snark btye array on a prover friendly method
-            function add32BytesToInputSnark(bytesToAdd, ptrInit) -> ptrFinal {
-                ptrFinal := ptrInit
-                for {
-                    let i := 0
-                } lt(i, 8) {
-                    i := add(i, 1)
-                } {
-                    // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
-                    // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
-                    // Then shift left 256 - 32 (224) bits to the left.
-                    // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
-                    // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-                    mstore(
-                        ptrFinal,
-                        shr(32, shl(224, shr(mul(i, 32), bytesToAdd)))
-                    )
-                    ptrFinal := add(ptrFinal, 8) // write the next 8 bytes
-                }
-            }
-
-            // Add currentStateRoot
-            ptr := add32BytesToInputSnark(sload(currentStateRoot.slot), ptr)
-
-            // Add newStateRoot
-            ptr := add32BytesToInputSnark(newStateRoot, ptr)
-
-            // Add oldAccInputHash
-            ptr := add32BytesToInputSnark(oldAccInputHash, ptr)
-
-            // Add newAccInputHash
-            ptr := add32BytesToInputSnark(newAccInputHash, ptr)
-
-            // Add newLocalExitRoot
-            ptr := add32BytesToInputSnark(newLocalExitRoot, ptr)
-
-            // add firstNumBatch
-            mstore(ptr, shl(192, _lastVerifiedBatch)) // 256 - 64 = 192
-            ptr := add(ptr, 8)
-
-            // add lastNumBatch
-            mstore(ptr, shl(192, newVerifiedBatch)) // 256 - 64 = 192
-            ptr := add(ptr, 8)
-
-            // add chainID
-            mstore(ptr, shl(192, sload(chainID.slot))) // 256 - 64 = 192
-            ptr := add(ptr, 8)
-
-            // add aggregator address
-            mstore(ptr, shl(96, caller())) // 256 - 160 = 96
-            ptr := add(ptr, 20)
-        }
-        return snarkHashBytes;
+        return
+            abi.encodePacked(
+                msg.sender,
+                currentStateRoot,
+                oldAccInputHash,
+                _lastVerifiedBatch,
+                chainID,
+                newStateRoot,
+                newAccInputHash,
+                newLocalExitRoot,
+                newVerifiedBatch
+            );
     }
 }

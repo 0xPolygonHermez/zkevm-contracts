@@ -72,7 +72,7 @@ describe('Proof of efficiency snark stark input test', () => {
         const oldNumBatch = 0;
         const newNumBatch = 1;
         const aggregatorAddress = '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266';
-        const expectedSnarkInputHash = '17495784446398463565336850903556670302680818979009718931527636126247722947873';
+        const expectedSnarkInputHash = '15588448576060468525242870965361192827910782996030023758348255084502752104347';
 
         // set smart contract with correct parameters
         await proofOfEfficiencyContract.setStateRoot(oldStateRoot);
