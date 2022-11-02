@@ -3,7 +3,7 @@
 pragma solidity 0.8.15;
 
 /**
- * @dev Define interface verifier
+ * @dev Define interface for bridge message receiver
  */
 interface IBridgeMessageReceiver {
     function onMessageReceived(

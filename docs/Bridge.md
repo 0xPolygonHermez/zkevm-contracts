@@ -85,10 +85,10 @@ Verify merkle proof and withdraw tokens/ether
 |`rollupExitRoot` | bytes32 | Rollup exit root
 |`originNetwork` | uint32 | Origin network
 |`originTokenAddress` | address |  Origin token address, 0 address is reserved for ether
-|`destinationNetwork` | uint32 | Network destination, must be 0 ( mainnet)
+|`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
 |`amount` | uint256 | Amount of tokens
-|`metadata` | bytes | abi encoded metadata if any, empty otherwise
+|`metadata` | bytes | Abi encoded metadata if any, empty otherwise
 
 ### claimMessage
 ```solidity
@@ -116,11 +116,11 @@ Verify merkle proof and execute message
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
 |`originNetwork` | uint32 | Origin network
-|`originAddress` | address |  Origin token address, 0 address is reserved for ether
-|`destinationNetwork` | uint32 | Network destination, must be 0 ( mainnet)
+|`originAddress` | address | Origin address
+|`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
 |`amount` | uint256 | Amount of tokens
-|`metadata` | bytes | abi encoded metadata if any, empty otherwise
+|`metadata` | bytes | Abi encoded metadata if any, empty otherwise
 
 ### precalculatedWrapperAddress
 ```solidity

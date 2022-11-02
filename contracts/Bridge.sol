@@ -246,10 +246,10 @@ contract Bridge is DepositContract {
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
      * @param originTokenAddress  Origin token address, 0 address is reserved for ether
-     * @param destinationNetwork Network destination, must be 0 ( mainnet)
+     * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
-     * @param metadata abi encoded metadata if any, empty otherwise
+     * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimAsset(
         bytes32[] memory smtProof,
@@ -413,11 +413,11 @@ contract Bridge is DepositContract {
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
-     * @param originAddress  Origin token address, 0 address is reserved for ether
-     * @param destinationNetwork Network destination, must be 0 ( mainnet)
+     * @param originAddress Origin address
+     * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
-     * @param metadata abi encoded metadata if any, empty otherwise
+     * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimMessage(
         bytes32[] memory smtProof,
