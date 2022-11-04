@@ -11,6 +11,9 @@ describe('Deposit Contract', () => {
     let acc2;
     let depositContractMock;
 
+    const LEAF_TYPE_ASSET = 0;
+    const MESSAGE_TYPE_ASSET = 1;
+
     beforeEach('Deploy contracts', async () => {
         // load signers
         [deployer, acc2] = await ethers.getSigners();
@@ -29,12 +32,21 @@ describe('Deposit Contract', () => {
         const destinationAddress = deployer.address;
         const metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
-        await depositContractMock.deposit(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadataHash);
+        await depositContractMock.deposit(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
         const leafValueJs = getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -43,6 +55,7 @@ describe('Deposit Contract', () => {
             metadataHash,
         );
         const leafValueSC = await depositContractMock.getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -83,6 +96,7 @@ describe('Deposit Contract', () => {
         const metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
         await depositContractMock.deposit(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -91,6 +105,7 @@ describe('Deposit Contract', () => {
             metadataHash,
         );
         await depositContractMock.deposit(
+            MESSAGE_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -103,6 +118,7 @@ describe('Deposit Contract', () => {
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
         const leafValueJs = getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -111,6 +127,7 @@ describe('Deposit Contract', () => {
             metadataHash,
         );
         const leafValueJs2 = getLeafValue(
+            MESSAGE_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -119,6 +136,7 @@ describe('Deposit Contract', () => {
             metadataHash,
         );
         const leafValueSC = await depositContractMock.getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -127,6 +145,7 @@ describe('Deposit Contract', () => {
             metadataHash,
         );
         const leafValueSC2 = await depositContractMock.getLeafValue(
+            MESSAGE_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -173,6 +192,7 @@ describe('Deposit Contract', () => {
         let metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
         await depositContractMock.deposit(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -185,6 +205,7 @@ describe('Deposit Contract', () => {
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
         let leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -193,6 +214,7 @@ describe('Deposit Contract', () => {
             metadataHash,
         );
         const leafValueSC = await depositContractMock.getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -237,6 +259,7 @@ describe('Deposit Contract', () => {
         metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
         await depositContractMock.connect(acc2).deposit(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -247,6 +270,7 @@ describe('Deposit Contract', () => {
 
         // compute root merkle tree in Js
         leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -283,6 +307,7 @@ describe('Deposit Contract', () => {
         metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
         await depositContractMock.connect(acc2).deposit(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -293,6 +318,7 @@ describe('Deposit Contract', () => {
 
         // compute root merkle tree in Js
         leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -325,6 +351,7 @@ describe('Deposit Contract', () => {
         const depositCount = Number(await depositContractMock.depositCount());
         amount = ethers.utils.parseEther('0.01');
         leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
             originNetwork,
             tokenAddress,
             destinationNetwork,
@@ -335,6 +362,7 @@ describe('Deposit Contract', () => {
         const results = [];
         for (let i = 0; i < txCount; i++) {
             const p = depositContractMock.connect(acc2).deposit(
+                LEAF_TYPE_ASSET,
                 originNetwork,
                 tokenAddress,
                 destinationNetwork,

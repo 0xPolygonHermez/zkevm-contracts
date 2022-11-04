@@ -42,21 +42,21 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     struct ProofOfEfficiency.BatchData[] batches
   ) public
 ```
-Allows a sequencer to send multiple batches of L2 transactions
+Allows a sequencer to send multiple batches
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct ProofOfEfficiency.BatchData[] | Struct array which the necessary data to append new batces ot the sequence
-Global exit root, timestamp and forced batches that are pop from the queue
 
-### verifyBatch
+### verifyBatches
 ```solidity
-  function verifyBatch(
+  function verifyBatches(
+    uint64 _lastVerifiedBatch,
+    uint64 newVerifiedBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint64 numBatch,
     uint256[2] proofA,
     uint256[2][2] proofB,
     uint256[2] proofC
@@ -68,9 +68,10 @@ Allows an aggregator to verify a batch
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
+|`_lastVerifiedBatch` | uint64 | Last verified Batch, used as a sanity check
+|`newVerifiedBatch` | uint64 | Last batch that the aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`numBatch` | uint64 | Batch number that the aggregator intends to verify, used as a sanity check
 |`proofA` | uint256[2] | zk-snark input
 |`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
@@ -89,24 +90,22 @@ This should be used only in extreme cases where the trusted sequencer does not w
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`transactions` | bytes | L2 ethereum transactions EIP-155 with signature:
-rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+|`transactions` | bytes | L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
 |`maticAmount` | uint256 | Max amount of MATIC tokens that the sender is willing to pay
 
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
-    uint64 numForcedBatches
+    struct ProofOfEfficiency.ForceBatchData[] batches
   ) public
 ```
 Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
-Also allow in any time the trusted sequencer to append forceBatches to the sequence in order to avoid timeout issues
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`numForcedBatches` | uint64 | number of forced batches that will be added to the sequence
+|`batches` | struct ProofOfEfficiency.ForceBatchData[] | Struct array which the necessary data to append new batces ot the sequence
 
 ### setTrustedSequencer
 ```solidity
@@ -160,6 +159,24 @@ Function to calculate the sequencer collateral depending on the congestion of th
 
 
 
+### calculateRewardPerBatch
+```solidity
+  function calculateRewardPerBatch(
+  ) public returns (uint256)
+```
+Function to calculate the reward to verify a single batch
+
+
+
+### getInputSnarkBytes
+```solidity
+  function getInputSnarkBytes(
+  ) public returns (bytes)
+```
+
+
+
+
 ## Events
 ### SequenceBatches
 ```solidity
@@ -185,9 +202,9 @@ Emitted when a batch is forced
 
 Emitted when forced batches are sequenced by not the trusted sequencer
 
-### VerifyBatch
+### VerifyBatches
 ```solidity
-  event VerifyBatch(
+  event VerifyBatches(
   )
 ```
 

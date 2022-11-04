@@ -20,45 +20,30 @@ contract ProofOfEfficiency is Initializable {
 
     /**
      * @notice Struct which will be used to call sequenceBatches
-     * @param transactions L2 ethereum transactions EIP-155 with signature:
-     * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
      * @param globalExitRoot Global exit root of the batch
      * @param timestamp Timestamp of the batch
-     * @param forceBatchesTimestamp Every element of the array indicates the timestamp of the forceBatch
-     * that will be popped from the queue and added to the sequence
+     * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
      */
     struct BatchData {
         bytes transactions;
         bytes32 globalExitRoot;
         uint64 timestamp;
-        uint64[] forceBatchesTimestamp;
+        uint64 minForcedTimestamp;
     }
 
     /**
-     * @notice Struct which will be stored in the sequence mapping
-     * @param batchHashData Hash containing the necessary information to process a batch:
-     * This field will contain: keccak256(bytes transactions || bytes32 globalExitRoot || address sequencer)
-     * Note that in case of forceBatch, the previous hash is stored in the ForceBatches mapping, and this will remain empty
-     * @param timestamp Timestamp of the batch
-     * @param forceBatchNum Indicates which forceBatch is sequenced, 0 if it's a regular batch
+     * @notice Struct which will be used to call sequenceForceBatches
+     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * @param globalExitRoot Global exit root of the batch
+     * @param minForcedTimestamp Minimum timestamp of the force batch data
      */
-    struct SequencedBatch {
-        bytes32 batchHashData; // This field will contain the hashed data including the transactions
-        uint64 timestamp;
-        uint64 forceBatchNum;
-    }
-
-    /**
-     * @notice Struct which will be stored in the force batch mapping
-     * @param batchHashData Hash containing the necessary information to process a batch:
-     * This field will contain: keccak256(bytes transactions || bytes32 globalExitRoot || address sequencer)
-     * @param maticFee Matic fee that will be payed to the aggregator
-     * @param minTimestamp Timestamp that will be an down limit of the batch once this is added to the sequence
-     */
-    struct ForcedBatchData {
-        bytes32 batchHashData;
-        uint256 maticFee;
-        uint64 minTimestamp;
+    struct ForceBatchData {
+        bytes transactions;
+        bytes32 globalExitRoot;
+        uint64 minForcedTimestamp;
     }
 
     // Modulus zkSNARK
@@ -83,14 +68,21 @@ contract ProofOfEfficiency is Initializable {
     uint64 public constant FORCE_BATCH_TIMEOUT = 7 days;
 
     // Byte length of the sha256 that will be used as a input of the snark
-    // 8 Fields * 8 Bytes (Stark input in Field Array form) + 20 bytes (aggregator address)
-    uint256 internal constant _SNARK_SHA_BYTES = 84;
+    // SHA256(oldStateRoot, newStateRoot, oldAccInputHash, newAccInputHash, newLocalExitRoot, oldNumBatch, newNumBatch, chainID, aggrAddress)
+    // 8 Fields * 8 Bytes (Stark input in Field Array form) * 5 (hashes), + 8 bytes * 3 (oldNumBatch, newNumBatch, chainID) + 20 bytes (aggrAddress)
+    uint256 internal constant _SNARK_SHA_BYTES = 364;
 
     // Queue of forced batches with their associated data
-    mapping(uint64 => ForcedBatchData) public forcedBatches;
+    // ForceBatchNum --> hashedForceBatchData
+    // hashedForceBatchData: hash containing the necessary information to force a batch:
+    // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minTimestamp)
+    mapping(uint64 => bytes32) public forcedBatches;
 
     // Queue of batches that defines the virtual state
-    mapping(uint64 => SequencedBatch) public sequencedBatches;
+    // SequenceBatchNum --> accInputHash
+    // accInputHash: hash chain that contains all the information to process a batch:
+    // keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
+    mapping(uint64 => bytes32) public sequencedBatches;
 
     // Last sequenced timestamp
     uint64 public lastTimestamp;
@@ -107,7 +99,7 @@ contract ProofOfEfficiency is Initializable {
     // Last batch verified by the aggregators
     uint64 public lastVerifiedBatch;
 
-    // trusted sequencer address
+    // Trusted sequencer address
     address public trustedSequencer;
 
     // Indicates whether the force batch functionality is available
@@ -117,10 +109,7 @@ contract ProofOfEfficiency is Initializable {
     IGlobalExitRootManager public globalExitRootManager;
 
     // Current state root
-    bytes32 public currentStateRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
-
-    // Current local exit root
-    bytes32 public currentLocalExitRoot; // TODO should be a map stateRootMap[lastForgedBatch]???
+    bytes32 public currentStateRoot;
 
     // Rollup verifier interface
     IVerifierRollup public rollupVerifier;
@@ -157,7 +146,7 @@ contract ProofOfEfficiency is Initializable {
     /**
      * @dev Emitted when a aggregator verifies a new batch
      */
-    event VerifyBatch(uint64 indexed numBatch, address indexed aggregator);
+    event VerifyBatches(uint64 indexed numBatch, address indexed aggregator);
 
     /**
      * @dev Emitted when a trusted sequencer update his address
@@ -225,9 +214,8 @@ contract ProofOfEfficiency is Initializable {
     }
 
     /**
-     * @notice Allows a sequencer to send multiple batches of L2 transactions
+     * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which the necessary data to append new batces ot the sequence
-     * Global exit root, timestamp and forced batches that are pop from the queue
      */
     function sequenceBatches(BatchData[] memory batches)
         public
@@ -235,21 +223,56 @@ contract ProofOfEfficiency is Initializable {
     {
         uint256 batchesNum = batches.length;
 
-        // Pay collateral for every batch submitted
-        matic.safeTransferFrom(
-            msg.sender,
-            address(this),
-            TRUSTED_SEQUENCER_FEE * batchesNum
-        );
-
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentTimestamp = lastTimestamp;
         uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
+        bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced];
 
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
             BatchData memory currentBatch = batches[i];
+
+            // Check if it's a forced batch
+            if (currentBatch.minForcedTimestamp > 0) {
+                currentLastForceBatchSequenced++;
+
+                // Check forced data matches
+                bytes32 hashedForceBatchData = keccak256(
+                    abi.encodePacked(
+                        keccak256(currentBatch.transactions),
+                        currentBatch.globalExitRoot,
+                        currentBatch.minForcedTimestamp
+                    )
+                );
+
+                require(
+                    hashedForceBatchData ==
+                        forcedBatches[currentLastForceBatchSequenced],
+                    "ProofOfEfficiency::sequenceBatches: Forced batches data must match"
+                );
+
+                // Check timestamp is bigger than min timestamp
+                require(
+                    currentBatch.timestamp >= currentBatch.minForcedTimestamp,
+                    "ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be bigger or equal than min"
+                );
+            } else {
+                // Check global exit root exist, and proper batch length, this checks are already done in the force Batches call
+                require(
+                    currentBatch.globalExitRoot == bytes32(0) ||
+                        globalExitRootManager.globalExitRootMap(
+                            currentBatch.globalExitRoot
+                        ) !=
+                        0,
+                    "ProofOfEfficiency::sequenceBatches: Global exit root must exist"
+                );
+
+                require(
+                    currentBatch.transactions.length < MAX_BATCH_LENGTH,
+                    "ProofOfEfficiency::sequenceBatches: Transactions bytes overflow"
+                );
+            }
 
             // Check Batch parameters are correct
             require(
@@ -258,203 +281,120 @@ contract ProofOfEfficiency is Initializable {
                 "ProofOfEfficiency::sequenceBatches: Timestamp must be inside range"
             );
 
-            require(
-                currentBatch.globalExitRoot == bytes32(0) ||
-                    globalExitRootManager.globalExitRootMap(
-                        currentBatch.globalExitRoot
-                    ) !=
-                    0,
-                "ProofOfEfficiency::sequenceBatches: Global exit root must exist"
-            );
-
-            require(
-                currentBatch.transactions.length < MAX_BATCH_LENGTH,
-                "ProofOfEfficiency::sequenceBatches: Transactions bytes overflow"
-            );
-
-            // Update sequencedBatches mapping
-            currentBatchSequenced++;
-            sequencedBatches[currentBatchSequenced].batchHashData = keccak256(
+            // Calculate next acc input hash
+            currentAccInputHash = keccak256(
                 abi.encodePacked(
-                    currentBatch.transactions,
+                    currentAccInputHash,
+                    keccak256(currentBatch.transactions),
                     currentBatch.globalExitRoot,
+                    currentBatch.timestamp,
                     msg.sender
                 )
             );
-            sequencedBatches[currentBatchSequenced].timestamp = currentBatch
-                .timestamp;
+
+            // Update currentBatchSequenced
+            currentBatchSequenced++;
 
             // Update timestamp
             currentTimestamp = currentBatch.timestamp;
-
-            // Loop thorugh forceBatches
-            for (
-                uint256 j = 0;
-                j < currentBatch.forceBatchesTimestamp.length;
-                j++
-            ) {
-                currentLastForceBatchSequenced++;
-
-                // Check timestamp is inside window
-                uint64 currentForcedTimestamp = currentBatch
-                    .forceBatchesTimestamp[j];
-
-                require(
-                    currentForcedTimestamp >= currentTimestamp &&
-                        currentForcedTimestamp >=
-                        forcedBatches[currentLastForceBatchSequenced]
-                            .minTimestamp &&
-                        currentForcedTimestamp <= block.timestamp,
-                    "ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be inside range"
-                );
-
-                currentBatchSequenced++;
-                // Add forceBatch to the sequence
-                // Instead of adding the hashData, just add a "pointer" to the forced Batch
-                sequencedBatches[currentBatchSequenced]
-                    .forceBatchNum = currentLastForceBatchSequenced;
-                sequencedBatches[currentBatchSequenced]
-                    .timestamp = currentForcedTimestamp;
-
-                // Update timestamp
-                currentTimestamp = currentForcedTimestamp;
-            }
         }
 
-        // This check is done here just once for gas saving
+        // Sanity check, should not be unreachable
         require(
             currentLastForceBatchSequenced <= lastForceBatch,
             "ProofOfEfficiency::sequenceBatches: Force batches overflow"
         );
 
+        uint256 nonForcedBatchesSequenced = batchesNum -
+            (currentLastForceBatchSequenced - lastForceBatchSequenced);
+
         // Store back the storage variables
         lastTimestamp = currentTimestamp;
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
+        sequencedBatches[currentBatchSequenced] = currentAccInputHash;
+
+        // Pay collateral for every batch submitted
+        matic.safeTransferFrom(
+            msg.sender,
+            address(this),
+            TRUSTED_SEQUENCER_FEE * nonForcedBatchesSequenced
+        );
 
         emit SequenceBatches(lastBatchSequenced);
     }
 
     /**
      * @notice Allows an aggregator to verify a batch
+     * @param _lastVerifiedBatch Last verified Batch, used as a sanity check
+     * @param newVerifiedBatch Last batch that the aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param numBatch Batch number that the aggregator intends to verify, used as a sanity check
      * @param proofA zk-snark input
      * @param proofB zk-snark input
      * @param proofC zk-snark input
      */
-    function verifyBatch(
+    function verifyBatches(
+        uint64 _lastVerifiedBatch,
+        uint64 newVerifiedBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint64 numBatch,
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public {
         // sanity check
         require(
-            numBatch == lastVerifiedBatch + 1,
-            "ProofOfEfficiency::verifyBatch: batch does not match"
+            _lastVerifiedBatch == lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: _lastVerifiedBatch does not match"
         );
 
         require(
-            numBatch <= lastBatchSequenced,
-            "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
+            newVerifiedBatch > _lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: newVerifiedBatch must be bigger than lastVerifiedBatch"
         );
 
-        // Calculate Circuit Input
-        uint64 timestamp = sequencedBatches[numBatch].timestamp;
-        bytes32 batchHashData;
-        uint256 maticFee;
-
-        // If it's a force batch, forcebatchNum indicates which one is, otherwise is a regular batch
-        if (sequencedBatches[numBatch].forceBatchNum == 0) {
-            batchHashData = sequencedBatches[numBatch].batchHashData;
-            maticFee = TRUSTED_SEQUENCER_FEE;
-        } else {
-            ForcedBatchData memory currentForcedBatch = forcedBatches[
-                sequencedBatches[numBatch].forceBatchNum
-            ];
-            batchHashData = currentForcedBatch.batchHashData;
-            maticFee = currentForcedBatch.maticFee;
-        }
-
-        bytes32 inputStark = keccak256(
-            abi.encodePacked(
-                currentStateRoot,
-                currentLocalExitRoot,
-                newStateRoot,
-                newLocalExitRoot,
-                batchHashData,
-                numBatch,
-                timestamp,
-                chainID
-            )
+        require(
+            newVerifiedBatch <= lastBatchSequenced,
+            "ProofOfEfficiency::verifyBatches: batch does not have been sequenced"
         );
 
-        bytes memory snarkHashBytes;
-        assembly {
-            // Set snarkHashBytes to the next free memory pointer
-            snarkHashBytes := mload(0x40)
+        bytes memory snarkHashBytes = getInputSnarkBytes(
+            _lastVerifiedBatch,
+            newVerifiedBatch,
+            newLocalExitRoot,
+            newStateRoot
+        );
 
-            // Reserve the memory. 32 for the length , the input bytes and 32
-            // extra bytes at the end for word manipulation
-            mstore(0x40, add(add(snarkHashBytes, 0x40), _SNARK_SHA_BYTES))
-
-            // Set the actual length of the input bytes
-            mstore(snarkHashBytes, _SNARK_SHA_BYTES)
-
-            // Set the pointer at the beginning of the byte array
-            let ptr := add(snarkHashBytes, 32)
-
-            // store aggregator address
-            mstore(ptr, shl(96, caller())) // 256 - 160 = 96
-            ptr := add(ptr, 20)
-
-            for {
-                let i := 0
-            } lt(i, 8) {
-                i := add(i, 1)
-            } {
-                // Every iteration will write 4 bytes (32 bits) from inputStark padded to 8 bytes, in little endian format
-                // First shift right i*32 bits, in order to have the next 4 bytes to write at the end of the byte array
-                // Then shift left 256 - 32 (224) bits to the left.
-                // As a result the first 4 bytes will be the next ones, and the rest of the bytes will be zeroes
-                // Finally the result is shifted 32 bits for the padding, and stores in the current position of the pointer
-                mstore(ptr, shr(32, shl(224, shr(mul(i, 32), inputStark))))
-                ptr := add(ptr, 8) // write the next 8 bytes
-            }
-        }
         // Calulate the snark input
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "ProofOfEfficiency::verifyBatch: INVALID_PROOF"
+            "ProofOfEfficiency::verifyBatches: INVALID_PROOF"
+        );
+
+        // Get MATIC reward
+        matic.safeTransfer(
+            msg.sender,
+            calculateRewardPerBatch() * (newVerifiedBatch - _lastVerifiedBatch)
         );
 
         // Update state
-        lastVerifiedBatch++;
+        lastVerifiedBatch = newVerifiedBatch;
         currentStateRoot = newStateRoot;
-        currentLocalExitRoot = newLocalExitRoot;
 
         // Interact with globalExitRoot
-        globalExitRootManager.updateExitRoot(currentLocalExitRoot);
+        globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        // Get MATIC reward
-        matic.safeTransfer(msg.sender, maticFee);
-
-        // TODO Could delete batchData
-        emit VerifyBatch(numBatch, msg.sender);
+        emit VerifyBatches(newVerifiedBatch, msg.sender);
     }
 
     /**
      * @notice Allows a sequencer/user to force a batch of L2 transactions.
      * This should be used only in extreme cases where the trusted sequencer does not work as expected
-     * @param transactions L2 ethereum transactions EIP-155 with signature:
-     * rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * @param maticAmount Max amount of MATIC tokens that the sender is willing to pay
      */
     function forceBatch(bytes memory transactions, uint256 maticAmount)
@@ -482,11 +422,14 @@ contract ProofOfEfficiency is Initializable {
 
         // Update forcedBatches mapping
         lastForceBatch++;
-        forcedBatches[lastForceBatch].batchHashData = keccak256(
-            abi.encodePacked(transactions, lastGlobalExitRoot, msg.sender)
+
+        forcedBatches[lastForceBatch] = keccak256(
+            abi.encodePacked(
+                keccak256(transactions),
+                lastGlobalExitRoot,
+                uint64(block.timestamp)
+            )
         );
-        forcedBatches[lastForceBatch].maticFee = maticFee;
-        forcedBatches[lastForceBatch].minTimestamp = uint64(block.timestamp);
 
         // In order to avoid synch attacks, if the msg.sender is not the origin
         // Add the transaction bytes in the event
@@ -504,59 +447,79 @@ contract ProofOfEfficiency is Initializable {
 
     /**
      * @notice Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
-     * Also allow in any time the trusted sequencer to append forceBatches to the sequence in order to avoid timeout issues
-     * @param numForcedBatches number of forced batches that will be added to the sequence
+     * @param batches Struct array which the necessary data to append new batces ot the sequence
      */
-    function sequenceForceBatches(uint64 numForcedBatches)
+    function sequenceForceBatches(ForceBatchData[] memory batches)
         public
         isForceBatchAllowed
     {
-        uint64 newLastForceBatchSequenced = lastForceBatchSequenced +
-            numForcedBatches;
+        uint256 batchesNum = batches.length;
 
         require(
-            numForcedBatches > 0,
+            batchesNum > 0,
             "ProofOfEfficiency::sequenceForceBatch: Must force at least 1 batch"
         );
 
         require(
-            newLastForceBatchSequenced <= lastForceBatch,
+            lastForceBatchSequenced + batchesNum <= lastForceBatch,
             "ProofOfEfficiency::sequenceForceBatch: Force batch invalid"
         );
-
-        // If message sender is not the trusted sequencer, must wait the timeout
-        if (msg.sender != trustedSequencer) {
-            // The last batch will have the most restrictive timestamp
-            require(
-                forcedBatches[newLastForceBatchSequenced].minTimestamp +
-                    FORCE_BATCH_TIMEOUT <=
-                    block.timestamp,
-                "ProofOfEfficiency::sequenceForceBatch: Forced batch is not in timeout period"
-            );
-        }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
+        bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced];
 
         // Sequence force batches
-        for (uint256 j = 0; j < numForcedBatches; j++) {
+        for (uint256 i = 0; i < batchesNum; i++) {
+            // Load current sequence
+            ForceBatchData memory currentBatch = batches[i];
             currentLastForceBatchSequenced++;
 
-            // Add forceBatch to the sequence
-            // Instead of adding the hashData, just add a "pointer" to the forced Batch
-            currentBatchSequenced++;
-            sequencedBatches[currentBatchSequenced]
-                .forceBatchNum = currentLastForceBatchSequenced;
-            sequencedBatches[currentBatchSequenced].timestamp = uint64(
-                block.timestamp
+            // Check forced data matches
+            bytes32 hashedForceBatchData = keccak256(
+                abi.encodePacked(
+                    keccak256(currentBatch.transactions),
+                    currentBatch.globalExitRoot,
+                    currentBatch.minForcedTimestamp
+                )
             );
+
+            require(
+                hashedForceBatchData ==
+                    forcedBatches[currentLastForceBatchSequenced],
+                "ProofOfEfficiency::sequenceForceBatches: Forced batches data must match"
+            );
+
+            if (i == (batchesNum - 1)) {
+                // The last batch will have the most restrictive timestamp
+                require(
+                    currentBatch.minForcedTimestamp + FORCE_BATCH_TIMEOUT <=
+                        block.timestamp,
+                    "ProofOfEfficiency::sequenceForceBatch: Forced batch is not in timeout period"
+                );
+            }
+            // Calculate next acc input hash
+            currentAccInputHash = keccak256(
+                abi.encodePacked(
+                    currentAccInputHash,
+                    keccak256(currentBatch.transactions),
+                    currentBatch.globalExitRoot,
+                    uint64(block.timestamp),
+                    msg.sender
+                )
+            );
+
+            // Update currentBatchSequenced
+            currentBatchSequenced++;
         }
 
-        // Store back the storage variables
         lastTimestamp = uint64(block.timestamp);
+
+        // Store back the storage variables
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
+        sequencedBatches[currentBatchSequenced] = currentAccInputHash;
 
         emit SequenceForceBatches(lastBatchSequenced);
     }
@@ -606,5 +569,46 @@ contract ProofOfEfficiency is Initializable {
      */
     function calculateForceProverFee() public view returns (uint256) {
         return 1 ether * uint256(1 + lastForceBatch - lastForceBatchSequenced);
+    }
+
+    /**
+     * @notice Function to calculate the reward to verify a single batch
+     */
+    function calculateRewardPerBatch() public view returns (uint256) {
+        uint256 currentBalance = matic.balanceOf(address(this));
+
+        // Total Sequenced Batches = forcedBatches to be sequenced (total forced Batches - sequenced Batches) + sequencedBatches
+        // Total Batches to be verified = Total Sequenced Batches - verified Batches
+        uint256 totalBatchesToVerify = ((lastForceBatch -
+            lastForceBatchSequenced) + lastBatchSequenced) - lastVerifiedBatch;
+        return currentBalance / totalBatchesToVerify;
+    }
+
+    function getInputSnarkBytes(
+        uint64 _lastVerifiedBatch,
+        uint64 newVerifiedBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot
+    ) public view returns (bytes memory) {
+        bytes32 oldAccInputHash = sequencedBatches[_lastVerifiedBatch];
+        bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
+
+        require(
+            newAccInputHash != bytes32(0),
+            "ProofOfEfficiency::getInputSnarkBytes: newAccInputHash does not exist"
+        );
+
+        return
+            abi.encodePacked(
+                msg.sender,
+                currentStateRoot,
+                oldAccInputHash,
+                _lastVerifiedBatch,
+                chainID,
+                newStateRoot,
+                newAccInputHash,
+                newLocalExitRoot,
+                newVerifiedBatch
+            );
     }
 }

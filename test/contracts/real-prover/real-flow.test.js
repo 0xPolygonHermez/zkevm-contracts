@@ -6,7 +6,7 @@ const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
 const { generateSolidityInputs } = contractUtils;
 
-const { calculateSnarkInput, calculateBatchHashData } = contractUtils;
+const { calculateSnarkInput, calculateBatchHashData, calculateAccInputHash } = contractUtils;
 
 const proofJson = require('./test-inputs/proof.json');
 const publicJson = require('./test-inputs/public.json');
@@ -95,18 +95,22 @@ describe('Real flow test', () => {
             proofA, proofB, proofC, input,
         } = generateSolidityInputs(proofJson, publicJson);
 
-        const batchHashData = calculateBatchHashData(
-            inputJson.batchL2Data,
+        const batchAccInputHashJs = calculateAccInputHash(
+            inputJson.oldAccInputHash,
+            calculateBatchHashData(inputJson.batchL2Data),
             inputJson.globalExitRoot,
+            inputJson.timestamp,
             inputJson.sequencerAddr,
         );
+        expect(batchAccInputHashJs).to.be.eq(inputJson.newAccInputHash);
 
         const circuitInputStarkJS = await calculateSnarkInput(
             inputJson.oldStateRoot,
-            inputJson.oldLocalExitRoot,
             inputJson.newStateRoot,
             inputJson.newLocalExitRoot,
-            batchHashData,
+            inputJson.oldAccInputHash,
+            inputJson.newAccInputHash,
+            inputJson.numBatch - 1,
             inputJson.numBatch,
             inputJson.timestamp,
             inputJson.chainId,

@@ -122,16 +122,18 @@ contract DepositContract is Initializable {
 
     /**
      * @notice Given the leaf data returns the leaf value
+     * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
      * @param originNetwork Origin Network
-     * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param originAddress [0] Origin token address, 0 address is reserved for ether, [1] msg.sender of the message
      * @param destinationNetwork Destination network
      * @param destinationAddress Destination address
-     * @param amount Amount of tokens
+     * @param amount [0] Amount of tokens/ether, [1] Amount of ether
      * @param metadataHash Hash of the metadata
      */
     function getLeafValue(
+        uint8 leafType,
         uint32 originNetwork,
-        address originTokenAddress,
+        address originAddress,
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
@@ -140,8 +142,9 @@ contract DepositContract is Initializable {
         return
             keccak256(
                 abi.encodePacked(
+                    leafType,
                     originNetwork,
-                    originTokenAddress,
+                    originAddress,
                     destinationNetwork,
                     destinationAddress,
                     amount,
