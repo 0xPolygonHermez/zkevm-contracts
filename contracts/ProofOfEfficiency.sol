@@ -274,7 +274,7 @@ contract ProofOfEfficiency is Initializable {
                 );
             }
 
-            // Check Batch parameters are correct
+            // Check Batch timestamps are correct
             require(
                 currentBatch.timestamp >= currentTimestamp &&
                     currentBatch.timestamp <= block.timestamp,
