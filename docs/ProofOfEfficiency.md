@@ -68,7 +68,7 @@ Allows an aggregator to verify a batch
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_lastVerifiedBatch` | uint64 | Last verified Batch, used as a sanity check
+|`_lastVerifiedBatch` | uint64 | Last verified Batch
 |`newVerifiedBatch` | uint64 | Last batch that the aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
