@@ -202,12 +202,14 @@ describe('Bridge Contract', () => {
         // user permit
         const nonce = await daiContract.nonces(deployer.address);
         const deadline = ethers.constants.MaxUint256;
+
         const { v, r, s } = await createPermitSignatureDaiType(
             daiContract,
             deployer,
             bridgeContract.address,
             nonce,
             deadline,
+            chainId,
         );
         const dataPermit = ifacePermitDAI.encodeFunctionData('permit', [
             deployer.address,
@@ -300,6 +302,8 @@ describe('Bridge Contract', () => {
         // user permit
         const nonce = await uniContract.nonces(deployer.address);
         const deadline = ethers.constants.MaxUint256;
+        const { chainId } = await ethers.provider.getNetwork();
+
         const { v, r, s } = await createPermitSignatureUniType(
             uniContract,
             deployer,
@@ -307,6 +311,7 @@ describe('Bridge Contract', () => {
             amount,
             nonce,
             deadline,
+            chainId,
         );
         const dataPermit = ifacePermit.encodeFunctionData('permit', [
             deployer.address,

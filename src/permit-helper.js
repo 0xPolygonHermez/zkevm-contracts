@@ -1,8 +1,8 @@
-const { ethers } = require('hardhat');
+const { ethers } = require('ethers');
 const { expect } = require('chai');
 
 /**
- * Create a permit signature with the EIP-712 standar
+ * Create a permit signature with the EIP-2612 standard
  * @param {Object} tokenContractInstance - EthersJS contract instance of the token
  * @param {Object} wallet - EthersJs wallet instance that will sign the permit
  * @param {String} spenderAddress - Spender address, usually the contract that the permit will interact with
@@ -51,19 +51,18 @@ async function createPermitSignature(tokenContractInstance, wallet, spenderAddre
     return signature;
 }
 
-
 /**
- * Create a permit signature with the EIP-712 standar
+ * Create a permit signature with the DAi approach
  * @param {Object} tokenContractInstance - EthersJS contract instance of the token
  * @param {Object} wallet - EthersJs wallet instance that will sign the permit
  * @param {String} spenderAddress - Spender address, usually the contract that the permit will interact with
  * @param {String} value - Value of the permit
  * @param {String} nonce - Nonce of the permit
  * @param {String} expiry - expiry of the permit
+ * @param {Number} chainId - expiry of the permit
  * @returns {Object} - Signature obejct, { v, r, s}
  */
-async function createPermitSignatureDaiType(tokenContractInstance, wallet, spenderAddress, nonce, expiry) {
-    const chainId = (await ethers.provider.getNetwork()).chainId
+async function createPermitSignatureDaiType(tokenContractInstance, wallet, spenderAddress, nonce, expiry, chainId) {
     const name = await tokenContractInstance.name();
     const version = await tokenContractInstance.version();
 
@@ -92,7 +91,7 @@ async function createPermitSignatureDaiType(tokenContractInstance, wallet, spend
         spender: spenderAddress,
         nonce,
         expiry,
-        allowed: true
+        allowed: true,
     };
 
     const rawSignature = await wallet._signTypedData(domain, types, values);
@@ -104,20 +103,18 @@ async function createPermitSignatureDaiType(tokenContractInstance, wallet, spend
     return signature;
 }
 
-
-
 /**
- * Create a permit signature with the EIP-712 standar
+ * Create a permit signature with the UNI approach
  * @param {Object} tokenContractInstance - EthersJS contract instance of the token
  * @param {Object} wallet - EthersJs wallet instance that will sign the permit
  * @param {String} spenderAddress - Spender address, usually the contract that the permit will interact with
  * @param {String} value - Value of the permit
  * @param {String} nonce - Nonce of the permit
  * @param {String} deadline - Deadline of the permit
+ * @param {Number} chainId - expiry of the permit
  * @returns {Object} - Signature obejct, { v, r, s}
  */
-async function createPermitSignatureUniType(tokenContractInstance, wallet, spenderAddress, value, nonce, deadline) {
-    const chainId = (await ethers.provider.getNetwork()).chainId
+async function createPermitSignatureUniType(tokenContractInstance, wallet, spenderAddress, value, nonce, deadline, chainId) {
     const name = await tokenContractInstance.name();
 
     // The domain
@@ -155,7 +152,6 @@ async function createPermitSignatureUniType(tokenContractInstance, wallet, spend
     return signature;
 }
 
-
 /**
  * Permit interface
  */
@@ -171,5 +167,5 @@ module.exports = {
     createPermitSignatureDaiType,
     ifacePermit,
     ifacePermitDAI,
-    createPermitSignatureUniType
+    createPermitSignatureUniType,
 };
