@@ -21,7 +21,6 @@ contract BridgeMock is Bridge, OwnableUpgradeable {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         tokenImplementation = address(new TokenWrapped());
-        __DepositContract_init();
         __Ownable_init();
         maxEtherBridge = 0.25 ether;
     }

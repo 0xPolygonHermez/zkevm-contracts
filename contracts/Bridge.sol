@@ -67,7 +67,6 @@ contract Bridge is DepositContract {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         tokenImplementation = address(new TokenWrapped());
-        __DepositContract_init();
     }
 
     /**

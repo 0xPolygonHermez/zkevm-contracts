@@ -19,23 +19,8 @@ contract DepositContract is Initializable {
     // leaf is inserted
     bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] internal _branch;
 
-    // Result of hashing zeroes for every level of the tree
-    bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] internal _zeroHashes;
-
     // Counter of current deposits
     uint256 public depositCount;
-
-    function __DepositContract_init() internal onlyInitializing {
-        // Compute hashes in empty sparse Merkle tree
-        for (
-            uint256 height = 0;
-            height < _DEPOSIT_CONTRACT_TREE_DEPTH - 1;
-            height++
-        )
-            _zeroHashes[height + 1] = keccak256(
-                abi.encodePacked(_zeroHashes[height], _zeroHashes[height])
-            );
-    }
 
     /**
      * @notice Computes and returns the merkle root
@@ -43,6 +28,8 @@ contract DepositContract is Initializable {
     function getDepositRoot() public view returns (bytes32) {
         bytes32 node;
         uint256 size = depositCount;
+        bytes32 currentZeroHashHeight = 0;
+
         for (
             uint256 height = 0;
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
@@ -50,8 +37,12 @@ contract DepositContract is Initializable {
         ) {
             if ((size & 1) == 1)
                 node = keccak256(abi.encodePacked(_branch[height], node));
-            else node = keccak256(abi.encodePacked(node, _zeroHashes[height]));
+            else
+                node = keccak256(abi.encodePacked(node, currentZeroHashHeight));
             size /= 2;
+            currentZeroHashHeight = keccak256(
+                abi.encodePacked(currentZeroHashHeight, currentZeroHashHeight)
+            );
         }
         return node;
     }
