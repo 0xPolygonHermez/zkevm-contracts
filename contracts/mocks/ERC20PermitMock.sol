@@ -116,4 +116,17 @@ contract ERC20PermitMock is ERC20 {
         _validateSignedData(owner, encodeData, v, r, s);
         _approve(owner, spender, value);
     }
+
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    EIP712DOMAIN_HASH,
+                    NAME_HASH,
+                    VERSION_HASH,
+                    getChainId(),
+                    address(this)
+                )
+            );
+    }
 }

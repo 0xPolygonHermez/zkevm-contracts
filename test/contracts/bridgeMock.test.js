@@ -10,7 +10,7 @@ function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
 }
 
-describe('Bridge Contract', () => {
+describe('Bridge Mock Contract', () => {
     let deployer;
     let rollup;
 

@@ -12,9 +12,7 @@ contract DepositContractMock is DepositContract {
         initialize();
     }
 
-    function initialize() public initializer {
-        __DepositContract_init();
-    }
+    function initialize() public initializer {}
 
     /**
      * @notice Given the leaf data returns the leaf value

@@ -6,11 +6,6 @@ const {
     getLeafValue,
 } = require('@0xpolygonhermez/zkevm-commonjs').mtBridgeUtils;
 
-const {
-    createPermitSignature,
-    ifacePermit,
-} = require('../../src/permit-helper');
-
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
 }
@@ -74,92 +69,6 @@ describe('Bridge Contract', () => {
             { from: bridgeContract.address, nonce: 1 },
         );
         expect(await bridgeContract.tokenImplementation()).to.be.equal(calcualteImplAddr);
-    });
-    it('should bridge and with permit', async () => {
-        const depositCount = await bridgeContract.depositCount();
-        const originNetwork = networkIDMainnet;
-        const tokenAddress = tokenContract.address;
-        const amount = ethers.utils.parseEther('10');
-        const destinationNetwork = networkIDRollup;
-        const destinationAddress = deployer.address;
-
-        const metadata = metadataToken;
-        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
-
-        const balanceDeployer = await tokenContract.balanceOf(deployer.address);
-        const balanceBridge = await tokenContract.balanceOf(bridgeContract.address);
-
-        const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
-        const lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
-
-        // pre compute root merkle tree in Js
-        const height = 32;
-        const merkleTree = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(
-            LEAF_TYPE_ASSET,
-            originNetwork,
-            tokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadataHash,
-        );
-        merkleTree.add(leafValue);
-        const rootJSMainnet = merkleTree.getRoot();
-
-        await expect(bridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
-            .to.be.revertedWith('ERC20: insufficient allowance');
-
-        // user permit
-        const nonce = await tokenContract.nonces(deployer.address);
-        const deadline = ethers.constants.MaxUint256;
-        const { v, r, s } = await createPermitSignature(
-            tokenContract,
-            deployer,
-            bridgeContract.address,
-            amount,
-            nonce,
-            deadline,
-        );
-
-        const dataPermit = ifacePermit.encodeFunctionData('permit', [
-            deployer.address,
-            bridgeContract.address,
-            amount,
-            deadline,
-            v,
-            r,
-            s,
-        ]);
-
-        await expect(bridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, dataPermit))
-            .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
-            .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
-            .withArgs(lastGlobalExitRootNum + 1, rootJSMainnet, rollupExitRoot);
-
-        expect(await tokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
-        expect(await tokenContract.balanceOf(bridgeContract.address)).to.be.equal(balanceBridge.add(amount));
-
-        // check merkle root with SC
-        const rootSCMainnet = await bridgeContract.getDepositRoot();
-        expect(rootSCMainnet).to.be.equal(rootJSMainnet);
-
-        // check merkle proof
-        const proof = merkleTree.getProofTreeByIndex(0);
-        const index = 0;
-
-        // verify merkle proof
-        expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(await bridgeContract.verifyMerkleProof(
-            leafValue,
-            proof,
-            index,
-            rootSCMainnet,
-        )).to.be.equal(true);
-
-        const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
-        expect(computedGlobalExitRoot).to.be.equal(await globalExitRootManager.getLastGlobalExitRoot());
     });
 
     it('should bridge and verify merkle proof', async () => {

@@ -108,8 +108,9 @@ contract ProofOfEfficiency is Initializable {
     // Global Exit Root interface
     IGlobalExitRootManager public globalExitRootManager;
 
-    // Current state root
-    bytes32 public currentStateRoot;
+    // State root mapping
+    // BatchNum --> state root
+    mapping(uint64 => bytes32) public batchNumToStateRoot;
 
     // Rollup verifier interface
     IVerifierRollup public rollupVerifier;
@@ -146,7 +147,11 @@ contract ProofOfEfficiency is Initializable {
     /**
      * @dev Emitted when a aggregator verifies a new batch
      */
-    event VerifyBatches(uint64 indexed numBatch, address indexed aggregator);
+    event VerifyBatches(
+        uint64 indexed numBatch,
+        bytes32 stateRoot,
+        address indexed aggregator
+    );
 
     /**
      * @dev Emitted when a trusted sequencer update his address
@@ -188,7 +193,7 @@ contract ProofOfEfficiency is Initializable {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
-        currentStateRoot = genesisRoot;
+        batchNumToStateRoot[0] = genesisRoot;
         trustedSequencer = _trustedSequencer;
         forceBatchAllowed = _forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
@@ -274,7 +279,7 @@ contract ProofOfEfficiency is Initializable {
                 );
             }
 
-            // Check Batch parameters are correct
+            // Check Batch timestamps are correct
             require(
                 currentBatch.timestamp >= currentTimestamp &&
                     currentBatch.timestamp <= block.timestamp,
@@ -326,7 +331,7 @@ contract ProofOfEfficiency is Initializable {
 
     /**
      * @notice Allows an aggregator to verify a batch
-     * @param _lastVerifiedBatch Last verified Batch, used as a sanity check
+     * @param _lastVerifiedBatch Last verified Batch
      * @param newVerifiedBatch Last batch that the aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
@@ -343,20 +348,14 @@ contract ProofOfEfficiency is Initializable {
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public {
-        // sanity check
         require(
-            _lastVerifiedBatch == lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: _lastVerifiedBatch does not match"
+            _lastVerifiedBatch <= lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: _lastVerifiedBatch must be less or equal"
         );
 
         require(
-            newVerifiedBatch > _lastVerifiedBatch,
+            newVerifiedBatch > lastVerifiedBatch,
             "ProofOfEfficiency::verifyBatches: newVerifiedBatch must be bigger than lastVerifiedBatch"
-        );
-
-        require(
-            newVerifiedBatch <= lastBatchSequenced,
-            "ProofOfEfficiency::verifyBatches: batch does not have been sequenced"
         );
 
         bytes memory snarkHashBytes = getInputSnarkBytes(
@@ -378,17 +377,17 @@ contract ProofOfEfficiency is Initializable {
         // Get MATIC reward
         matic.safeTransfer(
             msg.sender,
-            calculateRewardPerBatch() * (newVerifiedBatch - _lastVerifiedBatch)
+            calculateRewardPerBatch() * (newVerifiedBatch - lastVerifiedBatch)
         );
 
         // Update state
         lastVerifiedBatch = newVerifiedBatch;
-        currentStateRoot = newStateRoot;
+        batchNumToStateRoot[newVerifiedBatch] = newStateRoot;
 
         // Interact with globalExitRoot
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit VerifyBatches(newVerifiedBatch, msg.sender);
+        emit VerifyBatches(newVerifiedBatch, newStateRoot, msg.sender);
     }
 
     /**
@@ -594,6 +593,11 @@ contract ProofOfEfficiency is Initializable {
         bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
 
         require(
+            _lastVerifiedBatch == 0 || oldAccInputHash != bytes32(0),
+            "ProofOfEfficiency::getInputSnarkBytes: oldAccInputHash does not exist"
+        );
+
+        require(
             newAccInputHash != bytes32(0),
             "ProofOfEfficiency::getInputSnarkBytes: newAccInputHash does not exist"
         );
@@ -601,7 +605,7 @@ contract ProofOfEfficiency is Initializable {
         return
             abi.encodePacked(
                 msg.sender,
-                currentStateRoot,
+                batchNumToStateRoot[_lastVerifiedBatch],
                 oldAccInputHash,
                 _lastVerifiedBatch,
                 chainID,

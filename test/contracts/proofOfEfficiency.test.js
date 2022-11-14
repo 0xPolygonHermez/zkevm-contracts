@@ -82,7 +82,7 @@ describe('Proof of efficiency', () => {
         expect(await proofOfEfficiencyContract.globalExitRootManager()).to.be.equal(globalExitRootManager.address);
         expect(await proofOfEfficiencyContract.matic()).to.be.equal(maticTokenContract.address);
         expect(await proofOfEfficiencyContract.rollupVerifier()).to.be.equal(verifierContract.address);
-        expect(await proofOfEfficiencyContract.currentStateRoot()).to.be.equal(genesisRoot);
+        expect(await proofOfEfficiencyContract.batchNumToStateRoot(0)).to.be.equal(genesisRoot);
         expect(await proofOfEfficiencyContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
         expect(await proofOfEfficiencyContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
     });
@@ -590,18 +590,6 @@ describe('Proof of efficiency', () => {
 
         await expect(
             proofOfEfficiencyContract.connect(aggregator).verifyBatches(
-                numBatch,
-                numBatch,
-                newLocalExitRoot,
-                newStateRoot,
-                proofA,
-                proofB,
-                proofC,
-            ),
-        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: _lastVerifiedBatch does not match');
-
-        await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
                 numBatch - 1,
                 numBatch - 1,
                 newLocalExitRoot,
@@ -622,7 +610,7 @@ describe('Proof of efficiency', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: batch does not have been sequenced');
+        ).to.be.revertedWith('ProofOfEfficiency::getInputSnarkBytes: newAccInputHash does not exist');
 
         // Verify batch
         await expect(
@@ -636,7 +624,7 @@ describe('Proof of efficiency', () => {
                 proofC,
             ),
         ).to.emit(proofOfEfficiencyContract, 'VerifyBatches')
-            .withArgs(numBatch, aggregator.address);
+            .withArgs(numBatch, newStateRoot, aggregator.address);
 
         const finalAggregatorMatic = await maticTokenContract.balanceOf(
             await aggregator.getAddress(),
@@ -753,7 +741,7 @@ describe('Proof of efficiency', () => {
         expect(sentBatchHash).to.be.equal(batchAccInputHashJs);
 
         // Compute circuit input with the SC function
-        const currentStateRoot = await proofOfEfficiencyContract.currentStateRoot();
+        const currentStateRoot = await proofOfEfficiencyContract.batchNumToStateRoot(0);
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
         const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
@@ -827,7 +815,7 @@ describe('Proof of efficiency', () => {
         expect(batchAccInputHash).to.be.equal(batchAccInputHashJs);
 
         // Compute circuit input with the SC function
-        const currentStateRoot = await proofOfEfficiencyContract.currentStateRoot();
+        const currentStateRoot = await proofOfEfficiencyContract.batchNumToStateRoot(0);
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
         const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;

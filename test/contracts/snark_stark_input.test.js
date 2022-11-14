@@ -75,7 +75,7 @@ describe('Proof of efficiency snark stark input test', () => {
         const expectedSnarkInputHash = '15588448576060468525242870965361192827910782996030023758348255084502752104347';
 
         // set smart contract with correct parameters
-        await proofOfEfficiencyContract.setStateRoot(oldStateRoot);
+        await proofOfEfficiencyContract.setStateRoot(oldStateRoot, oldNumBatch);
         await proofOfEfficiencyContract.setSequencedBatches(newNumBatch, newAccInputHash);
         await proofOfEfficiencyContract.setSequencedBatch(1);
 

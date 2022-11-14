@@ -36,7 +36,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
-        currentStateRoot = genesisRoot;
+        batchNumToStateRoot[0] = genesisRoot;
         trustedSequencer = _trustedSequencer;
         forceBatchAllowed = _forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
@@ -116,8 +116,11 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
      * @notice Set state root
      * @param newStateRoot New State root ¡
      */
-    function setStateRoot(bytes32 newStateRoot) public onlyOwner {
-        currentStateRoot = newStateRoot;
+    function setStateRoot(bytes32 newStateRoot, uint64 batchNum)
+        public
+        onlyOwner
+    {
+        batchNumToStateRoot[batchNum] = newStateRoot;
     }
 
     /**
@@ -183,23 +186,23 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public onlyOwner {
-        // sanity check
         require(
-            _lastVerifiedBatch == lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: _lastVerifiedBatch does not match"
+            _lastVerifiedBatch <= lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: _lastVerifiedBatch must be less or equal"
         );
 
         require(
-            newVerifiedBatch > _lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: newVerifiedBatch must be bigger than lastVerifiedBatch"
+            newVerifiedBatch > lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: newVerifiedBatch must be bigger than lastVerifiedBatch"
         );
 
-        require(
-            newVerifiedBatch <= lastBatchSequenced,
-            "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
-        );
-
+        bytes32 oldAccInputHash = sequencedBatches[_lastVerifiedBatch];
         bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
+
+        require(
+            oldAccInputHash != bytes32(0),
+            "ProofOfEfficiency::verifyBatch: oldAccInputHash does not exist"
+        );
 
         require(
             newAccInputHash != bytes32(0),
@@ -214,11 +217,11 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
 
         // Update state
         lastVerifiedBatch = newVerifiedBatch;
-        currentStateRoot = newStateRoot;
+        batchNumToStateRoot[newVerifiedBatch] = newStateRoot;
 
         // Interact with globalExitRoot
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit VerifyBatches(newVerifiedBatch, msg.sender);
+        emit VerifyBatches(newVerifiedBatch, newStateRoot, msg.sender);
     }
 }

@@ -26,6 +26,9 @@ contract Bridge is DepositContract {
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
     bytes4 constant _PERMIT_SIGNATURE = 0xd505accf;
 
+    // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)")));
+    bytes4 constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
+
     // Mainnet indentifier
     uint32 public constant MAINNET_NETWORK_ID = 0;
 
@@ -64,7 +67,6 @@ contract Bridge is DepositContract {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         tokenImplementation = address(new TokenWrapped());
-        __DepositContract_init();
     }
 
     /**
@@ -576,47 +578,110 @@ contract Bridge is DepositContract {
         bytes calldata permitData
     ) internal {
         bytes4 sig = _getSelector(permitData);
-        require(sig == _PERMIT_SIGNATURE, "Bridge::_permit: NOT_VALID_CALL");
-        (
-            address owner,
-            address spender,
-            uint256 value,
-            uint256 deadline,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = abi.decode(
-                permitData[4:],
-                (address, address, uint256, uint256, uint8, bytes32, bytes32)
+        if (sig == _PERMIT_SIGNATURE) {
+            (
+                address owner,
+                address spender,
+                uint256 value,
+                uint256 deadline,
+                uint8 v,
+                bytes32 r,
+                bytes32 s
+            ) = abi.decode(
+                    permitData[4:],
+                    (
+                        address,
+                        address,
+                        uint256,
+                        uint256,
+                        uint8,
+                        bytes32,
+                        bytes32
+                    )
+                );
+            require(
+                owner == msg.sender,
+                "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
             );
-        require(
-            owner == msg.sender,
-            "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
-        );
-        require(
-            spender == address(this),
-            "Bridge::_permit: SPENDER_MUST_BE_THIS"
-        );
-        require(
-            value == amount,
-            "Bridge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
-        );
+            require(
+                spender == address(this),
+                "Bridge::_permit: SPENDER_MUST_BE_THIS"
+            );
+            require(
+                value == amount,
+                "Bridge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
+            );
 
-        // we call without checking the result, in case it fails and he doesn't have enough balance
-        // the following transferFrom should be fail. This prevents DoS attacks from using a signature
-        // before the smartcontract call
-        /* solhint-disable avoid-low-level-calls */
-        address(token).call(
-            abi.encodeWithSelector(
-                _PERMIT_SIGNATURE,
-                owner,
-                spender,
-                value,
-                deadline,
-                v,
-                r,
-                s
-            )
-        );
+            // we call without checking the result, in case it fails and he doesn't have enough balance
+            // the following transferFrom should be fail. This prevents DoS attacks from using a signature
+            // before the smartcontract call
+            /* solhint-disable avoid-low-level-calls */
+            address(token).call(
+                abi.encodeWithSelector(
+                    _PERMIT_SIGNATURE,
+                    owner,
+                    spender,
+                    value,
+                    deadline,
+                    v,
+                    r,
+                    s
+                )
+            );
+        } else {
+            require(
+                sig == _PERMIT_SIGNATURE_DAI,
+                "Bridge::_permit: NOT_VALID_CALL"
+            );
+
+            (
+                address holder,
+                address spender,
+                uint256 nonce,
+                uint256 expiry,
+                bool allowed,
+                uint8 v,
+                bytes32 r,
+                bytes32 s
+            ) = abi.decode(
+                    permitData[4:],
+                    (
+                        address,
+                        address,
+                        uint256,
+                        uint256,
+                        bool,
+                        uint8,
+                        bytes32,
+                        bytes32
+                    )
+                );
+            require(
+                holder == msg.sender,
+                "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
+            );
+            require(
+                spender == address(this),
+                "Bridge::_permit: SPENDER_MUST_BE_THIS"
+            );
+
+            // we call without checking the result, in case it fails and he doesn't have enough balance
+            // the following transferFrom should be fail. This prevents DoS attacks from using a signature
+            // before the smartcontract call
+            /* solhint-disable avoid-low-level-calls */
+            address(token).call(
+                abi.encodeWithSelector(
+                    _PERMIT_SIGNATURE_DAI,
+                    holder,
+                    spender,
+                    nonce,
+                    expiry,
+                    allowed,
+                    v,
+                    r,
+                    s
+                )
+            );
+        }
     }
 }
