@@ -6,6 +6,9 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "./interfaces/IBridge.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network
@@ -15,7 +18,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from L2 network
  * To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
  */
-contract ProofOfEfficiency is Initializable {
+contract ProofOfEfficiency is
+    Initializable,
+    OwnableUpgradeable,
+    PausableUpgradeable
+{
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -124,6 +131,12 @@ contract ProofOfEfficiency is Initializable {
     // L2 network name
     string public networkName;
 
+    // Security council, only can take action if extraordinary conditions happens
+    address public securityCouncil;
+
+    // Bridge Address
+    IBridge public bridgeAddress;
+
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
@@ -169,6 +182,11 @@ contract ProofOfEfficiency is Initializable {
     event SetTrustedSequencerURL(string newTrustedSequencerURL);
 
     /**
+     * @dev Emitted when is proved a different state given the same batches
+     */
+    event ProofDifferentState(bytes32 storedStateRoot, bytes32 provedStateRoot);
+
+    /**
      * @param _globalExitRootManager global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier rollup verifier address
@@ -188,8 +206,9 @@ contract ProofOfEfficiency is Initializable {
         bool _forceBatchAllowed,
         string memory _trustedSequencerURL,
         uint64 _chainID,
-        string memory _networkName
-    ) public virtual initializer {
+        string memory _networkName,
+        IBridge _bridgeAddress
+    ) public initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
@@ -199,6 +218,19 @@ contract ProofOfEfficiency is Initializable {
         trustedSequencerURL = _trustedSequencerURL;
         chainID = _chainID;
         networkName = _networkName;
+        bridgeAddress = _bridgeAddress;
+
+        // Initialize OZ contracts
+        __Ownable_init_unchained();
+        __Pausable_init_unchained();
+    }
+
+    modifier onlySecurityCouncil() {
+        require(
+            securityCouncil == msg.sender,
+            "ProofOfEfficiency::onlySecurityCouncil: only security council"
+        );
+        _;
     }
 
     modifier onlyTrustedSequencer() {
@@ -224,6 +256,7 @@ contract ProofOfEfficiency is Initializable {
      */
     function sequenceBatches(BatchData[] memory batches)
         public
+        whenNotPaused
         onlyTrustedSequencer
     {
         uint256 batchesNum = batches.length;
@@ -330,9 +363,9 @@ contract ProofOfEfficiency is Initializable {
     }
 
     /**
-     * @notice Allows an aggregator to verify a batch
-     * @param _lastVerifiedBatch Last verified Batch
-     * @param newVerifiedBatch Last batch that the aggregator intends to verify
+     * @notice Allows an aggregator to verify a multiple batches
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
      * @param proofA zk-snark input
@@ -340,27 +373,27 @@ contract ProofOfEfficiency is Initializable {
      * @param proofC zk-snark input
      */
     function verifyBatches(
-        uint64 _lastVerifiedBatch,
-        uint64 newVerifiedBatch,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
-    ) public {
+    ) public whenNotPaused {
         require(
-            _lastVerifiedBatch <= lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: _lastVerifiedBatch must be less or equal"
+            initNumBatch <= lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than lastVerifiedBatch"
         );
 
         require(
-            newVerifiedBatch > lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: newVerifiedBatch must be bigger than lastVerifiedBatch"
+            finalNewBatch > lastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than lastVerifiedBatch"
         );
 
         bytes memory snarkHashBytes = getInputSnarkBytes(
-            _lastVerifiedBatch,
-            newVerifiedBatch,
+            initNumBatch,
+            finalNewBatch,
             newLocalExitRoot,
             newStateRoot
         );
@@ -377,17 +410,17 @@ contract ProofOfEfficiency is Initializable {
         // Get MATIC reward
         matic.safeTransfer(
             msg.sender,
-            calculateRewardPerBatch() * (newVerifiedBatch - lastVerifiedBatch)
+            calculateRewardPerBatch() * (finalNewBatch - lastVerifiedBatch)
         );
 
         // Update state
-        lastVerifiedBatch = newVerifiedBatch;
-        batchNumToStateRoot[newVerifiedBatch] = newStateRoot;
+        lastVerifiedBatch = finalNewBatch;
+        batchNumToStateRoot[finalNewBatch] = newStateRoot;
 
         // Interact with globalExitRoot
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit VerifyBatches(newVerifiedBatch, newStateRoot, msg.sender);
+        emit VerifyBatches(finalNewBatch, newStateRoot, msg.sender);
     }
 
     /**
@@ -398,6 +431,7 @@ contract ProofOfEfficiency is Initializable {
      */
     function forceBatch(bytes memory transactions, uint256 maticAmount)
         public
+        whenNotPaused
         isForceBatchAllowed
     {
         // Calculate matic collateral
@@ -450,6 +484,7 @@ contract ProofOfEfficiency is Initializable {
      */
     function sequenceForceBatches(ForceBatchData[] memory batches)
         public
+        whenNotPaused
         isForceBatchAllowed
     {
         uint256 batchesNum = batches.length;
@@ -583,17 +618,131 @@ contract ProofOfEfficiency is Initializable {
         return currentBalance / totalBatchesToVerify;
     }
 
+    /**
+     * @notice Allows to stop the zk-evm if its possible to proof a different state root give the same batches.
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param proofA zk-snark input
+     * @param proofB zk-snark input
+     * @param proofC zk-snark input
+     */
+    function proofDifferentState(
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC
+    ) public {
+        require(
+            initNumBatch < finalNewBatch,
+            "ProofOfEfficiency::proofDifferentState: finalNewBatch must be bigger than initNumBatch"
+        );
+
+        require(
+            finalNewBatch <= lastVerifiedBatch,
+            "ProofOfEfficiency::proofDifferentState: initNumBatch must be less than lastVerifiedBatch"
+        );
+
+        require(
+            initNumBatch == 0 ||
+                batchNumToStateRoot[initNumBatch] != bytes32(0),
+            "ProofOfEfficiency::proofDifferentState: initNumBatch state root does not exist"
+        );
+
+        require(
+            batchNumToStateRoot[finalNewBatch] != bytes32(0),
+            "ProofOfEfficiency::proofDifferentState: finalNewBatch state root does not exist"
+        );
+
+        bytes memory snarkHashBytes = getInputSnarkBytes(
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot
+        );
+
+        // Calulate the snark input
+        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
+
+        // Verify proof
+        require(
+            rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
+            "ProofOfEfficiency::proofDifferentState: INVALID_PROOF"
+        );
+
+        require(
+            batchNumToStateRoot[finalNewBatch] != newStateRoot,
+            "ProofOfEfficiency::proofDifferentState: stored root must be different than new state root"
+        );
+
+        emit ProofDifferentState(
+            batchNumToStateRoot[finalNewBatch],
+            newStateRoot
+        );
+        _activateEmergencyState();
+    }
+
+    /**
+     * @notice Function to activate emergency state, pause both PoE and Bridge contrats
+     * Only can be called by a owner in the bootstrap phase, once the owner is renounced, the system
+     * can only be paused proving a distinct state root givne the same batches
+     */
+    function activateEmergencyState() external onlyOwner {
+        _activateEmergencyState();
+    }
+
+    /**
+     * @notice Function to deactivate emergency state, unpause both PoE and Bridge contrats
+     * Only can be called by the security council
+     */
+    function deactivateEmergencyState() external onlySecurityCouncil {
+        _deactivateEmergencyState();
+    }
+
+    /**
+     * @notice Function to activate emergency state, pause both PoE and Bridge contrats
+     */
+    function _activateEmergencyState() internal {
+        // Pause PoE
+        _pause();
+
+        // Pause brige
+        bridgeAddress.pause();
+    }
+
+    /**
+     * @notice Function to activate emergency state, pause both PoE and Bridge contrats
+     */
+    function _deactivateEmergencyState() internal {
+        // Unpause PoE
+        _unpause();
+
+        // Unpause brige
+        bridgeAddress.unpause();
+    }
+
+    /**
+     * @notice Function to calculate the input snark bytes
+     * @param initNumBatch Batch which the aggregator starts teh verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     */
     function getInputSnarkBytes(
-        uint64 _lastVerifiedBatch,
-        uint64 newVerifiedBatch,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot
     ) public view returns (bytes memory) {
-        bytes32 oldAccInputHash = sequencedBatches[_lastVerifiedBatch];
-        bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
+        bytes32 oldAccInputHash = sequencedBatches[initNumBatch];
+        bytes32 newAccInputHash = sequencedBatches[finalNewBatch];
 
         require(
-            _lastVerifiedBatch == 0 || oldAccInputHash != bytes32(0),
+            initNumBatch == 0 || oldAccInputHash != bytes32(0),
             "ProofOfEfficiency::getInputSnarkBytes: oldAccInputHash does not exist"
         );
 
@@ -605,14 +754,14 @@ contract ProofOfEfficiency is Initializable {
         return
             abi.encodePacked(
                 msg.sender,
-                batchNumToStateRoot[_lastVerifiedBatch],
+                batchNumToStateRoot[initNumBatch],
                 oldAccInputHash,
-                _lastVerifiedBatch,
+                initNumBatch,
                 chainID,
                 newStateRoot,
                 newAccInputHash,
                 newLocalExitRoot,
-                newVerifiedBatch
+                finalNewBatch
             );
     }
 }

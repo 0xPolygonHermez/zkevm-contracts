@@ -154,6 +154,26 @@ Returns the address of a wrapper using the token information if already exist
 |`originNetwork` | uint32 | Origin network
 |`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
 
+### pause
+```solidity
+  function pause(
+  ) external
+```
+Function to pause the contract
+     " Can only be called by the proof of efficiency in extreme situations
+
+
+
+### unpause
+```solidity
+  function unpause(
+  ) external
+```
+Function to unpause the contract
+     " Can only be called by the proof of efficiency
+
+
+
 ### _permit
 ```solidity
   function _permit(

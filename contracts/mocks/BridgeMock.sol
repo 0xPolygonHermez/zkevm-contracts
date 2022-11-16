@@ -16,11 +16,15 @@ contract BridgeMock is Bridge, OwnableUpgradeable {
      */
     function initialize(
         uint32 _networkID,
-        IGlobalExitRootManager _globalExitRootManager
+        IGlobalExitRootManager _globalExitRootManager,
+        address _poeAddress
     ) public override initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         tokenImplementation = address(new TokenWrapped());
+        poeAddress = _poeAddress;
+        __Pausable_init_unchained();
+
         __Ownable_init();
         maxEtherBridge = 0.25 ether;
     }

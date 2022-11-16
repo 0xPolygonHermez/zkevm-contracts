@@ -10,6 +10,4 @@ interface IGlobalExitRootManager {
     function globalExitRootMap(bytes32 globalExitRootNum)
         external
         returns (uint256);
-
-    function lastGlobalExitRootNum() external returns (uint256);
 }

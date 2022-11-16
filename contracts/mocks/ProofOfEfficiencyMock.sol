@@ -2,7 +2,6 @@
 pragma solidity 0.8.15;
 
 import "../ProofOfEfficiency.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
@@ -10,41 +9,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
  * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
  * To enter and exit of the L2 network will be used a Bridge smart contract
  */
-contract ProofOfEfficiencyMock is ProofOfEfficiency, OwnableUpgradeable {
-    /**
-     * @param _globalExitRootManager global exit root manager address
-     * @param _matic MATIC token address
-     * @param _rollupVerifier rollup verifier address
-     * @param genesisRoot rollup genesis root
-     * @param _trustedSequencer trusted sequencer address
-     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
-     * @param _trustedSequencerURL trusted sequencer URL
-     * @param _chainID L2 chainID
-     * @param _networkName L2 network name
-     */
-    function initialize(
-        IGlobalExitRootManager _globalExitRootManager,
-        IERC20Upgradeable _matic,
-        IVerifierRollup _rollupVerifier,
-        bytes32 genesisRoot,
-        address _trustedSequencer,
-        bool _forceBatchAllowed,
-        string memory _trustedSequencerURL,
-        uint64 _chainID,
-        string memory _networkName
-    ) public override initializer {
-        globalExitRootManager = _globalExitRootManager;
-        matic = _matic;
-        rollupVerifier = _rollupVerifier;
-        batchNumToStateRoot[0] = genesisRoot;
-        trustedSequencer = _trustedSequencer;
-        forceBatchAllowed = _forceBatchAllowed;
-        trustedSequencerURL = _trustedSequencerURL;
-        chainID = _chainID;
-        networkName = _networkName;
-        __Ownable_init();
-    }
-
+contract ProofOfEfficiencyMock is ProofOfEfficiency {
     /**
      * @notice calculate accumulate input hash from parameters
      * @param currentAccInputHash Accumulate input hash

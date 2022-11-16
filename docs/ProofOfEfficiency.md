@@ -53,8 +53,8 @@ Allows a sequencer to send multiple batches
 ### verifyBatches
 ```solidity
   function verifyBatches(
-    uint64 _lastVerifiedBatch,
-    uint64 newVerifiedBatch,
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
     uint256[2] proofA,
@@ -62,14 +62,14 @@ Allows a sequencer to send multiple batches
     uint256[2] proofC
   ) public
 ```
-Allows an aggregator to verify a batch
+Allows an aggregator to verify a multiple batches
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_lastVerifiedBatch` | uint64 | Last verified Batch
-|`newVerifiedBatch` | uint64 | Last batch that the aggregator intends to verify
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 |`proofA` | uint256[2] | zk-snark input
@@ -168,14 +168,90 @@ Function to calculate the reward to verify a single batch
 
 
 
+### proofDifferentState
+```solidity
+  function proofDifferentState(
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot,
+    uint256[2] proofA,
+    uint256[2][2] proofB,
+    uint256[2] proofC
+  ) public
+```
+Allows to stop the zk-evm if its possible to proof a different state root give the same batches.
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proofA` | uint256[2] | zk-snark input
+|`proofB` | uint256[2][2] | zk-snark input
+|`proofC` | uint256[2] | zk-snark input
+
+### activateEmergencyState
+```solidity
+  function activateEmergencyState(
+  ) external
+```
+Function to activate emergency state, pause both PoE and Bridge contrats
+Only can be called by a owner in the bootstrap phase, once the owner is renounced, the system
+can only be paused proving a distinct state root givne the same batches
+
+
+
+### deactivateEmergencyState
+```solidity
+  function deactivateEmergencyState(
+  ) external
+```
+Function to deactivate emergency state, unpause both PoE and Bridge contrats
+Only can be called by the security council
+
+
+
+### _activateEmergencyState
+```solidity
+  function _activateEmergencyState(
+  ) internal
+```
+Function to activate emergency state, pause both PoE and Bridge contrats
+
+
+
+### _deactivateEmergencyState
+```solidity
+  function _deactivateEmergencyState(
+  ) internal
+```
+Function to activate emergency state, pause both PoE and Bridge contrats
+
+
+
 ### getInputSnarkBytes
 ```solidity
   function getInputSnarkBytes(
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot
   ) public returns (bytes)
 ```
+Function to calculate the input snark bytes
 
 
-
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`initNumBatch` | uint64 | Batch which the aggregator starts teh verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
 
 ## Events
 ### SequenceBatches
@@ -233,4 +309,12 @@ Emitted when a trusted sequencer update the forcebatch boolean
 ```
 
 Emitted when a trusted sequencer update his URL
+
+### ProofDifferentState
+```solidity
+  event ProofDifferentState(
+  )
+```
+
+Emitted when is proved a different state given the same batches
 
