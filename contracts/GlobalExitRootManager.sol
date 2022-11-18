@@ -67,9 +67,8 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
         // If it already exist, do not modify the timestamp
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
             globalExitRootMap[newGlobalExitRoot] = block.timestamp;
+            emit UpdateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);
         }
-
-        emit UpdateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);
     }
 
     /**

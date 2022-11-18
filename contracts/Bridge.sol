@@ -8,15 +8,15 @@ import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IBridge.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "./lib/EmergencyManager.sol";
+import "hardhat/console.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is DepositContract, PausableUpgradeable, IBridge {
+contract Bridge is DepositContract, EmergencyManager, IBridge {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Wrapped Token information struct
@@ -55,9 +55,6 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
     // Global Exit Root address
     IGlobalExitRootManager public globalExitRootManager;
 
-    // Addres of the token wrapped implementation
-    address public tokenImplementation;
-
     // Proof of Efficiency address
     address public poeAddress;
 
@@ -72,10 +69,7 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
     ) public virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
-        tokenImplementation = address(new TokenWrapped());
         poeAddress = _poeAddress;
-
-        __Pausable_init_unchained();
     }
 
     modifier onlyProofOfEfficiency() {
@@ -134,7 +128,7 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
         address destinationAddress,
         uint256 amount,
         bytes calldata permitData
-    ) public payable virtual whenNotPaused {
+    ) public payable virtual ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
             "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
@@ -224,7 +218,7 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
         uint32 destinationNetwork,
         address destinationAddress,
         bytes memory metadata
-    ) public payable whenNotPaused {
+    ) public payable ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
             "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
@@ -281,53 +275,22 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
         address destinationAddress,
         uint256 amount,
         bytes memory metadata
-    ) public whenNotPaused {
-        // Check nullifier
-        require(
-            claimNullifier[index] == false,
-            "Bridge::claimAsset: ALREADY_CLAIMED"
+    ) public ifNotEmergencyState {
+        // Verify leaf exist and it does not ahve been claimed
+        _verifyLeaf(
+            smtProof,
+            index,
+            mainnetExitRoot,
+            rollupExitRoot,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
+            LEAF_TYPE_ASSET
         );
 
-        // Check that the merkle proof belongs to some global exit root
-        // TODO this should be a SMTproof
-        require(
-            globalExitRootManager.globalExitRootMap(
-                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
-            ) != 0,
-            "Bridge::claimAsset: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
-        );
-
-        // Destination network must be networkID
-        require(
-            destinationNetwork == networkID,
-            "Bridge::claimAsset: DESTINATION_NETWORK_DOES_NOT_MATCH"
-        );
-
-        bytes32 claimRoot;
-        if (networkID == MAINNET_NETWORK_ID) {
-            // Verify merkle proof using rollup exit root
-            claimRoot = rollupExitRoot;
-        } else {
-            // Verify merkle proof using mainnet exit root
-            claimRoot = mainnetExitRoot;
-        }
-        require(
-            verifyMerkleProof(
-                getLeafValue(
-                    LEAF_TYPE_ASSET,
-                    originNetwork,
-                    originTokenAddress,
-                    destinationNetwork,
-                    destinationAddress,
-                    amount,
-                    keccak256(metadata)
-                ),
-                smtProof,
-                index,
-                claimRoot
-            ),
-            "Bridge::claimAsset: SMT_INVALID"
-        );
         // Update nullifier
         claimNullifier[index] = true;
 
@@ -356,14 +319,6 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
                 address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
 
                 if (wrappedToken == address(0)) {
-                    // Create a new wrapped erc20
-                    TokenWrapped newWrappedToken = TokenWrapped(
-                        ClonesUpgradeable.cloneDeterministic(
-                            tokenImplementation,
-                            tokenInfoHash
-                        )
-                    );
-
                     // Get ERC20 metadata
                     (
                         string memory name,
@@ -371,14 +326,16 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
                         uint8 decimals
                     ) = abi.decode(metadata, (string, string, uint8));
 
-                    // Initialize wrapped token
-                    newWrappedToken.initialize(
-                        name,
-                        symbol,
-                        decimals,
-                        destinationAddress,
-                        amount
-                    );
+                    // Create a new wrapped erc20
+                    TokenWrapped newWrappedToken = (new TokenWrapped){
+                        salt: tokenInfoHash
+                    }(name, symbol, decimals);
+
+                    newWrappedToken.mint(destinationAddress, amount);
+                    console.log(address(newWrappedToken));
+                    console.log(name);
+                    console.log(symbol);
+                    console.log(decimals);
 
                     // Create mappings
                     tokenInfoToWrappedToken[tokenInfoHash] = address(
@@ -434,52 +391,20 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
         address destinationAddress,
         uint256 amount,
         bytes memory metadata
-    ) public whenNotPaused {
-        // Check nullifier
-        require(
-            claimNullifier[index] == false,
-            "Bridge::claimMessage: ALREADY_CLAIMED"
-        );
-
-        // Check that the merkle proof belongs to some global exit root
-        // TODO this should be a SMTproof
-        require(
-            globalExitRootManager.globalExitRootMap(
-                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
-            ) != 0,
-            "Bridge::claimMessage: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
-        );
-
-        // Destination network must be networkID
-        require(
-            destinationNetwork == networkID,
-            "Bridge::claimMessage: DESTINATION_NETWORK_DOES_NOT_MATCH"
-        );
-
-        bytes32 claimRoot;
-        if (networkID == MAINNET_NETWORK_ID) {
-            // Verify merkle proof using rollup exit root
-            claimRoot = rollupExitRoot;
-        } else {
-            // Verify merkle proof using mainnet exit root
-            claimRoot = mainnetExitRoot;
-        }
-        require(
-            verifyMerkleProof(
-                getLeafValue(
-                    LEAF_TYPE_MESSAGE,
-                    originNetwork,
-                    originAddress,
-                    destinationNetwork,
-                    destinationAddress,
-                    amount,
-                    keccak256(metadata)
-                ),
-                smtProof,
-                index,
-                claimRoot
-            ),
-            "Bridge::claimMessage: SMT_INVALID"
+    ) public ifNotEmergencyState {
+        // Verify leaf exist and it does not ahve been claimed
+        _verifyLeaf(
+            smtProof,
+            index,
+            mainnetExitRoot,
+            rollupExitRoot,
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
+            LEAF_TYPE_MESSAGE
         );
 
         // Update nullifier
@@ -512,16 +437,31 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
      */
     function precalculatedWrapperAddress(
         uint32 originNetwork,
-        address originTokenAddress
+        address originTokenAddress,
+        string calldata name,
+        string calldata symbol,
+        uint8 decimals
     ) public view returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
-        return
-            ClonesUpgradeable.predictDeterministicAddress(
-                tokenImplementation,
-                salt
-            );
+
+        bytes32 hashCreate2 = keccak256(
+            abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(
+                    abi.encodePacked(
+                        type(TokenWrapped).creationCode,
+                        abi.encode(name, symbol, decimals)
+                    )
+                )
+            )
+        );
+
+        // csat last 20 bytes of hash to address
+        return address(uint160(uint256(hashCreate2)));
     }
 
     /**
@@ -540,19 +480,80 @@ contract Bridge is DepositContract, PausableUpgradeable, IBridge {
     }
 
     /**
-     * @notice Function to pause the contract
-     " Can only be called by the proof of efficiency in extreme situations
+     * @notice Function to activate the emergency state
+     " Only can be called by the proof of efficiency in extreme situations
      */
-    function pause() external onlyProofOfEfficiency {
-        _pause();
+    function activateEmergencyState() external onlyProofOfEfficiency {
+        _activateEmergencyState();
     }
 
     /**
-     * @notice Function to unpause the contract
-     " Can only be called by the proof of efficiency
+     * @notice Function to deactivate the emergency state
+     " Only can be called by the proof of efficiency
      */
-    function unpause() external onlyProofOfEfficiency {
-        _unpause();
+    function deactivateEmergencyState() external onlyProofOfEfficiency {
+        _deactivateEmergencyState();
+    }
+
+    function _verifyLeaf(
+        bytes32[] memory smtProof,
+        uint32 index,
+        bytes32 mainnetExitRoot,
+        bytes32 rollupExitRoot,
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes memory metadata,
+        uint8 leafType
+    ) internal {
+        // Check nullifier
+        require(
+            claimNullifier[index] == false,
+            "Bridge::_verifyLeaf: ALREADY_CLAIMED"
+        );
+
+        // Check that the merkle proof belongs to some global exit root
+        // TODO this should be a SMTproof
+        require(
+            globalExitRootManager.globalExitRootMap(
+                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
+            ) != 0,
+            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
+        );
+
+        // Destination network must be networkID
+        require(
+            destinationNetwork == networkID,
+            "Bridge::_verifyLeaf: DESTINATION_NETWORK_DOES_NOT_MATCH"
+        );
+
+        bytes32 claimRoot;
+        if (networkID == MAINNET_NETWORK_ID) {
+            // Verify merkle proof using rollup exit root
+            claimRoot = rollupExitRoot;
+        } else {
+            // Verify merkle proof using mainnet exit root
+            claimRoot = mainnetExitRoot;
+        }
+        require(
+            verifyMerkleProof(
+                getLeafValue(
+                    leafType,
+                    originNetwork,
+                    originAddress,
+                    destinationNetwork,
+                    destinationAddress,
+                    amount,
+                    keccak256(metadata)
+                ),
+                smtProof,
+                index,
+                claimRoot
+            ),
+            "Bridge::_verifyLeaf: SMT_INVALID"
+        );
     }
 
     /**

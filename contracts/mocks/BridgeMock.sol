@@ -21,9 +21,7 @@ contract BridgeMock is Bridge, OwnableUpgradeable {
     ) public override initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
-        tokenImplementation = address(new TokenWrapped());
         poeAddress = _poeAddress;
-        __Pausable_init_unchained();
 
         __Ownable_init();
         maxEtherBridge = 0.25 ether;

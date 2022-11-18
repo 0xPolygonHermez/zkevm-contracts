@@ -149,24 +149,19 @@ Allow the trusted sequencer to set the trusted sequencer URL
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newTrustedSequencerURL` | string | URL of trusted sequencer
 
-### calculateForceProverFee
+### setSecurityCouncil
 ```solidity
-  function calculateForceProverFee(
-  ) public returns (uint256)
+  function setSecurityCouncil(
+    address newSecurityCouncil
+  ) public
 ```
-Function to calculate the sequencer collateral depending on the congestion of the batches
-     // TODO
+Allow the current security council to set a new security council address
 
 
-
-### calculateRewardPerBatch
-```solidity
-  function calculateRewardPerBatch(
-  ) public returns (uint256)
-```
-Function to calculate the reward to verify a single batch
-
-
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newSecurityCouncil` | address | Address of the new security council
 
 ### proofDifferentState
 ```solidity
@@ -199,9 +194,9 @@ Allows to stop the zk-evm if its possible to proof a different state root give t
   function activateEmergencyState(
   ) external
 ```
-Function to activate emergency state, pause both PoE and Bridge contrats
-Only can be called by a owner in the bootstrap phase, once the owner is renounced, the system
-can only be paused proving a distinct state root givne the same batches
+Function to activate emergency state on both PoE and Bridge contrats
+Only can be called by the owner in the bootstrap phase, once the owner is renounced, the system
+can only be put on this state by proving a distinct state root given the same batches
 
 
 
@@ -210,26 +205,27 @@ can only be paused proving a distinct state root givne the same batches
   function deactivateEmergencyState(
   ) external
 ```
-Function to deactivate emergency state, unpause both PoE and Bridge contrats
+Function to deactivate emergency state on both PoE and Bridge contrats
 Only can be called by the security council
 
 
 
-### _activateEmergencyState
+### calculateForceProverFee
 ```solidity
-  function _activateEmergencyState(
-  ) internal
+  function calculateForceProverFee(
+  ) public returns (uint256)
 ```
-Function to activate emergency state, pause both PoE and Bridge contrats
+Function to calculate the sequencer collateral depending on the congestion of the batches
+     // TODO
 
 
 
-### _deactivateEmergencyState
+### calculateRewardPerBatch
 ```solidity
-  function _deactivateEmergencyState(
-  ) internal
+  function calculateRewardPerBatch(
+  ) public returns (uint256)
 ```
-Function to activate emergency state, pause both PoE and Bridge contrats
+Function to calculate the reward to verify a single batch
 
 
 
@@ -252,6 +248,15 @@ Function to calculate the input snark bytes
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
+
+### _activateEmergencyState
+```solidity
+  function _activateEmergencyState(
+  ) internal
+```
+Internal function to activate emergency state on both PoE and Bridge contrats
+
+
 
 ## Events
 ### SequenceBatches
@@ -309,6 +314,14 @@ Emitted when a trusted sequencer update the forcebatch boolean
 ```
 
 Emitted when a trusted sequencer update his URL
+
+### SetSecurityCouncil
+```solidity
+  event SetSecurityCouncil(
+  )
+```
+
+Emitted when security council update his address
 
 ### ProofDifferentState
 ```solidity

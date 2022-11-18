@@ -6,9 +6,9 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/IBridge.sol";
+import "./lib/EmergencyManager.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network
@@ -21,7 +21,7 @@ import "./interfaces/IBridge.sol";
 contract ProofOfEfficiency is
     Initializable,
     OwnableUpgradeable,
-    PausableUpgradeable
+    EmergencyManager
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -182,6 +182,11 @@ contract ProofOfEfficiency is
     event SetTrustedSequencerURL(string newTrustedSequencerURL);
 
     /**
+     * @dev Emitted when security council update his address
+     */
+    event SetSecurityCouncil(address newSecurityCouncil);
+
+    /**
      * @dev Emitted when is proved a different state given the same batches
      */
     event ProofDifferentState(bytes32 storedStateRoot, bytes32 provedStateRoot);
@@ -222,7 +227,6 @@ contract ProofOfEfficiency is
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
-        __Pausable_init_unchained();
     }
 
     modifier onlySecurityCouncil() {
@@ -256,7 +260,7 @@ contract ProofOfEfficiency is
      */
     function sequenceBatches(BatchData[] memory batches)
         public
-        whenNotPaused
+        ifNotEmergencyState
         onlyTrustedSequencer
     {
         uint256 batchesNum = batches.length;
@@ -380,7 +384,7 @@ contract ProofOfEfficiency is
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
-    ) public whenNotPaused {
+    ) public ifNotEmergencyState {
         require(
             initNumBatch <= lastVerifiedBatch,
             "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than lastVerifiedBatch"
@@ -431,7 +435,7 @@ contract ProofOfEfficiency is
      */
     function forceBatch(bytes memory transactions, uint256 maticAmount)
         public
-        whenNotPaused
+        ifNotEmergencyState
         isForceBatchAllowed
     {
         // Calculate matic collateral
@@ -484,7 +488,7 @@ contract ProofOfEfficiency is
      */
     function sequenceForceBatches(ForceBatchData[] memory batches)
         public
-        whenNotPaused
+        ifNotEmergencyState
         isForceBatchAllowed
     {
         uint256 batchesNum = batches.length;
@@ -598,24 +602,16 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Function to calculate the sequencer collateral depending on the congestion of the batches
-     // TODO
+     * @notice Allow the current security council to set a new security council address
+     * @param newSecurityCouncil Address of the new security council
      */
-    function calculateForceProverFee() public view returns (uint256) {
-        return 1 ether * uint256(1 + lastForceBatch - lastForceBatchSequenced);
-    }
+    function setSecurityCouncil(address newSecurityCouncil)
+        public
+        onlySecurityCouncil
+    {
+        securityCouncil = newSecurityCouncil;
 
-    /**
-     * @notice Function to calculate the reward to verify a single batch
-     */
-    function calculateRewardPerBatch() public view returns (uint256) {
-        uint256 currentBalance = matic.balanceOf(address(this));
-
-        // Total Sequenced Batches = forcedBatches to be sequenced (total forced Batches - sequenced Batches) + sequencedBatches
-        // Total Batches to be verified = Total Sequenced Batches - verified Batches
-        uint256 totalBatchesToVerify = ((lastForceBatch -
-            lastForceBatchSequenced) + lastBatchSequenced) - lastVerifiedBatch;
-        return currentBalance / totalBatchesToVerify;
+        emit SetSecurityCouncil(newSecurityCouncil);
     }
 
     /**
@@ -636,7 +632,7 @@ contract ProofOfEfficiency is
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
-    ) public {
+    ) public ifNotEmergencyState {
         require(
             initNumBatch < finalNewBatch,
             "ProofOfEfficiency::proofDifferentState: finalNewBatch must be bigger than initNumBatch"
@@ -683,46 +679,55 @@ contract ProofOfEfficiency is
             batchNumToStateRoot[finalNewBatch],
             newStateRoot
         );
+
+        // Activate emergency state
         _activateEmergencyState();
     }
 
     /**
-     * @notice Function to activate emergency state, pause both PoE and Bridge contrats
-     * Only can be called by a owner in the bootstrap phase, once the owner is renounced, the system
-     * can only be paused proving a distinct state root givne the same batches
+     * @notice Function to activate emergency state on both PoE and Bridge contrats
+     * Only can be called by the owner in the bootstrap phase, once the owner is renounced, the system
+     * can only be put on this state by proving a distinct state root given the same batches
      */
-    function activateEmergencyState() external onlyOwner {
+    function activateEmergencyState() external ifNotEmergencyState onlyOwner {
         _activateEmergencyState();
     }
 
     /**
-     * @notice Function to deactivate emergency state, unpause both PoE and Bridge contrats
+     * @notice Function to deactivate emergency state on both PoE and Bridge contrats
      * Only can be called by the security council
      */
-    function deactivateEmergencyState() external onlySecurityCouncil {
-        _deactivateEmergencyState();
+    function deactivateEmergencyState()
+        external
+        ifEmergencyState
+        onlySecurityCouncil
+    {
+        // Deactivate emergency state on bridge
+        bridgeAddress.deactivateEmergencyState();
+
+        // Deactivate emergency state on this contract
+        super._deactivateEmergencyState();
     }
 
     /**
-     * @notice Function to activate emergency state, pause both PoE and Bridge contrats
+     * @notice Function to calculate the sequencer collateral depending on the congestion of the batches
+     // TODO
      */
-    function _activateEmergencyState() internal {
-        // Pause PoE
-        _pause();
-
-        // Pause brige
-        bridgeAddress.pause();
+    function calculateForceProverFee() public view returns (uint256) {
+        return 1 ether * uint256(1 + lastForceBatch - lastForceBatchSequenced);
     }
 
     /**
-     * @notice Function to activate emergency state, pause both PoE and Bridge contrats
+     * @notice Function to calculate the reward to verify a single batch
      */
-    function _deactivateEmergencyState() internal {
-        // Unpause PoE
-        _unpause();
+    function calculateRewardPerBatch() public view returns (uint256) {
+        uint256 currentBalance = matic.balanceOf(address(this));
 
-        // Unpause brige
-        bridgeAddress.unpause();
+        // Total Sequenced Batches = forcedBatches to be sequenced (total forced Batches - sequenced Batches) + sequencedBatches
+        // Total Batches to be verified = Total Sequenced Batches - verified Batches
+        uint256 totalBatchesToVerify = ((lastForceBatch -
+            lastForceBatchSequenced) + lastBatchSequenced) - lastVerifiedBatch;
+        return currentBalance / totalBatchesToVerify;
     }
 
     /**
@@ -763,5 +768,16 @@ contract ProofOfEfficiency is
                 newLocalExitRoot,
                 finalNewBatch
             );
+    }
+
+    /**
+     * @notice Internal function to activate emergency state on both PoE and Bridge contrats
+     */
+    function _activateEmergencyState() internal override {
+        // Activate emergency state on bridge
+        bridgeAddress.activateEmergencyState();
+
+        // Activate emergency state on this contract
+        super._activateEmergencyState();
     }
 }

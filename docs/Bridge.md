@@ -154,23 +154,32 @@ Returns the address of a wrapper using the token information if already exist
 |`originNetwork` | uint32 | Origin network
 |`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
 
-### pause
+### activateEmergencyState
 ```solidity
-  function pause(
+  function activateEmergencyState(
   ) external
 ```
-Function to pause the contract
-     " Can only be called by the proof of efficiency in extreme situations
+Function to activate the emergency state
+     " Only can be called by the proof of efficiency in extreme situations
 
 
 
-### unpause
+### deactivateEmergencyState
 ```solidity
-  function unpause(
+  function deactivateEmergencyState(
   ) external
 ```
-Function to unpause the contract
-     " Can only be called by the proof of efficiency
+Function to deactivate the emergency state
+     " Only can be called by the proof of efficiency
+
+
+
+### _verifyLeaf
+```solidity
+  function _verifyLeaf(
+  ) internal
+```
+
 
 
 

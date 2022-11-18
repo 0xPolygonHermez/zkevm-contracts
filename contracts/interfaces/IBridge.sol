@@ -43,7 +43,7 @@ interface IBridge {
         bytes memory metadata
     ) external;
 
-    function pause() external;
+    function activateEmergencyState() external;
 
-    function unpause() external;
+    function deactivateEmergencyState() external;
 }

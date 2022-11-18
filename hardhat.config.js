@@ -21,7 +21,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 999999
+            runs: 9999
           }
         }
       },
@@ -113,7 +113,7 @@ module.exports = {
   gasReporter: {
     currency: "USD",
     coinmarketcap: process.env.COINMARKETCAP_KEY,
-    enabled: process.env.REPORT_GAS ? true : false,
+    enabled: true,
   },
   etherscan: {
     apiKey: `${process.env.ETHERSCAN_API_KEY}`
