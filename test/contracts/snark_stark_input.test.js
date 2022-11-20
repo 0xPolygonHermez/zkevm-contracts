@@ -5,7 +5,7 @@ const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
 describe('Proof of efficiency snark stark input test', () => {
     let proofOfEfficiencyContract;
-    const genesisRoot = ethers.constants.HashZero;
+    const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
     let randomSigner;
 
     const allowForcebatches = true;
@@ -32,6 +32,7 @@ describe('Proof of efficiency snark stark input test', () => {
                 urlSequencer,
                 chainID,
                 networkName,
+                ethers.constants.AddressZero,
             ],
         );
         await proofOfEfficiencyContract.deployed();

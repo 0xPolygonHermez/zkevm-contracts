@@ -11,8 +11,7 @@ const { expect } = require('chai');
  * @param {String} deadline - Deadline of the permit
  * @returns {Object} - Signature obejct, { v, r, s}
  */
-async function createPermitSignature(tokenContractInstance, wallet, spenderAddress, value, nonce, deadline) {
-    const chainId = (await tokenContractInstance.getChainId());
+async function createPermitSignature(tokenContractInstance, wallet, spenderAddress, value, nonce, deadline, chainId) {
     const name = await tokenContractInstance.name();
 
     // The domain

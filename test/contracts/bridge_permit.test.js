@@ -37,8 +37,10 @@ describe('Bridge Contract Permit tests', () => {
 
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
-
     const LEAF_TYPE_ASSET = 0;
+
+    const proofOfEfficiencyAddress = ethers.constants.AddressZero;
+    const claimTimeout = 0;
 
     beforeEach('Deploy contracts', async () => {
         // load signers
@@ -53,17 +55,18 @@ describe('Bridge Contract Permit tests', () => {
         bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
 
         await globalExitRootManager.initialize(rollup.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyAddress, claimTimeout);
 
         // deploy token
-        const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
+        const maticTokenFactory = await ethers.getContractFactory('TokenWrapped');
         tokenContract = await maticTokenFactory.deploy(
             tokenName,
             tokenSymbol,
-            deployer.address,
-            tokenInitialBalance,
+            decimals,
         );
         await tokenContract.deployed();
+
+        await tokenContract.mint(deployer.address, tokenInitialBalance);
     });
 
     it('should bridge and with permit eip-2612 compilant', async () => {
@@ -81,7 +84,6 @@ describe('Bridge Contract Permit tests', () => {
         const balanceBridge = await tokenContract.balanceOf(bridgeContract.address);
 
         const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
-        const lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
 
         // pre compute root merkle tree in Js
         const height = 32;
@@ -104,6 +106,8 @@ describe('Bridge Contract Permit tests', () => {
         // user permit
         const nonce = await tokenContract.nonces(deployer.address);
         const deadline = ethers.constants.MaxUint256;
+        const { chainId } = await ethers.provider.getNetwork();
+
         const { v, r, s } = await createPermitSignature(
             tokenContract,
             deployer,
@@ -111,6 +115,7 @@ describe('Bridge Contract Permit tests', () => {
             amount,
             nonce,
             deadline,
+            chainId,
         );
 
         const dataPermit = ifacePermit.encodeFunctionData('permit', [
@@ -127,7 +132,7 @@ describe('Bridge Contract Permit tests', () => {
             .to.emit(bridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
-            .withArgs(lastGlobalExitRootNum + 1, rootJSMainnet, rollupExitRoot);
+            .withArgs(rootJSMainnet, rollupExitRoot);
 
         expect(await tokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
         expect(await tokenContract.balanceOf(bridgeContract.address)).to.be.equal(balanceBridge.add(amount));
@@ -179,7 +184,6 @@ describe('Bridge Contract Permit tests', () => {
         const balanceBridge = await daiContract.balanceOf(bridgeContract.address);
 
         const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
-        const lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
 
         // pre compute root merkle tree in Js
         const height = 32;
@@ -226,7 +230,7 @@ describe('Bridge Contract Permit tests', () => {
             .to.emit(bridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
-            .withArgs(lastGlobalExitRootNum + 1, rootJSMainnet, rollupExitRoot);
+            .withArgs(rootJSMainnet, rollupExitRoot);
 
         expect(await daiContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
         expect(await daiContract.balanceOf(bridgeContract.address)).to.be.equal(balanceBridge.add(amount));
@@ -279,7 +283,6 @@ describe('Bridge Contract Permit tests', () => {
         const balanceBridge = await uniContract.balanceOf(bridgeContract.address);
 
         const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
-        const lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
 
         // pre compute root merkle tree in Js
         const height = 32;
@@ -327,7 +330,7 @@ describe('Bridge Contract Permit tests', () => {
             .to.emit(bridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
-            .withArgs(lastGlobalExitRootNum + 1, rootJSMainnet, rollupExitRoot);
+            .withArgs(rootJSMainnet, rollupExitRoot);
 
         expect(await uniContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
         expect(await uniContract.balanceOf(bridgeContract.address)).to.be.equal(balanceBridge.add(amount));

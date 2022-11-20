@@ -10,13 +10,18 @@ import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./lib/EmergencyManager.sol";
-import "hardhat/console.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is DepositContract, EmergencyManager, IBridge {
+contract Bridge is
+    DepositContract,
+    EmergencyManager,
+    IBridge,
+    OwnableUpgradeable
+{
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Wrapped Token information struct
@@ -58,6 +63,9 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
     // Proof of Efficiency address
     address public poeAddress;
 
+    // Claim timeout period
+    uint256 public claimTimeout;
+
     /**
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
@@ -65,11 +73,16 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
     function initialize(
         uint32 _networkID,
         IGlobalExitRootManager _globalExitRootManager,
-        address _poeAddress
+        address _poeAddress,
+        uint256 _claimTimeout
     ) public virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         poeAddress = _poeAddress;
+        claimTimeout = _claimTimeout;
+
+        // Initialize OZ contracts
+        __Ownable_init_unchained();
     }
 
     modifier onlyProofOfEfficiency() {
@@ -113,6 +126,11 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
         address originTokenAddress,
         address wrappedTokenAddress
     );
+
+    /**
+     * @dev Emitted when a a new wrapped token is created
+     */
+    event SetClaimTimeout(uint256 newClaimTimeout);
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
@@ -326,16 +344,13 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
                         uint8 decimals
                     ) = abi.decode(metadata, (string, string, uint8));
 
-                    // Create a new wrapped erc20
+                    // Create a new wrapped erc20 using create2
                     TokenWrapped newWrappedToken = (new TokenWrapped){
                         salt: tokenInfoHash
                     }(name, symbol, decimals);
 
+                    // Mint tokens for the destination address
                     newWrappedToken.mint(destinationAddress, amount);
-                    console.log(address(newWrappedToken));
-                    console.log(name);
-                    console.log(symbol);
-                    console.log(decimals);
 
                     // Create mappings
                     tokenInfoToWrappedToken[tokenInfoHash] = address(
@@ -460,7 +475,7 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
             )
         );
 
-        // csat last 20 bytes of hash to address
+        // last 20 bytes of hash to address
         return address(uint160(uint256(hashCreate2)));
     }
 
@@ -495,6 +510,15 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
         _deactivateEmergencyState();
     }
 
+    /**
+     * @notice Function to deactivate the emergency state
+     " Only can be called by the proof of efficiency
+     */
+    function setClaimTimeout(uint256 newClaimTimeout) external onlyOwner {
+        claimTimeout = newClaimTimeout;
+        emit SetClaimTimeout(newClaimTimeout);
+    }
+
     function _verifyLeaf(
         bytes32[] memory smtProof,
         uint32 index,
@@ -514,13 +538,16 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
             "Bridge::_verifyLeaf: ALREADY_CLAIMED"
         );
 
-        // Check that the merkle proof belongs to some global exit root
-        // TODO this should be a SMTproof
-        require(
-            globalExitRootManager.globalExitRootMap(
+        // Check timestamp where the global exit root was set
+        uint256 timestampGlobalExitRoot = globalExitRootManager
+            .globalExitRootMap(
                 keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
-            ) != 0,
-            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
+            );
+
+        require(
+            timestampGlobalExitRoot != 0 &&
+                (block.timestamp - timestampGlobalExitRoot) >= claimTimeout,
+            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID"
         );
 
         // Destination network must be networkID

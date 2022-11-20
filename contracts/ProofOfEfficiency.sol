@@ -201,6 +201,8 @@ contract ProofOfEfficiency is
      * @param _trustedSequencerURL trusted sequencer URL
      * @param _chainID L2 chainID
      * @param _networkName L2 network name
+     * @param _bridgeAddress bridge address
+     * @param _securityCouncil security council
      */
     function initialize(
         IGlobalExitRootManager _globalExitRootManager,
@@ -212,7 +214,8 @@ contract ProofOfEfficiency is
         string memory _trustedSequencerURL,
         uint64 _chainID,
         string memory _networkName,
-        IBridge _bridgeAddress
+        IBridge _bridgeAddress,
+        address _securityCouncil
     ) public initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
@@ -224,6 +227,7 @@ contract ProofOfEfficiency is
         chainID = _chainID;
         networkName = _networkName;
         bridgeAddress = _bridgeAddress;
+        securityCouncil = _securityCouncil;
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -393,6 +397,11 @@ contract ProofOfEfficiency is
         require(
             finalNewBatch > lastVerifiedBatch,
             "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than lastVerifiedBatch"
+        );
+
+        require(
+            batchNumToStateRoot[initNumBatch] != bytes32(0),
+            "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
         );
 
         bytes memory snarkHashBytes = getInputSnarkBytes(
@@ -644,8 +653,7 @@ contract ProofOfEfficiency is
         );
 
         require(
-            initNumBatch == 0 ||
-                batchNumToStateRoot[initNumBatch] != bytes32(0),
+            batchNumToStateRoot[initNumBatch] != bytes32(0),
             "ProofOfEfficiency::proofDifferentState: initNumBatch state root does not exist"
         );
 

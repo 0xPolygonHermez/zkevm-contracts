@@ -25,7 +25,7 @@ describe('Real flow test', () => {
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
-    const genesisRoot = ethers.constants.HashZero;
+    const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
     const networkIDMainnet = 0;
     const allowForcebatches = true;
@@ -71,8 +71,10 @@ describe('Real flow test', () => {
 
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerMock');
+        const claimTimeout = 0;
+
         globalExitRootManager = await globalExitRootManagerFactory.deploy(proofOfEfficiencyContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address, claimTimeout);
 
         await proofOfEfficiencyContract.initialize(
             globalExitRootManager.address,
@@ -84,6 +86,7 @@ describe('Real flow test', () => {
             urlSequencer,
             chainID,
             networkName,
+            bridgeContract.address,
         );
 
         // fund sequencer address with Matic tokens

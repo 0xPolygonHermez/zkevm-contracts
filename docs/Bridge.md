@@ -174,6 +174,16 @@ Function to deactivate the emergency state
 
 
 
+### setClaimTimeout
+```solidity
+  function setClaimTimeout(
+  ) external
+```
+Function to deactivate the emergency state
+     " Only can be called by the proof of efficiency
+
+
+
 ### _verifyLeaf
 ```solidity
   function _verifyLeaf(
@@ -220,6 +230,14 @@ Emitted when a claim is done from another network
 ### NewWrappedToken
 ```solidity
   event NewWrappedToken(
+  )
+```
+
+Emitted when a a new wrapped token is created
+
+### SetClaimTimeout
+```solidity
+  event SetClaimTimeout(
   )
 ```
 

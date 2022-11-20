@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.15;
 import "../Bridge.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract BridgeMock is Bridge, OwnableUpgradeable {
+contract BridgeMock is Bridge {
     uint256 public maxEtherBridge;
 
     /**
@@ -17,13 +16,14 @@ contract BridgeMock is Bridge, OwnableUpgradeable {
     function initialize(
         uint32 _networkID,
         IGlobalExitRootManager _globalExitRootManager,
-        address _poeAddress
+        address _poeAddress,
+        uint256 _claimTimeout
     ) public override initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         poeAddress = _poeAddress;
+        claimTimeout = _claimTimeout;
 
-        __Ownable_init();
         maxEtherBridge = 0.25 ether;
     }
 
