@@ -25,6 +25,9 @@ contract BridgeMock is Bridge {
         claimTimeout = _claimTimeout;
 
         maxEtherBridge = 0.25 ether;
+
+        // Initialize OZ contracts
+        __Ownable_init_unchained();
     }
 
     function setNetworkID(uint32 _networkID) public onlyOwner {

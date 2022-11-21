@@ -91,6 +91,7 @@ describe('Proof of efficiency', () => {
         expect(await proofOfEfficiencyContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
         expect(await proofOfEfficiencyContract.bridgeAddress()).to.be.equal(bridgeContract.address);
         expect(await proofOfEfficiencyContract.securityCouncil()).to.be.equal(securityCouncil.address);
+        expect(await proofOfEfficiencyContract.owner()).to.be.equal(deployer.address);
     });
 
     it('should check setters of trusted sequencer', async () => {

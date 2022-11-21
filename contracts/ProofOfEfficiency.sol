@@ -649,7 +649,7 @@ contract ProofOfEfficiency is
 
         require(
             finalNewBatch <= lastVerifiedBatch,
-            "ProofOfEfficiency::proofDifferentState: initNumBatch must be less than lastVerifiedBatch"
+            "ProofOfEfficiency::proofDifferentState: finalNewBatch must be less or equal than lastVerifiedBatch"
         );
 
         require(

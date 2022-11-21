@@ -31,10 +31,10 @@ contract Bridge is
     }
 
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
-    bytes4 constant _PERMIT_SIGNATURE = 0xd505accf;
+    bytes4 private constant _PERMIT_SIGNATURE = 0xd505accf;
 
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)")));
-    bytes4 constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
+    bytes4 private constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
 
     // Mainnet indentifier
     uint32 public constant MAINNET_NETWORK_ID = 0;

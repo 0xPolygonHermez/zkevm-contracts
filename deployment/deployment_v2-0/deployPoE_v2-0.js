@@ -17,6 +17,7 @@ async function main() {
     const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || 'http://zkevm-json-rpc:8123';
     const realVerifier = deployParameters.realVerifier || false;
+    const claimTimeout = deployParameters.claimTimeout || 0;
     const { chainID, networkName } = deployParameters;
     const atemptsDeployProxy = 20;
 
@@ -53,6 +54,7 @@ async function main() {
     } else {
         [deployer] = (await ethers.getSigners());
     }
+    const securityCouncilAddress = deployParameters.securityCouncilAddress || deployer.address;
 
     /*
      *Deployment MATIC
@@ -106,6 +108,9 @@ async function main() {
         }
     }
 
+    console.log('#######################\n');
+    console.log('globalExitRootManager deployed to:', globalExitRootManager.address);
+
     // deploy bridge
     let bridgeFactory;
     if (deployParameters.bridgeMock) {
@@ -125,6 +130,9 @@ async function main() {
         }
     }
 
+    console.log('#######################\n');
+    console.log('Bridge deployed to:', bridgeContract.address);
+
     // deploy PoE
     const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock', deployer);
     let proofOfEfficiencyContract;
@@ -138,18 +146,32 @@ async function main() {
         }
     }
 
-    await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
-
     console.log('#######################\n');
-    console.log('globalExitRootManager deployed to:', globalExitRootManager.address);
+    console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
+
+    /*
+     * Initialize globalExitRootManager
+     */
+    await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
 
     /*
      * Initialize Bridge
      */
-    await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
+    await (await bridgeContract.initialize(
+        networkIDMainnet,
+        globalExitRootManager.address,
+        proofOfEfficiencyContract.address,
+        claimTimeout,
+    )).wait();
 
-    console.log('#######################\n');
-    console.log('Bridge deployed to:', bridgeContract.address);
+    console.log('\n#######################');
+    console.log('#####    Checks Bridge   #####');
+    console.log('#######################');
+    console.log('globalExitRootManagerAddress:', await bridgeContract.globalExitRootManager());
+    console.log('networkID:', await bridgeContract.networkID());
+    console.log('poeAddress:', await bridgeContract.poeAddress());
+    console.log('claimTimeout:', await bridgeContract.claimTimeout());
+    console.log('owner:', await bridgeContract.owner());
 
     /*
      * Initialize proof of efficiency
@@ -170,6 +192,8 @@ async function main() {
     console.log('trustedSequencerURL:', trustedSequencerURL);
     console.log('chainID:', chainID);
     console.log('networkName:', networkName);
+    console.log('bridgeContract:', bridgeContract.address);
+    console.log('securityCouncil:', securityCouncilAddress);
 
     await (await proofOfEfficiencyContract.initialize(
         globalExitRootManager.address,
@@ -181,25 +205,27 @@ async function main() {
         trustedSequencerURL,
         chainID,
         networkName,
+        bridgeContract.address,
+        securityCouncilAddress,
     )).wait();
-
-    console.log('#######################\n');
-    console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
 
     const deploymentBlockNumber = (await proofOfEfficiencyContract.deployTransaction.wait()).blockNumber;
 
     console.log('\n#######################');
-    console.log('#####    Checks    #####');
+    console.log('#####    Checks  PoE  #####');
     console.log('#######################');
     console.log('globalExitRootManagerAddress:', await proofOfEfficiencyContract.globalExitRootManager());
     console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
     console.log('verifierMockAddress:', await proofOfEfficiencyContract.rollupVerifier());
-    console.log('genesiRoot:', await proofOfEfficiencyContract.currentStateRoot());
+    console.log('genesiRoot:', await proofOfEfficiencyContract.batchNumToStateRoot(0));
     console.log('trustedSequencer:', await proofOfEfficiencyContract.trustedSequencer());
     console.log('forceBatchAllowed:', await proofOfEfficiencyContract.forceBatchAllowed());
     console.log('trustedSequencerURL:', await proofOfEfficiencyContract.trustedSequencerURL());
     console.log('chainID:', Number(await proofOfEfficiencyContract.chainID()));
     console.log('networkName:', await proofOfEfficiencyContract.networkName());
+    console.log('bridgeContract:', await proofOfEfficiencyContract.bridgeAddress());
+    console.log('securityCouncil:', await proofOfEfficiencyContract.securityCouncil());
+    console.log('owner:', await proofOfEfficiencyContract.owner());
 
     // fund account with tokens and ether if it have less than 0.1 ether.
     const balanceEther = await ethers.provider.getBalance(trustedSequencer);

@@ -87,6 +87,7 @@ describe('Real flow test', () => {
             chainID,
             networkName,
             bridgeContract.address,
+            ethers.constants.AddressZero,
         );
 
         // fund sequencer address with Matic tokens

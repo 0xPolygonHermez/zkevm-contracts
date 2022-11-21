@@ -32,7 +32,7 @@ describe('Bridge Contract', () => {
     const networkIDRollup = 1;
 
     const LEAF_TYPE_ASSET = 0;
-    const MESSAGE_TYPE_ASSET = 1;
+    const LEAF_TYPE_MESSAGE = 1;
 
     const proofOfEfficiencyAddress = ethers.constants.AddressZero;
     const claimTimeout = 0;
@@ -69,9 +69,10 @@ describe('Bridge Contract', () => {
         expect(await bridgeContract.networkID()).to.be.equal(networkIDMainnet);
         expect(await bridgeContract.poeAddress()).to.be.equal(proofOfEfficiencyAddress);
         expect(await bridgeContract.claimTimeout()).to.be.equal(claimTimeout);
+        expect(await bridgeContract.owner()).to.be.equal(deployer.address);
     });
 
-    it('should bridge and verify merkle proof', async () => {
+    it('should bridge asset and verify merkle proof', async () => {
         const depositCount = await bridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
         const tokenAddress = tokenContract.address;
@@ -109,12 +110,73 @@ describe('Bridge Contract', () => {
 
         await expect(bridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
+            .withArgs(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
             .withArgs(rootJSMainnet, rollupExitRoot);
 
         expect(await tokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
         expect(await tokenContract.balanceOf(bridgeContract.address)).to.be.equal(balanceBridge.add(amount));
+
+        // check merkle root with SC
+        const rootSCMainnet = await bridgeContract.getDepositRoot();
+        expect(rootSCMainnet).to.be.equal(rootJSMainnet);
+
+        // check merkle proof
+        const proof = merkleTree.getProofTreeByIndex(0);
+        const index = 0;
+
+        // verify merkle proof
+        expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
+        expect(await bridgeContract.verifyMerkleProof(
+            leafValue,
+            proof,
+            index,
+            rootSCMainnet,
+        )).to.be.equal(true);
+
+        const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
+        expect(computedGlobalExitRoot).to.be.equal(await globalExitRootManager.getLastGlobalExitRoot());
+    });
+
+    it('should bridge message and verify merkle proof', async () => {
+        const depositCount = await bridgeContract.depositCount();
+        const originNetwork = networkIDMainnet;
+        const originAddress = deployer.address;
+        const amount = ethers.utils.parseEther('10');
+        const destinationNetwork = networkIDRollup;
+        const destinationAddress = deployer.address;
+
+        const metadata = metadataToken;
+        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
+        const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
+
+        // pre compute root merkle tree in Js
+        const height = 32;
+        const merkleTree = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_MESSAGE,
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash,
+        );
+        merkleTree.add(leafValue);
+        const rootJSMainnet = merkleTree.getRoot();
+
+        await expect(bridgeContract.bridgeMessage(destinationNetwork, destinationAddress, metadata, { value: amount }))
+            .to.emit(bridgeContract, 'BridgeEvent')
+            .withArgs(
+                LEAF_TYPE_MESSAGE,
+                originNetwork,
+                originAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                depositCount,
+            );
 
         // check merkle root with SC
         const rootSCMainnet = await bridgeContract.getDepositRoot();
@@ -437,7 +499,16 @@ describe('Bridge Contract', () => {
         // Tokens are burnt
         await expect(bridgeContract.bridgeAsset(wrappedTokenAddress, newDestinationNetwork, destinationAddress, amount, '0x'))
             .to.emit(bridgeContract, 'BridgeEvent')
-            .withArgs(originNetwork, originTokenAddress, newDestinationNetwork, destinationAddress, amount, metadataMainnet, depositCount)
+            .withArgs(
+                LEAF_TYPE_ASSET,
+                originNetwork,
+                originTokenAddress,
+                newDestinationNetwork,
+                destinationAddress,
+                amount,
+                metadataMainnet,
+                depositCount,
+            )
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
             .withArgs(rootJSMainnet, rollupExitRoot)
             .to.emit(newWrappedToken, 'Transfer')
@@ -902,7 +973,7 @@ describe('Bridge Contract', () => {
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
         const leafValue = getLeafValue(
-            MESSAGE_TYPE_ASSET,
+            LEAF_TYPE_MESSAGE,
             originNetwork,
             tokenAddress,
             destinationNetwork,

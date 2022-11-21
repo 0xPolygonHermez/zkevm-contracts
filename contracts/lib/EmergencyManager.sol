@@ -35,7 +35,7 @@ contract EmergencyManager {
      */
     modifier ifEmergencyState() {
         require(
-            !isEmergencyState,
+            isEmergencyState,
             "EmergencyManager::ifEmergencyState: only if emergency state"
         );
         _;

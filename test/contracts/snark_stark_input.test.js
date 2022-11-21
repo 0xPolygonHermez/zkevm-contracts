@@ -33,6 +33,7 @@ describe('Proof of efficiency snark stark input test', () => {
                 chainID,
                 networkName,
                 ethers.constants.AddressZero,
+                ethers.constants.AddressZero,
             ],
         );
         await proofOfEfficiencyContract.deployed();
