@@ -6,7 +6,7 @@ pragma solidity 0.8.15;
  * @dev Contract helper responsible to manage the emergency state
  */
 contract EmergencyManager {
-    // Indicates wheather the emergency state is active or not
+    // Indicates whether the emergency state is active or not
     bool public isEmergencyState;
 
     /**

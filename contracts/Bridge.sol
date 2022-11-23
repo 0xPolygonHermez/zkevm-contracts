@@ -119,7 +119,7 @@ contract Bridge is
     );
 
     /**
-     * @dev Emitted when a a new wrapped token is created
+     * @dev Emitted when a new wrapped token is created
      */
     event NewWrappedToken(
         uint32 originNetwork,
@@ -128,7 +128,7 @@ contract Bridge is
     );
 
     /**
-     * @dev Emitted when a a new wrapped token is created
+     * @dev Emitted when newClaimTimeout is updated
      */
     event SetClaimTimeout(uint256 newClaimTimeout);
 
@@ -294,7 +294,7 @@ contract Bridge is
         uint256 amount,
         bytes memory metadata
     ) public ifNotEmergencyState {
-        // Verify leaf exist and it does not ahve been claimed
+        // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
             index,
@@ -407,7 +407,7 @@ contract Bridge is
         uint256 amount,
         bytes memory metadata
     ) public ifNotEmergencyState {
-        // Verify leaf exist and it does not ahve been claimed
+        // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
             index,
@@ -511,14 +511,29 @@ contract Bridge is
     }
 
     /**
-     * @notice Function to deactivate the emergency state
-     " Only can be called by the proof of efficiency
+     * @notice Function to update the claim timeout
+     * @param newClaimTimeout new claim timeout value
+     * Only can be called by the owner
      */
     function setClaimTimeout(uint256 newClaimTimeout) external onlyOwner {
         claimTimeout = newClaimTimeout;
         emit SetClaimTimeout(newClaimTimeout);
     }
 
+    /**
+     * @notice Verify leaf and checks that it has not been claimed
+     * @param smtProof Smt proof
+     * @param index Index of the leaf
+     * @param mainnetExitRoot Mainnet exit root
+     * @param rollupExitRoot Rollup exit root
+     * @param originNetwork Origin network
+     * @param originAddress Origin address
+     * @param destinationNetwork Network destination
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens
+     * @param metadata Abi encoded metadata if any, empty otherwise
+     * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
+     */
     function _verifyLeaf(
         bytes32[] memory smtProof,
         uint32 index,
@@ -547,7 +562,7 @@ contract Bridge is
         require(
             timestampGlobalExitRoot != 0 &&
                 (block.timestamp - timestampGlobalExitRoot) >= claimTimeout,
-            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID"
+            "Bridge::_verifyLeaf: MUST_WAIT_TIMEOUT"
         );
 
         // Destination network must be networkID

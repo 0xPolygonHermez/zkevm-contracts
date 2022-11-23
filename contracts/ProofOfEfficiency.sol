@@ -371,7 +371,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allows an aggregator to verify a multiple batches
+     * @notice Allows an aggregator to verify multiple batches
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
@@ -624,7 +624,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allows to stop the zk-evm if its possible to proof a different state root give the same batches.
+     * @notice Allows to halt the PoE if its possible to prove a different state transition root given the same batches
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
