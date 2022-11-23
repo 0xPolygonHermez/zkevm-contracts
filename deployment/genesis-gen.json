@@ -55,7 +55,9 @@
         "function": "initialize",
         "paramsFunction": [
             1,
-            "0xAE4bB80bE56B819606589DE61d5ec3b522EEB032"
+            "0xAE4bB80bE56B819606589DE61d5ec3b522EEB032",
+            "0x0000000000000000000000000000000000000000",
+            0
         ],
         "contractName": "Bridge"
       }

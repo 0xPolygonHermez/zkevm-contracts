@@ -1,5 +1,5 @@
 {
-  "root": "0xd95c3987484f77ca1b7d8dc210004b5fb0b5f59186c3b7f02e6e7d5aadd6485f",
+  "root": "0xbc98dac82be8590e52e6bee730fbed3c154e9952949d82e4681e6a9c02fb041c",
   "genesis": [
     {
       "balance": "100000000000000000000000",
@@ -21,12 +21,6 @@
       "pvtKey": "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
     },
     {
-      "balance": "100000000000000000000000",
-      "nonce": "0",
-      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-      "pvtKey": "0x00"
-    },
-    {
       "balance": "0",
       "nonce": "1",
       "address": "0xae4bb80be56b819606589de61d5ec3b522eeb032",
@@ -35,11 +29,6 @@
         "0x0000000000000000000000000000000000000000000000000000000000000002": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"
       },
       "contractName": "GlobalExitRootManagerL2"
-    },
-    {
-      "balance": "0",
-      "nonce": "0",
-      "address": "0x000000000000000000000000000000005ca1ab1e"
     }
   ]
 }

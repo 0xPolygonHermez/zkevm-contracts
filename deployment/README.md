@@ -15,7 +15,7 @@ cp .env.example .env
 Fill `.env` with your `MNEMONIC` and `INFURA_PROJECT_ID`
 
 ```
-cd deployment/deployment_v2-0
+cd deployment
 cp deploy_parameters.json.example deploy_parameters.json
 ```
 

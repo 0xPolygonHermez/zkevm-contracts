@@ -4,7 +4,7 @@
 const { ethers } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
 
