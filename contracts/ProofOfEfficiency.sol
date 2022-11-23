@@ -375,7 +375,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allows an aggregator to verify a multiple batches
+     * @notice Allows an aggregator to verify multiple batches
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed

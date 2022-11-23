@@ -66,7 +66,7 @@ Allows a sequencer to send multiple batches
     uint256[2] proofC
   ) public
 ```
-Allows an aggregator to verify a multiple batches
+Allows an aggregator to verify multiple batches
 
 
 #### Parameters:
