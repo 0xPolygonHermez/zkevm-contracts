@@ -621,7 +621,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allows to stop the zk-evm if its possible to prove a different state root give the same batches.
+     * @notice Allows to halt the PoE if its possible to prove a different state root given the same batches
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed

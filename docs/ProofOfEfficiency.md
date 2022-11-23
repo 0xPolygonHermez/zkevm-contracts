@@ -179,7 +179,7 @@ Allow the current security council to set a new security council address
     uint256[2] proofC
   ) public
 ```
-Allows to stop the zk-evm if its possible to prove a different state root give the same batches.
+Allows to halt the PoE if its possible to prove a different state root given the same batches
 
 
 #### Parameters:

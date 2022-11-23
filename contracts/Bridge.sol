@@ -562,7 +562,7 @@ contract Bridge is
         require(
             timestampGlobalExitRoot != 0 &&
                 (block.timestamp - timestampGlobalExitRoot) >= claimTimeout,
-            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID"
+            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID_OR_NOT_YET_CLAIMABLE"
         );
 
         // Destination network must be networkID

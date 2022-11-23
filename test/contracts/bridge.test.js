@@ -741,7 +741,7 @@ describe('Bridge Contract', () => {
             metadata,
         )).to.be.revertedWith('Bridge::_verifyLeaf: DESTINATION_NETWORK_DOES_NOT_MATCH');
 
-        // Check GLOBAL_EXIT_ROOT_INVALID assert
+        // Check GLOBAL_EXIT_ROOT_INVALID_OR_NOT_YET_CLAIMABLE assert
         await expect(bridgeContract.claimAsset(
             proof,
             index,
@@ -753,7 +753,7 @@ describe('Bridge Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID');
+        )).to.be.revertedWith('Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID_OR_NOT_YET_CLAIMABLE');
 
         // Check SMT_INVALID assert
         await expect(bridgeContract.claimAsset(
@@ -1228,7 +1228,7 @@ describe('Bridge Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID');
+        )).to.be.revertedWith('Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID_OR_NOT_YET_CLAIMABLE');
 
         // Can't claim because claim timeout does not expired yet ( edge case)
         await ethers.provider.send('evm_setNextBlockTimestamp', [(globalExitRootTimestamp.toNumber() + newClaimTimeout) - 1]);
@@ -1243,7 +1243,7 @@ describe('Bridge Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID');
+        )).to.be.revertedWith('Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID_OR_NOT_YET_CLAIMABLE');
 
         // Now can claim!
         await expect(bridgeContract.claimAsset(
