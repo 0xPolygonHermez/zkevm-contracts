@@ -255,7 +255,7 @@ describe('Emergency mode test', () => {
         // Finally enter in emergency mode again proving distinc state
 
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).proofDifferentState(
+            proofOfEfficiencyContract.connect(aggregator).proveNonDeterministicState(
                 numBatch - 1,
                 numBatch - 1,
                 newLocalExitRoot,
@@ -264,10 +264,10 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::proofDifferentState: finalNewBatch must be bigger than initNumBatch');
+        ).to.be.revertedWith('ProofOfEfficiency::proveNonDeterministicState: finalNewBatch must be bigger than initNumBatch');
 
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).proofDifferentState(
+            proofOfEfficiencyContract.connect(aggregator).proveNonDeterministicState(
                 numBatch - 1,
                 numBatch + 1,
                 newLocalExitRoot,
@@ -276,12 +276,12 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::proofDifferentState: finalNewBatch must be less or equal than lastVerifiedBatch');
+        ).to.be.revertedWith('ProofOfEfficiency::proveNonDeterministicState: finalNewBatch must be less or equal than lastVerifiedBatch');
 
         const newStateRootDistinct = '0x0000000000000000000000000000000000000000000000000000000000000002';
 
         await expect(
-            proofOfEfficiencyContract.proofDifferentState(
+            proofOfEfficiencyContract.proveNonDeterministicState(
                 numBatch - 1,
                 numBatch,
                 newLocalExitRoot,
@@ -290,7 +290,7 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(proofOfEfficiencyContract, 'ProofDifferentState').withArgs(newStateRoot, newStateRootDistinct)
+        ).to.emit(proofOfEfficiencyContract, 'ProveNonDeterministicState').withArgs(newStateRoot, newStateRootDistinct)
             .to.emit(proofOfEfficiencyContract, 'EmergencyStateActivated')
             .to.emit(bridgeContract, 'EmergencyStateActivated');
 

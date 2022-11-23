@@ -55,20 +55,18 @@ contract TokenWrapped is ERC20 {
         _DEPLOYMENT_DOMAIN_SEPARATOR = _calculateDomainSeparator(block.chainid);
     }
 
-    function mint(address to, uint256 value)
-        external
-        onlyBridge
-        returns (bool)
-    {
+    function mint(
+        address to,
+        uint256 value
+    ) external onlyBridge returns (bool) {
         _mint(to, value);
         return true;
     }
 
-    function burn(address account, uint256 value)
-        external
-        onlyBridge
-        returns (bool)
-    {
+    function burn(
+        address account,
+        uint256 value
+    ) external onlyBridge returns (bool) {
         _burn(account, value);
         return true;
     }
@@ -120,11 +118,9 @@ contract TokenWrapped is ERC20 {
      * @notice Calculate domain separator, given a chainID.
      * @param chainId Current chainID
      */
-    function _calculateDomainSeparator(uint256 chainId)
-        private
-        view
-        returns (bytes32)
-    {
+    function _calculateDomainSeparator(
+        uint256 chainId
+    ) private view returns (bytes32) {
         return
             keccak256(
                 abi.encode(

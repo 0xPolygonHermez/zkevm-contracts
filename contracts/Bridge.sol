@@ -587,11 +587,9 @@ contract Bridge is
      * @notice Function to extract the selector of a bytes calldata
      * @param _data The calldata bytes
      */
-    function _getSelector(bytes memory _data)
-        private
-        pure
-        returns (bytes4 sig)
-    {
+    function _getSelector(
+        bytes memory _data
+    ) private pure returns (bytes4 sig) {
         assembly {
             sig := mload(add(_data, 32))
         }

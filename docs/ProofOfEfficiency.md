@@ -167,9 +167,9 @@ Allow the current security council to set a new security council address
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newSecurityCouncil` | address | Address of the new security council
 
-### proofDifferentState
+### proveNonDeterministicState
 ```solidity
-  function proofDifferentState(
+  function proveNonDeterministicState(
     uint64 initNumBatch,
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
@@ -179,7 +179,7 @@ Allow the current security council to set a new security council address
     uint256[2] proofC
   ) public
 ```
-Allows to stop the zk-evm if its possible to proof a different state root give the same batches.
+Allows to stop the zk-evm if its possible to prove a different state root give the same batches.
 
 
 #### Parameters:
@@ -327,9 +327,9 @@ Emitted when a trusted sequencer update his URL
 
 Emitted when security council update his address
 
-### ProofDifferentState
+### ProveNonDeterministicState
 ```solidity
-  event ProofDifferentState(
+  event ProveNonDeterministicState(
   )
 ```
 

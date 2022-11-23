@@ -189,7 +189,10 @@ contract ProofOfEfficiency is
     /**
      * @dev Emitted when is proved a different state given the same batches
      */
-    event ProofDifferentState(bytes32 storedStateRoot, bytes32 provedStateRoot);
+    event ProveNonDeterministicState(
+        bytes32 storedStateRoot,
+        bytes32 provedStateRoot
+    );
 
     /**
      * @param _globalExitRootManager global exit root manager address
@@ -262,13 +265,14 @@ contract ProofOfEfficiency is
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which the necessary data to append new batces ot the sequence
      */
-    function sequenceBatches(BatchData[] memory batches)
-        public
-        ifNotEmergencyState
-        onlyTrustedSequencer
-    {
+    function sequenceBatches(
+        BatchData[] memory batches
+    ) public ifNotEmergencyState onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
-
+        require(
+            batchesNum > 0,
+            "ProofOfEfficiency::sequenceBatches: At least must sequence 1 batch"
+        );
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentTimestamp = lastTimestamp;
         uint64 currentBatchSequenced = lastBatchSequenced;
@@ -442,11 +446,10 @@ contract ProofOfEfficiency is
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * @param maticAmount Max amount of MATIC tokens that the sender is willing to pay
      */
-    function forceBatch(bytes memory transactions, uint256 maticAmount)
-        public
-        ifNotEmergencyState
-        isForceBatchAllowed
-    {
+    function forceBatch(
+        bytes memory transactions,
+        uint256 maticAmount
+    ) public ifNotEmergencyState isForceBatchAllowed {
         // Calculate matic collateral
         uint256 maticFee = calculateForceProverFee();
 
@@ -495,11 +498,9 @@ contract ProofOfEfficiency is
      * @notice Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
      * @param batches Struct array which the necessary data to append new batces ot the sequence
      */
-    function sequenceForceBatches(ForceBatchData[] memory batches)
-        public
-        ifNotEmergencyState
-        isForceBatchAllowed
-    {
+    function sequenceForceBatches(
+        ForceBatchData[] memory batches
+    ) public ifNotEmergencyState isForceBatchAllowed {
         uint256 batchesNum = batches.length;
 
         require(
@@ -575,10 +576,9 @@ contract ProofOfEfficiency is
      * @notice Allow the current trusted sequencer to set a new trusted sequencer
      * @param newTrustedSequencer Address of the new trusted sequuencer
      */
-    function setTrustedSequencer(address newTrustedSequencer)
-        public
-        onlyTrustedSequencer
-    {
+    function setTrustedSequencer(
+        address newTrustedSequencer
+    ) public onlyTrustedSequencer {
         trustedSequencer = newTrustedSequencer;
 
         emit SetTrustedSequencer(newTrustedSequencer);
@@ -588,10 +588,9 @@ contract ProofOfEfficiency is
      * @notice Allow the current trusted sequencer to allow/disallow the forceBatch functionality
      * @param newForceBatchAllowed Whether is allowed or not the forceBatch functionality
      */
-    function setForceBatchAllowed(bool newForceBatchAllowed)
-        public
-        onlyTrustedSequencer
-    {
+    function setForceBatchAllowed(
+        bool newForceBatchAllowed
+    ) public onlyTrustedSequencer {
         forceBatchAllowed = newForceBatchAllowed;
 
         emit SetForceBatchAllowed(newForceBatchAllowed);
@@ -601,10 +600,9 @@ contract ProofOfEfficiency is
      * @notice Allow the trusted sequencer to set the trusted sequencer URL
      * @param newTrustedSequencerURL URL of trusted sequencer
      */
-    function setTrustedSequencerURL(string memory newTrustedSequencerURL)
-        public
-        onlyTrustedSequencer
-    {
+    function setTrustedSequencerURL(
+        string memory newTrustedSequencerURL
+    ) public onlyTrustedSequencer {
         trustedSequencerURL = newTrustedSequencerURL;
 
         emit SetTrustedSequencerURL(newTrustedSequencerURL);
@@ -614,17 +612,16 @@ contract ProofOfEfficiency is
      * @notice Allow the current security council to set a new security council address
      * @param newSecurityCouncil Address of the new security council
      */
-    function setSecurityCouncil(address newSecurityCouncil)
-        public
-        onlySecurityCouncil
-    {
+    function setSecurityCouncil(
+        address newSecurityCouncil
+    ) public onlySecurityCouncil {
         securityCouncil = newSecurityCouncil;
 
         emit SetSecurityCouncil(newSecurityCouncil);
     }
 
     /**
-     * @notice Allows to stop the zk-evm if its possible to proof a different state root give the same batches.
+     * @notice Allows to stop the zk-evm if its possible to prove a different state root give the same batches.
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
@@ -633,7 +630,7 @@ contract ProofOfEfficiency is
      * @param proofB zk-snark input
      * @param proofC zk-snark input
      */
-    function proofDifferentState(
+    function proveNonDeterministicState(
         uint64 initNumBatch,
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
@@ -644,22 +641,22 @@ contract ProofOfEfficiency is
     ) public ifNotEmergencyState {
         require(
             initNumBatch < finalNewBatch,
-            "ProofOfEfficiency::proofDifferentState: finalNewBatch must be bigger than initNumBatch"
+            "ProofOfEfficiency::proveNonDeterministicState: finalNewBatch must be bigger than initNumBatch"
         );
 
         require(
             finalNewBatch <= lastVerifiedBatch,
-            "ProofOfEfficiency::proofDifferentState: finalNewBatch must be less or equal than lastVerifiedBatch"
+            "ProofOfEfficiency::proveNonDeterministicState: finalNewBatch must be less or equal than lastVerifiedBatch"
         );
 
         require(
             batchNumToStateRoot[initNumBatch] != bytes32(0),
-            "ProofOfEfficiency::proofDifferentState: initNumBatch state root does not exist"
+            "ProofOfEfficiency::proveNonDeterministicState: initNumBatch state root does not exist"
         );
 
         require(
             batchNumToStateRoot[finalNewBatch] != bytes32(0),
-            "ProofOfEfficiency::proofDifferentState: finalNewBatch state root does not exist"
+            "ProofOfEfficiency::proveNonDeterministicState: finalNewBatch state root does not exist"
         );
 
         bytes memory snarkHashBytes = getInputSnarkBytes(
@@ -675,15 +672,15 @@ contract ProofOfEfficiency is
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "ProofOfEfficiency::proofDifferentState: INVALID_PROOF"
+            "ProofOfEfficiency::proveNonDeterministicState: INVALID_PROOF"
         );
 
         require(
             batchNumToStateRoot[finalNewBatch] != newStateRoot,
-            "ProofOfEfficiency::proofDifferentState: stored root must be different than new state root"
+            "ProofOfEfficiency::proveNonDeterministicState: stored root must be different than new state root"
         );
 
-        emit ProofDifferentState(
+        emit ProveNonDeterministicState(
             batchNumToStateRoot[finalNewBatch],
             newStateRoot
         );
