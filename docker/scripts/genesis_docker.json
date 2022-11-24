@@ -1,5 +1,5 @@
 {
-  "root": "0xd95c3987484f77ca1b7d8dc210004b5fb0b5f59186c3b7f02e6e7d5aadd6485f",
+  "root": "0xbf34f9a52a63229e90d1016011655bc12140bba5b771817b88cbf340d08dcbde",
   "genesis": [
     {
       "balance": "100000000000000000000000",
@@ -35,11 +35,6 @@
         "0x0000000000000000000000000000000000000000000000000000000000000002": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"
       },
       "contractName": "GlobalExitRootManagerL2"
-    },
-    {
-      "balance": "0",
-      "nonce": "0",
-      "address": "0x000000000000000000000000000000005ca1ab1e"
     }
   ]
 }

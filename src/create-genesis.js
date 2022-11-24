@@ -136,13 +136,13 @@ async function main() {
         rawTxs.push(customRawTx);
     }
 
-    const skipUpdateSystemStorage = true;
+    const options = { skipUpdateSystemStorage: true };
     const batch = await zkEVMDB.buildBatch(
         timestamp,
         sequencerAddress,
         smtUtils.stringToH4(globalExitRoot),
         undefined,
-        skipUpdateSystemStorage,
+        options,
     );
     for (let j = 0; j < rawTxs.length; j++) {
         batch.addRawTx(rawTxs[j]);
