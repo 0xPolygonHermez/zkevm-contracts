@@ -9,6 +9,7 @@ describe('Proof of efficiency', () => {
     let deployer;
     let aggregator;
     let trustedSequencer;
+    let securityCouncil;
 
     let verifierContract;
     let bridgeContract;
@@ -20,7 +21,7 @@ describe('Proof of efficiency', () => {
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
-    const genesisRoot = ethers.constants.HashZero;
+    const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
     const networkIDMainnet = 0;
     const allowForcebatches = true;
@@ -30,7 +31,7 @@ describe('Proof of efficiency', () => {
 
     beforeEach('Deploy contract', async () => {
         // load signers
-        [deployer, aggregator, trustedSequencer] = await ethers.getSigners();
+        [deployer, aggregator, trustedSequencer, securityCouncil] = await ethers.getSigners();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
@@ -60,8 +61,9 @@ describe('Proof of efficiency', () => {
         const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
         proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
 
+        const claimTimeout = 0;
         await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address, claimTimeout);
         await proofOfEfficiencyContract.initialize(
             globalExitRootManager.address,
             maticTokenContract.address,
@@ -72,6 +74,8 @@ describe('Proof of efficiency', () => {
             urlSequencer,
             chainID,
             networkName,
+            bridgeContract.address,
+            securityCouncil.address,
         );
 
         // fund sequencer address with Matic tokens
@@ -85,6 +89,9 @@ describe('Proof of efficiency', () => {
         expect(await proofOfEfficiencyContract.batchNumToStateRoot(0)).to.be.equal(genesisRoot);
         expect(await proofOfEfficiencyContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
         expect(await proofOfEfficiencyContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
+        expect(await proofOfEfficiencyContract.bridgeAddress()).to.be.equal(bridgeContract.address);
+        expect(await proofOfEfficiencyContract.securityCouncil()).to.be.equal(securityCouncil.address);
+        expect(await proofOfEfficiencyContract.owner()).to.be.equal(deployer.address);
     });
 
     it('should check setters of trusted sequencer', async () => {
@@ -118,7 +125,7 @@ describe('Proof of efficiency', () => {
         expect(await proofOfEfficiencyContract.trustedSequencerURL()).to.be.equal(url);
     });
 
-    it('should sequence a batch as super sequencer', async () => {
+    it('should sequence a batch as truested sequencer', async () => {
         const l2txData = '0x123456';
         const maticAmount = await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
@@ -130,7 +137,7 @@ describe('Proof of efficiency', () => {
             minForcedTimestamp: 0,
         };
 
-        // revert because sender is not super sequencer
+        // revert because sender is not truested sequencer
         await expect(proofOfEfficiencyContract.sequenceBatches([sequence]))
             .to.be.revertedWith('ProofOfEfficiency::onlyTrustedSequencer: only trusted sequencer');
 
@@ -598,7 +605,7 @@ describe('Proof of efficiency', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: newVerifiedBatch must be bigger than lastVerifiedBatch');
+        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than lastVerifiedBatch');
 
         await expect(
             proofOfEfficiencyContract.connect(aggregator).verifyBatches(

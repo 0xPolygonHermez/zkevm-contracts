@@ -7,14 +7,21 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "./interfaces/IBridgeMessageReceiver.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
+import "./interfaces/IBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+import "./lib/EmergencyManager.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is DepositContract {
+contract Bridge is
+    DepositContract,
+    EmergencyManager,
+    IBridge,
+    OwnableUpgradeable
+{
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Wrapped Token information struct
@@ -24,10 +31,10 @@ contract Bridge is DepositContract {
     }
 
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)")));
-    bytes4 constant _PERMIT_SIGNATURE = 0xd505accf;
+    bytes4 private constant _PERMIT_SIGNATURE = 0xd505accf;
 
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)")));
-    bytes4 constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
+    bytes4 private constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
 
     // Mainnet indentifier
     uint32 public constant MAINNET_NETWORK_ID = 0;
@@ -53,8 +60,11 @@ contract Bridge is DepositContract {
     // Global Exit Root address
     IGlobalExitRootManager public globalExitRootManager;
 
-    // Addres of the token wrapped implementation
-    address public tokenImplementation;
+    // Proof of Efficiency address
+    address public poeAddress;
+
+    // Claim timeout period
+    uint256 public claimTimeout;
 
     /**
      * @param _networkID networkID
@@ -62,11 +72,25 @@ contract Bridge is DepositContract {
      */
     function initialize(
         uint32 _networkID,
-        IGlobalExitRootManager _globalExitRootManager
+        IGlobalExitRootManager _globalExitRootManager,
+        address _poeAddress,
+        uint256 _claimTimeout
     ) public virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
-        tokenImplementation = address(new TokenWrapped());
+        poeAddress = _poeAddress;
+        claimTimeout = _claimTimeout;
+
+        // Initialize OZ contracts
+        __Ownable_init_unchained();
+    }
+
+    modifier onlyProofOfEfficiency() {
+        require(
+            poeAddress == msg.sender,
+            "ProofOfEfficiency::onlyProofOfEfficiency: only Proof of Efficiency contract"
+        );
+        _;
     }
 
     /**
@@ -95,13 +119,18 @@ contract Bridge is DepositContract {
     );
 
     /**
-     * @dev Emitted when a a new wrapped token is created
+     * @dev Emitted when a new wrapped token is created
      */
     event NewWrappedToken(
         uint32 originNetwork,
         address originTokenAddress,
         address wrappedTokenAddress
     );
+
+    /**
+     * @dev Emitted when newClaimTimeout is updated
+     */
+    event SetClaimTimeout(uint256 newClaimTimeout);
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
@@ -117,7 +146,7 @@ contract Bridge is DepositContract {
         address destinationAddress,
         uint256 amount,
         bytes calldata permitData
-    ) public payable virtual {
+    ) public payable virtual ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
             "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
@@ -207,7 +236,7 @@ contract Bridge is DepositContract {
         uint32 destinationNetwork,
         address destinationAddress,
         bytes memory metadata
-    ) public payable virtual {
+    ) public payable ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
             "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
@@ -264,67 +293,21 @@ contract Bridge is DepositContract {
         address destinationAddress,
         uint256 amount,
         bytes memory metadata
-    ) public {
-        // Check nullifier
-        require(
-            claimNullifier[index] == false,
-            "Bridge::claim: ALREADY_CLAIMED"
+    ) public ifNotEmergencyState {
+        // Verify leaf exist and it does not have been claimed
+        _verifyLeaf(
+            smtProof,
+            index,
+            mainnetExitRoot,
+            rollupExitRoot,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
+            LEAF_TYPE_ASSET
         );
-
-        // Check that the merkle proof belongs to some global exit root
-        // TODO this should be a SMTproof
-        require(
-            globalExitRootManager.globalExitRootMap(
-                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
-            ) != 0,
-            "Bridge::claim: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
-        );
-
-        // Destination network must be networkID
-        require(
-            destinationNetwork == networkID,
-            "Bridge::claim: DESTINATION_NETWORK_DOES_NOT_MATCH"
-        );
-
-        if (networkID == MAINNET_NETWORK_ID) {
-            // Verify merkle proof using rollup exit root
-            require(
-                verifyMerkleProof(
-                    getLeafValue(
-                        LEAF_TYPE_ASSET,
-                        originNetwork,
-                        originTokenAddress,
-                        destinationNetwork,
-                        destinationAddress,
-                        amount,
-                        keccak256(metadata)
-                    ),
-                    smtProof,
-                    index,
-                    rollupExitRoot
-                ),
-                "Bridge::claim: SMT_INVALID"
-            );
-        } else {
-            // Verify merkle proof using mainnet exit root
-            require(
-                verifyMerkleProof(
-                    getLeafValue(
-                        LEAF_TYPE_ASSET,
-                        originNetwork,
-                        originTokenAddress,
-                        destinationNetwork,
-                        destinationAddress,
-                        amount,
-                        keccak256(metadata)
-                    ),
-                    smtProof,
-                    index,
-                    mainnetExitRoot
-                ),
-                "Bridge::claim: SMT_INVALID"
-            );
-        }
 
         // Update nullifier
         claimNullifier[index] = true;
@@ -336,7 +319,7 @@ contract Bridge is DepositContract {
             (bool success, ) = destinationAddress.call{value: amount}(
                 new bytes(0)
             );
-            require(success, "Bridge::claim: ETH_TRANSFER_FAILED");
+            require(success, "Bridge::claimAsset: ETH_TRANSFER_FAILED");
         } else {
             // Transfer tokens
             if (originNetwork == networkID) {
@@ -354,14 +337,6 @@ contract Bridge is DepositContract {
                 address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
 
                 if (wrappedToken == address(0)) {
-                    // Create a new wrapped erc20
-                    TokenWrapped newWrappedToken = TokenWrapped(
-                        ClonesUpgradeable.cloneDeterministic(
-                            tokenImplementation,
-                            tokenInfoHash
-                        )
-                    );
-
                     // Get ERC20 metadata
                     (
                         string memory name,
@@ -369,14 +344,13 @@ contract Bridge is DepositContract {
                         uint8 decimals
                     ) = abi.decode(metadata, (string, string, uint8));
 
-                    // Initialize wrapped token
-                    newWrappedToken.initialize(
-                        name,
-                        symbol,
-                        decimals,
-                        destinationAddress,
-                        amount
-                    );
+                    // Create a new wrapped erc20 using create2
+                    TokenWrapped newWrappedToken = (new TokenWrapped){
+                        salt: tokenInfoHash
+                    }(name, symbol, decimals);
+
+                    // Mint tokens for the destination address
+                    newWrappedToken.mint(destinationAddress, amount);
 
                     // Create mappings
                     tokenInfoToWrappedToken[tokenInfoHash] = address(
@@ -432,68 +406,21 @@ contract Bridge is DepositContract {
         address destinationAddress,
         uint256 amount,
         bytes memory metadata
-    ) public {
-        // Should check if is a claimMessage or a claimAssetl
-        // Check nullifier
-        require(
-            claimNullifier[index] == false,
-            "Bridge::claimMessage: ALREADY_CLAIMED"
+    ) public ifNotEmergencyState {
+        // Verify leaf exist and it does not have been claimed
+        _verifyLeaf(
+            smtProof,
+            index,
+            mainnetExitRoot,
+            rollupExitRoot,
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
+            LEAF_TYPE_MESSAGE
         );
-
-        // Check that the merkle proof belongs to some global exit root
-        // TODO this should be a SMTproof
-        require(
-            globalExitRootManager.globalExitRootMap(
-                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
-            ) != 0,
-            "Bridge::claimMessage: GLOBAL_EXIT_ROOT_DOES_NOT_MATCH"
-        );
-
-        // Destination network must be networkID
-        require(
-            destinationNetwork == networkID,
-            "Bridge::claimMessage: DESTINATION_NETWORK_DOES_NOT_MATCH"
-        );
-
-        if (networkID == MAINNET_NETWORK_ID) {
-            // Verify merkle proof using rollup exit root
-            require(
-                verifyMerkleProof(
-                    getLeafValue(
-                        LEAF_TYPE_MESSAGE,
-                        originNetwork,
-                        originAddress,
-                        destinationNetwork,
-                        destinationAddress,
-                        amount,
-                        keccak256(metadata)
-                    ),
-                    smtProof,
-                    index,
-                    rollupExitRoot
-                ),
-                "Bridge::claimMessage: SMT_INVALID"
-            );
-        } else {
-            // Verify merkle proof using mainnet exit root
-            require(
-                verifyMerkleProof(
-                    getLeafValue(
-                        LEAF_TYPE_MESSAGE,
-                        originNetwork,
-                        originAddress,
-                        destinationNetwork,
-                        destinationAddress,
-                        amount,
-                        keccak256(metadata)
-                    ),
-                    smtProof,
-                    index,
-                    mainnetExitRoot
-                ),
-                "Bridge::claimMessage: SMT_INVALID"
-            );
-        }
 
         // Update nullifier
         claimNullifier[index] = true;
@@ -525,16 +452,31 @@ contract Bridge is DepositContract {
      */
     function precalculatedWrapperAddress(
         uint32 originNetwork,
-        address originTokenAddress
+        address originTokenAddress,
+        string calldata name,
+        string calldata symbol,
+        uint8 decimals
     ) public view returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
-        return
-            ClonesUpgradeable.predictDeterministicAddress(
-                tokenImplementation,
-                salt
-            );
+
+        bytes32 hashCreate2 = keccak256(
+            abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                salt,
+                keccak256(
+                    abi.encodePacked(
+                        type(TokenWrapped).creationCode,
+                        abi.encode(name, symbol, decimals)
+                    )
+                )
+            )
+        );
+
+        // last 20 bytes of hash to address
+        return address(uint160(uint256(hashCreate2)));
     }
 
     /**
@@ -553,14 +495,116 @@ contract Bridge is DepositContract {
     }
 
     /**
+     * @notice Function to activate the emergency state
+     " Only can be called by the proof of efficiency in extreme situations
+     */
+    function activateEmergencyState() external onlyProofOfEfficiency {
+        _activateEmergencyState();
+    }
+
+    /**
+     * @notice Function to deactivate the emergency state
+     " Only can be called by the proof of efficiency
+     */
+    function deactivateEmergencyState() external onlyProofOfEfficiency {
+        _deactivateEmergencyState();
+    }
+
+    /**
+     * @notice Function to update the claim timeout
+     * @param newClaimTimeout new claim timeout value
+     * Only can be called by the owner
+     */
+    function setClaimTimeout(uint256 newClaimTimeout) external onlyOwner {
+        claimTimeout = newClaimTimeout;
+        emit SetClaimTimeout(newClaimTimeout);
+    }
+
+    /**
+     * @notice Verify leaf and checks that it has not been claimed
+     * @param smtProof Smt proof
+     * @param index Index of the leaf
+     * @param mainnetExitRoot Mainnet exit root
+     * @param rollupExitRoot Rollup exit root
+     * @param originNetwork Origin network
+     * @param originAddress Origin address
+     * @param destinationNetwork Network destination
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens
+     * @param metadata Abi encoded metadata if any, empty otherwise
+     * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
+     */
+    function _verifyLeaf(
+        bytes32[] memory smtProof,
+        uint32 index,
+        bytes32 mainnetExitRoot,
+        bytes32 rollupExitRoot,
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes memory metadata,
+        uint8 leafType
+    ) internal {
+        // Check nullifier
+        require(
+            claimNullifier[index] == false,
+            "Bridge::_verifyLeaf: ALREADY_CLAIMED"
+        );
+
+        // Check timestamp where the global exit root was set
+        uint256 timestampGlobalExitRoot = globalExitRootManager
+            .globalExitRootMap(
+                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
+            );
+
+        require(
+            timestampGlobalExitRoot != 0 &&
+                (block.timestamp - timestampGlobalExitRoot) >= claimTimeout,
+            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID_OR_NOT_YET_CLAIMABLE"
+        );
+
+        // Destination network must be networkID
+        require(
+            destinationNetwork == networkID,
+            "Bridge::_verifyLeaf: DESTINATION_NETWORK_DOES_NOT_MATCH"
+        );
+
+        bytes32 claimRoot;
+        if (networkID == MAINNET_NETWORK_ID) {
+            // Verify merkle proof using rollup exit root
+            claimRoot = rollupExitRoot;
+        } else {
+            // Verify merkle proof using mainnet exit root
+            claimRoot = mainnetExitRoot;
+        }
+        require(
+            verifyMerkleProof(
+                getLeafValue(
+                    leafType,
+                    originNetwork,
+                    originAddress,
+                    destinationNetwork,
+                    destinationAddress,
+                    amount,
+                    keccak256(metadata)
+                ),
+                smtProof,
+                index,
+                claimRoot
+            ),
+            "Bridge::_verifyLeaf: SMT_INVALID"
+        );
+    }
+
+    /**
      * @notice Function to extract the selector of a bytes calldata
      * @param _data The calldata bytes
      */
-    function _getSelector(bytes memory _data)
-        private
-        pure
-        returns (bytes4 sig)
-    {
+    function _getSelector(
+        bytes memory _data
+    ) private pure returns (bytes4 sig) {
         assembly {
             sig := mload(add(_data, 32))
         }

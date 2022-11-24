@@ -18,7 +18,9 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     bool _forceBatchAllowed,
     string _trustedSequencerURL,
     uint64 _chainID,
-    string _networkName
+    string _networkName,
+    contract IBridge _bridgeAddress,
+    address _securityCouncil
   ) public
 ```
 
@@ -35,6 +37,8 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 |`_trustedSequencerURL` | string | trusted sequencer URL
 |`_chainID` | uint64 | L2 chainID
 |`_networkName` | string | L2 network name
+|`_bridgeAddress` | contract IBridge | bridge address
+|`_securityCouncil` | address | security council
 
 ### sequenceBatches
 ```solidity
@@ -53,8 +57,8 @@ Allows a sequencer to send multiple batches
 ### verifyBatches
 ```solidity
   function verifyBatches(
-    uint64 _lastVerifiedBatch,
-    uint64 newVerifiedBatch,
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
     uint256[2] proofA,
@@ -62,14 +66,14 @@ Allows a sequencer to send multiple batches
     uint256[2] proofC
   ) public
 ```
-Allows an aggregator to verify a batch
+Allows an aggregator to verify multiple batches
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_lastVerifiedBatch` | uint64 | Last verified Batch
-|`newVerifiedBatch` | uint64 | Last batch that the aggregator intends to verify
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 |`proofA` | uint256[2] | zk-snark input
@@ -149,6 +153,67 @@ Allow the trusted sequencer to set the trusted sequencer URL
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newTrustedSequencerURL` | string | URL of trusted sequencer
 
+### setSecurityCouncil
+```solidity
+  function setSecurityCouncil(
+    address newSecurityCouncil
+  ) public
+```
+Allow the current security council to set a new security council address
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newSecurityCouncil` | address | Address of the new security council
+
+### proveNonDeterministicState
+```solidity
+  function proveNonDeterministicState(
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot,
+    uint256[2] proofA,
+    uint256[2][2] proofB,
+    uint256[2] proofC
+  ) public
+```
+Allows to halt the PoE if its possible to prove a different state root given the same batches
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proofA` | uint256[2] | zk-snark input
+|`proofB` | uint256[2][2] | zk-snark input
+|`proofC` | uint256[2] | zk-snark input
+
+### activateEmergencyState
+```solidity
+  function activateEmergencyState(
+  ) external
+```
+Function to activate emergency state on both PoE and Bridge contrats
+Only can be called by the owner in the bootstrap phase, once the owner is renounced, the system
+can only be put on this state by proving a distinct state root given the same batches
+
+
+
+### deactivateEmergencyState
+```solidity
+  function deactivateEmergencyState(
+  ) external
+```
+Function to deactivate emergency state on both PoE and Bridge contrats
+Only can be called by the security council
+
+
+
 ### calculateForceProverFee
 ```solidity
   function calculateForceProverFee(
@@ -171,9 +236,29 @@ Function to calculate the reward to verify a single batch
 ### getInputSnarkBytes
 ```solidity
   function getInputSnarkBytes(
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot
   ) public returns (bytes)
 ```
+Function to calculate the input snark bytes
 
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`initNumBatch` | uint64 | Batch which the aggregator starts teh verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+
+### _activateEmergencyState
+```solidity
+  function _activateEmergencyState(
+  ) internal
+```
+Internal function to activate emergency state on both PoE and Bridge contrats
 
 
 
@@ -233,4 +318,20 @@ Emitted when a trusted sequencer update the forcebatch boolean
 ```
 
 Emitted when a trusted sequencer update his URL
+
+### SetSecurityCouncil
+```solidity
+  event SetSecurityCouncil(
+  )
+```
+
+Emitted when security council update his address
+
+### ProveNonDeterministicState
+```solidity
+  event ProveNonDeterministicState(
+  )
+```
+
+Emitted when is proved a different state given the same batches
 

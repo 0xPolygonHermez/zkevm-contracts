@@ -18,9 +18,6 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
     // Store every global exit root: Root --> rootNum
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // Current global exit roots stored
-    uint256 public lastGlobalExitRootNum;
-
     // Bridge address
     address public bridgeAddress;
 
@@ -31,7 +28,6 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
      * @dev Emitted when the the global exit root is updated
      */
     event UpdateGlobalExitRoot(
-        uint256 indexed globalExitRootNum,
         bytes32 indexed mainnetExitRoot,
         bytes32 indexed rollupExitRoot
     );
@@ -64,18 +60,15 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
             lastMainnetExitRoot = newRoot;
         }
 
-        lastGlobalExitRootNum++;
-
         bytes32 newGlobalExitRoot = keccak256(
             abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
         );
-        globalExitRootMap[newGlobalExitRoot] = lastGlobalExitRootNum;
 
-        emit UpdateGlobalExitRoot(
-            lastGlobalExitRootNum,
-            lastMainnetExitRoot,
-            lastRollupExitRoot
-        );
+        // If it already exist, do not modify the timestamp
+        if (globalExitRootMap[newGlobalExitRoot] == 0) {
+            globalExitRootMap[newGlobalExitRoot] = block.timestamp;
+            emit UpdateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);
+        }
     }
 
     /**

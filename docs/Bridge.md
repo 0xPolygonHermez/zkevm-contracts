@@ -154,6 +154,75 @@ Returns the address of a wrapper using the token information if already exist
 |`originNetwork` | uint32 | Origin network
 |`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
 
+### activateEmergencyState
+```solidity
+  function activateEmergencyState(
+  ) external
+```
+Function to activate the emergency state
+     " Only can be called by the proof of efficiency in extreme situations
+
+
+
+### deactivateEmergencyState
+```solidity
+  function deactivateEmergencyState(
+  ) external
+```
+Function to deactivate the emergency state
+     " Only can be called by the proof of efficiency
+
+
+
+### setClaimTimeout
+```solidity
+  function setClaimTimeout(
+    uint256 newClaimTimeout
+  ) external
+```
+Function to update the claim timeout
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newClaimTimeout` | uint256 | new claim timeout value
+Only can be called by the owner
+
+### _verifyLeaf
+```solidity
+  function _verifyLeaf(
+    bytes32[] smtProof,
+    uint32 index,
+    bytes32 mainnetExitRoot,
+    bytes32 rollupExitRoot,
+    uint32 originNetwork,
+    address originAddress,
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amount,
+    bytes metadata,
+    uint8 leafType
+  ) internal
+```
+Verify leaf and checks that it has not been claimed
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`smtProof` | bytes32[] | Smt proof
+|`index` | uint32 | Index of the leaf
+|`mainnetExitRoot` | bytes32 | Mainnet exit root
+|`rollupExitRoot` | bytes32 | Rollup exit root
+|`originNetwork` | uint32 | Origin network
+|`originAddress` | address | Origin address
+|`destinationNetwork` | uint32 | Network destination
+|`destinationAddress` | address | Address destination
+|`amount` | uint256 | Amount of tokens
+|`metadata` | bytes | Abi encoded metadata if any, empty otherwise
+|`leafType` | uint8 | Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
+
 ### _permit
 ```solidity
   function _permit(
@@ -194,5 +263,13 @@ Emitted when a claim is done from another network
   )
 ```
 
-Emitted when a a new wrapped token is created
+Emitted when a new wrapped token is created
+
+### SetClaimTimeout
+```solidity
+  event SetClaimTimeout(
+  )
+```
+
+Emitted when newClaimTimeout is updated
 

@@ -1,3 +1,5 @@
+/* eslint-disable no-await-in-loop */
+
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 const { Scalar } = require('ffjavascript');
@@ -25,19 +27,20 @@ describe('Real flow test', () => {
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
 
-    const genesisRoot = ethers.constants.HashZero;
+    const genesisRoot = inputJson.oldStateRoot;
 
     const networkIDMainnet = 0;
     const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
-    const chainID = inputJson.chainId;
+    const { chainID } = inputJson;
     const networkName = 'zkevm';
 
     beforeEach('Deploy contract', async () => {
         // load signers
         [deployer] = await ethers.getSigners();
 
-        const trustedSequencerAddress = inputJson.sequencerAddr;
+        // Could be different address teorically but for now it's fine
+        const trustedSequencerAddress = inputJson.singleBatchData[0].sequencerAddr;
         await ethers.provider.send('hardhat_impersonateAccount', [trustedSequencerAddress]);
         trustedSequencer = await ethers.getSigner(trustedSequencerAddress);
         await deployer.sendTransaction({
@@ -71,8 +74,10 @@ describe('Real flow test', () => {
 
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerMock');
+        const claimTimeout = 0;
+
         globalExitRootManager = await globalExitRootManagerFactory.deploy(proofOfEfficiencyContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address, claimTimeout);
 
         await proofOfEfficiencyContract.initialize(
             globalExitRootManager.address,
@@ -84,6 +89,8 @@ describe('Real flow test', () => {
             urlSequencer,
             chainID,
             networkName,
+            bridgeContract.address,
+            ethers.constants.AddressZero,
         );
 
         // fund sequencer address with Matic tokens
@@ -91,71 +98,72 @@ describe('Real flow test', () => {
     });
 
     it('Test real prover', async () => {
-        const {
-            proofA, proofB, proofC, input,
-        } = generateSolidityInputs(proofJson, publicJson);
-
-        const batchAccInputHashJs = calculateAccInputHash(
-            inputJson.oldAccInputHash,
-            calculateBatchHashData(inputJson.batchL2Data),
-            inputJson.globalExitRoot,
-            inputJson.timestamp,
-            inputJson.sequencerAddr,
-        );
-        expect(batchAccInputHashJs).to.be.eq(inputJson.newAccInputHash);
-
-        const circuitInputStarkJS = await calculateSnarkInput(
-            inputJson.oldStateRoot,
-            inputJson.newStateRoot,
-            inputJson.newLocalExitRoot,
-            inputJson.oldAccInputHash,
-            inputJson.newAccInputHash,
-            inputJson.numBatch - 1,
-            inputJson.numBatch,
-            inputJson.timestamp,
-            inputJson.chainId,
-            inputJson.aggregatorAddress,
-        );
-        expect(circuitInputStarkJS).to.be.eq(Scalar.e(input[0]));
+        const batchesData = inputJson.singleBatchData;
+        const batchesNum = batchesData.length;
 
         // Approve tokens
         const maticAmount = await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE();
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount.mul(batchesNum)),
         ).to.emit(maticTokenContract, 'Approval');
 
-        // set timestamp for the sendBatch call
-        const sequence = {
-            transactions: inputJson.batchL2Data,
-            globalExitRoot: inputJson.globalExitRoot,
-            timestamp: inputJson.timestamp,
-            forceBatchesTimestamp: [],
-        };
+        // prepare PoE
+        await proofOfEfficiencyContract.setVerifiedBatch(inputJson.oldNumBatch);
+        await proofOfEfficiencyContract.setSequencedBatch(inputJson.oldNumBatch);
+        const lastTimestamp = batchesData[batchesNum - 1].timestamp;
+        await ethers.provider.send('evm_setNextBlockTimestamp', [lastTimestamp]);
 
-        // prapare globalExitRoot
-        await globalExitRootManager.setLastGlobalExitRootNum(1);
-        await globalExitRootManager.setLastGlobalExitRoot(sequence.globalExitRoot);
+        for (let i = 0; i < batchesNum; i++) {
+            // set timestamp for the sendBatch call
+            const currentBatchData = batchesData[i];
 
-        await proofOfEfficiencyContract.setVerifiedBatch(inputJson.numBatch - 1);
-        await proofOfEfficiencyContract.setSequencedBatch(inputJson.numBatch - 1);
+            const currentSequence = {
+                transactions: currentBatchData.batchL2Data,
+                globalExitRoot: currentBatchData.globalExitRoot,
+                timestamp: currentBatchData.timestamp,
+                minForcedTimestamp: 0,
+            };
 
-        const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
+            const batchAccInputHashJs = calculateAccInputHash(
+                currentBatchData.oldAccInputHash,
+                calculateBatchHashData(currentBatchData.batchL2Data),
+                currentBatchData.globalExitRoot,
+                currentBatchData.timestamp,
+                currentBatchData.sequencerAddr, // fix
+            );
+            expect(batchAccInputHashJs).to.be.eq(currentBatchData.newAccInputHash);
 
-        await ethers.provider.send('evm_setNextBlockTimestamp', [sequence.timestamp]);
+            // prapare globalExitRoot
+            const randomTimestamp = 1001;
+            const { globalExitRoot } = batchesData[0];
+            await globalExitRootManager.setGlobalExitRoot(globalExitRoot, randomTimestamp);
 
-        // Sequence Batches
-        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
-            .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
-            .withArgs(Number(lastBatchSequenced) + 1);
+            const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
 
-        // aggregator forge the batch
-        const { newLocalExitRoot } = inputJson;
-        const { newStateRoot } = inputJson;
-        const { numBatch } = inputJson;
+            // check trusted sequencer
+            const trustedSequencerAddress = inputJson.singleBatchData[i].sequencerAddr;
+            if (trustedSequencer.address !== trustedSequencerAddress) {
+                await proofOfEfficiencyContract.connect(trustedSequencer).setTrustedSequencer(trustedSequencerAddress);
+                await ethers.provider.send('hardhat_impersonateAccount', [trustedSequencerAddress]);
+                trustedSequencer = await ethers.getSigner(trustedSequencerAddress);
+                await deployer.sendTransaction({
+                    to: trustedSequencerAddress,
+                    value: ethers.utils.parseEther('4'),
+                });
+                await expect(
+                    maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount.mul(batchesNum)),
+                ).to.emit(maticTokenContract, 'Approval');
+                await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('100'));
+            }
+
+            // Sequence Batches
+            await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([currentSequence]))
+                .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
+                .withArgs(Number(lastBatchSequenced) + 1);
+        }
 
         // Set state and exit root
-        await proofOfEfficiencyContract.setStateRoot(inputJson.oldStateRoot);
-        await proofOfEfficiencyContract.setExitRoot(inputJson.oldLocalExitRoot);
+        await proofOfEfficiencyContract.setStateRoot(inputJson.oldStateRoot, inputJson.oldNumBatch);
 
         const { aggregatorAddress } = inputJson;
         await ethers.provider.send('hardhat_impersonateAccount', [aggregatorAddress]);
@@ -165,17 +173,46 @@ describe('Real flow test', () => {
             value: ethers.utils.parseEther('4'),
         });
 
+        const batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(inputJson.newNumBatch);
+        expect(batchAccInputHash).to.be.equal(inputJson.newAccInputHash);
+
+        const {
+            proofA, proofB, proofC, input,
+        } = generateSolidityInputs(proofJson, publicJson);
+
+        // Verify snark input
+        const circuitInputStarkJS = await calculateSnarkInput(
+            inputJson.oldStateRoot,
+            inputJson.newStateRoot,
+            inputJson.newLocalExitRoot,
+            inputJson.oldAccInputHash,
+            inputJson.newAccInputHash,
+            inputJson.oldNumBatch,
+            inputJson.newNumBatch,
+            inputJson.chainID,
+            inputJson.aggregatorAddress,
+        );
+
+        expect(circuitInputStarkJS).to.be.eq(Scalar.e(input[0]));
+
+        // aggregator forge the batch
+        const { newLocalExitRoot } = inputJson;
+        const { newStateRoot } = inputJson;
+        const { oldNumBatch } = inputJson;
+        const { newNumBatch } = inputJson;
+
         // Verify batch
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatch(
+            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+                oldNumBatch,
+                newNumBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                numBatch,
                 proofA,
                 proofB,
                 proofC,
             ),
-        ).to.emit(proofOfEfficiencyContract, 'VerifyBatch')
-            .withArgs(numBatch, aggregator.address);
+        ).to.emit(proofOfEfficiencyContract, 'VerifyBatches')
+            .withArgs(newNumBatch, newStateRoot, aggregator.address);
     });
 });

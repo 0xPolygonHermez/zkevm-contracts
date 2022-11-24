@@ -18,17 +18,19 @@ contract GlobalExitRootManagerMock is GlobalExitRootManager {
 
     /**
      * @notice Set last global exit root
-     * @param globalExitRoot New global exit root
+     * @param timestamp timestamp
      */
-    function setLastGlobalExitRoot(bytes32 globalExitRoot) public {
-        globalExitRootMap[globalExitRoot] = lastGlobalExitRootNum;
+    function setLastGlobalExitRoot(uint256 timestamp) public {
+        globalExitRootMap[getLastGlobalExitRoot()] = timestamp;
     }
 
     /**
-     * @notice Set last global exit root num
-     * @param _lastGlobalExitRootNum New global exit root
+     * @notice Set last global exit root
+     * @param timestamp timestamp
      */
-    function setLastGlobalExitRootNum(uint256 _lastGlobalExitRootNum) public {
-        lastGlobalExitRootNum = _lastGlobalExitRootNum;
+    function setGlobalExitRoot(bytes32 globalExitRoot, uint256 timestamp)
+        public
+    {
+        globalExitRootMap[globalExitRoot] = timestamp;
     }
 }

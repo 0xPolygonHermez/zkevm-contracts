@@ -15,13 +15,13 @@ pragma solidity ^0.6.11;
 
 library Pairing {
     struct G1Point {
-        uint256 X;
-        uint256 Y;
+        uint X;
+        uint Y;
     }
     // Encoding of field elements is: X[0] * z + X[1]
     struct G2Point {
-        uint256[2] X;
-        uint256[2] Y;
+        uint[2] X;
+        uint[2] Y;
     }
 
     /// @return the generator of G1
@@ -58,18 +58,17 @@ library Pairing {
     /// @return r the negation of p, i.e. p.addition(p.negate()) should be zero.
     function negate(G1Point memory p) internal pure returns (G1Point memory r) {
         // The prime q in the base field F_q for G1
-        uint256 q = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+        uint q = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
         if (p.X == 0 && p.Y == 0) return G1Point(0, 0);
         return G1Point(p.X, q - (p.Y % q));
     }
 
     /// @return r the sum of two points of G1
-    function addition(G1Point memory p1, G1Point memory p2)
-        internal
-        view
-        returns (G1Point memory r)
-    {
-        uint256[4] memory input;
+    function addition(
+        G1Point memory p1,
+        G1Point memory p2
+    ) internal view returns (G1Point memory r) {
+        uint[4] memory input;
         input[0] = p1.X;
         input[1] = p1.Y;
         input[2] = p2.X;
@@ -89,12 +88,11 @@ library Pairing {
 
     /// @return r the product of a point on G1 and a scalar, i.e.
     /// p == p.scalar_mul(1) and p.addition(p) == p.scalar_mul(2) for all points p.
-    function scalar_mul(G1Point memory p, uint256 s)
-        internal
-        view
-        returns (G1Point memory r)
-    {
-        uint256[3] memory input;
+    function scalar_mul(
+        G1Point memory p,
+        uint s
+    ) internal view returns (G1Point memory r) {
+        uint[3] memory input;
         input[0] = p.X;
         input[1] = p.Y;
         input[2] = s;
@@ -115,16 +113,15 @@ library Pairing {
     /// e(p1[0], p2[0]) *  .... * e(p1[n], p2[n]) == 1
     /// For example pairing([P1(), P1().negate()], [P2(), P2()]) should
     /// return true.
-    function pairing(G1Point[] memory p1, G2Point[] memory p2)
-        internal
-        view
-        returns (bool)
-    {
+    function pairing(
+        G1Point[] memory p1,
+        G2Point[] memory p2
+    ) internal view returns (bool) {
         require(p1.length == p2.length, "pairing-lengths-failed");
-        uint256 elements = p1.length;
-        uint256 inputSize = elements * 6;
-        uint256[] memory input = new uint256[](inputSize);
-        for (uint256 i = 0; i < elements; i++) {
+        uint elements = p1.length;
+        uint inputSize = elements * 6;
+        uint[] memory input = new uint[](inputSize);
+        for (uint i = 0; i < elements; i++) {
             input[i * 6 + 0] = p1[i].X;
             input[i * 6 + 1] = p1[i].Y;
             input[i * 6 + 2] = p2[i].X[0];
@@ -132,7 +129,7 @@ library Pairing {
             input[i * 6 + 4] = p2[i].Y[0];
             input[i * 6 + 5] = p2[i].Y[1];
         }
-        uint256[1] memory out;
+        uint[1] memory out;
         bool success;
         // solium-disable-next-line security/no-inline-assembly
         assembly {
@@ -258,38 +255,37 @@ contract Verifier {
         );
         vk.delta2 = Pairing.G2Point(
             [
-                9323254795410155934317886258153980279081426610749196235000311998299411145178,
-                6479073654913014233772394750621041835506255427082238002943424857315655396948
+                12814700577715561086096033427148961091750918964504032570646700444819578958634,
+                2041691956802368350105476040949274775250346775892291306599620810817556671072
             ],
             [
-                9280127389800887092328006043921887611974838461240735264622632515836426018164,
-                16364640049315129232931905622442811407477599613809745929957309002580825916692
+                18406974795629710857775073192913245904417477578893270042123797230867871598722,
+                16210119957722456545813311284028623129612781001767663812083464631006254198846
             ]
         );
         vk.IC = new Pairing.G1Point[](2);
 
         vk.IC[0] = Pairing.G1Point(
-            4696867405043398552403617342815149295361060026389051711565585276031715841081,
-            7992475546688774958783613881878924186908859575652356711382969076851702755217
+            12249197657572123050734566699158494796851312997080609819257215670345193088049,
+            17487726782333876568924702133049450362476123519223034945965699111411971583010
         );
 
         vk.IC[1] = Pairing.G1Point(
-            9897458465965570598905236047800806366352001136795638520287997492087260786366,
-            9992939189109259730671274431440102542613311982204982073059522006827208775593
+            15721953641420343855042948053786530455240345418506082035858148079525611756374,
+            13640103621568301241206789510953343876721931144273359140619349897407767530847
         );
     }
 
-    function verify(uint256[] memory input, Proof memory proof)
-        internal
-        view
-        returns (uint256)
-    {
+    function verify(
+        uint[] memory input,
+        Proof memory proof
+    ) internal view returns (uint) {
         uint256 snark_scalar_field = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
         VerifyingKey memory vk = verifyingKey();
         require(input.length + 1 == vk.IC.length, "verifier-bad-input");
         // Compute the linear combination vk_x
         Pairing.G1Point memory vk_x = Pairing.G1Point(0, 0);
-        for (uint256 i = 0; i < input.length; i++) {
+        for (uint i = 0; i < input.length; i++) {
             require(
                 input[i] < snark_scalar_field,
                 "verifier-gte-snark-scalar-field"
@@ -317,17 +313,17 @@ contract Verifier {
 
     /// @return r  bool true if proof is valid
     function verifyProof(
-        uint256[2] memory a,
-        uint256[2][2] memory b,
-        uint256[2] memory c,
-        uint256[1] memory input
+        uint[2] memory a,
+        uint[2][2] memory b,
+        uint[2] memory c,
+        uint[1] memory input
     ) public view returns (bool r) {
         Proof memory proof;
         proof.A = Pairing.G1Point(a[0], a[1]);
         proof.B = Pairing.G2Point([b[0][0], b[0][1]], [b[1][0], b[1][1]]);
         proof.C = Pairing.G1Point(c[0], c[1]);
-        uint256[] memory inputValues = new uint256[](input.length);
-        for (uint256 i = 0; i < input.length; i++) {
+        uint[] memory inputValues = new uint[](input.length);
+        for (uint i = 0; i < input.length; i++) {
             inputValues[i] = input[i];
         }
         if (verify(inputValues, proof) == 0) {

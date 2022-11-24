@@ -31,6 +31,8 @@ describe('Bridge Mock Contract', () => {
     const networkIDRollup = 1;
 
     const LEAF_TYPE_ASSET = 0;
+    const proofOfEfficiencyAddress = ethers.constants.AddressZero;
+    const claimTimeout = 0;
 
     beforeEach('Deploy contracts', async () => {
         // load signers
@@ -45,7 +47,7 @@ describe('Bridge Mock Contract', () => {
         bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
 
         await globalExitRootManager.initialize(rollup.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyAddress, claimTimeout);
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
@@ -61,12 +63,6 @@ describe('Bridge Mock Contract', () => {
     it('should check the constructor parameters', async () => {
         expect(await bridgeContract.globalExitRootManager()).to.be.equal(globalExitRootManager.address);
         expect(await bridgeContract.networkID()).to.be.equal(networkIDMainnet);
-
-        // Smart contracts start with nonce = 1
-        const calcualteImplAddr = await ethers.utils.getContractAddress(
-            { from: bridgeContract.address, nonce: 1 },
-        );
-        expect(await bridgeContract.tokenImplementation()).to.be.equal(calcualteImplAddr);
     });
 
     it('should bridge and verify merkle proof', async () => {
@@ -84,7 +80,6 @@ describe('Bridge Mock Contract', () => {
         const balanceBridge = await tokenContract.balanceOf(bridgeContract.address);
 
         const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
-        const lastGlobalExitRootNum = await globalExitRootManager.lastGlobalExitRootNum();
 
         // create a new deposit
         await expect(tokenContract.approve(bridgeContract.address, amount))
@@ -110,7 +105,7 @@ describe('Bridge Mock Contract', () => {
             .to.emit(bridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
-            .withArgs(lastGlobalExitRootNum + 1, rootJSMainnet, rollupExitRoot);
+            .withArgs(rootJSMainnet, rollupExitRoot);
 
         expect(await tokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
         expect(await tokenContract.balanceOf(bridgeContract.address)).to.be.equal(balanceBridge.add(amount));
