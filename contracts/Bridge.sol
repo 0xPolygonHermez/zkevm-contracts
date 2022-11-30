@@ -45,11 +45,14 @@ contract Bridge is
     // Leaf type message
     uint8 public constant LEAF_TYPE_MESSAGE = 1;
 
+    // Max claim timeout the owner is able to set
+    uint256 public constant MAX_CLAIM_TIMEOUT = 3 days;
+
     // Network identifier
     uint32 public networkID;
 
-    // Leaf index --> claimed
-    mapping(uint256 => bool) public claimNullifier;
+    // Leaf index --> claimed bit map
+    mapping(uint256 => uint256) public claimedBitMap;
 
     // keccak256(OriginNetwork || tokenAddress) --> Wrapped token address
     mapping(bytes32 => address) public tokenInfoToWrappedToken;
@@ -79,6 +82,11 @@ contract Bridge is
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         poeAddress = _poeAddress;
+
+        require(
+            _claimTimeout <= MAX_CLAIM_TIMEOUT,
+            "Bridge::initialize: MAX_CLAIM_TIMEOUT_EXCEEDED"
+        );
         claimTimeout = _claimTimeout;
 
         // Initialize OZ contracts
@@ -310,7 +318,7 @@ contract Bridge is
         );
 
         // Update nullifier
-        claimNullifier[index] = true;
+        _setClaimed(index);
 
         // Transfer funds
         if (originTokenAddress == address(0)) {
@@ -423,7 +431,7 @@ contract Bridge is
         );
 
         // Update nullifier
-        claimNullifier[index] = true;
+        _setClaimed(index);
 
         // Execute message
         // Transfer ether
@@ -516,6 +524,10 @@ contract Bridge is
      * Only can be called by the owner
      */
     function setClaimTimeout(uint256 newClaimTimeout) external onlyOwner {
+        require(
+            newClaimTimeout <= MAX_CLAIM_TIMEOUT,
+            "Bridge::setClaimTimeout: MAX_CLAIM_TIMEOUT_EXCEEDED"
+        );
         claimTimeout = newClaimTimeout;
         emit SetClaimTimeout(newClaimTimeout);
     }
@@ -548,10 +560,7 @@ contract Bridge is
         uint8 leafType
     ) internal {
         // Check nullifier
-        require(
-            claimNullifier[index] == false,
-            "Bridge::_verifyLeaf: ALREADY_CLAIMED"
-        );
+        require(!isClaimed(index), "Bridge::_verifyLeaf: ALREADY_CLAIMED");
 
         // Check timestamp where the global exit root was set
         uint256 timestampGlobalExitRoot = globalExitRootManager
@@ -596,6 +605,30 @@ contract Bridge is
             ),
             "Bridge::_verifyLeaf: SMT_INVALID"
         );
+    }
+
+    /**
+     * @notice Function to check if an index is claimed or not
+     * @param index Index
+     */
+    function isClaimed(uint256 index) public view returns (bool) {
+        uint256 claimedWordIndex = index / 256;
+        uint256 claimedBitIndex = index % 256;
+        uint256 claimedWord = claimedBitMap[claimedWordIndex];
+        uint256 mask = (1 << claimedBitIndex);
+        return claimedWord & mask == mask;
+    }
+
+    /**
+     * @notice Function set a index as claimed
+     * @param index Index
+     */
+    function _setClaimed(uint256 index) private {
+        uint256 claimedWordIndex = index / 256;
+        uint256 claimedBitIndex = index % 256;
+        claimedBitMap[claimedWordIndex] =
+            claimedBitMap[claimedWordIndex] |
+            (1 << claimedBitIndex);
     }
 
     /**

@@ -44,6 +44,8 @@ contract ProofOfEfficiency is
     /**
      * @notice Struct which will be used to call sequenceForceBatches
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
      * @param globalExitRoot Global exit root of the batch
      * @param minForcedTimestamp Minimum timestamp of the force batch data
      */
@@ -56,9 +58,6 @@ contract ProofOfEfficiency is
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
-
-    // MATIC token address
-    IERC20Upgradeable public matic;
 
     // trusted sequencer prover Fee
     uint256 public constant TRUSTED_SEQUENCER_FEE = 0.1 ether; // TODO should be defined
@@ -79,6 +78,16 @@ contract ProofOfEfficiency is
     // 8 Fields * 8 Bytes (Stark input in Field Array form) * 5 (hashes), + 8 bytes * 3 (oldNumBatch, newNumBatch, chainID) + 20 bytes (aggrAddress)
     uint256 internal constant _SNARK_SHA_BYTES = 364;
 
+    // Trusted aggregator timeout, if an aggregation don't happen inside this frame,
+    // the aggregation becomes open to anyone for OPEN_AGGREGATION_TIME
+    uint64 public constant TRUSTED_AGGREGATOR_TIMEOUT = 1 days;
+
+    // Time that the aggregation becomes open to anyone
+    uint64 public constant OPEN_AGGREGATION_TIME = 1 weeks;
+
+    // MATIC token address
+    IERC20Upgradeable public matic;
+
     // Queue of forced batches with their associated data
     // ForceBatchNum --> hashedForceBatchData
     // hashedForceBatchData: hash containing the necessary information to force a batch:
@@ -90,6 +99,8 @@ contract ProofOfEfficiency is
     // accInputHash: hash chain that contains all the information to process a batch:
     // keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
     mapping(uint64 => bytes32) public sequencedBatches;
+
+    // Storage Slot //
 
     // Last sequenced timestamp
     uint64 public lastTimestamp;
@@ -103,30 +114,47 @@ contract ProofOfEfficiency is
     // Last forced batch
     uint64 public lastForceBatch;
 
+    // Storage Slot //
+
     // Last batch verified by the aggregators
     uint64 public lastVerifiedBatch;
 
     // Trusted sequencer address
     address public trustedSequencer;
 
-    // Indicates whether the force batch functionality is available
-    bool public forceBatchAllowed;
+    // Storage Slot //
+
+    // Trusted aggregator address
+    address public trustedAggregator;
+
+    // Timestamp of the last trusted aggregation
+    uint64 public lastTrustedAggregationTime;
+
+    // Storage Slot //
+
+    // Timestamp until the aggregation will be open to anyone
+    uint64 public openAggregationUntil;
+
+    // Rollup verifier interface
+    IVerifierRollup public rollupVerifier;
+
+    // Storage Slot //
+
+    // L2 chain identifier
+    uint64 public chainID;
 
     // Global Exit Root interface
     IGlobalExitRootManager public globalExitRootManager;
+
+    // Indicates whether the force batch functionality is available
+    bool public forceBatchAllowed;
 
     // State root mapping
     // BatchNum --> state root
     mapping(uint64 => bytes32) public batchNumToStateRoot;
 
-    // Rollup verifier interface
-    IVerifierRollup public rollupVerifier;
-
     // Trusted sequencer URL
     string public trustedSequencerURL;
-
-    // L2 chain identifier
-    uint64 public chainID;
 
     // L2 network name
     string public networkName;
@@ -136,6 +164,9 @@ contract ProofOfEfficiency is
 
     // Bridge Address
     IBridge public bridgeAddress;
+
+    // Indicates whether the scape hatch is active or not
+    bool public scapeHatchActive;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -187,6 +218,11 @@ contract ProofOfEfficiency is
     event SetSecurityCouncil(address newSecurityCouncil);
 
     /**
+     * @dev Emitted when a trusted aggregator update or renounce his address
+     */
+    event SetTrustedAggreagator(address newTrustedAggreagator);
+
+    /**
      * @dev Emitted when is proved a different state given the same batches
      */
     event ProveNonDeterministicState(
@@ -218,7 +254,8 @@ contract ProofOfEfficiency is
         uint64 _chainID,
         string memory _networkName,
         IBridge _bridgeAddress,
-        address _securityCouncil
+        address _securityCouncil,
+        address _trustedAggregator
     ) public initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
@@ -231,6 +268,8 @@ contract ProofOfEfficiency is
         networkName = _networkName;
         bridgeAddress = _bridgeAddress;
         securityCouncil = _securityCouncil;
+        trustedAggregator = _trustedAggregator;
+        lastTrustedAggregationTime = uint64(block.timestamp);
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -393,6 +432,57 @@ contract ProofOfEfficiency is
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public ifNotEmergencyState {
+
+        5 dias timeout
+        check timeout sequeuenced batch, if omre thna 5 days, everyone can aggregate this
+        ahce mas de 7 dias que no se agrega ningun batch (contrato entra en halt)
+
+qiutar security council
+
+si forja trustedAggregator --> no hay delay en el claim
+otro aggregator -> hay delay
+
+
+ logica: trusted manda
+ si hay trusted, manda trusted
+ si NO hay trsuteed, y hay uno y pasa tel tiemout vale ese ( SOLO en el timeout) //
+ si hay 2 no trusted, halt. ( prove non deterministic state)
+
+trusted aggreagator renunciara en algun punto.
+
+
+        // Check acces control
+        // if trusted aggregator is address 0 everyone can aggregate
+        if (trustedAggregator != address(0)) {
+            // if there's a trusted aggregator, and it's the sender update the trusted aggregator time
+            if (trustedAggregator == msg.sender) {
+                lastTrustedAggregationTime = uint64(block.timestamp);
+            } else {
+                // Check if we are on free aggregation period, if we are, anyone is free to aggregate
+                if (openAggregationUntil < block.timestamp) {
+                    // Check if the openAggregationUntil must be updated
+                    // Take the bigger timestamp from the last trusted aggregation and the last expired open aggregation period
+                    uint256 lastTimeToCompare = openAggregationUntil >
+                        lastTrustedAggregationTime
+                        ? openAggregationUntil
+                        : lastTrustedAggregationTime;
+
+                    // Require that the aggregator timeout must be expired
+                    require(
+                        block.timestamp - lastTimeToCompare >
+                            TRUSTED_AGGREGATOR_TIMEOUT,
+                        "ProofOfEfficiency::verifyBatches: AGGREGATOR_TIMEOUT_IS_NOT_EXPIRED"
+                    );
+
+                    // Open the aggregation to everyone for OPEN_AGGREGATION_TIME
+                    openAggregationUntil =
+                        uint64(block.timestamp) +
+                        OPEN_AGGREGATION_TIME;
+                }
+            }
+        }
+
+        // Assert init and final batch
         require(
             initNumBatch <= lastVerifiedBatch,
             "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than lastVerifiedBatch"
@@ -408,6 +498,7 @@ contract ProofOfEfficiency is
             "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
         );
 
+        // Get snark bytes
         bytes memory snarkHashBytes = getInputSnarkBytes(
             initNumBatch,
             finalNewBatch,
@@ -621,6 +712,20 @@ contract ProofOfEfficiency is
     }
 
     /**
+     * @notice Allow the current trusted aggregator to set a new trusted aggregator address
+     * If address 0 is set, everyone is free to aggregate
+     * @param newTrustedAggregator Address of the new trusted aggregator
+     */
+    function setTrustedAggregator(address newTrustedAggregator) public {
+        require(
+            trustedAggregator == msg.sender,
+            "ProofOfEfficiency::setTrustedAggregator: only trusted aggregator"
+        );
+
+        emit SetTrustedAggreagator(newTrustedAggregator);
+    }
+
+    /**
      * @notice Allows to halt the PoE if its possible to prove a different state root given the same batches
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
@@ -690,11 +795,12 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Function to activate emergency state on both PoE and Bridge contrats
+     * @notice Function to activate scape hatch, which also enable the emergency mode on both PoE and Bridge contrats
      * Only can be called by the owner in the bootstrap phase, once the owner is renounced, the system
-     * can only be put on this state by proving a distinct state root given the same batches
+     * can only be put on emergency mode by proving a distinct state root given the same batches
      */
-    function activateEmergencyState() external ifNotEmergencyState onlyOwner {
+    function activateScapeHatch() external onlyOwner {
+        scapeHatchActive = true;
         _activateEmergencyState();
     }
 
@@ -711,16 +817,39 @@ contract ProofOfEfficiency is
         bridgeAddress.deactivateEmergencyState();
 
         // Deactivate emergency state on this contract
+        scapeHatchActive = false;
         super._deactivateEmergencyState();
     }
 
     /**
-     * @notice Function to calculate the sequencer collateral depending on the congestion of the batches
+     * @notice Function to calculate the fee that must be payed for every batch
      // TODO
      */
-    function calculateForceProverFee() public view returns (uint256) {
+    function feePerBatch() public view returns (uint256) {
         return 1 ether * uint256(1 + lastForceBatch - lastForceBatchSequenced);
     }
+
+
+Prueba cada media hora
+
+
+
+batches timestamp --> payable
+acctimtemt = timestmapTardado * numbatchesantiguos/numBAthcesNuevos
+
+acctime * numOldBatches + timestampTardado*numNewBatches / totalbatches
+
+debajo 15 minutos, *0.9
+encima 2 horas, *1.1
+
+penar pa que no mepuedan spamear batches
+En medio, linear
+
+
+debajo tiempo X(edia hora) 0.9 ( factor decremento)
+encima timepo X(media hora)  *1.1 ( encima media hora incremento)
+Elevar neceisto una tabla
+
 
     /**
      * @notice Function to calculate the reward to verify a single batch
