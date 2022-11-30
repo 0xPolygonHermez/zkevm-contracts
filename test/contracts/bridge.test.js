@@ -279,6 +279,8 @@ describe('Bridge Contract', () => {
             .to.emit(tokenContract, 'Transfer')
             .withArgs(deployer.address, bridgeContract.address, amount);
 
+        expect(false).to.be.equal(await bridgeContract.isClaimed(index));
+
         await expect(bridgeContract.claimAsset(
             proof,
             index,
@@ -314,6 +316,7 @@ describe('Bridge Contract', () => {
             amount,
             metadata,
         )).to.be.revertedWith('Bridge::_verifyLeaf: ALREADY_CLAIMED');
+        expect(true).to.be.equal(await bridgeContract.isClaimed(index));
     });
 
     it('should claim tokens from Rollup to Mainnet', async () => {
