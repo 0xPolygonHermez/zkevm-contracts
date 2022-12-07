@@ -31,7 +31,7 @@ contract ProofOfEfficiency is
      * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
      * @param globalExitRoot Global exit root of the batch
-     * @param timestamp Timestamp of the batch
+     * @param timestamp Sequenced timestamp of the batch
      * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
      */
     struct BatchData {
@@ -47,12 +47,38 @@ contract ProofOfEfficiency is
      * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
      * @param globalExitRoot Global exit root of the batch
-     * @param minForcedTimestamp Minimum timestamp of the force batch data
+     * @param minForcedTimestamp Indicates the minimum sequenced timestamp of the batch
      */
-    struct ForceBatchData {
+    struct ForcedBatchData {
         bytes transactions;
         bytes32 globalExitRoot;
         uint64 minForcedTimestamp;
+    }
+
+    /**
+     * @notice Struct which will stored for every batch sequence
+     * @param accInputHash Hash chain that contains all the information to process a batch:
+     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
+     * @param sequencedTimestamp Sequenced timestamp
+     */
+    struct SequencedBatchData {
+        bytes32 accInputHash;
+        uint64 sequencedTimestamp;
+    }
+
+    /**
+     * @notice Struct which will be used to call sequenceForceBatches
+     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
+     * @param globalExitRoot Global exit root of the batch
+     * @param minForcedTimestamp Indicates the minimum sequenced timestamp of the batch
+     */
+    struct PendingState {
+        uint64 timestamp;
+        uint64 lastVerifiedBatch;
+        bytes32 exitRoot;
+        bytes32 stateRoot;
     }
 
     // Modulus zkSNARK
@@ -78,27 +104,24 @@ contract ProofOfEfficiency is
     // 8 Fields * 8 Bytes (Stark input in Field Array form) * 5 (hashes), + 8 bytes * 3 (oldNumBatch, newNumBatch, chainID) + 20 bytes (aggrAddress)
     uint256 internal constant _SNARK_SHA_BYTES = 364;
 
-    // Trusted aggregator timeout, if an aggregation don't happen inside this frame,
-    // the aggregation becomes open to anyone for OPEN_AGGREGATION_TIME
-    uint64 public constant TRUSTED_AGGREGATOR_TIMEOUT = 1 days;
+    // If the time that a batch remains sequenced exceeds this timeout, the contract enters in emergency mode
+    uint64 public constant HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
-    // Time that the aggregation becomes open to anyone
-    uint64 public constant OPEN_AGGREGATION_TIME = 1 weeks;
+    // Maximum trusted aggregator timeout that can be set
+    uint64 public constant MAX_TRUSTED_AGGREGATOR_TIMEOUT = 1 weeks;
 
     // MATIC token address
     IERC20Upgradeable public matic;
 
     // Queue of forced batches with their associated data
-    // ForceBatchNum --> hashedForceBatchData
-    // hashedForceBatchData: hash containing the necessary information to force a batch:
+    // ForceBatchNum --> hashedForcedBatchData
+    // hashedForcedBatchData: hash containing the necessary information to force a batch:
     // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minTimestamp)
     mapping(uint64 => bytes32) public forcedBatches;
 
     // Queue of batches that defines the virtual state
-    // SequenceBatchNum --> accInputHash
-    // accInputHash: hash chain that contains all the information to process a batch:
-    // keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
-    mapping(uint64 => bytes32) public sequencedBatches;
+    // SequenceBatchNum --> SequencedBatchData
+    mapping(uint64 => SequencedBatchData) public sequencedBatches;
 
     // Storage Slot //
 
@@ -165,8 +188,22 @@ contract ProofOfEfficiency is
     // Bridge Address
     IBridge public bridgeAddress;
 
-    // Indicates whether the scape hatch is active or not
-    bool public scapeHatchActive;
+    // Pending state, once the pendingStateTimeout has passed, the pending state becomes consolidated
+    // pendingStateNumber --> PendingState
+    mapping(uint256 => PendingState) public pendingStateTransitions;
+
+    // Last pending state
+    uint64 public lastPendingStateNum;
+
+    // Pending state timeout
+    uint64 public pendingStateTimeout;
+
+    // Pending state timeout
+    uint64 public currentPendingStateNum;
+
+    // Trusted aggregator timeout, if a batch is not aggregated in this time frame,
+    // everyone can aggregate that batch
+    uint64 public trustedAggregatorTimeout;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -218,9 +255,14 @@ contract ProofOfEfficiency is
     event SetSecurityCouncil(address newSecurityCouncil);
 
     /**
+     * @dev Emitted when a trusted aggregator update the trusted aggregator timeout
+     */
+    event SetTrustedAggregatorTimeout(uint64 newTrustedAggregatorTimeout);
+
+    /**
      * @dev Emitted when a trusted aggregator update or renounce his address
      */
-    event SetTrustedAggreagator(address newTrustedAggreagator);
+    event SetTrustedAggregator(address newTrustedAggregator);
 
     /**
      * @dev Emitted when is proved a different state given the same batches
@@ -255,7 +297,8 @@ contract ProofOfEfficiency is
         string memory _networkName,
         IBridge _bridgeAddress,
         address _securityCouncil,
-        address _trustedAggregator
+        address _trustedAggregator,
+        uint64 trustedAggregatorTimeout
     ) public initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
@@ -270,6 +313,7 @@ contract ProofOfEfficiency is
         securityCouncil = _securityCouncil;
         trustedAggregator = _trustedAggregator;
         lastTrustedAggregationTime = uint64(block.timestamp);
+        trustedAggregatorTimeout = trustedAggregatorTimeout;
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -287,6 +331,14 @@ contract ProofOfEfficiency is
         require(
             trustedSequencer == msg.sender,
             "ProofOfEfficiency::onlyTrustedSequencer: only trusted sequencer"
+        );
+        _;
+    }
+
+    modifier onlyTrustedAgggregator() {
+        require(
+            trustedAggregator == msg.sender,
+            "ProofOfEfficiency::onlyTrustedAgggregator: only trusted Aggregator"
         );
         _;
     }
@@ -316,7 +368,8 @@ contract ProofOfEfficiency is
         uint64 currentTimestamp = lastTimestamp;
         uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
-        bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced];
+        bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced]
+            .accInputHash;
 
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
@@ -327,7 +380,7 @@ contract ProofOfEfficiency is
                 currentLastForceBatchSequenced++;
 
                 // Check forced data matches
-                bytes32 hashedForceBatchData = keccak256(
+                bytes32 hashedForcedBatchData = keccak256(
                     abi.encodePacked(
                         keccak256(currentBatch.transactions),
                         currentBatch.globalExitRoot,
@@ -336,7 +389,7 @@ contract ProofOfEfficiency is
                 );
 
                 require(
-                    hashedForceBatchData ==
+                    hashedForcedBatchData ==
                         forcedBatches[currentLastForceBatchSequenced],
                     "ProofOfEfficiency::sequenceBatches: Forced batches data must match"
                 );
@@ -401,7 +454,10 @@ contract ProofOfEfficiency is
         lastTimestamp = currentTimestamp;
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
-        sequencedBatches[currentBatchSequenced] = currentAccInputHash;
+        sequencedBatches[currentBatchSequenced] = SequencedBatchData({
+            accInputHash: currentAccInputHash,
+            sequencedTimestamp: uint64(block.timestamp)
+        });
 
         // Pay collateral for every batch submitted
         matic.safeTransferFrom(
@@ -424,6 +480,7 @@ contract ProofOfEfficiency is
      * @param proofC zk-snark input
      */
     function verifyBatches(
+        uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
@@ -432,70 +489,185 @@ contract ProofOfEfficiency is
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public ifNotEmergencyState {
+        if (
+            trustedAggregator == address(0) ||
+            msg.sender == trustedAggregator ||
+            trustedAggregatorTimeout == 0
+        ) {
+            _verifyAndConsolidateState(
+                pendingStateNum,
+                initNumBatch,
+                finalNewBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC
+            );
+        } else {
+            SequencedBatchData storage oldSequencedBatchData = sequencedBatches[
+                initNumBatch
+            ];
+            SequencedBatchData storage newSequencedBatchData = sequencedBatches[
+                finalNewBatch
+            ];
 
-        5 dias timeout
-        check timeout sequeuenced batch, if omre thna 5 days, everyone can aggregate this
-        ahce mas de 7 dias que no se agrega ningun batch (contrato entra en halt)
+            bytes32 oldStateRoot;
+            uint64 currentLastVerifiedBatch;
 
-qiutar security council
+            // Use pending state if any, otherwise use consolidate state
+            if (pendingStateNum != 0) {
+                require(
+                    pendingStateNum <= lastPendingStateNum,
+                    "ProofOfEfficiency::verifyBatches: pendingStateNum must be less or equal than lastPendingStateNum"
+                );
+                // Use pending state
+                PendingState storage lastPendingState = pendingStateTransitions[
+                    lastPendingStateNum
+                ];
 
-si forja trustedAggregator --> no hay delay en el claim
-otro aggregator -> hay delay
-
-
- logica: trusted manda
- si hay trusted, manda trusted
- si NO hay trsuteed, y hay uno y pasa tel tiemout vale ese ( SOLO en el timeout) //
- si hay 2 no trusted, halt. ( prove non deterministic state)
-
-trusted aggreagator renunciara en algun punto.
-
-
-        // Check acces control
-        // if trusted aggregator is address 0 everyone can aggregate
-        if (trustedAggregator != address(0)) {
-            // if there's a trusted aggregator, and it's the sender update the trusted aggregator time
-            if (trustedAggregator == msg.sender) {
-                lastTrustedAggregationTime = uint64(block.timestamp);
+                currentLastVerifiedBatch = lastPendingState.lastVerifiedBatch;
+                oldStateRoot = lastPendingState.stateRoot;
             } else {
-                // Check if we are on free aggregation period, if we are, anyone is free to aggregate
-                if (openAggregationUntil < block.timestamp) {
-                    // Check if the openAggregationUntil must be updated
-                    // Take the bigger timestamp from the last trusted aggregation and the last expired open aggregation period
-                    uint256 lastTimeToCompare = openAggregationUntil >
-                        lastTrustedAggregationTime
-                        ? openAggregationUntil
-                        : lastTrustedAggregationTime;
+                // Use consolidated state
+                require(
+                    batchNumToStateRoot[initNumBatch] != bytes32(0),
+                    "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
+                );
 
-                    // Require that the aggregator timeout must be expired
-                    require(
-                        block.timestamp - lastTimeToCompare >
-                            TRUSTED_AGGREGATOR_TIMEOUT,
-                        "ProofOfEfficiency::verifyBatches: AGGREGATOR_TIMEOUT_IS_NOT_EXPIRED"
-                    );
-
-                    // Open the aggregation to everyone for OPEN_AGGREGATION_TIME
-                    openAggregationUntil =
-                        uint64(block.timestamp) +
-                        OPEN_AGGREGATION_TIME;
-                }
+                currentLastVerifiedBatch = lastVerifiedBatch;
+                oldStateRoot = batchNumToStateRoot[initNumBatch];
             }
+
+            // Assert init and final batch
+            require(
+                initNumBatch <= currentLastVerifiedBatch,
+                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+            );
+
+            require(
+                finalNewBatch > currentLastVerifiedBatch,
+                "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            );
+
+            // Get snark bytes
+            bytes memory snarkHashBytes = getInputSnarkBytes(
+                initNumBatch,
+                finalNewBatch,
+                newLocalExitRoot,
+                oldStateRoot,
+                newStateRoot
+            );
+
+            // Calulate the snark input
+            uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
+
+            // Verify proof
+            require(
+                rollupVerifier.verifyProof(
+                    proofA,
+                    proofB,
+                    proofC,
+                    [inputSnark]
+                ),
+                "ProofOfEfficiency::verifyBatches: INVALID_PROOF"
+            );
+
+            // Get MATIC reward
+            matic.safeTransfer(
+                msg.sender,
+                calculateRewardPerBatch() *
+                    (finalNewBatch - currentLastVerifiedBatch)
+            );
+
+            // Update state or pending state
+            if (msg.sender == trustedAggregator) {
+                // Update state
+                lastVerifiedBatch = finalNewBatch;
+                batchNumToStateRoot[finalNewBatch] = newStateRoot;
+
+                // Clean pending state
+                lastPendingStateNum = 0;
+                currentPendingStateNum = 0;
+
+                // Interact with globalExitRoot
+                globalExitRootManager.updateExitRoot(newLocalExitRoot);
+            } else {
+                _consolidatePendingState();
+
+                // Update pending state
+                lastPendingStateNum++;
+                pendingStateTransitions[lastPendingStateNum] = PendingState({
+                    timestamp: uint64(block.timestamp),
+                    lastVerifiedBatch: finalNewBatch,
+                    exitRoot: newLocalExitRoot,
+                    stateRoot: newStateRoot
+                });
+            }
+
+            emit VerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+        }
+    }
+
+    function _verifyAndConsolidateState(
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC
+    ) internal {
+        bytes32 oldStateRoot;
+        uint64 currentLastVerifiedBatch;
+
+        // Use pending state if especified, otherwise use consolidate state
+        if (pendingStateNum != 0) {
+            // Use pending state
+            require(
+                pendingStateNum <= lastPendingStateNum,
+                "ProofOfEfficiency::verifyBatches: pendingStateNum must be less or equal than lastPendingStateNum"
+            );
+
+            require(
+                pendingStateNum > currentPendingStateNum,
+                "ProofOfEfficiency::verifyBatches: pendingStateNum must bigger than currentPendingStateNum"
+            );
+
+            // Check pending choosen pending state
+            PendingState storage lastPendingState = pendingStateTransitions[
+                pendingStateNum
+            ];
+
+            // Check if pending state hasn't exceed the timeout
+            require(
+                block.timestamp - lastPendingState.timestamp <=
+                    pendingStateTimeout,
+                "ProofOfEfficiency::verifyBatches: pendingStateTimeout exceeded"
+            );
+            currentLastVerifiedBatch = lastPendingState.lastVerifiedBatch;
+            oldStateRoot = lastPendingState.stateRoot;
+        } else {
+            // Use consolidated state
+            require(
+                batchNumToStateRoot[initNumBatch] != bytes32(0),
+                "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
+            );
+
+            currentLastVerifiedBatch = lastVerifiedBatch;
+            oldStateRoot = batchNumToStateRoot[initNumBatch];
         }
 
         // Assert init and final batch
         require(
-            initNumBatch <= lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than lastVerifiedBatch"
+            initNumBatch <= currentLastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
         );
 
         require(
-            finalNewBatch > lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than lastVerifiedBatch"
-        );
-
-        require(
-            batchNumToStateRoot[initNumBatch] != bytes32(0),
-            "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
+            finalNewBatch > currentLastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -503,6 +675,7 @@ trusted aggreagator renunciara en algun punto.
             initNumBatch,
             finalNewBatch,
             newLocalExitRoot,
+            oldStateRoot,
             newStateRoot
         );
 
@@ -518,17 +691,32 @@ trusted aggreagator renunciara en algun punto.
         // Get MATIC reward
         matic.safeTransfer(
             msg.sender,
-            calculateRewardPerBatch() * (finalNewBatch - lastVerifiedBatch)
+            calculateRewardPerBatch() *
+                (finalNewBatch - currentLastVerifiedBatch)
+            // If it's overriding batches everyone "loses" matic
+            // Anyway trusted aggregator can damage the system, this is not that problematic
+            // last payed batch?
         );
 
         // Update state
         lastVerifiedBatch = finalNewBatch;
         batchNumToStateRoot[finalNewBatch] = newStateRoot;
 
-        // Interact with globalExitRoot
+        // Clean pending state
+        lastPendingStateNum = 0;
+        currentPendingStateNum = 0;
+
+        // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
         emit VerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+    }
+
+    /**
+     * @notice Internal function to consolidate pending state
+     */
+    function _consolidatePendingState() public {
+        // If trusted aggregator, can consolidate whathever
     }
 
     /**
@@ -542,7 +730,7 @@ trusted aggreagator renunciara en algun punto.
         uint256 maticAmount
     ) public ifNotEmergencyState isForceBatchAllowed {
         // Calculate matic collateral
-        uint256 maticFee = calculateForceProverFee();
+        uint256 maticFee = calculateBatchFee();
 
         require(
             maticFee <= maticAmount,
@@ -590,7 +778,7 @@ trusted aggreagator renunciara en algun punto.
      * @param batches Struct array which the necessary data to append new batces ot the sequence
      */
     function sequenceForceBatches(
-        ForceBatchData[] memory batches
+        ForcedBatchData[] memory batches
     ) public ifNotEmergencyState isForceBatchAllowed {
         uint256 batchesNum = batches.length;
 
@@ -607,16 +795,17 @@ trusted aggreagator renunciara en algun punto.
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
-        bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced];
+        bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced]
+            .accInputHash;
 
         // Sequence force batches
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
-            ForceBatchData memory currentBatch = batches[i];
+            ForcedBatchData memory currentBatch = batches[i];
             currentLastForceBatchSequenced++;
 
             // Check forced data matches
-            bytes32 hashedForceBatchData = keccak256(
+            bytes32 hashedForcedBatchData = keccak256(
                 abi.encodePacked(
                     keccak256(currentBatch.transactions),
                     currentBatch.globalExitRoot,
@@ -625,7 +814,7 @@ trusted aggreagator renunciara en algun punto.
             );
 
             require(
-                hashedForceBatchData ==
+                hashedForcedBatchData ==
                     forcedBatches[currentLastForceBatchSequenced],
                 "ProofOfEfficiency::sequenceForceBatches: Forced batches data must match"
             );
@@ -658,7 +847,10 @@ trusted aggreagator renunciara en algun punto.
         // Store back the storage variables
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
-        sequencedBatches[currentBatchSequenced] = currentAccInputHash;
+        sequencedBatches[currentBatchSequenced] = SequencedBatchData({
+            accInputHash: currentAccInputHash,
+            sequencedTimestamp: uint64(block.timestamp)
+        });
 
         emit SequenceForceBatches(lastBatchSequenced);
     }
@@ -716,13 +908,28 @@ trusted aggreagator renunciara en algun punto.
      * If address 0 is set, everyone is free to aggregate
      * @param newTrustedAggregator Address of the new trusted aggregator
      */
-    function setTrustedAggregator(address newTrustedAggregator) public {
-        require(
-            trustedAggregator == msg.sender,
-            "ProofOfEfficiency::setTrustedAggregator: only trusted aggregator"
-        );
+    function setTrustedAggregator(
+        address newTrustedAggregator
+    ) public onlyTrustedAgggregator {
+        trustedAggregator = newTrustedAggregator;
 
-        emit SetTrustedAggreagator(newTrustedAggregator);
+        emit SetTrustedAggregator(newTrustedAggregator);
+    }
+
+    /**
+     * @notice Allow the current trusted aggregator to set a new trusted aggregator timeout
+     * @param newTrustedAggregatorTimeout Trusted aggreagator timeout
+     */
+    function setTrustedAggregator(
+        uint64 newTrustedAggregatorTimeout
+    ) public onlyTrustedAgggregator {
+        require(
+            trustedAggregatorTimeout <= MAX_TRUSTED_AGGREGATOR_TIMEOUT,
+            "ProofOfEfficiency::setTrustedAggregator: exceed max trusted aggregator timeout"
+        );
+        trustedAggregatorTimeout = newTrustedAggregatorTimeout;
+
+        emit SetTrustedAggregatorTimeout(trustedAggregatorTimeout);
     }
 
     /**
@@ -800,7 +1007,6 @@ trusted aggreagator renunciara en algun punto.
      * can only be put on emergency mode by proving a distinct state root given the same batches
      */
     function activateScapeHatch() external onlyOwner {
-        scapeHatchActive = true;
         _activateEmergencyState();
     }
 
@@ -817,39 +1023,15 @@ trusted aggreagator renunciara en algun punto.
         bridgeAddress.deactivateEmergencyState();
 
         // Deactivate emergency state on this contract
-        scapeHatchActive = false;
         super._deactivateEmergencyState();
     }
 
     /**
      * @notice Function to calculate the fee that must be payed for every batch
-     // TODO
      */
-    function feePerBatch() public view returns (uint256) {
+    function calculateBatchFee() public view returns (uint256) {
         return 1 ether * uint256(1 + lastForceBatch - lastForceBatchSequenced);
     }
-
-
-Prueba cada media hora
-
-
-
-batches timestamp --> payable
-acctimtemt = timestmapTardado * numbatchesantiguos/numBAthcesNuevos
-
-acctime * numOldBatches + timestampTardado*numNewBatches / totalbatches
-
-debajo 15 minutos, *0.9
-encima 2 horas, *1.1
-
-penar pa que no mepuedan spamear batches
-En medio, linear
-
-
-debajo tiempo X(edia hora) 0.9 ( factor decremento)
-encima timepo X(media hora)  *1.1 ( encima media hora incremento)
-Elevar neceisto una tabla
-
 
     /**
      * @notice Function to calculate the reward to verify a single batch
@@ -875,10 +1057,11 @@ Elevar neceisto una tabla
         uint64 initNumBatch,
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
+        bytes32 oldStateRoot,
         bytes32 newStateRoot
     ) public view returns (bytes memory) {
-        bytes32 oldAccInputHash = sequencedBatches[initNumBatch];
-        bytes32 newAccInputHash = sequencedBatches[finalNewBatch];
+        bytes32 oldAccInputHash = sequencedBatches[initNumBatch].accInputHash;
+        bytes32 newAccInputHash = sequencedBatches[finalNewBatch].accInputHash;
 
         require(
             initNumBatch == 0 || oldAccInputHash != bytes32(0),
@@ -893,7 +1076,7 @@ Elevar neceisto una tabla
         return
             abi.encodePacked(
                 msg.sender,
-                batchNumToStateRoot[initNumBatch],
+                oldStateRoot,
                 oldAccInputHash,
                 initNumBatch,
                 chainID,

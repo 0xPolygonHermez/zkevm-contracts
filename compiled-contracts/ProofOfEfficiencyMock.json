@@ -5,18 +5,6 @@
   "abi": [
     {
       "anonymous": false,
-      "inputs": [],
-      "name": "EmergencyStateActivated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [],
-      "name": "EmergencyStateDeactivated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
       "inputs": [
         {
           "indexed": true,
@@ -82,25 +70,6 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "storedStateRoot",
-          "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "provedStateRoot",
-          "type": "bytes32"
-        }
-      ],
-      "name": "ProveNonDeterministicState",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
           "indexed": true,
           "internalType": "uint64",
           "name": "numBatch",
@@ -142,19 +111,6 @@
         {
           "indexed": false,
           "internalType": "address",
-          "name": "newSecurityCouncil",
-          "type": "address"
-        }
-      ],
-      "name": "SetSecurityCouncil",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "address",
           "name": "newTrustedSequencer",
           "type": "address"
         }
@@ -185,19 +141,13 @@
           "type": "uint64"
         },
         {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "stateRoot",
-          "type": "bytes32"
-        },
-        {
           "indexed": true,
           "internalType": "address",
           "name": "aggregator",
           "type": "address"
         }
       ],
-      "name": "VerifyBatches",
+      "name": "VerifyBatch",
       "type": "event"
     },
     {
@@ -241,84 +191,6 @@
     },
     {
       "inputs": [],
-      "name": "activateEmergencyState",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
-        }
-      ],
-      "name": "batchNumToStateRoot",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "bridgeAddress",
-      "outputs": [
-        {
-          "internalType": "contract IBridge",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "currentAccInputHash",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bytes",
-          "name": "transactions",
-          "type": "bytes"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "globalExitRoot",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "uint64",
-          "name": "timestamp",
-          "type": "uint64"
-        },
-        {
-          "internalType": "address",
-          "name": "sequencerAddress",
-          "type": "address"
-        }
-      ],
-      "name": "calculateAccInputHash",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "pure",
-      "type": "function"
-    },
-    {
-      "inputs": [],
       "name": "calculateForceProverFee",
       "outputs": [
         {
@@ -331,8 +203,54 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "calculateRewardPerBatch",
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "currentStateRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "currentLocalExitRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "newStateRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "newLocalExitRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "batchHashData",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "numBatch",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "timestamp",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "chainID",
+          "type": "uint64"
+        },
+        {
+          "internalType": "address",
+          "name": "aggregatorAddress",
+          "type": "address"
+        }
+      ],
+      "name": "calculateSnarkInput",
       "outputs": [
         {
           "internalType": "uint256",
@@ -340,7 +258,61 @@
           "type": "uint256"
         }
       ],
-      "stateMutability": "view",
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "currentStateRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "currentLocalExitRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "newStateRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "newLocalExitRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "batchHashData",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "numBatch",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "timestamp",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "chainID",
+          "type": "uint64"
+        }
+      ],
+      "name": "calculateStarkInput",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "pure",
       "type": "function"
     },
     {
@@ -358,9 +330,28 @@
     },
     {
       "inputs": [],
-      "name": "deactivateEmergencyState",
-      "outputs": [],
-      "stateMutability": "nonpayable",
+      "name": "currentLocalExitRoot",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "currentStateRoot",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -406,8 +397,18 @@
       "outputs": [
         {
           "internalType": "bytes32",
-          "name": "",
+          "name": "batchHashData",
           "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maticFee",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "minTimestamp",
+          "type": "uint64"
         }
       ],
       "stateMutability": "view",
@@ -415,16 +416,6 @@
     },
     {
       "inputs": [
-        {
-          "internalType": "uint64",
-          "name": "initNumBatch",
-          "type": "uint64"
-        },
-        {
-          "internalType": "uint64",
-          "name": "finalNewBatch",
-          "type": "uint64"
-        },
         {
           "internalType": "bytes32",
           "name": "newLocalExitRoot",
@@ -434,40 +425,11 @@
           "internalType": "bytes32",
           "name": "newStateRoot",
           "type": "bytes32"
-        }
-      ],
-      "name": "getInputSnarkBytes",
-      "outputs": [
-        {
-          "internalType": "bytes",
-          "name": "",
-          "type": "bytes"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint64",
-          "name": "_lastVerifiedBatch",
-          "type": "uint64"
         },
         {
           "internalType": "uint64",
-          "name": "newVerifiedBatch",
+          "name": "numBatch",
           "type": "uint64"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "newLocalExitRoot",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "newStateRoot",
-          "type": "bytes32"
         }
       ],
       "name": "getNextSnarkInput",
@@ -540,34 +502,11 @@
           "internalType": "string",
           "name": "_networkName",
           "type": "string"
-        },
-        {
-          "internalType": "contract IBridge",
-          "name": "_bridgeAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "_securityCouncil",
-          "type": "address"
         }
       ],
       "name": "initialize",
       "outputs": [],
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "isEmergencyState",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -675,17 +614,14 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [
-        {
-          "internalType": "uint64",
-          "name": "initNumBatch",
-          "type": "uint64"
-        },
-        {
-          "internalType": "uint64",
-          "name": "finalNewBatch",
-          "type": "uint64"
-        },
         {
           "internalType": "bytes32",
           "name": "newLocalExitRoot",
@@ -697,31 +633,20 @@
           "type": "bytes32"
         },
         {
-          "internalType": "uint256[2]",
-          "name": "proofA",
-          "type": "uint256[2]"
-        },
-        {
-          "internalType": "uint256[2][2]",
-          "name": "proofB",
-          "type": "uint256[2][2]"
-        },
-        {
-          "internalType": "uint256[2]",
-          "name": "proofC",
-          "type": "uint256[2]"
+          "internalType": "uint32",
+          "name": "numBatch",
+          "type": "uint32"
         }
       ],
-      "name": "proveNonDeterministicState",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "renounceOwnership",
-      "outputs": [],
-      "stateMutability": "nonpayable",
+      "name": "returnInputHashParameters",
+      "outputs": [
+        {
+          "internalType": "bytes",
+          "name": "",
+          "type": "bytes"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -730,19 +655,6 @@
       "outputs": [
         {
           "internalType": "contract IVerifierRollup",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "securityCouncil",
-      "outputs": [
-        {
-          "internalType": "address",
           "name": "",
           "type": "address"
         }
@@ -770,9 +682,9 @@
               "type": "uint64"
             },
             {
-              "internalType": "uint64",
-              "name": "minForcedTimestamp",
-              "type": "uint64"
+              "internalType": "uint64[]",
+              "name": "forceBatchesTimestamp",
+              "type": "uint64[]"
             }
           ],
           "internalType": "struct ProofOfEfficiency.BatchData[]",
@@ -788,26 +700,9 @@
     {
       "inputs": [
         {
-          "components": [
-            {
-              "internalType": "bytes",
-              "name": "transactions",
-              "type": "bytes"
-            },
-            {
-              "internalType": "bytes32",
-              "name": "globalExitRoot",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "uint64",
-              "name": "minForcedTimestamp",
-              "type": "uint64"
-            }
-          ],
-          "internalType": "struct ProofOfEfficiency.ForceBatchData[]",
-          "name": "batches",
-          "type": "tuple[]"
+          "internalType": "uint64",
+          "name": "numForcedBatches",
+          "type": "uint64"
         }
       ],
       "name": "sequenceForceBatches",
@@ -827,11 +722,34 @@
       "outputs": [
         {
           "internalType": "bytes32",
-          "name": "",
+          "name": "batchHashData",
           "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "timestamp",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "forceBatchNum",
+          "type": "uint64"
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "newLocalExitRoot",
+          "type": "bytes32"
+        }
+      ],
+      "name": "setExitRoot",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -863,19 +781,6 @@
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "newSecurityCouncil",
-          "type": "address"
-        }
-      ],
-      "name": "setSecurityCouncil",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "uint64",
           "name": "_numBatch",
           "type": "uint64"
@@ -889,32 +794,9 @@
     {
       "inputs": [
         {
-          "internalType": "uint64",
-          "name": "batchNum",
-          "type": "uint64"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "accInputData",
-          "type": "bytes32"
-        }
-      ],
-      "name": "setSequencedBatches",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "bytes32",
           "name": "newStateRoot",
           "type": "bytes32"
-        },
-        {
-          "internalType": "uint64",
-          "name": "batchNum",
-          "type": "uint64"
         }
       ],
       "name": "setStateRoot",
@@ -1016,16 +898,6 @@
     {
       "inputs": [
         {
-          "internalType": "uint64",
-          "name": "initNumBatch",
-          "type": "uint64"
-        },
-        {
-          "internalType": "uint64",
-          "name": "finalNewBatch",
-          "type": "uint64"
-        },
-        {
           "internalType": "bytes32",
           "name": "newLocalExitRoot",
           "type": "bytes32"
@@ -1034,6 +906,11 @@
           "internalType": "bytes32",
           "name": "newStateRoot",
           "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "numBatch",
+          "type": "uint64"
         },
         {
           "internalType": "uint256[2]",
@@ -1051,7 +928,7 @@
           "type": "uint256[2]"
         }
       ],
-      "name": "verifyBatches",
+      "name": "verifyBatch",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1059,16 +936,6 @@
     {
       "inputs": [
         {
-          "internalType": "uint64",
-          "name": "_lastVerifiedBatch",
-          "type": "uint64"
-        },
-        {
-          "internalType": "uint64",
-          "name": "newVerifiedBatch",
-          "type": "uint64"
-        },
-        {
           "internalType": "bytes32",
           "name": "newLocalExitRoot",
           "type": "bytes32"
@@ -1077,6 +944,11 @@
           "internalType": "bytes32",
           "name": "newStateRoot",
           "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "numBatch",
+          "type": "uint64"
         },
         {
           "internalType": "uint256[2]",
@@ -1094,7 +966,7 @@
           "type": "uint256[2]"
         }
       ],
-      "name": "verifyBatchesMock",
+      "name": "verifyBatchMock",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

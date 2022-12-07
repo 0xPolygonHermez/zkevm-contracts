@@ -37,6 +37,12 @@
       "inputs": [
         {
           "indexed": true,
+          "internalType": "uint256",
+          "name": "globalExitRootNum",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
           "internalType": "bytes32",
           "name": "mainnetExitRoot",
           "type": "bytes32"
@@ -116,6 +122,19 @@
     },
     {
       "inputs": [],
+      "name": "lastGlobalExitRootNum",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "lastMainnetExitRoot",
       "outputs": [
         {
@@ -159,14 +178,9 @@
           "internalType": "bytes32",
           "name": "globalExitRoot",
           "type": "bytes32"
-        },
-        {
-          "internalType": "uint256",
-          "name": "timestamp",
-          "type": "uint256"
         }
       ],
-      "name": "setGlobalExitRoot",
+      "name": "setLastGlobalExitRoot",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -175,11 +189,11 @@
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "timestamp",
+          "name": "_lastGlobalExitRootNum",
           "type": "uint256"
         }
       ],
-      "name": "setLastGlobalExitRoot",
+      "name": "setLastGlobalExitRootNum",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

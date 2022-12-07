@@ -8,12 +8,6 @@
       "inputs": [
         {
           "indexed": false,
-          "internalType": "uint8",
-          "name": "leafType",
-          "type": "uint8"
-        },
-        {
-          "indexed": false,
           "internalType": "uint32",
           "name": "originNetwork",
           "type": "uint32"
@@ -21,7 +15,7 @@
         {
           "indexed": false,
           "internalType": "address",
-          "name": "originAddress",
+          "name": "originTokenAddress",
           "type": "address"
         },
         {
@@ -76,7 +70,7 @@
         {
           "indexed": false,
           "internalType": "address",
-          "name": "originAddress",
+          "name": "originTokenAddress",
           "type": "address"
         },
         {
@@ -93,18 +87,6 @@
         }
       ],
       "name": "ClaimEvent",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [],
-      "name": "EmergencyStateActivated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [],
-      "name": "EmergencyStateDeactivated",
       "type": "event"
     },
     {
@@ -165,45 +147,6 @@
       "type": "event"
     },
     {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "newClaimTimeout",
-          "type": "uint256"
-        }
-      ],
-      "name": "SetClaimTimeout",
-      "type": "event"
-    },
-    {
-      "inputs": [],
-      "name": "LEAF_TYPE_ASSET",
-      "outputs": [
-        {
-          "internalType": "uint8",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "LEAF_TYPE_MESSAGE",
-      "outputs": [
-        {
-          "internalType": "uint8",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [],
       "name": "MAINNET_NETWORK_ID",
       "outputs": [
@@ -214,13 +157,6 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "activateEmergencyState",
-      "outputs": [],
-      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -251,30 +187,7 @@
           "type": "bytes"
         }
       ],
-      "name": "bridgeAsset",
-      "outputs": [],
-      "stateMutability": "payable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint32",
-          "name": "destinationNetwork",
-          "type": "uint32"
-        },
-        {
-          "internalType": "address",
-          "name": "destinationAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes",
-          "name": "metadata",
-          "type": "bytes"
-        }
-      ],
-      "name": "bridgeMessage",
+      "name": "bridge",
       "outputs": [],
       "stateMutability": "payable",
       "type": "function"
@@ -332,7 +245,7 @@
           "type": "bytes"
         }
       ],
-      "name": "claimAsset",
+      "name": "claim",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -340,98 +253,20 @@
     {
       "inputs": [
         {
-          "internalType": "bytes32[]",
-          "name": "smtProof",
-          "type": "bytes32[]"
-        },
-        {
-          "internalType": "uint32",
-          "name": "index",
-          "type": "uint32"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "mainnetExitRoot",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "rollupExitRoot",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "uint32",
-          "name": "originNetwork",
-          "type": "uint32"
-        },
-        {
-          "internalType": "address",
-          "name": "originAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "uint32",
-          "name": "destinationNetwork",
-          "type": "uint32"
-        },
-        {
-          "internalType": "address",
-          "name": "destinationAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bytes",
-          "name": "metadata",
-          "type": "bytes"
-        }
-      ],
-      "name": "claimMessage",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "claimTimeout",
-      "outputs": [
-        {
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
+        }
+      ],
+      "name": "claimNullifier",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
         }
       ],
       "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "claimedBitMap",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "deactivateEmergencyState",
-      "outputs": [],
-      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -463,18 +298,13 @@
     {
       "inputs": [
         {
-          "internalType": "uint8",
-          "name": "leafType",
-          "type": "uint8"
-        },
-        {
           "internalType": "uint32",
           "name": "originNetwork",
           "type": "uint32"
         },
         {
           "internalType": "address",
-          "name": "originAddress",
+          "name": "originTokenAddress",
           "type": "address"
         },
         {
@@ -557,53 +387,11 @@
           "internalType": "contract IGlobalExitRootManager",
           "name": "_globalExitRootManager",
           "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "_poeAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_claimTimeout",
-          "type": "uint256"
         }
       ],
       "name": "initialize",
       "outputs": [],
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "index",
-          "type": "uint256"
-        }
-      ],
-      "name": "isClaimed",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "isEmergencyState",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -646,19 +434,6 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "poeAddress",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [
         {
           "internalType": "uint32",
@@ -669,21 +444,6 @@
           "internalType": "address",
           "name": "originTokenAddress",
           "type": "address"
-        },
-        {
-          "internalType": "string",
-          "name": "name",
-          "type": "string"
-        },
-        {
-          "internalType": "string",
-          "name": "symbol",
-          "type": "string"
-        },
-        {
-          "internalType": "uint8",
-          "name": "decimals",
-          "type": "uint8"
         }
       ],
       "name": "precalculatedWrapperAddress",
@@ -700,19 +460,6 @@
     {
       "inputs": [],
       "name": "renounceOwnership",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "newClaimTimeout",
-          "type": "uint256"
-        }
-      ],
-      "name": "setClaimTimeout",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -741,6 +488,19 @@
       "name": "setNetworkID",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "tokenImplementation",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {

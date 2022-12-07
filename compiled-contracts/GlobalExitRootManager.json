@@ -21,6 +21,12 @@
       "inputs": [
         {
           "indexed": true,
+          "internalType": "uint256",
+          "name": "globalExitRootNum",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
           "internalType": "bytes32",
           "name": "mainnetExitRoot",
           "type": "bytes32"
@@ -96,6 +102,19 @@
       "name": "initialize",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastGlobalExitRootNum",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
