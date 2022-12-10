@@ -45,9 +45,6 @@ contract Bridge is
     // Leaf type message
     uint8 public constant LEAF_TYPE_MESSAGE = 1;
 
-    // Max claim timeout the owner is able to set
-    uint256 public constant MAX_CLAIM_TIMEOUT = 3 days;
-
     // Network identifier
     uint32 public networkID;
 
@@ -66,9 +63,6 @@ contract Bridge is
     // Proof of Efficiency address
     address public poeAddress;
 
-    // Claim timeout period
-    uint256 public claimTimeout;
-
     /**
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
@@ -76,18 +70,11 @@ contract Bridge is
     function initialize(
         uint32 _networkID,
         IGlobalExitRootManager _globalExitRootManager,
-        address _poeAddress,
-        uint256 _claimTimeout
+        address _poeAddress
     ) public virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         poeAddress = _poeAddress;
-
-        require(
-            _claimTimeout <= MAX_CLAIM_TIMEOUT,
-            "Bridge::initialize: MAX_CLAIM_TIMEOUT_EXCEEDED"
-        );
-        claimTimeout = _claimTimeout;
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -134,11 +121,6 @@ contract Bridge is
         address originTokenAddress,
         address wrappedTokenAddress
     );
-
-    /**
-     * @dev Emitted when newClaimTimeout is updated
-     */
-    event SetClaimTimeout(uint256 newClaimTimeout);
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
@@ -519,20 +501,6 @@ contract Bridge is
     }
 
     /**
-     * @notice Function to update the claim timeout
-     * @param newClaimTimeout new claim timeout value
-     * Only can be called by the owner
-     */
-    function setClaimTimeout(uint256 newClaimTimeout) external onlyOwner {
-        require(
-            newClaimTimeout <= MAX_CLAIM_TIMEOUT,
-            "Bridge::setClaimTimeout: MAX_CLAIM_TIMEOUT_EXCEEDED"
-        );
-        claimTimeout = newClaimTimeout;
-        emit SetClaimTimeout(newClaimTimeout);
-    }
-
-    /**
      * @notice Verify leaf and checks that it has not been claimed
      * @param smtProof Smt proof
      * @param index Index of the leaf
@@ -569,9 +537,8 @@ contract Bridge is
             );
 
         require(
-            timestampGlobalExitRoot != 0 &&
-                (block.timestamp - timestampGlobalExitRoot) >= claimTimeout,
-            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID_OR_NOT_YET_CLAIMABLE"
+            timestampGlobalExitRoot != 0,
+            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID"
         );
 
         // Destination network must be networkID
