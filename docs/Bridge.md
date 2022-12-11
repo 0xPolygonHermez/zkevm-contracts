@@ -174,21 +174,6 @@ Function to deactivate the emergency state
 
 
 
-### setClaimTimeout
-```solidity
-  function setClaimTimeout(
-    uint256 newClaimTimeout
-  ) external
-```
-Function to update the claim timeout
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newClaimTimeout` | uint256 | new claim timeout value
-Only can be called by the owner
-
 ### _verifyLeaf
 ```solidity
   function _verifyLeaf(
@@ -222,6 +207,20 @@ Verify leaf and checks that it has not been claimed
 |`amount` | uint256 | Amount of tokens
 |`metadata` | bytes | Abi encoded metadata if any, empty otherwise
 |`leafType` | uint8 | Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
+
+### isClaimed
+```solidity
+  function isClaimed(
+    uint256 index
+  ) public returns (bool)
+```
+Function to check if an index is claimed or not
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`index` | uint256 | Index
 
 ### _permit
 ```solidity
@@ -264,12 +263,4 @@ Emitted when a claim is done from another network
 ```
 
 Emitted when a new wrapped token is created
-
-### SetClaimTimeout
-```solidity
-  event SetClaimTimeout(
-  )
-```
-
-Emitted when newClaimTimeout is updated
 

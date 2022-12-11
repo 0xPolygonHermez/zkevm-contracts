@@ -1,43 +1,31 @@
-// SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.8.0) (governance/TimelockController.sol)
+// SPDX-License-Identifier: AGPL-3.0
+pragma solidity 0.8.15;
 
-pragma solidity ^0.8.0;
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ProofOfEfficiency.sol";
 
-import "../access/AccessControl.sol";
-import "../token/ERC721/IERC721Receiver.sol";
-import "../token/ERC1155/IERC1155Receiver.sol";
-import "../utils/Address.sol";
+// Based on: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/governance/TimelockController.sol
+
+/*
+ * changelog:
+ *   - Update to solidity 0.8.15
+ *   - Remove predecessors everywhere
+ *   - Remove rols -->  Replaced by owner
+ *   - Remove IERC165-supportsInterface
+ *   - Remove IERC721/IERC1155 Receivers
+ *   - Update getMinDelay logic: if the zkEVM contracts are on emergency mode, delay is 0
+ */
 
 /**
- * @dev Contract module which acts as a timelocked controller. When set as the
- * owner of an `Ownable` smart contract, it enforces a timelock on all
- * `onlyOwner` maintenance operations. This gives time for users of the
- * controlled contract to exit before a potentially dangerous maintenance
- * operation is applied.
- *
- * By default, this contract is self administered, meaning administration tasks
- * have to go through the timelock process. The proposer (resp executor) role
- * is in charge of proposing (resp executing) operations. A common use case is
- * to position this {TimelockController} as the owner of a smart contract, with
- * a multisig or a DAO as the sole proposer.
- *
- * _Available since v3.3._
+ * @dev Contract module which acts as a timelocked controller.
+ * This gives time for users of the controlled contract to exit before a potentially dangerous maintenance operation is applied.
  */
-contract TimelockController is
-    AccessControl,
-    IERC721Receiver,
-    IERC1155Receiver
-{
-    bytes32 public constant TIMELOCK_ADMIN_ROLE =
-        keccak256("TIMELOCK_ADMIN_ROLE");
-    bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
-    bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
-    bytes32 public constant CANCELLER_ROLE = keccak256("CANCELLER_ROLE");
+contract Timelock is Ownable {
     uint256 internal constant _DONE_TIMESTAMP = uint256(1);
 
     mapping(bytes32 => uint256) private _timestamps;
     uint256 private _minDelay;
-
+    ProofOfEfficiency public proofOfEfficiency;
     /**
      * @dev Emitted when a call is scheduled as part of operation `id`.
      */
@@ -47,7 +35,6 @@ contract TimelockController is
         address target,
         uint256 value,
         bytes data,
-        bytes32 predecessor,
         uint256 delay
     );
 
@@ -76,103 +63,37 @@ contract TimelockController is
      * @dev Initializes the contract with the following parameters:
      *
      * - `minDelay`: initial minimum delay for operations
-     * - `proposers`: accounts to be granted proposer and canceller roles
-     * - `executors`: accounts to be granted executor role
-     * - `admin`: optional account to be granted admin role; disable with zero address
-     *
-     * IMPORTANT: The optional admin can aid with initial configuration of roles after deployment
-     * without being subject to delay, but this role should be subsequently renounced in favor of
-     * administration through timelocked proposals. Previous versions of this contract would assign
-     * this admin to the deployer automatically and should be renounced as well.
      */
-    constructor(
-        uint256 minDelay,
-        address[] memory proposers,
-        address[] memory executors,
-        address admin
-    ) {
-        _setRoleAdmin(TIMELOCK_ADMIN_ROLE, TIMELOCK_ADMIN_ROLE);
-        _setRoleAdmin(PROPOSER_ROLE, TIMELOCK_ADMIN_ROLE);
-        _setRoleAdmin(EXECUTOR_ROLE, TIMELOCK_ADMIN_ROLE);
-        _setRoleAdmin(CANCELLER_ROLE, TIMELOCK_ADMIN_ROLE);
-
-        // self administration
-        _setupRole(TIMELOCK_ADMIN_ROLE, address(this));
-
-        // optional admin
-        if (admin != address(0)) {
-            _setupRole(TIMELOCK_ADMIN_ROLE, admin);
-        }
-
-        // register proposers and cancellers
-        for (uint256 i = 0; i < proposers.length; ++i) {
-            _setupRole(PROPOSER_ROLE, proposers[i]);
-            _setupRole(CANCELLER_ROLE, proposers[i]);
-        }
-
-        // register executors
-        for (uint256 i = 0; i < executors.length; ++i) {
-            _setupRole(EXECUTOR_ROLE, executors[i]);
-        }
-
+    constructor(uint256 minDelay, ProofOfEfficiency _proofOfEfficiency) {
+        proofOfEfficiency = _proofOfEfficiency;
         _minDelay = minDelay;
         emit MinDelayChange(0, minDelay);
     }
 
     /**
-     * @dev Modifier to make a function callable only by a certain role. In
-     * addition to checking the sender's role, `address(0)` 's role is also
-     * considered. Granting a role to `address(0)` is equivalent to enabling
-     * this role for everyone.
-     */
-    modifier onlyRoleOrOpenRole(bytes32 role) {
-        if (!hasRole(role, address(0))) {
-            _checkRole(role, _msgSender());
-        }
-        _;
-    }
-
-    /**
-     * @dev Contract might receive/hold ETH as part of the maintenance process.
+     * @dev Contract might receive/hold ETH
      */
     receive() external payable {}
 
     /**
-     * @dev See {IERC165-supportsInterface}.
+     * @dev Returns whether an operation exists.This
+     * includes Pending, Ready and Done operations.
      */
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(IERC165, AccessControl) returns (bool) {
-        return
-            interfaceId == type(IERC1155Receiver).interfaceId ||
-            super.supportsInterface(interfaceId);
-    }
-
-    /**
-     * @dev Returns whether an id correspond to a registered operation. This
-     * includes both Pending, Ready and Done operations.
-     */
-    function isOperation(
-        bytes32 id
-    ) public view virtual returns (bool registered) {
+    function isOperation(bytes32 id) public view returns (bool registered) {
         return getTimestamp(id) > 0;
     }
 
     /**
      * @dev Returns whether an operation is pending or not.
      */
-    function isOperationPending(
-        bytes32 id
-    ) public view virtual returns (bool pending) {
+    function isOperationPending(bytes32 id) public view returns (bool pending) {
         return getTimestamp(id) > _DONE_TIMESTAMP;
     }
 
     /**
      * @dev Returns whether an operation is ready or not.
      */
-    function isOperationReady(
-        bytes32 id
-    ) public view virtual returns (bool ready) {
+    function isOperationReady(bytes32 id) public view returns (bool ready) {
         uint256 timestamp = getTimestamp(id);
         return timestamp > _DONE_TIMESTAMP && timestamp <= block.timestamp;
     }
@@ -180,9 +101,7 @@ contract TimelockController is
     /**
      * @dev Returns whether an operation is done or not.
      */
-    function isOperationDone(
-        bytes32 id
-    ) public view virtual returns (bool done) {
+    function isOperationDone(bytes32 id) public view returns (bool done) {
         return getTimestamp(id) == _DONE_TIMESTAMP;
     }
 
@@ -190,9 +109,7 @@ contract TimelockController is
      * @dev Returns the timestamp at with an operation becomes ready (0 for
      * unset operations, 1 for done operations).
      */
-    function getTimestamp(
-        bytes32 id
-    ) public view virtual returns (uint256 timestamp) {
+    function getTimestamp(bytes32 id) public view returns (uint256 timestamp) {
         return _timestamps[id];
     }
 
@@ -200,9 +117,14 @@ contract TimelockController is
      * @dev Returns the minimum delay for an operation to become valid.
      *
      * This value can be changed by executing an operation that calls `updateDelay`.
+     * If proof of efficiency is on emergency state the minDelay will be 0 instead.
      */
-    function getMinDelay() public view virtual returns (uint256 duration) {
-        return _minDelay;
+    function getMinDelay() public view returns (uint256 duration) {
+        if (proofOfEfficiency.isEmergencyState()) {
+            return 0;
+        } else {
+            return _minDelay;
+        }
     }
 
     /**
@@ -213,10 +135,9 @@ contract TimelockController is
         address target,
         uint256 value,
         bytes calldata data,
-        bytes32 predecessor,
         bytes32 salt
-    ) public pure virtual returns (bytes32 hash) {
-        return keccak256(abi.encode(target, value, data, predecessor, salt));
+    ) public pure returns (bytes32 hash) {
+        return keccak256(abi.encode(target, value, data, salt));
     }
 
     /**
@@ -227,11 +148,9 @@ contract TimelockController is
         address[] calldata targets,
         uint256[] calldata values,
         bytes[] calldata payloads,
-        bytes32 predecessor,
         bytes32 salt
-    ) public pure virtual returns (bytes32 hash) {
-        return
-            keccak256(abi.encode(targets, values, payloads, predecessor, salt));
+    ) public pure returns (bytes32 hash) {
+        return keccak256(abi.encode(targets, values, payloads, salt));
     }
 
     /**
@@ -247,13 +166,12 @@ contract TimelockController is
         address target,
         uint256 value,
         bytes calldata data,
-        bytes32 predecessor,
         bytes32 salt,
         uint256 delay
-    ) public virtual onlyRole(PROPOSER_ROLE) {
-        bytes32 id = hashOperation(target, value, data, predecessor, salt);
+    ) public onlyOwner {
+        bytes32 id = hashOperation(target, value, data, salt);
         _schedule(id, delay);
-        emit CallScheduled(id, 0, target, value, data, predecessor, delay);
+        emit CallScheduled(id, 0, target, value, data, delay);
     }
 
     /**
@@ -269,10 +187,9 @@ contract TimelockController is
         address[] calldata targets,
         uint256[] calldata values,
         bytes[] calldata payloads,
-        bytes32 predecessor,
         bytes32 salt,
         uint256 delay
-    ) public virtual onlyRole(PROPOSER_ROLE) {
+    ) public onlyOwner {
         require(
             targets.length == values.length,
             "TimelockController: length mismatch"
@@ -282,13 +199,7 @@ contract TimelockController is
             "TimelockController: length mismatch"
         );
 
-        bytes32 id = hashOperationBatch(
-            targets,
-            values,
-            payloads,
-            predecessor,
-            salt
-        );
+        bytes32 id = hashOperationBatch(targets, values, payloads, salt);
         _schedule(id, delay);
         for (uint256 i = 0; i < targets.length; ++i) {
             emit CallScheduled(
@@ -297,7 +208,6 @@ contract TimelockController is
                 targets[i],
                 values[i],
                 payloads[i],
-                predecessor,
                 delay
             );
         }
@@ -325,7 +235,7 @@ contract TimelockController is
      *
      * - the caller must have the 'canceller' role.
      */
-    function cancel(bytes32 id) public virtual onlyRole(CANCELLER_ROLE) {
+    function cancel(bytes32 id) public onlyOwner {
         require(
             isOperationPending(id),
             "TimelockController: operation cannot be cancelled"
@@ -351,12 +261,11 @@ contract TimelockController is
         address target,
         uint256 value,
         bytes calldata payload,
-        bytes32 predecessor,
         bytes32 salt
-    ) public payable virtual onlyRoleOrOpenRole(EXECUTOR_ROLE) {
-        bytes32 id = hashOperation(target, value, payload, predecessor, salt);
+    ) public payable onlyOwner {
+        bytes32 id = hashOperation(target, value, payload, salt);
 
-        _beforeCall(id, predecessor);
+        _beforeCall(id);
         _execute(target, value, payload);
         emit CallExecuted(id, 0, target, value, payload);
         _afterCall(id);
@@ -375,9 +284,8 @@ contract TimelockController is
         address[] calldata targets,
         uint256[] calldata values,
         bytes[] calldata payloads,
-        bytes32 predecessor,
         bytes32 salt
-    ) public payable virtual onlyRoleOrOpenRole(EXECUTOR_ROLE) {
+    ) public payable onlyOwner {
         require(
             targets.length == values.length,
             "TimelockController: length mismatch"
@@ -387,15 +295,9 @@ contract TimelockController is
             "TimelockController: length mismatch"
         );
 
-        bytes32 id = hashOperationBatch(
-            targets,
-            values,
-            payloads,
-            predecessor,
-            salt
-        );
+        bytes32 id = hashOperationBatch(targets, values, payloads, salt);
 
-        _beforeCall(id, predecessor);
+        _beforeCall(id);
         for (uint256 i = 0; i < targets.length; ++i) {
             address target = targets[i];
             uint256 value = values[i];
@@ -413,7 +315,7 @@ contract TimelockController is
         address target,
         uint256 value,
         bytes calldata data
-    ) internal virtual {
+    ) internal {
         (bool success, ) = target.call{value: value}(data);
         require(success, "TimelockController: underlying transaction reverted");
     }
@@ -421,14 +323,10 @@ contract TimelockController is
     /**
      * @dev Checks before execution of an operation's calls.
      */
-    function _beforeCall(bytes32 id, bytes32 predecessor) private view {
+    function _beforeCall(bytes32 id) private view {
         require(
             isOperationReady(id),
             "TimelockController: operation is not ready"
-        );
-        require(
-            predecessor == bytes32(0) || isOperationDone(predecessor),
-            "TimelockController: missing dependency"
         );
     }
 
@@ -453,50 +351,12 @@ contract TimelockController is
      * - the caller must be the timelock itself. This can only be achieved by scheduling and later executing
      * an operation where the timelock is the target and the data is the ABI-encoded call to this function.
      */
-    function updateDelay(uint256 newDelay) external virtual {
+    function updateDelay(uint256 newDelay) external {
         require(
             msg.sender == address(this),
             "TimelockController: caller must be timelock"
         );
         emit MinDelayChange(_minDelay, newDelay);
         _minDelay = newDelay;
-    }
-
-    /**
-     * @dev See {IERC721Receiver-onERC721Received}.
-     */
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-
-    /**
-     * @dev See {IERC1155Receiver-onERC1155Received}.
-     */
-    function onERC1155Received(
-        address,
-        address,
-        uint256,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
-        return this.onERC1155Received.selector;
-    }
-
-    /**
-     * @dev See {IERC1155Receiver-onERC1155BatchReceived}.
-     */
-    function onERC1155BatchReceived(
-        address,
-        address,
-        uint256[] memory,
-        uint256[] memory,
-        bytes memory
-    ) public virtual override returns (bytes4) {
-        return this.onERC1155BatchReceived.selector;
     }
 }

@@ -289,7 +289,7 @@ contract ProofOfEfficiency is
      * @param _networkName L2 network name
      * @param _bridgeAddress bridge address
      * @param _trustedAggregator trusted aggregator
-     * @param trustedAggregatorTimeout trusted aggregator timeout
+     * @param _trustedAggregatorTimeout trusted aggregator timeout
      */
     function initialize(
         IGlobalExitRootManager _globalExitRootManager,
@@ -303,7 +303,7 @@ contract ProofOfEfficiency is
         string memory _networkName,
         IBridge _bridgeAddress,
         address _trustedAggregator,
-        uint64 trustedAggregatorTimeout
+        uint64 _trustedAggregatorTimeout
     ) public initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
@@ -316,7 +316,7 @@ contract ProofOfEfficiency is
         networkName = _networkName;
         bridgeAddress = _bridgeAddress;
         trustedAggregator = _trustedAggregator;
-        trustedAggregatorTimeout = trustedAggregatorTimeout;
+        trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -1061,7 +1061,7 @@ contract ProofOfEfficiency is
         );
 
         emit ProveNonDeterministicState(
-            pendingStateTransitions[finalPendingStateNum].stateRoot,
+            batchNumToStateRoot[finalNewBatch],
             newStateRoot
         );
 

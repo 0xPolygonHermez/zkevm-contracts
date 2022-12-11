@@ -20,7 +20,8 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     uint64 _chainID,
     string _networkName,
     contract IBridge _bridgeAddress,
-    address _securityCouncil
+    address _trustedAggregator,
+    uint64 _trustedAggregatorTimeout
   ) public
 ```
 
@@ -38,7 +39,8 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 |`_chainID` | uint64 | L2 chainID
 |`_networkName` | string | L2 network name
 |`_bridgeAddress` | contract IBridge | bridge address
-|`_securityCouncil` | address | security council
+|`_trustedAggregator` | address | trusted aggregator
+|`_trustedAggregatorTimeout` | uint64 | trusted aggregator timeout
 
 ### sequenceBatches
 ```solidity
@@ -59,11 +61,11 @@ Allows a sequencer to send multiple batches
   function verifyBatches(
     uint64 initNumBatch,
     uint64 finalNewBatch,
-    bytes32 newLocalExitRoot,
+    uint64 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint256[2] proofA,
-    uint256[2][2] proofB,
-    uint256[2] proofC
+    bytes32 proofA,
+    uint256[2] proofB,
+    uint256[2][2] proofC
   ) public
 ```
 Allows an aggregator to verify multiple batches
@@ -74,11 +76,62 @@ Allows an aggregator to verify multiple batches
 | :--- | :--- | :------------------------------------------------------------------- |
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newLocalExitRoot` | uint64 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | uint256[2] | zk-snark input
-|`proofB` | uint256[2][2] | zk-snark input
-|`proofC` | uint256[2] | zk-snark input
+|`proofA` | bytes32 | zk-snark input
+|`proofB` | uint256[2] | zk-snark input
+|`proofC` | uint256[2][2] | zk-snark input
+
+### trustedVerifyBatches
+```solidity
+  function trustedVerifyBatches(
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    uint64 newLocalExitRoot,
+    bytes32 newStateRoot,
+    bytes32 proofA,
+    uint256[2] proofB,
+    uint256[2][2] proofC
+  ) public
+```
+Allows an aggregator to verify multiple batches
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | uint64 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proofA` | bytes32 | zk-snark input
+|`proofB` | uint256[2] | zk-snark input
+|`proofC` | uint256[2][2] | zk-snark input
+
+### _consolidateNextPendingState
+```solidity
+  function _consolidateNextPendingState(
+  ) internal
+```
+Internal function to consolidate the next pending state if possible
+Otherwise do nothing
+
+
+
+### consolidatePendingState
+```solidity
+  function consolidatePendingState(
+    uint64 pendingStateNum
+  ) public
+```
+Allows to consolidate any pending state that has already exceed the pendingStateTimeout
+Can be called by the trusted aggregator, which can consolidate any state without the timeout restrictions
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`pendingStateNum` | uint64 | Pending state to consolidate
 
 ### forceBatch
 ```solidity
@@ -100,7 +153,7 @@ This should be used only in extreme cases where the trusted sequencer does not w
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
-    struct ProofOfEfficiency.ForceBatchData[] batches
+    struct ProofOfEfficiency.ForcedBatchData[] batches
   ) public
 ```
 Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
@@ -109,7 +162,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer do not have do
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct ProofOfEfficiency.ForceBatchData[] | Struct array which the necessary data to append new batces ot the sequence
+|`batches` | struct ProofOfEfficiency.ForcedBatchData[] | Struct array which the necessary data to append new batces ot the sequence
 
 ### setTrustedSequencer
 ```solidity
@@ -153,29 +206,44 @@ Allow the trusted sequencer to set the trusted sequencer URL
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newTrustedSequencerURL` | string | URL of trusted sequencer
 
-### setSecurityCouncil
+### setTrustedAggregator
 ```solidity
-  function setSecurityCouncil(
-    address newSecurityCouncil
+  function setTrustedAggregator(
+    address newTrustedAggregator
   ) public
 ```
-Allow the current security council to set a new security council address
+Allow the current trusted aggregator to set a new trusted aggregator address
+If address 0 is set, everyone is free to aggregate
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newSecurityCouncil` | address | Address of the new security council
+|`newTrustedAggregator` | address | Address of the new trusted aggregator
 
-### proveNonDeterministicState
+### setTrustedAggregatorTimeout
 ```solidity
-  function proveNonDeterministicState(
+  function setTrustedAggregatorTimeout(
+    uint64 newTrustedAggregatorTimeout
+  ) public
+```
+Allow the current trusted aggregator to set a new trusted aggregator timeout
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newTrustedAggregatorTimeout` | uint64 | Trusted aggreagator timeout
+
+### proveNonDeterministicPendingState
+```solidity
+  function proveNonDeterministicPendingState(
     uint64 initNumBatch,
     uint64 finalNewBatch,
-    bytes32 newLocalExitRoot,
-    bytes32 newStateRoot,
-    uint256[2] proofA,
-    uint256[2][2] proofB,
+    uint64 newLocalExitRoot,
+    uint64 newStateRoot,
+    bytes32 proofA,
+    bytes32 proofB,
     uint256[2] proofC
   ) public
 ```
@@ -187,22 +255,26 @@ Allows to halt the PoE if its possible to prove a different state root given the
 | :--- | :--- | :------------------------------------------------------------------- |
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
-|`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | uint256[2] | zk-snark input
-|`proofB` | uint256[2][2] | zk-snark input
+|`newLocalExitRoot` | uint64 |  New local exit root once the batch is processed
+|`newStateRoot` | uint64 | New State root once the batch is processed
+|`proofA` | bytes32 | zk-snark input
+|`proofB` | bytes32 | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
 
 ### activateEmergencyState
 ```solidity
   function activateEmergencyState(
+    uint64 sequencedBatchNum
   ) external
 ```
-Function to activate emergency state on both PoE and Bridge contrats
-Only can be called by the owner in the bootstrap phase, once the owner is renounced, the system
-can only be put on this state by proving a distinct state root given the same batches
+Function to activate emergency state, which also enable the emergency mode on both PoE and Bridge contrats
+If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
 
 
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`sequencedBatchNum` | uint64 | Sequenced batch number that has not been aggreagated in HALT_AGGREGATION_TIMEOUT
 
 ### deactivateEmergencyState
 ```solidity
@@ -210,17 +282,15 @@ can only be put on this state by proving a distinct state root given the same ba
   ) external
 ```
 Function to deactivate emergency state on both PoE and Bridge contrats
-Only can be called by the security council
 
 
 
-### calculateForceProverFee
+### calculateBatchFee
 ```solidity
-  function calculateForceProverFee(
+  function calculateBatchFee(
   ) public returns (uint256)
 ```
-Function to calculate the sequencer collateral depending on the congestion of the batches
-     // TODO
+Function to calculate the fee that must be payed for every batch
 
 
 
@@ -293,7 +363,23 @@ Emitted when forced batches are sequenced by not the trusted sequencer
   )
 ```
 
-Emitted when a aggregator verifies a new batch
+Emitted when a aggregator verifies batches
+
+### TrustedVerifyBatches
+```solidity
+  event TrustedVerifyBatches(
+  )
+```
+
+Emitted when the trusted aggregator verifies batches
+
+### ConsolidatePendingState
+```solidity
+  event ConsolidatePendingState(
+  )
+```
+
+Emitted when pending state is consolidated
 
 ### SetTrustedSequencer
 ```solidity
@@ -319,13 +405,21 @@ Emitted when a trusted sequencer update the forcebatch boolean
 
 Emitted when a trusted sequencer update his URL
 
-### SetSecurityCouncil
+### SetTrustedAggregatorTimeout
 ```solidity
-  event SetSecurityCouncil(
+  event SetTrustedAggregatorTimeout(
   )
 ```
 
-Emitted when security council update his address
+Emitted when a trusted aggregator update the trusted aggregator timeout
+
+### SetTrustedAggregator
+```solidity
+  event SetTrustedAggregator(
+  )
+```
+
+Emitted when a trusted aggregator update or renounce his address
 
 ### ProveNonDeterministicState
 ```solidity

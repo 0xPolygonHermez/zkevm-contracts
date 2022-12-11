@@ -16,13 +16,11 @@ contract BridgeMock is Bridge {
     function initialize(
         uint32 _networkID,
         IGlobalExitRootManager _globalExitRootManager,
-        address _poeAddress,
-        uint256 _claimTimeout
+        address _poeAddress
     ) public override initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         poeAddress = _poeAddress;
-        claimTimeout = _claimTimeout;
 
         maxEtherBridge = 0.25 ether;
 
