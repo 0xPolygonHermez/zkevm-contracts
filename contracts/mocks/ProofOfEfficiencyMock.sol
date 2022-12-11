@@ -39,41 +39,85 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
 
     /**
      * @notice Return the next snark input
-     * @param _lastVerifiedBatch Last verified Batch, used as a sanity check
-     * @param newVerifiedBatch Last batch that the aggregator intends to verify
+     * @param pendingStateNum Pending state num
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
      */
     function getNextSnarkInput(
-        uint64 _lastVerifiedBatch,
-        uint64 newVerifiedBatch,
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot
     ) public view returns (uint256) {
-        // sanity check
+        bytes32 oldStateRoot;
+        uint64 currentLastVerifiedBatch;
+
+        // Get the last pending state if there's one, otherwise check consolidate state
+        if (lastPendingState > 0) {
+            currentLastVerifiedBatch = pendingStateTransitions[lastPendingState]
+                .lastVerifiedBatch;
+        } else {
+            currentLastVerifiedBatch = lastVerifiedBatch;
+        }
+
+        // Use pending state if specified, otherwise use consolidated state
+        if (pendingStateNum != 0) {
+            // Check that pending state exist
+            // Already consolidated pending states can be used aswell
+            require(
+                pendingStateNum <= lastPendingState,
+                "ProofOfEfficiency::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+            );
+
+            // Check choosen pending state
+            PendingState storage currentPendingState = pendingStateTransitions[
+                pendingStateNum
+            ];
+
+            // Get oldStateRoot from pending batch
+            oldStateRoot = currentPendingState.stateRoot;
+
+            // Check initNumBatch matches the pending state
+            require(
+                initNumBatch == currentPendingState.lastVerifiedBatch,
+                "ProofOfEfficiency::verifyBatches: initNumBatch must match the pending state batch"
+            );
+        } else {
+            // Use consolidated state
+            require(
+                batchNumToStateRoot[initNumBatch] != bytes32(0),
+                "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
+            );
+            oldStateRoot = batchNumToStateRoot[initNumBatch];
+
+            // Check initNumBatch is inside the range
+            require(
+                initNumBatch <= currentLastVerifiedBatch,
+                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+            );
+        }
+
+        // Check final batch
         require(
-            _lastVerifiedBatch == lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: _lastVerifiedBatch does not match"
+            finalNewBatch > currentLastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
-        require(
-            newVerifiedBatch > _lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatch: newVerifiedBatch must be bigger than lastVerifiedBatch"
-        );
-
-        require(
-            newVerifiedBatch <= lastBatchSequenced,
-            "ProofOfEfficiency::verifyBatch: batch does not have been sequenced"
-        );
-
+        // Get snark bytes
         bytes memory snarkHashBytes = getInputSnarkBytes(
-            _lastVerifiedBatch,
-            newVerifiedBatch,
+            initNumBatch,
+            finalNewBatch,
             newLocalExitRoot,
+            oldStateRoot,
             newStateRoot
         );
 
+        // Calulate the snark input
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
+
         return inputSnark;
     }
 
@@ -81,10 +125,10 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @notice Set state root
      * @param newStateRoot New State root ¡
      */
-    function setStateRoot(bytes32 newStateRoot, uint64 batchNum)
-        public
-        onlyOwner
-    {
+    function setStateRoot(
+        bytes32 newStateRoot,
+        uint64 batchNum
+    ) public onlyOwner {
         batchNumToStateRoot[batchNum] = newStateRoot;
     }
 
@@ -125,68 +169,121 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
      * @param batchNum bathc num
      * @param accInputData accInputData
      */
-    function setSequencedBatches(uint64 batchNum, bytes32 accInputData)
-        public
-        onlyOwner
-    {
-        sequencedBatches[batchNum] = accInputData;
+    function setSequencedBatches(
+        uint64 batchNum,
+        bytes32 accInputData,
+        uint64 timestamp
+    ) public onlyOwner {
+        sequencedBatches[batchNum] = SequencedBatchData({
+            accInputHash: accInputData,
+            sequencedTimestamp: timestamp
+        });
     }
 
     /**
-     * @notice Allows an aggregator mock to verify a batch
-     * @param _lastVerifiedBatch Last verified Batch, used as a sanity check
-     * @param newVerifiedBatch Last batch that the aggregator intends to verify
+     * @notice Allows an aggregator to verify multiple batches
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
      * @param proofA zk-snark input
      * @param proofB zk-snark input
      * @param proofC zk-snark input
      */
-    function verifyBatchesMock(
-        uint64 _lastVerifiedBatch,
-        uint64 newVerifiedBatch,
+    function trustedVerifyBatchesMock(
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public onlyOwner {
+        bytes32 oldStateRoot;
+        uint64 currentLastVerifiedBatch;
+
+        // Use pending state if especified, otherwise use consolidate state
+        if (pendingStateNum != 0) {
+            // Check that pending state exist
+            // Already consolidated pending states can be used aswell
+            require(
+                pendingStateNum <= lastPendingState,
+                "ProofOfEfficiency::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+            );
+
+            // Check choosen pending state
+            PendingState storage currentPendingState = pendingStateTransitions[
+                pendingStateNum
+            ];
+            oldStateRoot = currentPendingState.stateRoot;
+
+            // Assert init batch
+            require(
+                initNumBatch == currentPendingState.lastVerifiedBatch,
+                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+            );
+            currentLastVerifiedBatch = initNumBatch;
+        } else {
+            // Use consolidated state
+            oldStateRoot = batchNumToStateRoot[initNumBatch];
+            require(
+                oldStateRoot != bytes32(0),
+                "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
+            );
+
+            // Assert init batch
+            require(
+                initNumBatch <= lastVerifiedBatch,
+                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+            );
+            currentLastVerifiedBatch = lastVerifiedBatch;
+        }
+
+        // Assert final batch
         require(
-            _lastVerifiedBatch <= lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: _lastVerifiedBatch must be less or equal"
+            finalNewBatch > currentLastVerifiedBatch,
+            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
-        require(
-            newVerifiedBatch > lastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: newVerifiedBatch must be bigger than lastVerifiedBatch"
+        // Get snark bytes
+        bytes memory snarkHashBytes = getInputSnarkBytes(
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            oldStateRoot,
+            newStateRoot
         );
 
-        bytes32 oldAccInputHash = sequencedBatches[_lastVerifiedBatch];
-        bytes32 newAccInputHash = sequencedBatches[newVerifiedBatch];
+        // Calulate the snark input
+        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
-        require(
-            oldAccInputHash != bytes32(0),
-            "ProofOfEfficiency::verifyBatch: oldAccInputHash does not exist"
-        );
+        // Verify proof
+        // require(
+        //     rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
+        //     "ProofOfEfficiency::verifyBatches: INVALID_PROOF"
+        // );
 
-        require(
-            newAccInputHash != bytes32(0),
-            "ProofOfEfficiency::verifyBatch: newAccInputHash does not exist"
-        );
-
-        // // Get MATIC reward
+        // Get MATIC reward
         // matic.safeTransfer(
         //     msg.sender,
-        //     calculateRewardPerBatch() * (newVerifiedBatch - _lastVerifiedBatch)
+        //     calculateRewardPerBatch() *
+        //         (finalNewBatch - currentLastVerifiedBatch)
         // );
 
         // Update state
-        lastVerifiedBatch = newVerifiedBatch;
-        batchNumToStateRoot[newVerifiedBatch] = newStateRoot;
+        lastVerifiedBatch = finalNewBatch;
+        batchNumToStateRoot[finalNewBatch] = newStateRoot;
 
-        // Interact with globalExitRoot
+        // Clean pending state if any
+        if (lastPendingState > 0) {
+            lastPendingState = 0;
+            lastPendingStateConsolidated = 0;
+        }
+
+        // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit VerifyBatches(newVerifiedBatch, newStateRoot, msg.sender);
+        emit TrustedVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
     }
 }
