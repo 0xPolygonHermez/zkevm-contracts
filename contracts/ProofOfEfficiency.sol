@@ -85,9 +85,6 @@ contract ProofOfEfficiency is
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
-    // trusted sequencer prover Fee
-    uint256 public constant TRUSTED_SEQUENCER_FEE = 0.1 ether; // TODO should be defined
-
     // Max batch byte length
     // Max keccaks circuit = (2**23 / 158418) * 9 = 468
     // Bytes per keccak = 136
@@ -458,7 +455,7 @@ contract ProofOfEfficiency is
         matic.safeTransferFrom(
             msg.sender,
             address(this),
-            TRUSTED_SEQUENCER_FEE * nonForcedBatchesSequenced
+            calculateBatchFee() * nonForcedBatchesSequenced
         );
 
         // Consolidate pending state if possible
@@ -709,6 +706,7 @@ contract ProofOfEfficiency is
                     pendingStateTimeout <=
                 block.timestamp
             ) {
+                // busqueda binaria de 2 pasos
                 consolidatePendingState(nextPendingState);
             }
         }
@@ -737,7 +735,7 @@ contract ProofOfEfficiency is
             require(
                 currentPendingState.timestamp + pendingStateTimeout <=
                     block.timestamp,
-                "ProofOfEfficiency::verifyBatches: pending state is not ready to be consolidated"
+                "ProofOfEfficiency::consolidatePendingState: pending state is not ready to be consolidated"
             );
         }
 
@@ -957,7 +955,9 @@ contract ProofOfEfficiency is
             "ProofOfEfficiency::setTrustedAggregator: exceed max trusted aggregator timeout"
         );
         trustedAggregatorTimeout = newTrustedAggregatorTimeout;
-
+        // only decrease
+        // if emergency mode can update whathever
+        // admin address
         emit SetTrustedAggregatorTimeout(trustedAggregatorTimeout);
     }
 
@@ -1108,8 +1108,10 @@ contract ProofOfEfficiency is
     function deactivateEmergencyState()
         external
         ifEmergencyState
-        onlyTrustedAggregator
+        onlyAdminAddress
     {
+        // deactivate emergency state addreess, another address ( or roles)
+
         // Deactivate emergency state on bridge
         bridgeAddress.deactivateEmergencyState();
 
