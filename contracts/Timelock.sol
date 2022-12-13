@@ -13,6 +13,7 @@ import "./ProofOfEfficiency.sol";
  *   - Remove rols -->  Replaced by owner
  *   - Remove IERC165-supportsInterface
  *   - Remove IERC721/IERC1155 Receivers
+ *   - Rename payload --> data
  *   - Update getMinDelay logic: if the zkEVM contracts are on emergency mode, delay is 0
  */
 
@@ -25,7 +26,9 @@ contract Timelock is Ownable {
 
     mapping(bytes32 => uint256) private _timestamps;
     uint256 private _minDelay;
+
     ProofOfEfficiency public proofOfEfficiency;
+
     /**
      * @dev Emitted when a call is scheduled as part of operation `id`.
      */
@@ -147,10 +150,10 @@ contract Timelock is Ownable {
     function hashOperationBatch(
         address[] calldata targets,
         uint256[] calldata values,
-        bytes[] calldata payloads,
+        bytes[] calldata datas,
         bytes32 salt
     ) public pure returns (bytes32 hash) {
-        return keccak256(abi.encode(targets, values, payloads, salt));
+        return keccak256(abi.encode(targets, values, datas, salt));
     }
 
     /**
@@ -160,7 +163,7 @@ contract Timelock is Ownable {
      *
      * Requirements:
      *
-     * - the caller must have the 'proposer' role.
+     * - the caller must be the owner.
      */
     function schedule(
         address target,
@@ -181,12 +184,12 @@ contract Timelock is Ownable {
      *
      * Requirements:
      *
-     * - the caller must have the 'proposer' role.
+     * - the caller must be the owner.
      */
     function scheduleBatch(
         address[] calldata targets,
         uint256[] calldata values,
-        bytes[] calldata payloads,
+        bytes[] calldata datas,
         bytes32 salt,
         uint256 delay
     ) public onlyOwner {
@@ -195,21 +198,14 @@ contract Timelock is Ownable {
             "TimelockController: length mismatch"
         );
         require(
-            targets.length == payloads.length,
+            targets.length == datas.length,
             "TimelockController: length mismatch"
         );
 
-        bytes32 id = hashOperationBatch(targets, values, payloads, salt);
+        bytes32 id = hashOperationBatch(targets, values, datas, salt);
         _schedule(id, delay);
         for (uint256 i = 0; i < targets.length; ++i) {
-            emit CallScheduled(
-                id,
-                i,
-                targets[i],
-                values[i],
-                payloads[i],
-                delay
-            );
+            emit CallScheduled(id, i, targets[i], values[i], datas[i], delay);
         }
     }
 
@@ -233,7 +229,7 @@ contract Timelock is Ownable {
      *
      * Requirements:
      *
-     * - the caller must have the 'canceller' role.
+     * - the caller must be the owner.
      */
     function cancel(bytes32 id) public onlyOwner {
         require(
@@ -252,7 +248,7 @@ contract Timelock is Ownable {
      *
      * Requirements:
      *
-     * - the caller must have the 'executor' role.
+     * - the caller must be the owner.
      */
     // This function can reenter, but it doesn't pose a risk because _afterCall checks that the proposal is pending,
     // thus any modifications to the operation during reentrancy should be caught.
@@ -260,14 +256,14 @@ contract Timelock is Ownable {
     function execute(
         address target,
         uint256 value,
-        bytes calldata payload,
+        bytes calldata data,
         bytes32 salt
     ) public payable onlyOwner {
-        bytes32 id = hashOperation(target, value, payload, salt);
+        bytes32 id = hashOperation(target, value, data, salt);
 
         _beforeCall(id);
-        _execute(target, value, payload);
-        emit CallExecuted(id, 0, target, value, payload);
+        _execute(target, value, data);
+        emit CallExecuted(id, 0, target, value, data);
         _afterCall(id);
     }
 
@@ -278,12 +274,12 @@ contract Timelock is Ownable {
      *
      * Requirements:
      *
-     * - the caller must have the 'executor' role.
+     * - the caller must be the owner.
      */
     function executeBatch(
         address[] calldata targets,
         uint256[] calldata values,
-        bytes[] calldata payloads,
+        bytes[] calldata datas,
         bytes32 salt
     ) public payable onlyOwner {
         require(
@@ -291,19 +287,19 @@ contract Timelock is Ownable {
             "TimelockController: length mismatch"
         );
         require(
-            targets.length == payloads.length,
+            targets.length == datas.length,
             "TimelockController: length mismatch"
         );
 
-        bytes32 id = hashOperationBatch(targets, values, payloads, salt);
+        bytes32 id = hashOperationBatch(targets, values, datas, salt);
 
         _beforeCall(id);
         for (uint256 i = 0; i < targets.length; ++i) {
             address target = targets[i];
             uint256 value = values[i];
-            bytes calldata payload = payloads[i];
-            _execute(target, value, payload);
-            emit CallExecuted(id, i, target, value, payload);
+            bytes calldata data = datas[i];
+            _execute(target, value, data);
+            emit CallExecuted(id, i, target, value, data);
         }
         _afterCall(id);
     }
