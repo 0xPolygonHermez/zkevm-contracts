@@ -81,6 +81,25 @@ contract ProofOfEfficiency is
         bytes32 stateRoot;
     }
 
+    /**
+     * @notice Struct to call initialize, this basically saves gas becasue pack the parameters that can be packed
+     * and avoid stack too deep errors.
+     * @param _admin  admin address
+     * @param _chainID L2 chainID
+     * @param _trustedSequencer trusted sequencer address
+     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
+     * @param _trustedAggregator trusted aggregator
+     * @param _trustedAggregatorTimeout trusted aggregator timeou
+     */
+    struct InitializePackedParameters {
+        address _admin;
+        uint64 _chainID;
+        address _trustedSequencer;
+        bool _forceBatchAllowed;
+        address _trustedAggregator;
+        uint64 _trustedAggregatorTimeout;
+    }
+
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
@@ -147,22 +166,19 @@ contract ProofOfEfficiency is
     // Trusted aggregator address
     address public trustedAggregator;
 
-    // Timestamp until the aggregation will be open to anyone
-    uint64 public openAggregationUntil;
-
     // Storage Slot //
 
     // Rollup verifier interface
     IVerifierRollup public rollupVerifier;
-
-    // L2 chain identifier
-    uint64 public chainID;
 
     // Global Exit Root interface
     IGlobalExitRootManager public globalExitRootManager;
 
     // Indicates whether the force batch functionality is available
     bool public forceBatchAllowed;
+
+    // L2 chain identifier
+    uint64 public chainID;
 
     // State root mapping
     // BatchNum --> state root
@@ -193,6 +209,9 @@ contract ProofOfEfficiency is
     // Trusted aggregator timeout, if a batch is not aggregated in this time frame,
     // everyone can aggregate that batch
     uint64 public trustedAggregatorTimeout;
+
+    // Address that will be able to udpate contract parameters or stop the emergency state
+    address public admin;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -267,6 +286,11 @@ contract ProofOfEfficiency is
     event SetTrustedAggregator(address newTrustedAggregator);
 
     /**
+     * @dev Emitted when a admin update his address
+     */
+    event SetAdmin(address newAdmin);
+
+    /**
      * @dev Emitted when is proved a different state given the same batches
      */
     event ProveNonDeterministicState(
@@ -278,45 +302,47 @@ contract ProofOfEfficiency is
      * @param _globalExitRootManager global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier rollup verifier address
-     * @param genesisRoot rollup genesis root
-     * @param _trustedSequencer trusted sequencer address
-     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
-     * @param _trustedSequencerURL trusted sequencer URL
-     * @param _chainID L2 chainID
-     * @param _networkName L2 network name
      * @param _bridgeAddress bridge address
-     * @param _trustedAggregator trusted aggregator
-     * @param _trustedAggregatorTimeout trusted aggregator timeout
+     * @param initializePackedParameters Struct to save gas and avoid stack too depp errors
+     * @param genesisRoot rollup genesis root
+     * @param _trustedSequencerURL trusted sequencer URL
+     * @param _networkName L2 network name
      */
     function initialize(
         IGlobalExitRootManager _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
-        bytes32 genesisRoot,
-        address _trustedSequencer,
-        bool _forceBatchAllowed,
-        string memory _trustedSequencerURL,
-        uint64 _chainID,
-        string memory _networkName,
         IBridge _bridgeAddress,
-        address _trustedAggregator,
-        uint64 _trustedAggregatorTimeout
+        InitializePackedParameters calldata initializePackedParameters,
+        bytes32 genesisRoot,
+        string memory _trustedSequencerURL,
+        string memory _networkName
     ) public initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
-        batchNumToStateRoot[0] = genesisRoot;
-        trustedSequencer = _trustedSequencer;
-        forceBatchAllowed = _forceBatchAllowed;
-        trustedSequencerURL = _trustedSequencerURL;
-        chainID = _chainID;
-        networkName = _networkName;
         bridgeAddress = _bridgeAddress;
-        trustedAggregator = _trustedAggregator;
-        trustedAggregatorTimeout = _trustedAggregatorTimeout;
+        admin = initializePackedParameters._admin;
+        trustedSequencer = initializePackedParameters._trustedSequencer;
+        trustedAggregator = initializePackedParameters._trustedAggregator;
+        batchNumToStateRoot[0] = genesisRoot;
+        trustedAggregatorTimeout = initializePackedParameters
+            ._trustedAggregatorTimeout;
+        chainID = initializePackedParameters._chainID;
+        forceBatchAllowed = initializePackedParameters._forceBatchAllowed;
+        trustedSequencerURL = _trustedSequencerURL;
+        networkName = _networkName;
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
+    }
+
+    modifier onlyAdmin() {
+        require(
+            admin == msg.sender,
+            "ProofOfEfficiency::onlyAdmin: only admin"
+        );
+        _;
     }
 
     modifier onlyTrustedSequencer() {
@@ -335,7 +361,6 @@ contract ProofOfEfficiency is
         _;
     }
 
-    // Only for the current version
     modifier isForceBatchAllowed() {
         require(
             forceBatchAllowed == true,
@@ -608,6 +633,14 @@ contract ProofOfEfficiency is
         bytes32 oldStateRoot;
         uint64 currentLastVerifiedBatch;
 
+        // Get the last pending state if there's one, otherwise check consolidate state
+        if (lastPendingState > 0) {
+            currentLastVerifiedBatch = pendingStateTransitions[lastPendingState]
+                .lastVerifiedBatch;
+        } else {
+            currentLastVerifiedBatch = lastVerifiedBatch;
+        }
+
         // Use pending state if especified, otherwise use consolidate state
         if (pendingStateNum != 0) {
             // Check that pending state exist
@@ -628,21 +661,19 @@ contract ProofOfEfficiency is
                 initNumBatch == currentPendingState.lastVerifiedBatch,
                 "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
-            currentLastVerifiedBatch = initNumBatch;
         } else {
             // Use consolidated state
-            oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
                 "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
             );
+            oldStateRoot = batchNumToStateRoot[initNumBatch];
 
             // Assert init batch
             require(
-                initNumBatch <= lastVerifiedBatch,
+                initNumBatch <= currentLastVerifiedBatch,
                 "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
-            currentLastVerifiedBatch = lastVerifiedBatch;
         }
 
         // Assert final batch
@@ -706,8 +737,22 @@ contract ProofOfEfficiency is
                     pendingStateTimeout <=
                 block.timestamp
             ) {
-                // busqueda binaria de 2 pasos
-                consolidatePendingState(nextPendingState);
+                // TODO
+                // Check middle pending state ( binary search of 1 step)
+                uint64 middlePendingState = nextPendingState +
+                    (lastPendingState - nextPendingState) /
+                    2;
+
+                // Try to consolidate it, and if not, consolidate the nextPendingState
+                if (
+                    pendingStateTransitions[middlePendingState].timestamp +
+                        pendingStateTimeout <=
+                    block.timestamp
+                ) {
+                    consolidatePendingState(middlePendingState);
+                } else {
+                    consolidatePendingState(nextPendingState);
+                }
             }
         }
     }
@@ -898,9 +943,7 @@ contract ProofOfEfficiency is
      * @notice Allow the current trusted sequencer to set a new trusted sequencer
      * @param newTrustedSequencer Address of the new trusted sequuencer
      */
-    function setTrustedSequencer(
-        address newTrustedSequencer
-    ) public onlyTrustedSequencer {
+    function setTrustedSequencer(address newTrustedSequencer) public onlyAdmin {
         trustedSequencer = newTrustedSequencer;
 
         emit SetTrustedSequencer(newTrustedSequencer);
@@ -910,9 +953,7 @@ contract ProofOfEfficiency is
      * @notice Allow the current trusted sequencer to allow/disallow the forceBatch functionality
      * @param newForceBatchAllowed Whether is allowed or not the forceBatch functionality
      */
-    function setForceBatchAllowed(
-        bool newForceBatchAllowed
-    ) public onlyTrustedSequencer {
+    function setForceBatchAllowed(bool newForceBatchAllowed) public onlyAdmin {
         forceBatchAllowed = newForceBatchAllowed;
 
         emit SetForceBatchAllowed(newForceBatchAllowed);
@@ -924,7 +965,7 @@ contract ProofOfEfficiency is
      */
     function setTrustedSequencerURL(
         string memory newTrustedSequencerURL
-    ) public onlyTrustedSequencer {
+    ) public onlyAdmin {
         trustedSequencerURL = newTrustedSequencerURL;
 
         emit SetTrustedSequencerURL(newTrustedSequencerURL);
@@ -937,7 +978,7 @@ contract ProofOfEfficiency is
      */
     function setTrustedAggregator(
         address newTrustedAggregator
-    ) public onlyTrustedAggregator {
+    ) public onlyAdmin {
         trustedAggregator = newTrustedAggregator;
 
         emit SetTrustedAggregator(newTrustedAggregator);
@@ -945,20 +986,35 @@ contract ProofOfEfficiency is
 
     /**
      * @notice Allow the current trusted aggregator to set a new trusted aggregator timeout
+     * The timeout can only be lowered, except if emergency state is active
      * @param newTrustedAggregatorTimeout Trusted aggreagator timeout
      */
     function setTrustedAggregatorTimeout(
         uint64 newTrustedAggregatorTimeout
-    ) public onlyTrustedAggregator {
+    ) public onlyAdmin {
         require(
             trustedAggregatorTimeout <= MAX_TRUSTED_AGGREGATOR_TIMEOUT,
-            "ProofOfEfficiency::setTrustedAggregator: exceed max trusted aggregator timeout"
+            "ProofOfEfficiency::setTrustedAggregatorTimeout: exceed max trusted aggregator timeout"
         );
+        if (!isEmergencyState) {
+            require(
+                newTrustedAggregatorTimeout < trustedAggregatorTimeout,
+                "ProofOfEfficiency::setTrustedAggregatorTimeout: new timeout must be lower"
+            );
+        }
+
         trustedAggregatorTimeout = newTrustedAggregatorTimeout;
-        // only decrease
-        // if emergency mode can update whathever
-        // admin address
         emit SetTrustedAggregatorTimeout(trustedAggregatorTimeout);
+    }
+
+    /**
+     * @notice Allow the current admin to set a new admin address
+     * @param newAdmin Address of the new admin
+     */
+    function setAdmin(address newAdmin) public onlyAdmin {
+        admin = newAdmin;
+
+        emit SetAdmin(newAdmin);
     }
 
     /**
@@ -1105,13 +1161,7 @@ contract ProofOfEfficiency is
     /**
      * @notice Function to deactivate emergency state on both PoE and Bridge contrats
      */
-    function deactivateEmergencyState()
-        external
-        ifEmergencyState
-        onlyAdminAddress
-    {
-        // deactivate emergency state addreess, another address ( or roles)
-
+    function deactivateEmergencyState() external ifEmergencyState onlyAdmin {
         // Deactivate emergency state on bridge
         bridgeAddress.deactivateEmergencyState();
 
@@ -1136,6 +1186,8 @@ contract ProofOfEfficiency is
         // Total Batches to be verified = Total Sequenced Batches - verified Batches
         uint256 totalBatchesToVerify = ((lastForceBatch -
             lastForceBatchSequenced) + lastBatchSequenced) - lastVerifiedBatch;
+
+        // TODO GET LAST VERIFIES BATCH in account of pending state
         return currentBalance / totalBatchesToVerify;
     }
 
