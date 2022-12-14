@@ -13,15 +13,11 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
     contract IGlobalExitRootManager _globalExitRootManager,
     contract IERC20Upgradeable _matic,
     contract IVerifierRollup _rollupVerifier,
-    bytes32 genesisRoot,
-    address _trustedSequencer,
-    bool _forceBatchAllowed,
-    string _trustedSequencerURL,
-    uint64 _chainID,
-    string _networkName,
     contract IBridge _bridgeAddress,
-    address _trustedAggregator,
-    uint64 _trustedAggregatorTimeout
+    struct ProofOfEfficiency.InitializePackedParameters initializePackedParameters,
+    bytes32 genesisRoot,
+    string _trustedSequencerURL,
+    string _networkName
   ) public
 ```
 
@@ -32,15 +28,11 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 |`_globalExitRootManager` | contract IGlobalExitRootManager | global exit root manager address
 |`_matic` | contract IERC20Upgradeable | MATIC token address
 |`_rollupVerifier` | contract IVerifierRollup | rollup verifier address
-|`genesisRoot` | bytes32 | rollup genesis root
-|`_trustedSequencer` | address | trusted sequencer address
-|`_forceBatchAllowed` | bool | indicates wheather the force batch functionality is available
-|`_trustedSequencerURL` | string | trusted sequencer URL
-|`_chainID` | uint64 | L2 chainID
-|`_networkName` | string | L2 network name
 |`_bridgeAddress` | contract IBridge | bridge address
-|`_trustedAggregator` | address | trusted aggregator
-|`_trustedAggregatorTimeout` | uint64 | trusted aggregator timeout
+|`initializePackedParameters` | struct ProofOfEfficiency.InitializePackedParameters | Struct to save gas and avoid stack too depp errors
+|`genesisRoot` | bytes32 | rollup genesis root
+|`_trustedSequencerURL` | string | trusted sequencer URL
+|`_networkName` | string | L2 network name
 
 ### sequenceBatches
 ```solidity
@@ -228,12 +220,27 @@ If address 0 is set, everyone is free to aggregate
   ) public
 ```
 Allow the current trusted aggregator to set a new trusted aggregator timeout
+The timeout can only be lowered, except if emergency state is active
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newTrustedAggregatorTimeout` | uint64 | Trusted aggreagator timeout
+
+### setAdmin
+```solidity
+  function setAdmin(
+    address newAdmin
+  ) public
+```
+Allow the current admin to set a new admin address
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newAdmin` | address | Address of the new admin
 
 ### proveNonDeterministicPendingState
 ```solidity
@@ -420,6 +427,14 @@ Emitted when a trusted aggregator update the trusted aggregator timeout
 ```
 
 Emitted when a trusted aggregator update or renounce his address
+
+### SetAdmin
+```solidity
+  event SetAdmin(
+  )
+```
+
+Emitted when a admin update his address
 
 ### ProveNonDeterministicState
 ```solidity

@@ -153,6 +153,19 @@
       "inputs": [
         {
           "indexed": false,
+          "internalType": "address",
+          "name": "newAdmin",
+          "type": "address"
+        }
+      ],
+      "name": "SetAdmin",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
           "internalType": "bool",
           "name": "newForceBatchAllowed",
           "type": "bool"
@@ -316,19 +329,6 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "TRUSTED_SEQUENCER_FEE",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [
         {
           "internalType": "uint64",
@@ -339,6 +339,19 @@
       "name": "activateEmergencyState",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "admin",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -552,19 +565,51 @@
           "type": "address"
         },
         {
-          "internalType": "bytes32",
-          "name": "genesisRoot",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "address",
-          "name": "_trustedSequencer",
+          "internalType": "contract IBridge",
+          "name": "_bridgeAddress",
           "type": "address"
         },
         {
-          "internalType": "bool",
-          "name": "_forceBatchAllowed",
-          "type": "bool"
+          "components": [
+            {
+              "internalType": "address",
+              "name": "_admin",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "_chainID",
+              "type": "uint64"
+            },
+            {
+              "internalType": "address",
+              "name": "_trustedSequencer",
+              "type": "address"
+            },
+            {
+              "internalType": "bool",
+              "name": "_forceBatchAllowed",
+              "type": "bool"
+            },
+            {
+              "internalType": "address",
+              "name": "_trustedAggregator",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "_trustedAggregatorTimeout",
+              "type": "uint64"
+            }
+          ],
+          "internalType": "struct ProofOfEfficiency.InitializePackedParameters",
+          "name": "initializePackedParameters",
+          "type": "tuple"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "genesisRoot",
+          "type": "bytes32"
         },
         {
           "internalType": "string",
@@ -572,29 +617,9 @@
           "type": "string"
         },
         {
-          "internalType": "uint64",
-          "name": "_chainID",
-          "type": "uint64"
-        },
-        {
           "internalType": "string",
           "name": "_networkName",
           "type": "string"
-        },
-        {
-          "internalType": "contract IBridge",
-          "name": "_bridgeAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "_trustedAggregator",
-          "type": "address"
-        },
-        {
-          "internalType": "uint64",
-          "name": "_trustedAggregatorTimeout",
-          "type": "uint64"
         }
       ],
       "name": "initialize",
@@ -727,19 +752,6 @@
           "internalType": "string",
           "name": "",
           "type": "string"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "openAggregationUntil",
-      "outputs": [
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
         }
       ],
       "stateMutability": "view",
@@ -965,6 +977,19 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newAdmin",
+          "type": "address"
+        }
+      ],
+      "name": "setAdmin",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
