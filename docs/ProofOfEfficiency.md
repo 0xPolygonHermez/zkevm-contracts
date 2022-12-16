@@ -77,6 +77,34 @@ Allows an aggregator to verify multiple batches
 ### trustedVerifyBatches
 ```solidity
   function trustedVerifyBatches(
+    uint64 pendingStateNum,
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot,
+    uint256[2] proofA,
+    uint256[2][2] proofB,
+    uint256[2] proofC
+  ) public
+```
+Allows an aggregator to verify multiple batches
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`pendingStateNum` | uint64 | Init pending state, 0 when consolidated state is used
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proofA` | uint256[2] | zk-snark input
+|`proofB` | uint256[2][2] | zk-snark input
+|`proofC` | uint256[2] | zk-snark input
+
+### _verifyBatches
+```solidity
+  function _verifyBatches(
     uint64 initNumBatch,
     uint64 finalNewBatch,
     uint64 newLocalExitRoot,
@@ -84,9 +112,9 @@ Allows an aggregator to verify multiple batches
     bytes32 proofA,
     uint256[2] proofB,
     uint256[2][2] proofC
-  ) public
+  ) internal
 ```
-Allows an aggregator to verify multiple batches
+Verify batches internal function
 
 
 #### Parameters:
@@ -105,8 +133,8 @@ Allows an aggregator to verify multiple batches
   function _consolidateNextPendingState(
   ) internal
 ```
-Internal function to consolidate the next pending state if possible
-Otherwise do nothing
+Internal function to consolidate the state automatically once sequence or verify batches are called
+It trys to consolidatethe first and the middle pending state
 
 
 
@@ -242,15 +270,17 @@ Allow the current admin to set a new admin address
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newAdmin` | address | Address of the new admin
 
-### proveNonDeterministicPendingState
+### overridePendingState
 ```solidity
-  function proveNonDeterministicPendingState(
+  function overridePendingState(
+    uint64 initPendingStateNum,
+    uint64 finalPendingStateNum,
     uint64 initNumBatch,
     uint64 finalNewBatch,
-    uint64 newLocalExitRoot,
-    uint64 newStateRoot,
-    bytes32 proofA,
-    bytes32 proofB,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot,
+    uint256[2] proofA,
+    uint256[2][2] proofB,
     uint256[2] proofC
   ) public
 ```
@@ -260,12 +290,74 @@ Allows to halt the PoE if its possible to prove a different state root given the
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
+|`initPendingStateNum` | uint64 | Init pending state, 0 when consolidated state is used
+|`finalPendingStateNum` | uint64 | Final pending state, that will be used to compare with the newStateRoot
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | uint64 |  New local exit root once the batch is processed
-|`newStateRoot` | uint64 | New State root once the batch is processed
-|`proofA` | bytes32 | zk-snark input
-|`proofB` | bytes32 | zk-snark input
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proofA` | uint256[2] | zk-snark input
+|`proofB` | uint256[2][2] | zk-snark input
+|`proofC` | uint256[2] | zk-snark input
+
+### proveNonDeterministicPendingState
+```solidity
+  function proveNonDeterministicPendingState(
+    uint64 initPendingStateNum,
+    uint64 finalPendingStateNum,
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot,
+    uint256[2] proofA,
+    uint256[2][2] proofB,
+    uint256[2] proofC
+  ) public
+```
+Allows to halt the PoE if its possible to prove a different state root given the same batches
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`initPendingStateNum` | uint64 | Init pending state, 0 when consolidated state is used
+|`finalPendingStateNum` | uint64 | Final pending state, that will be used to compare with the newStateRoot
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proofA` | uint256[2] | zk-snark input
+|`proofB` | uint256[2][2] | zk-snark input
+|`proofC` | uint256[2] | zk-snark input
+
+### _proveDistinctPendingState
+```solidity
+  function _proveDistinctPendingState(
+    uint64 initPendingStateNum,
+    uint64 finalPendingStateNum,
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot,
+    uint256[2] proofA,
+    uint256[2][2] proofB,
+    uint256[2] proofC
+  ) internal
+```
+Internal functoin that prove a different state root given the same batches to verify
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`initPendingStateNum` | uint64 | Init pending state, 0 when consolidated state is used
+|`finalPendingStateNum` | uint64 | Final pending state, that will be used to compare with the newStateRoot
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proofA` | uint256[2] | zk-snark input
+|`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
 
 ### activateEmergencyState
@@ -297,7 +389,16 @@ Function to deactivate emergency state on both PoE and Bridge contrats
   function calculateBatchFee(
   ) public returns (uint256)
 ```
-Function to calculate the fee that must be payed for every batch
+Function to get the last verified batch
+
+
+
+### getLastVerifiedBatch
+```solidity
+  function getLastVerifiedBatch(
+  ) public returns (uint64)
+```
+Get the last verified batch
 
 
 
@@ -436,11 +537,19 @@ Emitted when a trusted aggregator update or renounce his address
 
 Emitted when a admin update his address
 
-### ProveNonDeterministicState
+### ProveNonDeterministicPendingState
 ```solidity
-  event ProveNonDeterministicState(
+  event ProveNonDeterministicPendingState(
   )
 ```
 
 Emitted when is proved a different state given the same batches
+
+### OverridePendingState
+```solidity
+  event OverridePendingState(
+  )
+```
+
+Emitted when the trusted aggregator overrides pending state
 

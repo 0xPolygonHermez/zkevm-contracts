@@ -84,20 +84,21 @@ contract ProofOfEfficiency is
     /**
      * @notice Struct to call initialize, this basically saves gas becasue pack the parameters that can be packed
      * and avoid stack too deep errors.
-     * @param _admin  admin address
-     * @param _chainID L2 chainID
-     * @param _trustedSequencer trusted sequencer address
-     * @param _forceBatchAllowed indicates wheather the force batch functionality is available
-     * @param _trustedAggregator trusted aggregator
-     * @param _trustedAggregatorTimeout trusted aggregator timeou
+     * @param admin  admin address
+     * @param chainID L2 chainID
+     * @param trustedSequencer trusted sequencer address
+     * @param forceBatchAllowed indicates wheather the force batch functionality is available
+     * @param trustedAggregator trusted aggregator
+     * @param trustedAggregatorTimeout trusted aggregator timeou
      */
     struct InitializePackedParameters {
-        address _admin;
-        uint64 _chainID;
-        address _trustedSequencer;
-        bool _forceBatchAllowed;
-        address _trustedAggregator;
-        uint64 _trustedAggregatorTimeout;
+        address admin;
+        uint64 chainID;
+        address trustedSequencer;
+        uint64 pendingStateTimeout;
+        bool forceBatchAllowed;
+        address trustedAggregator;
+        uint64 trustedAggregatorTimeout;
     }
 
     // Modulus zkSNARK
@@ -125,6 +126,10 @@ contract ProofOfEfficiency is
 
     // Maximum trusted aggregator timeout that can be set
     uint64 public constant MAX_TRUSTED_AGGREGATOR_TIMEOUT = 1 weeks;
+
+    // Maximum batches that can be verified in one call TODO depends on our current metrics
+    // This should be a protection against someone that trys to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
+    uint64 public constant MAX_VERIFY_BATCHES = 1000;
 
     // MATIC token address
     IERC20Upgradeable public matic;
@@ -210,7 +215,7 @@ contract ProofOfEfficiency is
     // everyone can aggregate that batch
     uint64 public trustedAggregatorTimeout;
 
-    // Address that will be able to udpate contract parameters or stop the emergency state
+    // Address that will be able to adjust contract parameters or stop the emergency state
     address public admin;
 
     /**
@@ -293,9 +298,18 @@ contract ProofOfEfficiency is
     /**
      * @dev Emitted when is proved a different state given the same batches
      */
-    event ProveNonDeterministicState(
+    event ProveNonDeterministicPendingState(
         bytes32 storedStateRoot,
         bytes32 provedStateRoot
+    );
+
+    /**
+     * @dev Emitted when the trusted aggregator overrides pending state
+     */
+    event OverridePendingState(
+        uint64 indexed numBatch,
+        bytes32 stateRoot,
+        address indexed aggregator
     );
 
     /**
@@ -322,14 +336,15 @@ contract ProofOfEfficiency is
         matic = _matic;
         rollupVerifier = _rollupVerifier;
         bridgeAddress = _bridgeAddress;
-        admin = initializePackedParameters._admin;
-        trustedSequencer = initializePackedParameters._trustedSequencer;
-        trustedAggregator = initializePackedParameters._trustedAggregator;
+        admin = initializePackedParameters.admin;
+        trustedSequencer = initializePackedParameters.trustedSequencer;
+        trustedAggregator = initializePackedParameters.trustedAggregator;
         batchNumToStateRoot[0] = genesisRoot;
         trustedAggregatorTimeout = initializePackedParameters
-            ._trustedAggregatorTimeout;
-        chainID = initializePackedParameters._chainID;
-        forceBatchAllowed = initializePackedParameters._forceBatchAllowed;
+            .trustedAggregatorTimeout;
+        chainID = initializePackedParameters.chainID;
+        pendingStateTimeout = initializePackedParameters.pendingStateTimeout;
+        forceBatchAllowed = initializePackedParameters.forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
 
@@ -509,23 +524,115 @@ contract ProofOfEfficiency is
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public ifNotEmergencyState {
-        // Check if the trusted aggregator timeout expired, and the batch can be verified by another aggregator
+        // Check if the trusted aggregator timeout expired
         require(
             sequencedBatches[finalNewBatch].sequencedTimestamp +
                 trustedAggregatorTimeout <=
                 block.timestamp,
             "ProofOfEfficiency::verifyBatches: trusted aggregator timeout not expired"
         );
-        bytes32 oldStateRoot;
-        uint64 currentLastVerifiedBatch;
 
-        // Get the last pending state if there's one, otherwise check consolidate state
+        require(
+            finalNewBatch - initNumBatch < MAX_VERIFY_BATCHES,
+            "ProofOfEfficiency::verifyBatches: cannot verify that many batches"
+        );
+
+        _verifyBatches(
+            pendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            proofA,
+            proofB,
+            proofC
+        );
+
+        // Consolidate pending state if possible
+        _consolidateNextPendingState();
+
+        // Update pending state
+        lastPendingState++;
+        pendingStateTransitions[lastPendingState] = PendingState({
+            timestamp: uint64(block.timestamp),
+            lastVerifiedBatch: finalNewBatch,
+            exitRoot: newLocalExitRoot,
+            stateRoot: newStateRoot
+        });
+
+        emit VerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+    }
+
+    /**
+     * @notice Allows an aggregator to verify multiple batches
+     * @param pendingStateNum Init pending state, 0 when consolidated state is used
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param proofA zk-snark input
+     * @param proofB zk-snark input
+     * @param proofC zk-snark input
+     */
+    function trustedVerifyBatches(
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC
+    ) public onlyTrustedAggregator {
+        _verifyBatches(
+            pendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            proofA,
+            proofB,
+            proofC
+        );
+
+        // Consolidate state state
+        lastVerifiedBatch = finalNewBatch;
+        batchNumToStateRoot[finalNewBatch] = newStateRoot;
+
+        // Clean pending state if any
         if (lastPendingState > 0) {
-            currentLastVerifiedBatch = pendingStateTransitions[lastPendingState]
-                .lastVerifiedBatch;
-        } else {
-            currentLastVerifiedBatch = lastVerifiedBatch;
+            lastPendingState = 0;
+            lastPendingStateConsolidated = 0;
         }
+
+        // Interact with globalExitRootManager
+        globalExitRootManager.updateExitRoot(newLocalExitRoot);
+
+        emit TrustedVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+    }
+
+    /**
+     * @notice Verify batches internal function
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param proofA zk-snark input
+     * @param proofB zk-snark input
+     * @param proofC zk-snark input
+     */
+    function _verifyBatches(
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC
+    ) internal {
+        bytes32 oldStateRoot;
+        uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
 
         // Use pending state if specified, otherwise use consolidated state
         if (pendingStateNum != 0) {
@@ -551,11 +658,11 @@ contract ProofOfEfficiency is
             );
         } else {
             // Use consolidated state
+            oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
-                batchNumToStateRoot[initNumBatch] != bytes32(0),
+                oldStateRoot != bytes32(0),
                 "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
             );
-            oldStateRoot = batchNumToStateRoot[initNumBatch];
 
             // Check initNumBatch is inside the range
             require(
@@ -594,150 +701,22 @@ contract ProofOfEfficiency is
             calculateRewardPerBatch() *
                 (finalNewBatch - currentLastVerifiedBatch)
         );
-
-        // Consolidate pending state if possible
-        _consolidateNextPendingState();
-
-        // Update pending state
-        lastPendingState++;
-        pendingStateTransitions[lastPendingState] = PendingState({
-            timestamp: uint64(block.timestamp),
-            lastVerifiedBatch: finalNewBatch,
-            exitRoot: newLocalExitRoot,
-            stateRoot: newStateRoot
-        });
-
-        emit VerifyBatches(finalNewBatch, newStateRoot, msg.sender);
     }
 
     /**
-     * @notice Allows an aggregator to verify multiple batches
-     * @param initNumBatch Batch which the aggregator starts the verification
-     * @param finalNewBatch Last batch aggregator intends to verify
-     * @param newLocalExitRoot  New local exit root once the batch is processed
-     * @param newStateRoot New State root once the batch is processed
-     * @param proofA zk-snark input
-     * @param proofB zk-snark input
-     * @param proofC zk-snark input
-     */
-    function trustedVerifyBatches(
-        uint64 pendingStateNum,
-        uint64 initNumBatch,
-        uint64 finalNewBatch,
-        bytes32 newLocalExitRoot,
-        bytes32 newStateRoot,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
-    ) public onlyTrustedAggregator {
-        bytes32 oldStateRoot;
-        uint64 currentLastVerifiedBatch;
-
-        // Get the last pending state if there's one, otherwise check consolidate state
-        if (lastPendingState > 0) {
-            currentLastVerifiedBatch = pendingStateTransitions[lastPendingState]
-                .lastVerifiedBatch;
-        } else {
-            currentLastVerifiedBatch = lastVerifiedBatch;
-        }
-
-        // Use pending state if especified, otherwise use consolidate state
-        if (pendingStateNum != 0) {
-            // Check that pending state exist
-            // Already consolidated pending states can be used aswell
-            require(
-                pendingStateNum <= lastPendingState,
-                "ProofOfEfficiency::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
-            );
-
-            // Check choosen pending state
-            PendingState storage currentPendingState = pendingStateTransitions[
-                pendingStateNum
-            ];
-            oldStateRoot = currentPendingState.stateRoot;
-
-            // Assert init batch
-            require(
-                initNumBatch == currentPendingState.lastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
-            );
-        } else {
-            // Use consolidated state
-            require(
-                oldStateRoot != bytes32(0),
-                "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
-            );
-            oldStateRoot = batchNumToStateRoot[initNumBatch];
-
-            // Assert init batch
-            require(
-                initNumBatch <= currentLastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
-            );
-        }
-
-        // Assert final batch
-        require(
-            finalNewBatch > currentLastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
-        );
-
-        // Get snark bytes
-        bytes memory snarkHashBytes = getInputSnarkBytes(
-            initNumBatch,
-            finalNewBatch,
-            newLocalExitRoot,
-            oldStateRoot,
-            newStateRoot
-        );
-
-        // Calulate the snark input
-        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
-
-        // Verify proof
-        require(
-            rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "ProofOfEfficiency::verifyBatches: INVALID_PROOF"
-        );
-
-        // Get MATIC reward
-        matic.safeTransfer(
-            msg.sender,
-            calculateRewardPerBatch() *
-                (finalNewBatch - currentLastVerifiedBatch)
-        );
-
-        // Update state
-        lastVerifiedBatch = finalNewBatch;
-        batchNumToStateRoot[finalNewBatch] = newStateRoot;
-
-        // Clean pending state if any
-        if (lastPendingState > 0) {
-            lastPendingState = 0;
-            lastPendingStateConsolidated = 0;
-        }
-
-        // Interact with globalExitRootManager
-        globalExitRootManager.updateExitRoot(newLocalExitRoot);
-
-        emit TrustedVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
-    }
-
-    /**
-     * @notice Internal function to consolidate the next pending state if possible
-     * Otherwise do nothing
+     * @notice Internal function to consolidate the state automatically once sequence or verify batches are called
+     * It trys to consolidatethe first and the middle pending state
      */
     function _consolidateNextPendingState() internal {
+        // Check if there's any state to consolidate
         if (lastPendingState > lastPendingStateConsolidated) {
             // Check if it's possible to consolidate the next pending state
             uint64 nextPendingState = lastPendingStateConsolidated + 1;
-
             if (
                 pendingStateTransitions[nextPendingState].timestamp +
                     pendingStateTimeout <=
                 block.timestamp
             ) {
-                // TODO
                 // Check middle pending state ( binary search of 1 step)
                 uint64 middlePendingState = nextPendingState +
                     (lastPendingState - nextPendingState) /
@@ -764,6 +743,7 @@ contract ProofOfEfficiency is
      */
     function consolidatePendingState(uint64 pendingStateNum) public {
         // Check if pendingStateNum is in correct range
+        // Not 0, is not consolidated, and exist
         require(
             pendingStateNum != 0 &&
                 pendingStateNum > lastPendingStateConsolidated &&
@@ -939,6 +919,8 @@ contract ProofOfEfficiency is
         emit SequenceForceBatches(lastBatchSequenced);
     }
 
+    // admin functions
+
     /**
      * @notice Allow the current trusted sequencer to set a new trusted sequencer
      * @param newTrustedSequencer Address of the new trusted sequuencer
@@ -1017,8 +999,63 @@ contract ProofOfEfficiency is
         emit SetAdmin(newAdmin);
     }
 
+    // Soundness protection mechanisms
+
     /**
      * @notice Allows to halt the PoE if its possible to prove a different state root given the same batches
+     * @param initPendingStateNum Init pending state, 0 when consolidated state is used
+     * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param proofA zk-snark input
+     * @param proofB zk-snark input
+     * @param proofC zk-snark input
+     */
+    function overridePendingState(
+        uint64 initPendingStateNum,
+        uint64 finalPendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC
+    ) public onlyTrustedAggregator {
+        _proveDistinctPendingState(
+            initPendingStateNum,
+            finalPendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            proofA,
+            proofB,
+            proofC
+        );
+
+        // Consolidate state state
+        lastVerifiedBatch = finalNewBatch;
+        batchNumToStateRoot[finalNewBatch] = newStateRoot;
+
+        // Clean pending state if any
+        if (lastPendingState > 0) {
+            lastPendingState = 0;
+            lastPendingStateConsolidated = 0;
+        }
+
+        // Interact with globalExitRootManager
+        globalExitRootManager.updateExitRoot(newLocalExitRoot);
+
+        emit OverridePendingState(finalNewBatch, newStateRoot, msg.sender);
+    }
+
+    /**
+     * @notice Allows to halt the PoE if its possible to prove a different state root given the same batches
+     * @param initPendingStateNum Init pending state, 0 when consolidated state is used
+     * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
@@ -1038,6 +1075,50 @@ contract ProofOfEfficiency is
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public ifNotEmergencyState {
+        _proveDistinctPendingState(
+            initPendingStateNum,
+            finalPendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            proofA,
+            proofB,
+            proofC
+        );
+
+        emit ProveNonDeterministicPendingState(
+            batchNumToStateRoot[finalNewBatch],
+            newStateRoot
+        );
+
+        // Activate emergency state
+        _activateEmergencyState();
+    }
+
+    /**
+     * @notice Internal functoin that prove a different state root given the same batches to verify
+     * @param initPendingStateNum Init pending state, 0 when consolidated state is used
+     * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param proofA zk-snark input
+     * @param proofB zk-snark input
+     * @param proofC zk-snark input
+     */
+    function _proveDistinctPendingState(
+        uint64 initPendingStateNum,
+        uint64 finalPendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC
+    ) internal view {
         bytes32 oldStateRoot;
 
         // Use pending state if specified, otherwise use consolidated state
@@ -1064,11 +1145,11 @@ contract ProofOfEfficiency is
             );
         } else {
             // Use consolidated state
+            oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
-                batchNumToStateRoot[initNumBatch] != bytes32(0),
+                oldStateRoot != bytes32(0),
                 "ProofOfEfficiency::proveNonDeterministicPendingState: initNumBatch state root does not exist"
             );
-            oldStateRoot = batchNumToStateRoot[initNumBatch];
 
             // Check initNumBatch is inside the range
             require(
@@ -1078,7 +1159,7 @@ contract ProofOfEfficiency is
         }
 
         // Assert final pending state num is in correct range
-        // Exist, is bigger than the initPending state, and it's not consolidated
+        // Exist, is bigger than the initPendingstate, and it's not consolidated
         require(
             finalPendingStateNum <= lastPendingState &&
                 finalPendingStateNum > initPendingStateNum &&
@@ -1093,6 +1174,7 @@ contract ProofOfEfficiency is
             "ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
+        // Get snark bytes
         bytes memory snarkHashBytes = getInputSnarkBytes(
             initNumBatch,
             finalNewBatch,
@@ -1115,14 +1197,6 @@ contract ProofOfEfficiency is
                 newStateRoot,
             "ProofOfEfficiency::proveNonDeterministicPendingState: stored root must be different than new state root"
         );
-
-        emit ProveNonDeterministicState(
-            batchNumToStateRoot[finalNewBatch],
-            newStateRoot
-        );
-
-        // Activate emergency state
-        _activateEmergencyState();
     }
 
     /**
@@ -1170,10 +1244,21 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Function to calculate the fee that must be payed for every batch
+     * @notice Function to get the last verified batch
      */
     function calculateBatchFee() public view returns (uint256) {
         return 1 ether * uint256(1 + lastForceBatch - lastForceBatchSequenced);
+    }
+
+    /**
+     * @notice Get the last verified batch
+     */
+    function getLastVerifiedBatch() public view returns (uint64) {
+        if (lastPendingState > 0) {
+            return pendingStateTransitions[lastPendingState].lastVerifiedBatch;
+        } else {
+            return lastVerifiedBatch;
+        }
     }
 
     /**
@@ -1185,9 +1270,9 @@ contract ProofOfEfficiency is
         // Total Sequenced Batches = forcedBatches to be sequenced (total forced Batches - sequenced Batches) + sequencedBatches
         // Total Batches to be verified = Total Sequenced Batches - verified Batches
         uint256 totalBatchesToVerify = ((lastForceBatch -
-            lastForceBatchSequenced) + lastBatchSequenced) - lastVerifiedBatch;
+            lastForceBatchSequenced) + lastBatchSequenced) -
+            getLastVerifiedBatch();
 
-        // TODO GET LAST VERIFIES BATCH in account of pending state
         return currentBalance / totalBatchesToVerify;
     }
 
