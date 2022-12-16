@@ -64,6 +64,7 @@ contract ProofOfEfficiency is
     struct SequencedBatchData {
         bytes32 accInputHash;
         uint64 sequencedTimestamp;
+        uint64 previousLastBatchSequenced;
     }
 
     /**
@@ -491,13 +492,15 @@ contract ProofOfEfficiency is
             (currentLastForceBatchSequenced - lastForceBatchSequenced);
 
         // Store back the storage variables
+
+        sequencedBatches[currentBatchSequenced] = SequencedBatchData({
+            accInputHash: currentAccInputHash,
+            sequencedTimestamp: uint64(block.timestamp),
+            previousLastBatchSequenced: lastBatchSequenced
+        });
         lastTimestamp = currentTimestamp;
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
-        sequencedBatches[currentBatchSequenced] = SequencedBatchData({
-            accInputHash: currentAccInputHash,
-            sequencedTimestamp: uint64(block.timestamp)
-        });
 
         // Pay collateral for every batch submitted
         matic.safeTransferFrom(
@@ -914,12 +917,14 @@ contract ProofOfEfficiency is
         lastTimestamp = uint64(block.timestamp);
 
         // Store back the storage variables
-        lastBatchSequenced = currentBatchSequenced;
-        lastForceBatchSequenced = currentLastForceBatchSequenced;
+
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
             accInputHash: currentAccInputHash,
-            sequencedTimestamp: uint64(block.timestamp)
+            sequencedTimestamp: uint64(block.timestamp),
+            previousLastBatchSequenced: lastBatchSequenced
         });
+        lastBatchSequenced = currentBatchSequenced;
+        lastForceBatchSequenced = currentLastForceBatchSequenced;
 
         emit SequenceForceBatches(lastBatchSequenced);
     }
