@@ -124,9 +124,6 @@ contract ProofOfEfficiency is
     // If the time that a batch remains sequenced exceeds this timeout, the contract enters in emergency mode
     uint64 public constant HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
-    // Maximum trusted aggregator timeout that can be set
-    uint64 public constant MAX_TRUSTED_AGGREGATOR_TIMEOUT = 1 weeks;
-
     // Maximum batches that can be verified in one call TODO depends on our current metrics
     // This should be a protection against someone that trys to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 public constant MAX_VERIFY_BATCHES = 1000;
@@ -266,27 +263,32 @@ contract ProofOfEfficiency is
     );
 
     /**
-     * @dev Emitted when a trusted sequencer update his address
+     * @dev Emitted when the admin update the trusted sequencer address
      */
     event SetTrustedSequencer(address newTrustedSequencer);
 
     /**
-     * @dev Emitted when a trusted sequencer update the forcebatch boolean
+     * @dev Emitted when the admin update the forcebatch boolean
      */
     event SetForceBatchAllowed(bool newForceBatchAllowed);
 
     /**
-     * @dev Emitted when a trusted sequencer update his URL
+     * @dev Emitted when the admin update the seequencer URL
      */
     event SetTrustedSequencerURL(string newTrustedSequencerURL);
 
     /**
-     * @dev Emitted when a trusted aggregator update the trusted aggregator timeout
+     * @dev Emitted when the admin update the trusted aggregator timeout
      */
     event SetTrustedAggregatorTimeout(uint64 newTrustedAggregatorTimeout);
 
     /**
-     * @dev Emitted when a trusted aggregator update or renounce his address
+     * @dev Emitted when the admin update the pending state timeout
+     */
+    event SetPendingStateTimeout(uint64 newPendingStateTimeout);
+
+    /**
+     * @dev Emitted when the admin update the trusted aggregator address
      */
     event SetTrustedAggregator(address newTrustedAggregator);
 
@@ -396,6 +398,12 @@ contract ProofOfEfficiency is
             batchesNum > 0,
             "ProofOfEfficiency::sequenceBatches: At least must sequence 1 batch"
         );
+
+        require(
+            batchesNum < MAX_VERIFY_BATCHES,
+            "ProofOfEfficiency::verifyBatches: cannot verify that many batches"
+        );
+
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentTimestamp = lastTimestamp;
         uint64 currentBatchSequenced = lastBatchSequenced;
@@ -844,6 +852,11 @@ contract ProofOfEfficiency is
         );
 
         require(
+            batchesNum < MAX_VERIFY_BATCHES,
+            "ProofOfEfficiency::verifyBatches: cannot verify that many batches"
+        );
+
+        require(
             lastForceBatchSequenced + batchesNum <= lastForceBatch,
             "ProofOfEfficiency::sequenceForceBatch: Force batch invalid"
         );
@@ -967,8 +980,8 @@ contract ProofOfEfficiency is
         uint64 newTrustedAggregatorTimeout
     ) public onlyAdmin {
         require(
-            trustedAggregatorTimeout <= MAX_TRUSTED_AGGREGATOR_TIMEOUT,
-            "ProofOfEfficiency::setTrustedAggregatorTimeout: exceed max trusted aggregator timeout"
+            newTrustedAggregatorTimeout <= HALT_AGGREGATION_TIMEOUT,
+            "ProofOfEfficiency::setPendingStateTimeout: exceed halt aggregation timeout"
         );
         if (!isEmergencyState) {
             require(
@@ -990,8 +1003,8 @@ contract ProofOfEfficiency is
         uint64 newPendingStateTimeout
     ) public onlyAdmin {
         require(
-            pendingStateTimeout <= MAX_TRUSTED_AGGREGATOR_TIMEOUT,
-            "ProofOfEfficiency::setPendingStateTimeout: exceed max trusted aggregator timeout"
+            pendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
+            "ProofOfEfficiency::setPendingStateTimeout: exceed halt aggregation timeout"
         );
         if (!isEmergencyState) {
             require(

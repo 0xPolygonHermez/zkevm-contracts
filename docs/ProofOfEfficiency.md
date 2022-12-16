@@ -256,6 +256,21 @@ The timeout can only be lowered, except if emergency state is active
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newTrustedAggregatorTimeout` | uint64 | Trusted aggreagator timeout
 
+### setPendingStateTimeout
+```solidity
+  function setPendingStateTimeout(
+    uint64 newPendingStateTimeout
+  ) public
+```
+Allow the current trusted aggregator to set a new trusted aggregator timeout
+The timeout can only be lowered, except if emergency state is active
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newPendingStateTimeout` | uint64 | Trusted aggreagator timeout
+
 ### setAdmin
 ```solidity
   function setAdmin(
@@ -402,6 +417,16 @@ Get the last verified batch
 
 
 
+### isPendingStateConsolidable
+```solidity
+  function isPendingStateConsolidable(
+  ) public returns (bool)
+```
+Returns a boolean indicatinf is the pendingStateNum is or not consolidable
+Note that his function do not check if the pending state currently exist, or if it's consolidated already
+
+
+
 ### calculateRewardPerBatch
 ```solidity
   function calculateRewardPerBatch(
@@ -495,7 +520,7 @@ Emitted when pending state is consolidated
   )
 ```
 
-Emitted when a trusted sequencer update his address
+Emitted when the admin update the trusted sequencer address
 
 ### SetForceBatchAllowed
 ```solidity
@@ -503,7 +528,7 @@ Emitted when a trusted sequencer update his address
   )
 ```
 
-Emitted when a trusted sequencer update the forcebatch boolean
+Emitted when the admin update the forcebatch boolean
 
 ### SetTrustedSequencerURL
 ```solidity
@@ -511,7 +536,7 @@ Emitted when a trusted sequencer update the forcebatch boolean
   )
 ```
 
-Emitted when a trusted sequencer update his URL
+Emitted when the admin update the seequencer URL
 
 ### SetTrustedAggregatorTimeout
 ```solidity
@@ -519,7 +544,15 @@ Emitted when a trusted sequencer update his URL
   )
 ```
 
-Emitted when a trusted aggregator update the trusted aggregator timeout
+Emitted when the admin update the trusted aggregator timeout
+
+### SetPendingStateTimeout
+```solidity
+  event SetPendingStateTimeout(
+  )
+```
+
+Emitted when the admin update the pending state timeout
 
 ### SetTrustedAggregator
 ```solidity
@@ -527,7 +560,7 @@ Emitted when a trusted aggregator update the trusted aggregator timeout
   )
 ```
 
-Emitted when a trusted aggregator update or renounce his address
+Emitted when the admin update the trusted aggregator address
 
 ### SetAdmin
 ```solidity
