@@ -712,22 +712,14 @@ contract ProofOfEfficiency is
         if (lastPendingState > lastPendingStateConsolidated) {
             // Check if it's possible to consolidate the next pending state
             uint64 nextPendingState = lastPendingStateConsolidated + 1;
-            if (
-                pendingStateTransitions[nextPendingState].timestamp +
-                    pendingStateTimeout <=
-                block.timestamp
-            ) {
+            if (isPendingStateConsolidable(nextPendingState)) {
                 // Check middle pending state ( binary search of 1 step)
                 uint64 middlePendingState = nextPendingState +
                     (lastPendingState - nextPendingState) /
                     2;
 
                 // Try to consolidate it, and if not, consolidate the nextPendingState
-                if (
-                    pendingStateTransitions[middlePendingState].timestamp +
-                        pendingStateTimeout <=
-                    block.timestamp
-                ) {
+                if (isPendingStateConsolidable(middlePendingState)) {
                     consolidatePendingState(middlePendingState);
                 } else {
                     consolidatePendingState(nextPendingState);
@@ -753,16 +745,16 @@ contract ProofOfEfficiency is
 
         // Check if pending state can be consolidated
         // If trusted aggregator is the sender, do not check the timeout
-        PendingState storage currentPendingState = pendingStateTransitions[
-            pendingStateNum
-        ];
         if (msg.sender != trustedAggregator) {
             require(
-                currentPendingState.timestamp + pendingStateTimeout <=
-                    block.timestamp,
+                isPendingStateConsolidable(pendingStateNum),
                 "ProofOfEfficiency::consolidatePendingState: pending state is not ready to be consolidated"
             );
         }
+
+        PendingState storage currentPendingState = pendingStateTransitions[
+            pendingStateNum
+        ];
 
         // Update state
         uint64 newLastVerifiedBatch = currentPendingState.lastVerifiedBatch;
@@ -987,6 +979,29 @@ contract ProofOfEfficiency is
 
         trustedAggregatorTimeout = newTrustedAggregatorTimeout;
         emit SetTrustedAggregatorTimeout(trustedAggregatorTimeout);
+    }
+
+    /**
+     * @notice Allow the current trusted aggregator to set a new trusted aggregator timeout
+     * The timeout can only be lowered, except if emergency state is active
+     * @param newPendingStateTimeout Trusted aggreagator timeout
+     */
+    function setPendingStateTimeout(
+        uint64 newPendingStateTimeout
+    ) public onlyAdmin {
+        require(
+            pendingStateTimeout <= MAX_TRUSTED_AGGREGATOR_TIMEOUT,
+            "ProofOfEfficiency::setPendingStateTimeout: exceed max trusted aggregator timeout"
+        );
+        if (!isEmergencyState) {
+            require(
+                newPendingStateTimeout < pendingStateTimeout,
+                "ProofOfEfficiency::setPendingStateTimeout: new timeout must be lower"
+            );
+        }
+
+        pendingStateTimeout = newPendingStateTimeout;
+        emit SetPendingStateTimeout(newPendingStateTimeout);
     }
 
     /**
@@ -1259,6 +1274,18 @@ contract ProofOfEfficiency is
         } else {
             return lastVerifiedBatch;
         }
+    }
+
+    /**
+     * @notice Returns a boolean indicatinf is the pendingStateNum is or not consolidable
+     * Note that his function do not check if the pending state currently exist, or if it's consolidated already
+     */
+    function isPendingStateConsolidable(
+        uint64 pendingStateNum
+    ) public view returns (bool) {
+        return (pendingStateTransitions[pendingStateNum].timestamp +
+            pendingStateTimeout <=
+            block.timestamp);
     }
 
     /**
