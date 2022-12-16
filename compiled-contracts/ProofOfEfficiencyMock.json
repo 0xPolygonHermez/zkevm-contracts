@@ -204,6 +204,19 @@
       "inputs": [
         {
           "indexed": false,
+          "internalType": "uint64",
+          "name": "newPendingStateTimeout",
+          "type": "uint64"
+        }
+      ],
+      "name": "SetPendingStateTimeout",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
           "internalType": "address",
           "name": "newTrustedAggregator",
           "type": "address"
@@ -335,19 +348,6 @@
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "MAX_TRUSTED_AGGREGATOR_TIMEOUT",
-      "outputs": [
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
         }
       ],
       "stateMutability": "view",
@@ -764,6 +764,25 @@
     {
       "inputs": [],
       "name": "isEmergencyState",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "pendingStateNum",
+          "type": "uint64"
+        }
+      ],
+      "name": "isPendingStateConsolidable",
       "outputs": [
         {
           "internalType": "bool",
@@ -1201,6 +1220,19 @@
         }
       ],
       "name": "setNetworkName",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "newPendingStateTimeout",
+          "type": "uint64"
+        }
+      ],
+      "name": "setPendingStateTimeout",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
