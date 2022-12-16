@@ -17,7 +17,7 @@
         },
         {
           "internalType": "uint8",
-          "name": "decimals",
+          "name": "__decimals",
           "type": "uint8"
         }
       ],

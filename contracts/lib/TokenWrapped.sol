@@ -45,10 +45,10 @@ contract TokenWrapped is ERC20 {
     constructor(
         string memory name,
         string memory symbol,
-        uint8 decimals
+        uint8 __decimals
     ) ERC20(name, symbol) {
         bridgeAddress = msg.sender;
-        _decimals = decimals;
+        _decimals = __decimals;
 
         // initialize inmutable variables
         deploymentChainId = block.chainid;

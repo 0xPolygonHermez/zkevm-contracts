@@ -89,6 +89,31 @@
       "inputs": [
         {
           "indexed": true,
+          "internalType": "uint64",
+          "name": "numBatch",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "stateRoot",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "aggregator",
+          "type": "address"
+        }
+      ],
+      "name": "OverridePendingState",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
           "internalType": "address",
           "name": "previousOwner",
           "type": "address"
@@ -119,7 +144,7 @@
           "type": "bytes32"
         }
       ],
-      "name": "ProveNonDeterministicState",
+      "name": "ProveNonDeterministicPendingState",
       "type": "event"
     },
     {
@@ -318,6 +343,19 @@
     {
       "inputs": [],
       "name": "MAX_TRUSTED_AGGREGATOR_TIMEOUT",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MAX_VERIFY_BATCHES",
       "outputs": [
         {
           "internalType": "uint64",
@@ -574,6 +612,19 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "getLastVerifiedBatch",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "uint64",
@@ -651,32 +702,37 @@
           "components": [
             {
               "internalType": "address",
-              "name": "_admin",
+              "name": "admin",
               "type": "address"
             },
             {
               "internalType": "uint64",
-              "name": "_chainID",
+              "name": "chainID",
               "type": "uint64"
             },
             {
               "internalType": "address",
-              "name": "_trustedSequencer",
-              "type": "address"
-            },
-            {
-              "internalType": "bool",
-              "name": "_forceBatchAllowed",
-              "type": "bool"
-            },
-            {
-              "internalType": "address",
-              "name": "_trustedAggregator",
+              "name": "trustedSequencer",
               "type": "address"
             },
             {
               "internalType": "uint64",
-              "name": "_trustedAggregatorTimeout",
+              "name": "pendingStateTimeout",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bool",
+              "name": "forceBatchAllowed",
+              "type": "bool"
+            },
+            {
+              "internalType": "address",
+              "name": "trustedAggregator",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "trustedAggregatorTimeout",
               "type": "uint64"
             }
           ],
@@ -833,6 +889,59 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "initPendingStateNum",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "finalPendingStateNum",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "initNumBatch",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "finalNewBatch",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "newLocalExitRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "newStateRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256[2]",
+          "name": "proofA",
+          "type": "uint256[2]"
+        },
+        {
+          "internalType": "uint256[2][2]",
+          "name": "proofB",
+          "type": "uint256[2][2]"
+        },
+        {
+          "internalType": "uint256[2]",
+          "name": "proofC",
+          "type": "uint256[2]"
+        }
+      ],
+      "name": "overridePendingState",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
