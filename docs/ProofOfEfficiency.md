@@ -399,6 +399,16 @@ Function to deactivate emergency state on both PoE and Bridge contrats
 
 
 
+### _updateBatchFee
+```solidity
+  function _updateBatchFee(
+  ) internal
+```
+Function to update the batch fee based on the new verfied batches
+The batch fee will not be updated when the trusted aggregator verify batches
+
+
+
 ### calculateBatchFee
 ```solidity
   function calculateBatchFee(
