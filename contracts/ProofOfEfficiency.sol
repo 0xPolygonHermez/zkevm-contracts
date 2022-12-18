@@ -129,6 +129,13 @@ contract ProofOfEfficiency is
     // This should be a protection against someone that trys to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 public constant MAX_VERIFY_BATCHES = 1000;
 
+    // Time target of the verification of a batch.
+    // Adaptatly the batchFee will be updated to achieve this target
+    uint64 public constant VERIFY_BATCH_TIME_TARGET = 30 minutes;
+
+    // Batch fee multiplier with 1 decimal (1.1)
+    uint256 public constant MULTIPLIER_BATCH_FEE = 11;
+
     // MATIC token address
     IERC20Upgradeable public matic;
 
@@ -215,6 +222,9 @@ contract ProofOfEfficiency is
 
     // Address that will be able to adjust contract parameters or stop the emergency state
     address public admin;
+
+    // Current matic fee per batch sequenced
+    uint256 public batchFee;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -492,7 +502,6 @@ contract ProofOfEfficiency is
             (currentLastForceBatchSequenced - lastForceBatchSequenced);
 
         // Store back the storage variables
-
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
             accInputHash: currentAccInputHash,
             sequencedTimestamp: uint64(block.timestamp),
@@ -503,6 +512,7 @@ contract ProofOfEfficiency is
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
         // Pay collateral for every batch submitted
+        // should submit max matic to pay TODO
         matic.safeTransferFrom(
             msg.sender,
             address(this),
@@ -559,17 +569,35 @@ contract ProofOfEfficiency is
             proofC
         );
 
-        // Consolidate pending state if possible
-        _consolidateNextPendingState();
+        // Update batch fees
+        _updateBatchFee(finalNewBatch);
 
-        // Update pending state
-        lastPendingState++;
-        pendingStateTransitions[lastPendingState] = PendingState({
-            timestamp: uint64(block.timestamp),
-            lastVerifiedBatch: finalNewBatch,
-            exitRoot: newLocalExitRoot,
-            stateRoot: newStateRoot
-        });
+        if (pendingStateTimeout == 0) {
+            // Consolidate state
+            lastVerifiedBatch = finalNewBatch;
+            batchNumToStateRoot[finalNewBatch] = newStateRoot;
+
+            // Clean pending state if any
+            if (lastPendingState > 0) {
+                lastPendingState = 0;
+                lastPendingStateConsolidated = 0;
+            }
+
+            // Interact with globalExitRootManager
+            globalExitRootManager.updateExitRoot(newLocalExitRoot);
+        } else {
+            // Consolidate pending state if possible
+            _consolidateNextPendingState();
+
+            // Update pending state
+            lastPendingState++;
+            pendingStateTransitions[lastPendingState] = PendingState({
+                timestamp: uint64(block.timestamp),
+                lastVerifiedBatch: finalNewBatch,
+                exitRoot: newLocalExitRoot,
+                stateRoot: newStateRoot
+            });
+        }
 
         emit VerifyBatches(finalNewBatch, newStateRoot, msg.sender);
     }
@@ -606,7 +634,7 @@ contract ProofOfEfficiency is
             proofC
         );
 
-        // Consolidate state state
+        // Consolidate state
         lastVerifiedBatch = finalNewBatch;
         batchNumToStateRoot[finalNewBatch] = newStateRoot;
 
@@ -1082,6 +1110,9 @@ contract ProofOfEfficiency is
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
+        // Update trusted aggregator timeout to max
+        trustedAggregatorTimeout = HALT_AGGREGATION_TIMEOUT;
+
         emit OverridePendingState(finalNewBatch, newStateRoot, msg.sender);
     }
 
@@ -1274,6 +1305,82 @@ contract ProofOfEfficiency is
 
         // Deactivate emergency state on this contract
         super._deactivateEmergencyState();
+    }
+
+    /**
+     * @notice Function to update the batch fee based on the new verfied batches
+     * The batch fee will not be updated when the trusted aggregator verify batches
+     */
+    function _updateBatchFee(uint64 newLastVerifiedBatch) internal {
+        uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
+        uint64 currentBatch = newLastVerifiedBatch;
+
+        uint256 totalBatchesAboveTarget;
+        uint256 newBatchesVerified = newLastVerifiedBatch -
+            currentLastVerifiedBatch;
+
+        while (currentBatch != currentLastVerifiedBatch) {
+            // Load sequenced batchdata
+            SequencedBatchData
+                storage currentSequencedBatchData = sequencedBatches[
+                    currentLastVerifiedBatch
+                ];
+
+            // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
+            if (
+                block.timestamp - currentSequencedBatchData.sequencedTimestamp >
+                VERIFY_BATCH_TIME_TARGET
+            ) {
+                totalBatchesAboveTarget +=
+                    currentLastVerifiedBatch -
+                    currentSequencedBatchData.previousLastBatchSequenced;
+            }
+
+            // update currentLastVerifiedBatch
+            currentBatch = currentSequencedBatchData.previousLastBatchSequenced;
+        }
+
+        uint256 totalBatchesBelowTarget = newBatchesVerified -
+            totalBatchesAboveTarget;
+
+        // Assume that batch fee will be max 128 bits, therefore:
+        // MULTIPLIER_BATCH_FEE --> (< 4 bits)
+        // MULTIPLIER_BATCH_FEE^32 --> (< 128 bits)
+        // (< 128 bits) * (< 128 bits) = < 256 bits
+        if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
+            uint256 diffBatches = totalBatchesAboveTarget -
+                totalBatchesBelowTarget;
+            uint256 accMultiplier = batchFee;
+
+            while (diffBatches > 32) {
+                accMultiplier =
+                    (accMultiplier * (MULTIPLIER_BATCH_FEE ^ 32)) /
+                    (10 ^ 32);
+                diffBatches -= 32;
+            }
+            accMultiplier =
+                (accMultiplier * (MULTIPLIER_BATCH_FEE ^ diffBatches)) /
+                (10 ^ diffBatches);
+            batchFee = accMultiplier;
+        } else {
+            uint256 diffBatches = totalBatchesBelowTarget -
+                totalBatchesAboveTarget;
+            uint256 accMultiplier = batchFee;
+
+            while (diffBatches > 32) {
+                accMultiplier =
+                    (accMultiplier * (MULTIPLIER_BATCH_FEE ^ 32)) /
+                    (10 ^ 32);
+                diffBatches -= 32;
+            }
+            accMultiplier =
+                (accMultiplier * (MULTIPLIER_BATCH_FEE ^ diffBatches)) /
+                (10 ^ diffBatches);
+
+            batchFee = (batchFee * batchFee) / accMultiplier;
+        }
+        // With this approach might happens that an aggregator recieve less rewards that expected if:
+        // The new fee setted is below the current one, and batchs are sequenced
     }
 
     /**
