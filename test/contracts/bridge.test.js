@@ -67,7 +67,6 @@ describe('Bridge Contract', () => {
         expect(await bridgeContract.globalExitRootManager()).to.be.equal(globalExitRootManager.address);
         expect(await bridgeContract.networkID()).to.be.equal(networkIDMainnet);
         expect(await bridgeContract.poeAddress()).to.be.equal(proofOfEfficiencyAddress);
-        expect(await bridgeContract.owner()).to.be.equal(deployer.address);
     });
 
     it('should bridge asset and verify merkle proof', async () => {
