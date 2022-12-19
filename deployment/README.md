@@ -23,6 +23,8 @@ Fill created `deploy_parameters.json` with appropiate parameters.
 
 To deploy contracts run `npm run deploy:PoE2_0:${network}`, for example:
 
+> set `runs` parameter from the compiler settings in `hardhat.config.js` (i.e. `runs: 500`)
+
 ```
 npm run deploy:PoE2_0:goerli
 ```

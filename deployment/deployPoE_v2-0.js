@@ -22,7 +22,7 @@ async function main() {
     const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1);
     const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1);
 
-    const atemptsDeployProxy = 20;
+    const attemptsDeployProxy = 20;
 
     let currentProvider = ethers.provider;
     if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
@@ -102,13 +102,18 @@ async function main() {
     // deploy global exit root manager
     const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager', deployer);
     let globalExitRootManager;
-    for (let i = 0; i < atemptsDeployProxy; i++) {
+    for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
             globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of globalExitRootManager ', error);
+            console.log('upgrades.deployProxy of globalExitRootManager ', error.error.reason);
+        }
+
+        // reach limits of attempts
+        if (i + 1 === attemptsDeployProxy) {
+            throw new Error('GlobalExitRootManager contract has not been deployed');
         }
     }
 
@@ -124,13 +129,18 @@ async function main() {
     }
 
     let bridgeContract;
-    for (let i = 0; i < atemptsDeployProxy; i++) {
+    for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
             bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of bridgeContract ', error);
+            console.log('upgrades.deployProxy of bridgeContract ', error.error.reason);
+        }
+
+        // reach limits of attempts
+        if (i + 1 === attemptsDeployProxy) {
+            throw new Error('Bridge contract has not been deployed');
         }
     }
 
@@ -140,13 +150,18 @@ async function main() {
     // deploy PoE
     const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock', deployer);
     let proofOfEfficiencyContract;
-    for (let i = 0; i < atemptsDeployProxy; i++) {
+    for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
             proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of proofOfEfficiencyContract ', error);
+            console.log('upgrades.deployProxy of proofOfEfficiencyContract ', error.error.reason);
+        }
+
+        // reach limits of attempts
+        if (i + 1 === attemptsDeployProxy) {
+            throw new Error('ProofOfEfficiency contract has not been deployed');
         }
     }
 
@@ -276,6 +291,8 @@ async function main() {
         trustedSequencerURL,
         chainID,
         networkName,
+        admin,
+        trustedAggregator,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
