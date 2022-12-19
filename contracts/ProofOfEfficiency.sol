@@ -127,12 +127,15 @@ contract ProofOfEfficiency is
     // This should be a protection against someone that trys to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 public constant MAX_VERIFY_BATCHES = 1000;
 
+    // Max batch multiplier per verification
+    uint256 public constant MAX_BATCH_MULTIPLIER = 12;
+
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
-    uint64 public constant VERIFY_BATCH_TIME_TARGET = 30 minutes;
+    uint64 public veryBatchTimeTarget;
 
-    // Batch fee multiplier with 1 decimal (1.1)
-    uint256 public constant MULTIPLIER_BATCH_FEE = 11;
+    // Batch fee multiplier with 3 decimal that goes from 1000 - 1024
+    uint16 public multiplierBatchFee;
 
     // MATIC token address
     IERC20Upgradeable public matic;
@@ -294,6 +297,16 @@ contract ProofOfEfficiency is
     event SetTrustedAggregator(address newTrustedAggregator);
 
     /**
+     * @dev Emitted when the admin update the multiplier batch fee
+     */
+    event SetMultiplierBatchFee(uint16 newMultiplierBatchFee);
+
+    /**
+     * @dev Emitted when the admin update the verify batch timeout
+     */
+    event SetVeryBatchTimeTarget(uint64 newVeryBatchTimeTarget);
+
+    /**
      * @dev Emitted when a admin update his address
      */
     event SetAdmin(address newAdmin);
@@ -351,6 +364,8 @@ contract ProofOfEfficiency is
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
         batchFee = 10 ** 18; // 1 Matic
+        veryBatchTimeTarget = 30 minutes;
+        multiplierBatchFee = 1002;
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -836,7 +851,7 @@ contract ProofOfEfficiency is
             // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
             if (
                 block.timestamp - currentSequencedBatchData.sequencedTimestamp >
-                VERIFY_BATCH_TIME_TARGET
+                veryBatchTimeTarget
             ) {
                 totalBatchesAboveTarget +=
                     currentLastVerifiedBatch -
@@ -851,42 +866,41 @@ contract ProofOfEfficiency is
             totalBatchesAboveTarget;
 
         // Assume that batch fee will be max 128 bits, therefore:
-        // MULTIPLIER_BATCH_FEE --> (< 4 bits)
-        // MULTIPLIER_BATCH_FEE ** 32 --> (< 128 bits)
+        // multiplierBatchFee --> (< 10 bits)
+        // MAX_BATCH_MULTIPLIER = 12
+        // multiplierBatchFee ** MAX_BATCH_MULTIPLIER --> (< 128 bits)
         // (< 128 bits) * (< 128 bits) = < 256 bits
         if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
             // There are more batches above target, fee is multiplied
             uint256 diffBatches = totalBatchesAboveTarget -
                 totalBatchesBelowTarget;
-            uint256 accMultiplier = batchFee;
 
-            while (diffBatches > 32) {
-                accMultiplier =
-                    (accMultiplier * (MULTIPLIER_BATCH_FEE ** 32)) /
-                    (10 ** 32);
-                diffBatches -= 32;
-            }
-            accMultiplier =
-                (accMultiplier * (MULTIPLIER_BATCH_FEE ** diffBatches)) /
-                (10 ** diffBatches);
-            batchFee = accMultiplier;
+            diffBatches = diffBatches > MAX_BATCH_MULTIPLIER
+                ? MAX_BATCH_MULTIPLIER
+                : diffBatches;
+
+            // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
+            batchFee =
+                (batchFee * (uint256(multiplierBatchFee) ** diffBatches)) /
+                (10 ** (diffBatches * 3));
         } else {
             // There are more batches below target, fee is divided
             uint256 diffBatches = totalBatchesBelowTarget -
                 totalBatchesAboveTarget;
-            uint256 accMultiplier = batchFee;
 
-            while (diffBatches > 32) {
-                accMultiplier =
-                    (accMultiplier * (MULTIPLIER_BATCH_FEE ** 32)) /
-                    (10 ** 32);
-                diffBatches -= 32;
-            }
-            accMultiplier =
-                (accMultiplier * (MULTIPLIER_BATCH_FEE ** diffBatches)) /
-                (10 ** diffBatches);
+            diffBatches = diffBatches > MAX_BATCH_MULTIPLIER
+                ? MAX_BATCH_MULTIPLIER
+                : diffBatches;
 
-            batchFee = (batchFee * batchFee) / accMultiplier;
+            // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
+            uint256 accDivisor = (batchFee *
+                (uint256(multiplierBatchFee) ** diffBatches)) /
+                (10 ** (diffBatches * 3));
+
+            // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
+            // accDivisor = batchFee * multiplyFactor
+            // batchFee * batchFee / accDivisor = batchFee / multiplyFactor
+            batchFee = (batchFee * batchFee) / accDivisor;
         }
     }
 
@@ -964,7 +978,7 @@ contract ProofOfEfficiency is
 
         require(
             batchesNum < MAX_VERIFY_BATCHES,
-            "ProofOfEfficiency::verifyBatches: cannot verify that many batches"
+            "ProofOfEfficiency::sequenceForceBatches: cannot verify that many batches"
         );
 
         require(
@@ -1129,6 +1143,33 @@ contract ProofOfEfficiency is
 
         pendingStateTimeout = newPendingStateTimeout;
         emit SetPendingStateTimeout(newPendingStateTimeout);
+    }
+
+    /**
+     * @notice Allow the admin to set a new multiplier batch fee
+     * @param newMultiplierBatchFee multiplier bathc fee
+     */
+    function setMultiplierBatchFee(
+        uint16 newMultiplierBatchFee
+    ) public onlyAdmin {
+        require(
+            newMultiplierBatchFee > 1000 && newMultiplierBatchFee < 1024,
+            "ProofOfEfficiency::setMultiplierBatchFee: newMultiplierBatchFee incorrect range"
+        );
+
+        multiplierBatchFee = newMultiplierBatchFee;
+        emit SetMultiplierBatchFee(newMultiplierBatchFee);
+    }
+
+    /**
+     * @notice Allow the admin to set a new verify batch time target
+     * @param newVeryBatchTimeTarget Verify batch time target
+     */
+    function setVeryBatchTimeTarget(
+        uint64 newVeryBatchTimeTarget
+    ) public onlyAdmin {
+        veryBatchTimeTarget = newVeryBatchTimeTarget;
+        emit SetVeryBatchTimeTarget(newVeryBatchTimeTarget);
     }
 
     /**

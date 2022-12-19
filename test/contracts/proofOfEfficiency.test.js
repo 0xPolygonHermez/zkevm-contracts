@@ -10,6 +10,7 @@ describe('Proof of efficiency', () => {
     let trustedAggregator;
     let trustedSequencer;
     let admin;
+    let aggregator1;
 
     let verifierContract;
     let bridgeContract;
@@ -33,7 +34,7 @@ describe('Proof of efficiency', () => {
 
     beforeEach('Deploy contract', async () => {
         // load signers
-        [deployer, trustedAggregator, trustedSequencer, admin] = await ethers.getSigners();
+        [deployer, trustedAggregator, trustedSequencer, admin, aggregator1] = await ethers.getSigners();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
@@ -670,6 +671,19 @@ describe('Proof of efficiency', () => {
         );
 
         await expect(
+            proofOfEfficiencyContract.connect(deployer).trustedVerifyBatches(
+                pendingState,
+                numBatch - 1,
+                numBatch - 1,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('ProofOfEfficiency::onlyTrustedAggregator: only trusted Aggregator');
+
+        await expect(
             proofOfEfficiencyContract.connect(trustedAggregator).trustedVerifyBatches(
                 pendingState,
                 numBatch - 1,
@@ -932,5 +946,167 @@ describe('Proof of efficiency', () => {
         );
 
         expect(circuitInpuSnarkSC).to.be.equal(inputSnarkJS);
+    });
+
+    it('should verify a sequenced batch using verifyBatches', async () => {
+        const l2txData = '0x123456';
+        const maticAmount = await proofOfEfficiencyContract.getCurrentBatchFee();
+        const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
+
+        const sequence = {
+            transactions: l2txData,
+            globalExitRoot: ethers.constants.HashZero,
+            timestamp: currentTimestamp,
+            minForcedTimestamp: 0,
+        };
+
+        // Approve tokens
+        await expect(
+            maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
+        ).to.emit(maticTokenContract, 'Approval');
+
+        const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
+        // Sequence Batches
+        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
+            .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
+            .withArgs(lastBatchSequenced + 1);
+
+        // aggregator forge the batch
+        const pendingState = 0;
+        const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
+        const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
+        const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()) + 1;
+        const proofA = ['0', '0'];
+        const proofB = [
+            ['0', '0'],
+            ['0', '0'],
+        ];
+        const proofC = ['0', '0'];
+
+        const initialAggregatorMatic = await maticTokenContract.balanceOf(
+            aggregator1.address,
+        );
+
+        const sequencedBatchData = await proofOfEfficiencyContract.sequencedBatches(1);
+        const { sequencedTimestamp } = sequencedBatchData;
+        const currentBatchFee = await proofOfEfficiencyContract.batchFee();
+
+        await expect(
+            proofOfEfficiencyContract.connect(aggregator1).verifyBatches(
+                pendingState,
+                numBatch - 1,
+                numBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: trusted aggregator timeout not expired');
+
+        await ethers.provider.send('evm_setNextBlockTimestamp', [sequencedTimestamp.toNumber() + trustedAggregatorTimeoutDefault - 1]);
+
+        await expect(
+            proofOfEfficiencyContract.connect(aggregator1).verifyBatches(
+                pendingState,
+                numBatch - 1,
+                numBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('ProofOfEfficiency::verifyBatches: trusted aggregator timeout not expired');
+
+        await expect(
+            proofOfEfficiencyContract.connect(aggregator1).verifyBatches(
+                pendingState,
+                numBatch - 1,
+                numBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('ProofOfEfficiency::getInputSnarkBytes: newAccInputHash does not exist');
+
+        // Verify batch
+        await expect(
+            proofOfEfficiencyContract.connect(aggregator1).verifyBatches(
+                pendingState,
+                numBatch - 1,
+                numBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(proofOfEfficiencyContract, 'VerifyBatches')
+            .withArgs(numBatch, newStateRoot, aggregator1.address);
+
+        const verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
+
+        const finalAggregatorMatic = await maticTokenContract.balanceOf(
+            aggregator1.address,
+        );
+        expect(finalAggregatorMatic).to.equal(
+            ethers.BigNumber.from(initialAggregatorMatic).add(ethers.BigNumber.from(maticAmount)),
+        );
+
+        // Check pending state
+        const lastPendingstate = 1;
+        expect(lastPendingstate).to.be.equal(await proofOfEfficiencyContract.lastPendingState());
+
+        const pendingStateData = await proofOfEfficiencyContract.pendingStateTransitions(lastPendingstate);
+        expect(verifyTimestamp).to.be.equal(pendingStateData.timestamp);
+        expect(numBatch).to.be.equal(pendingStateData.lastVerifiedBatch);
+        expect(newLocalExitRoot).to.be.equal(pendingStateData.exitRoot);
+        expect(newStateRoot).to.be.equal(pendingStateData.stateRoot);
+
+        // Try consolidate state
+        expect(0).to.be.equal(await proofOfEfficiencyContract.lastVerifiedBatch());
+
+        // Pending state can't be 0
+        await expect(
+            proofOfEfficiencyContract.consolidatePendingState(0),
+        ).to.be.revertedWith('ProofOfEfficiency::consolidatePendingState: pendingStateNum must invalid');
+
+        // Pending state does not exist
+        await expect(
+            proofOfEfficiencyContract.consolidatePendingState(2),
+        ).to.be.revertedWith('ProofOfEfficiency::consolidatePendingState: pendingStateNum must invalid');
+
+        // Not ready to be consolidated
+        await expect(
+            proofOfEfficiencyContract.consolidatePendingState(lastPendingstate),
+        ).to.be.revertedWith('ProofOfEfficiency::consolidatePendingState: pending state is not ready to be consolidated');
+
+        await ethers.provider.send('evm_setNextBlockTimestamp', [verifyTimestamp + pendingStateTimeoutDefault - 1]);
+
+        await expect(
+            proofOfEfficiencyContract.consolidatePendingState(lastPendingstate),
+        ).to.be.revertedWith('ProofOfEfficiency::consolidatePendingState: pending state is not ready to be consolidated');
+
+        await expect(
+            proofOfEfficiencyContract.consolidatePendingState(lastPendingstate),
+        ).to.emit(proofOfEfficiencyContract, 'ConsolidatePendingState')
+            .withArgs(numBatch, newStateRoot, lastPendingstate);
+
+        // Pending state already consolidated
+        await expect(
+            proofOfEfficiencyContract.consolidatePendingState(1),
+        ).to.be.revertedWith('ProofOfEfficiency::consolidatePendingState: pendingStateNum must invalid');
+
+        // Fee es divided because is was fast verified
+        const multiplierFee = await proofOfEfficiencyContract.multiplierBatchFee();
+        expect((currentBatchFee.mul(1000)).div(multiplierFee)).to.be.equal(await proofOfEfficiencyContract.batchFee());
+
+        // Check pending state variables
+        expect(1).to.be.equal(await proofOfEfficiencyContract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await proofOfEfficiencyContract.batchNumToStateRoot(1));
+        expect(1).to.be.equal(await proofOfEfficiencyContract.lastPendingStateConsolidated());
     });
 });
