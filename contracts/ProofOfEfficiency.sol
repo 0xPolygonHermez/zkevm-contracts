@@ -855,6 +855,7 @@ contract ProofOfEfficiency is
         // MULTIPLIER_BATCH_FEE ** 32 --> (< 128 bits)
         // (< 128 bits) * (< 128 bits) = < 256 bits
         if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
+            // There are more batches above target, fee is multiplied
             uint256 diffBatches = totalBatchesAboveTarget -
                 totalBatchesBelowTarget;
             uint256 accMultiplier = batchFee;
@@ -870,6 +871,7 @@ contract ProofOfEfficiency is
                 (10 ** diffBatches);
             batchFee = accMultiplier;
         } else {
+            // There are more batches below target, fee is divided
             uint256 diffBatches = totalBatchesBelowTarget -
                 totalBatchesAboveTarget;
             uint256 accMultiplier = batchFee;
