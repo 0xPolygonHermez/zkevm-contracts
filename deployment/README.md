@@ -23,7 +23,7 @@ Fill created `deploy_parameters.json` with appropiate parameters.
 
 To deploy contracts run `npm run deploy:PoE2_0:${network}`, for example:
 
-> set `runs` parameter from the compiler settings in `hardhat.config.js` (i.e. `runs: 500`)
+> set `runs` parameter from the compiler settings in `hardhat.config.js` (i.e. `runs: 200`)
 
 ```
 npm run deploy:PoE2_0:goerli
@@ -52,6 +52,8 @@ npm run verify:PoE2_0:goerli
 - `multiplierGas`: number, Gas multiplier. If maxFeePerGas and maxPriorityFeePerGas are set, will not take effect
 - `trustedSequencerPvtKey`: string, Trusted sequencer pvtKey in order to approve the matic tokens
 - `bridgeMock`:Boolean, Wheather the bridge will be mock or not ( the mock version has a ether limitation on deposits)
+- `admin`:address, Admin address
+- `trustedAggregator`:address, Trusted aggregator address
 
 ## Notes
 
