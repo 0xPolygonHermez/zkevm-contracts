@@ -11,12 +11,12 @@ import "./interfaces/IBridge.sol";
 import "./lib/EmergencyManager.sol";
 
 /**
- * Contract responsible for managing the states and the updates of L2 network
+ * Contract responsible for managing the states and the updates of L2 network.
  * There will be a trusted sequencer, which is able to send transactions.
- * Any user can force some transaction and the sequencer will have a timeout to add them in the queue
- * THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
- * The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from L2 network
- * To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
+ * Any user can force some transaction and the sequencer will have a timeout to add them in the queue.
+ * The sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof.
+ * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
+ * To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks.
  */
 contract ProofOfEfficiency is
     Initializable,
@@ -60,6 +60,7 @@ contract ProofOfEfficiency is
      * @param accInputHash Hash chain that contains all the information to process a batch:
      *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
      * @param sequencedTimestamp Sequenced timestamp
+     * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calcualte the fees
      */
     struct SequencedBatchData {
         bytes32 accInputHash;
@@ -68,12 +69,14 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Struct which will be used to call sequenceForceBatches
-     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param globalExitRoot Global exit root of the batch
-     * @param minForcedTimestamp Indicates the minimum sequenced timestamp of the batch
+     * @notice Struct to store the pending states
+     * Pending state will be an intermediary state, that after a timeout can be consolidated, which means that will be added
+     * to the state root mapping, and the global exit root will be updated
+     * This is a protection mechanism against soundness attacks, that will be turn off in a future
+     * @param timestamp Timestamp where the pending state is added to the queue
+     * @param lastVerifiedBatch Last batch verified batch of this pending state
+     * @param exitRoot Pending exit root
+     * @param stateRoot Pending state root
      */
     struct PendingState {
         uint64 timestamp;
@@ -85,12 +88,12 @@ contract ProofOfEfficiency is
     /**
      * @notice Struct to call initialize, this basically saves gas becasue pack the parameters that can be packed
      * and avoid stack too deep errors.
-     * @param admin  admin address
+     * @param admin Admin address
      * @param chainID L2 chainID
-     * @param trustedSequencer trusted sequencer address
-     * @param forceBatchAllowed indicates wheather the force batch functionality is available
-     * @param trustedAggregator trusted aggregator
-     * @param trustedAggregatorTimeout trusted aggregator timeou
+     * @param trustedSequencer Trusted sequencer address
+     * @param forceBatchAllowed Indicates wheather the force batch functionality is available
+     * @param trustedAggregator Trusted aggregator
+     * @param trustedAggregatorTimeout Trusted aggregator timeout
      */
     struct InitializePackedParameters {
         address admin;
@@ -106,30 +109,25 @@ contract ProofOfEfficiency is
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
-    // Max batch byte length
+    // Max transactions bytes that can be added in a single batch
     // Max keccaks circuit = (2**23 / 158418) * 9 = 468
-    // Bytes per keccak = 136
-    // Minimum Static keccaks batch = 4
+    // Bytes hashed per keccak = 136
+    // Minimum constant keccaks batch = 4
     // Max bytes allowed = (468 - 4) * 136 = 63104 bytes - 1 byte padding
     // Rounded to 60000 bytes
-    uint256 public constant MAX_BATCH_LENGTH = 60000;
+    uint256 public constant MAX_TRANSACTIONS_BYTE_LENGTH = 60000;
 
     // Force batch timeout
-    uint64 public constant FORCE_BATCH_TIMEOUT = 7 days;
+    uint64 public constant FORCE_BATCH_TIMEOUT = 5 days;
 
-    // Byte length of the sha256 that will be used as a input of the snark
-    // SHA256(oldStateRoot, newStateRoot, oldAccInputHash, newAccInputHash, newLocalExitRoot, oldNumBatch, newNumBatch, chainID, aggrAddress)
-    // 8 Fields * 8 Bytes (Stark input in Field Array form) * 5 (hashes), + 8 bytes * 3 (oldNumBatch, newNumBatch, chainID) + 20 bytes (aggrAddress)
-    uint256 internal constant _SNARK_SHA_BYTES = 364;
-
-    // If the time that a batch remains sequenced exceeds this timeout, the contract enters in emergency mode
+    // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
     uint64 public constant HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
     // Maximum batches that can be verified in one call TODO depends on our current metrics
     // This should be a protection against someone that trys to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 public constant MAX_VERIFY_BATCHES = 1000;
 
-    // Time target of the verification of a batch.
+    // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
     uint64 public constant VERIFY_BATCH_TIME_TARGET = 30 minutes;
 
@@ -149,8 +147,6 @@ contract ProofOfEfficiency is
     // SequenceBatchNum --> SequencedBatchData
     mapping(uint64 => SequencedBatchData) public sequencedBatches;
 
-    // Storage Slot //
-
     // Last sequenced timestamp
     uint64 public lastTimestamp;
 
@@ -163,20 +159,14 @@ contract ProofOfEfficiency is
     // Last forced batch
     uint64 public lastForceBatch;
 
-    // Storage Slot //
-
     // Last batch verified by the aggregators
     uint64 public lastVerifiedBatch;
 
     // Trusted sequencer address
     address public trustedSequencer;
 
-    // Storage Slot //
-
     // Trusted aggregator address
     address public trustedAggregator;
-
-    // Storage Slot //
 
     // Rollup verifier interface
     IVerifierRollup public rollupVerifier;
@@ -203,21 +193,21 @@ contract ProofOfEfficiency is
     // Bridge Address
     IBridge public bridgeAddress;
 
-    // Pending state, once the pendingStateTimeout has passed, the pending state becomes consolidated
+    // Pending state mapping
     // pendingStateNumber --> PendingState
     mapping(uint256 => PendingState) public pendingStateTransitions;
 
     // Last pending state
     uint64 public lastPendingState;
 
-    // Pending state timeout
+    // Last pending state consolidated
     uint64 public lastPendingStateConsolidated;
 
     // Once a pending state exceeds this timeout it can be consolidated
     uint64 public pendingStateTimeout;
 
-    // Trusted aggregator timeout, if a batch is not aggregated in this time frame,
-    // everyone can aggregate that batch
+    // Trusted aggregator timeout, if a sequence is not verified in this time frame,
+    // everyone can verify that sequence
     uint64 public trustedAggregatorTimeout;
 
     // Address that will be able to adjust contract parameters or stop the emergency state
@@ -270,7 +260,7 @@ contract ProofOfEfficiency is
     event ConsolidatePendingState(
         uint64 indexed numBatch,
         bytes32 stateRoot,
-        address indexed aggregator
+        uint64 indexed pendingStateNum
     );
 
     /**
@@ -326,13 +316,13 @@ contract ProofOfEfficiency is
     );
 
     /**
-     * @param _globalExitRootManager global exit root manager address
+     * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
-     * @param _rollupVerifier rollup verifier address
-     * @param _bridgeAddress bridge address
+     * @param _rollupVerifier Rollup verifier address
+     * @param _bridgeAddress Bridge address
      * @param initializePackedParameters Struct to save gas and avoid stack too depp errors
-     * @param genesisRoot rollup genesis root
-     * @param _trustedSequencerURL trusted sequencer URL
+     * @param genesisRoot Rollup genesis root
+     * @param _trustedSequencerURL Trusted sequencer URL
      * @param _networkName L2 network name
      */
     function initialize(
@@ -360,6 +350,7 @@ contract ProofOfEfficiency is
         forceBatchAllowed = initializePackedParameters.forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
+        batchFee = 10 ^ 18; // 1 Matic
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -397,6 +388,10 @@ contract ProofOfEfficiency is
         _;
     }
 
+    /////////////////////////////////////
+    // Sequence/Verify batches functions
+    ////////////////////////////////////
+
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which the necessary data to append new batces ot the sequence
@@ -412,7 +407,7 @@ contract ProofOfEfficiency is
 
         require(
             batchesNum < MAX_VERIFY_BATCHES,
-            "ProofOfEfficiency::verifyBatches: cannot verify that many batches"
+            "ProofOfEfficiency::sequenceBatches: Cannot sequence that many batches"
         );
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
@@ -451,7 +446,7 @@ contract ProofOfEfficiency is
                     "ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be bigger or equal than min"
                 );
             } else {
-                // Check global exit root exist, and proper batch length, this checks are already done in the force Batches call
+                // Check global exit root exist, and proper batch length, this checks are already done in the forceBatches call
                 require(
                     currentBatch.globalExitRoot == bytes32(0) ||
                         globalExitRootManager.globalExitRootMap(
@@ -462,7 +457,8 @@ contract ProofOfEfficiency is
                 );
 
                 require(
-                    currentBatch.transactions.length < MAX_BATCH_LENGTH,
+                    currentBatch.transactions.length <
+                        MAX_TRANSACTIONS_BYTE_LENGTH,
                     "ProofOfEfficiePendingStatecy::sequenceBatches: Transactions bytes overflow"
                 );
             }
@@ -474,7 +470,7 @@ contract ProofOfEfficiency is
                 "ProofOfEfficiency::sequenceBatches: Timestamp must be inside range"
             );
 
-            // Calculate next acc input hash
+            // Calculate next accumulated input hash
             currentAccInputHash = keccak256(
                 abi.encodePacked(
                     currentAccInputHash,
@@ -501,18 +497,19 @@ contract ProofOfEfficiency is
         uint256 nonForcedBatchesSequenced = batchesNum -
             (currentLastForceBatchSequenced - lastForceBatchSequenced);
 
-        // Store back the storage variables
+        // Update sequencedBatches mapping
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
             accInputHash: currentAccInputHash,
             sequencedTimestamp: uint64(block.timestamp),
             previousLastBatchSequenced: lastBatchSequenced
         });
+
+        // Store back the storage variables
         lastTimestamp = currentTimestamp;
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
         // Pay collateral for every batch submitted
-        // should submit max matic to pay TODO
         matic.safeTransferFrom(
             msg.sender,
             address(this),
@@ -520,7 +517,7 @@ contract ProofOfEfficiency is
         );
 
         // Consolidate pending state if possible
-        _consolidateNextPendingState();
+        _tryConsolidatePendingState();
 
         emit SequenceBatches(lastBatchSequenced);
     }
@@ -587,7 +584,7 @@ contract ProofOfEfficiency is
             globalExitRootManager.updateExitRoot(newLocalExitRoot);
         } else {
             // Consolidate pending state if possible
-            _consolidateNextPendingState();
+            _tryConsolidatePendingState();
 
             // Update pending state
             lastPendingState++;
@@ -744,9 +741,9 @@ contract ProofOfEfficiency is
 
     /**
      * @notice Internal function to consolidate the state automatically once sequence or verify batches are called
-     * It trys to consolidatethe first and the middle pending state
+     * It trys to consolidate the first and the middle pending state
      */
-    function _consolidateNextPendingState() internal {
+    function _tryConsolidatePendingState() internal {
         // Check if there's any state to consolidate
         if (lastPendingState > lastPendingStateConsolidated) {
             // Check if it's possible to consolidate the next pending state
@@ -774,7 +771,9 @@ contract ProofOfEfficiency is
      */
     function consolidatePendingState(uint64 pendingStateNum) public {
         // Check if pendingStateNum is in correct range
-        // Not 0, is not consolidated, and exist
+        // - not 0
+        // - not consolidated
+        // - exist ( has been added)
         require(
             pendingStateNum != 0 &&
                 pendingStateNum > lastPendingStateConsolidated &&
@@ -810,9 +809,87 @@ contract ProofOfEfficiency is
         emit ConsolidatePendingState(
             newLastVerifiedBatch,
             currentPendingState.stateRoot,
-            msg.sender
+            pendingStateNum
         );
     }
+
+    /**
+     * @notice Function to update the batch fee based on the new verfied batches
+     * The batch fee will not be updated when the trusted aggregator verify batches
+     */
+    function _updateBatchFee(uint64 newLastVerifiedBatch) internal {
+        uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
+        uint64 currentBatch = newLastVerifiedBatch;
+
+        uint256 totalBatchesAboveTarget;
+        uint256 newBatchesVerified = newLastVerifiedBatch -
+            currentLastVerifiedBatch;
+
+        while (currentBatch != currentLastVerifiedBatch) {
+            // Load sequenced batchdata
+            SequencedBatchData
+                storage currentSequencedBatchData = sequencedBatches[
+                    currentLastVerifiedBatch
+                ];
+
+            // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
+            if (
+                block.timestamp - currentSequencedBatchData.sequencedTimestamp >
+                VERIFY_BATCH_TIME_TARGET
+            ) {
+                totalBatchesAboveTarget +=
+                    currentLastVerifiedBatch -
+                    currentSequencedBatchData.previousLastBatchSequenced;
+            }
+
+            // update currentLastVerifiedBatch
+            currentBatch = currentSequencedBatchData.previousLastBatchSequenced;
+        }
+
+        uint256 totalBatchesBelowTarget = newBatchesVerified -
+            totalBatchesAboveTarget;
+
+        // Assume that batch fee will be max 128 bits, therefore:
+        // MULTIPLIER_BATCH_FEE --> (< 4 bits)
+        // MULTIPLIER_BATCH_FEE^32 --> (< 128 bits)
+        // (< 128 bits) * (< 128 bits) = < 256 bits
+        if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
+            uint256 diffBatches = totalBatchesAboveTarget -
+                totalBatchesBelowTarget;
+            uint256 accMultiplier = batchFee;
+
+            while (diffBatches > 32) {
+                accMultiplier =
+                    (accMultiplier * (MULTIPLIER_BATCH_FEE ^ 32)) /
+                    (10 ^ 32);
+                diffBatches -= 32;
+            }
+            accMultiplier =
+                (accMultiplier * (MULTIPLIER_BATCH_FEE ^ diffBatches)) /
+                (10 ^ diffBatches);
+            batchFee = accMultiplier;
+        } else {
+            uint256 diffBatches = totalBatchesBelowTarget -
+                totalBatchesAboveTarget;
+            uint256 accMultiplier = batchFee;
+
+            while (diffBatches > 32) {
+                accMultiplier =
+                    (accMultiplier * (MULTIPLIER_BATCH_FEE ^ 32)) /
+                    (10 ^ 32);
+                diffBatches -= 32;
+            }
+            accMultiplier =
+                (accMultiplier * (MULTIPLIER_BATCH_FEE ^ diffBatches)) /
+                (10 ^ diffBatches);
+
+            batchFee = (batchFee * batchFee) / accMultiplier;
+        }
+    }
+
+    ////////////////////////////
+    // Force batches functions
+    ////////////////////////////
 
     /**
      * @notice Allows a sequencer/user to force a batch of L2 transactions.
@@ -833,7 +910,7 @@ contract ProofOfEfficiency is
         );
 
         require(
-            transactions.length < MAX_BATCH_LENGTH,
+            transactions.length < MAX_TRANSACTIONS_BYTE_LENGTH,
             "ProofOfEfficiency::forceBatch: Transactions bytes overflow"
         );
 
@@ -945,7 +1022,6 @@ contract ProofOfEfficiency is
         lastTimestamp = uint64(block.timestamp);
 
         // Store back the storage variables
-
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
             accInputHash: currentAccInputHash,
             sequencedTimestamp: uint64(block.timestamp),
@@ -957,10 +1033,12 @@ contract ProofOfEfficiency is
         emit SequenceForceBatches(lastBatchSequenced);
     }
 
+    //////////////////
     // admin functions
+    //////////////////
 
     /**
-     * @notice Allow the current trusted sequencer to set a new trusted sequencer
+     * @notice Allow the admin to set a new trusted sequencer
      * @param newTrustedSequencer Address of the new trusted sequuencer
      */
     function setTrustedSequencer(address newTrustedSequencer) public onlyAdmin {
@@ -970,7 +1048,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allow the current trusted sequencer to allow/disallow the forceBatch functionality
+     * @notice Allow the admin to allow/disallow the forceBatch functionality
      * @param newForceBatchAllowed Whether is allowed or not the forceBatch functionality
      */
     function setForceBatchAllowed(bool newForceBatchAllowed) public onlyAdmin {
@@ -980,7 +1058,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allow the trusted sequencer to set the trusted sequencer URL
+     * @notice Allow the admin to set the trusted sequencer URL
      * @param newTrustedSequencerURL URL of trusted sequencer
      */
     function setTrustedSequencerURL(
@@ -992,7 +1070,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allow the current trusted aggregator to set a new trusted aggregator address
+     * @notice Allow the admin to set a new trusted aggregator address
      * If address 0 is set, everyone is free to aggregate
      * @param newTrustedAggregator Address of the new trusted aggregator
      */
@@ -1005,7 +1083,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allow the current trusted aggregator to set a new trusted aggregator timeout
+     * @notice Allow the admin to set a new trusted aggregator timeout
      * The timeout can only be lowered, except if emergency state is active
      * @param newTrustedAggregatorTimeout Trusted aggreagator timeout
      */
@@ -1028,7 +1106,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Allow the current trusted aggregator to set a new trusted aggregator timeout
+     * @notice Allow the admin to set a new trusted aggregator timeout
      * The timeout can only be lowered, except if emergency state is active
      * @param newPendingStateTimeout Trusted aggreagator timeout
      */
@@ -1060,7 +1138,9 @@ contract ProofOfEfficiency is
         emit SetAdmin(newAdmin);
     }
 
-    // Soundness protection mechanisms
+    /////////////////////////////////
+    // Soundness protection functions
+    /////////////////////////////////
 
     /**
      * @notice Allows to halt the PoE if its possible to prove a different state root given the same batches
@@ -1223,7 +1303,9 @@ contract ProofOfEfficiency is
         }
 
         // Assert final pending state num is in correct range
-        // Exist, is bigger than the initPendingstate, and it's not consolidated
+        // - exist ( has been added)
+        // - bigger than the initPendingstate
+        // - not consolidated
         require(
             finalPendingStateNum <= lastPendingState &&
                 finalPendingStateNum > initPendingStateNum &&
@@ -1290,7 +1372,7 @@ contract ProofOfEfficiency is
                 sequencedBatches[sequencedBatchNum].sequencedTimestamp +
                     HALT_AGGREGATION_TIMEOUT <=
                     block.timestamp,
-                "ProofOfEfficiency::activateEmergencyState: aggregation halt timeout is not expired"
+                "ProofOfEfficiency::activateEmergencyState: Aggregation halt timeout is not expired"
             );
         }
         _activateEmergencyState();
@@ -1308,86 +1390,25 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Function to update the batch fee based on the new verfied batches
-     * The batch fee will not be updated when the trusted aggregator verify batches
+     * @notice Internal function to activate emergency state on both PoE and Bridge contrats
      */
-    function _updateBatchFee(uint64 newLastVerifiedBatch) internal {
-        uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
-        uint64 currentBatch = newLastVerifiedBatch;
+    function _activateEmergencyState() internal override {
+        // Activate emergency state on bridge
+        bridgeAddress.activateEmergencyState();
 
-        uint256 totalBatchesAboveTarget;
-        uint256 newBatchesVerified = newLastVerifiedBatch -
-            currentLastVerifiedBatch;
-
-        while (currentBatch != currentLastVerifiedBatch) {
-            // Load sequenced batchdata
-            SequencedBatchData
-                storage currentSequencedBatchData = sequencedBatches[
-                    currentLastVerifiedBatch
-                ];
-
-            // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
-            if (
-                block.timestamp - currentSequencedBatchData.sequencedTimestamp >
-                VERIFY_BATCH_TIME_TARGET
-            ) {
-                totalBatchesAboveTarget +=
-                    currentLastVerifiedBatch -
-                    currentSequencedBatchData.previousLastBatchSequenced;
-            }
-
-            // update currentLastVerifiedBatch
-            currentBatch = currentSequencedBatchData.previousLastBatchSequenced;
-        }
-
-        uint256 totalBatchesBelowTarget = newBatchesVerified -
-            totalBatchesAboveTarget;
-
-        // Assume that batch fee will be max 128 bits, therefore:
-        // MULTIPLIER_BATCH_FEE --> (< 4 bits)
-        // MULTIPLIER_BATCH_FEE^32 --> (< 128 bits)
-        // (< 128 bits) * (< 128 bits) = < 256 bits
-        if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
-            uint256 diffBatches = totalBatchesAboveTarget -
-                totalBatchesBelowTarget;
-            uint256 accMultiplier = batchFee;
-
-            while (diffBatches > 32) {
-                accMultiplier =
-                    (accMultiplier * (MULTIPLIER_BATCH_FEE ^ 32)) /
-                    (10 ^ 32);
-                diffBatches -= 32;
-            }
-            accMultiplier =
-                (accMultiplier * (MULTIPLIER_BATCH_FEE ^ diffBatches)) /
-                (10 ^ diffBatches);
-            batchFee = accMultiplier;
-        } else {
-            uint256 diffBatches = totalBatchesBelowTarget -
-                totalBatchesAboveTarget;
-            uint256 accMultiplier = batchFee;
-
-            while (diffBatches > 32) {
-                accMultiplier =
-                    (accMultiplier * (MULTIPLIER_BATCH_FEE ^ 32)) /
-                    (10 ^ 32);
-                diffBatches -= 32;
-            }
-            accMultiplier =
-                (accMultiplier * (MULTIPLIER_BATCH_FEE ^ diffBatches)) /
-                (10 ^ diffBatches);
-
-            batchFee = (batchFee * batchFee) / accMultiplier;
-        }
-        // With this approach might happens that an aggregator recieve less rewards that expected if:
-        // The new fee setted is below the current one, and batchs are sequenced
+        // Activate emergency state on this contract
+        super._activateEmergencyState();
     }
 
+    ////////////////////////
+    // public/view functions
+    ////////////////////////
+
     /**
-     * @notice Function to get the last verified batch
+     * @notice Function to get the batch fee
      */
     function calculateBatchFee() public view returns (uint256) {
-        return 1 ether * uint256(1 + lastForceBatch - lastForceBatchSequenced);
+        return batchFee;
     }
 
     /**
@@ -1402,7 +1423,7 @@ contract ProofOfEfficiency is
     }
 
     /**
-     * @notice Returns a boolean indicatinf is the pendingStateNum is or not consolidable
+     * @notice Returns a boolean that indicates if the pendingStateNum is or not consolidable
      * Note that his function do not check if the pending state currently exist, or if it's consolidated already
      */
     function isPendingStateConsolidable(
@@ -1468,16 +1489,5 @@ contract ProofOfEfficiency is
                 newLocalExitRoot,
                 finalNewBatch
             );
-    }
-
-    /**
-     * @notice Internal function to activate emergency state on both PoE and Bridge contrats
-     */
-    function _activateEmergencyState() internal override {
-        // Activate emergency state on bridge
-        bridgeAddress.activateEmergencyState();
-
-        // Activate emergency state on this contract
-        super._activateEmergencyState();
     }
 }

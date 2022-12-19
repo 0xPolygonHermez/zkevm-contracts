@@ -246,7 +246,7 @@ Function to call token permit method of extended ERC20
   )
 ```
 
-Emitted when a bridge some tokens to another network
+Emitted when bridge assets or messages to another network
 
 ### ClaimEvent
 ```solidity
