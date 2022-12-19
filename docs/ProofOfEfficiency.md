@@ -281,6 +281,34 @@ The timeout can only be lowered, except if emergency state is active
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newPendingStateTimeout` | uint64 | Trusted aggreagator timeout
 
+### setMultiplierBatchFee
+```solidity
+  function setMultiplierBatchFee(
+    uint16 newMultiplierBatchFee
+  ) public
+```
+Allow the admin to set a new multiplier batch fee
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newMultiplierBatchFee` | uint16 | multiplier bathc fee
+
+### setVeryBatchTimeTarget
+```solidity
+  function setVeryBatchTimeTarget(
+    uint64 newVeryBatchTimeTarget
+  ) public
+```
+Allow the admin to set a new verify batch time target
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newVeryBatchTimeTarget` | uint64 | Verify batch time target
+
 ### setAdmin
 ```solidity
   function setAdmin(
@@ -571,6 +599,22 @@ Emitted when the admin update the pending state timeout
 ```
 
 Emitted when the admin update the trusted aggregator address
+
+### SetMultiplierBatchFee
+```solidity
+  event SetMultiplierBatchFee(
+  )
+```
+
+Emitted when the admin update the multiplier batch fee
+
+### SetVeryBatchTimeTarget
+```solidity
+  event SetVeryBatchTimeTarget(
+  )
+```
+
+Emitted when the admin update the verify batch timeout
 
 ### SetAdmin
 ```solidity
