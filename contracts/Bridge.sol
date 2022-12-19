@@ -10,18 +10,12 @@ import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./lib/EmergencyManager.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
  * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is
-    DepositContract,
-    EmergencyManager,
-    IBridge,
-    OwnableUpgradeable
-{
+contract Bridge is DepositContract, EmergencyManager, IBridge {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Wrapped Token information struct
@@ -75,9 +69,6 @@ contract Bridge is
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         poeAddress = _poeAddress;
-
-        // Initialize OZ contracts
-        __Ownable_init_unchained();
     }
 
     modifier onlyProofOfEfficiency() {
