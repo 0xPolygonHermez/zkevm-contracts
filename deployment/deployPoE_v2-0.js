@@ -17,8 +17,11 @@ async function main() {
     const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || 'http://zkevm-json-rpc:8123';
     const realVerifier = deployParameters.realVerifier || false;
-    const claimTimeout = deployParameters.claimTimeout || 0;
     const { chainID, networkName } = deployParameters;
+
+    const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1);
+    const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1);
+
     const atemptsDeployProxy = 20;
 
     let currentProvider = ethers.provider;
@@ -54,7 +57,8 @@ async function main() {
     } else {
         [deployer] = (await ethers.getSigners());
     }
-    const securityCouncilAddress = deployParameters.securityCouncilAddress || deployer.address;
+    const admin = deployParameters.admin || deployer.address;
+    const trustedAggregator = deployParameters.trustedAggregator || deployer.address;
 
     /*
      *Deployment MATIC
@@ -161,7 +165,6 @@ async function main() {
         networkIDMainnet,
         globalExitRootManager.address,
         proofOfEfficiencyContract.address,
-        claimTimeout,
     )).wait();
 
     console.log('\n#######################');
@@ -170,7 +173,6 @@ async function main() {
     console.log('globalExitRootManagerAddress:', await bridgeContract.globalExitRootManager());
     console.log('networkID:', await bridgeContract.networkID());
     console.log('poeAddress:', await bridgeContract.poeAddress());
-    console.log('claimTimeout:', await bridgeContract.claimTimeout());
     console.log('owner:', await bridgeContract.owner());
 
     /*
@@ -186,27 +188,37 @@ async function main() {
     console.log('globalExitRootManagerAddress:', globalExitRootManager.address);
     console.log('maticTokenAddress:', maticTokenContract.address);
     console.log('verifierAddress:', verifierContract.address);
-    console.log('genesisRoot:', genesisRootHex);
-    console.log('trustedSequencer:', trustedSequencer);
-    console.log('forceBatchAllowed:', forceBatchAllowed);
-    console.log('trustedSequencerURL:', trustedSequencerURL);
-    console.log('chainID:', chainID);
-    console.log('networkName:', networkName);
     console.log('bridgeContract:', bridgeContract.address);
-    console.log('securityCouncil:', securityCouncilAddress);
+
+    console.log('admin:', admin);
+    console.log('chainID:', chainID);
+    console.log('trustedSequencer:', trustedSequencer);
+    console.log('pendingStateTimeout:', pendingStateTimeout);
+    console.log('forceBatchAllowed:', forceBatchAllowed);
+    console.log('trustedAggregator:', trustedAggregator);
+    console.log('trustedAggregatorTimeout:', trustedAggregatorTimeout);
+
+    console.log('genesisRoot:', genesisRootHex);
+    console.log('trustedSequencerURL:', trustedSequencerURL);
+    console.log('networkName:', networkName);
 
     await (await proofOfEfficiencyContract.initialize(
         globalExitRootManager.address,
         maticTokenContract.address,
         verifierContract.address,
-        genesisRootHex,
-        trustedSequencer,
-        forceBatchAllowed,
-        trustedSequencerURL,
-        chainID,
-        networkName,
         bridgeContract.address,
-        securityCouncilAddress,
+        {
+            admin,
+            chainID,
+            trustedSequencer,
+            pendingStateTimeout,
+            forceBatchAllowed,
+            trustedAggregator,
+            trustedAggregatorTimeout,
+        },
+        genesisRootHex,
+        trustedSequencerURL,
+        networkName,
     )).wait();
 
     const deploymentBlockNumber = (await proofOfEfficiencyContract.deployTransaction.wait()).blockNumber;
@@ -216,15 +228,20 @@ async function main() {
     console.log('#######################');
     console.log('globalExitRootManagerAddress:', await proofOfEfficiencyContract.globalExitRootManager());
     console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
-    console.log('verifierMockAddress:', await proofOfEfficiencyContract.rollupVerifier());
-    console.log('genesiRoot:', await proofOfEfficiencyContract.batchNumToStateRoot(0));
-    console.log('trustedSequencer:', await proofOfEfficiencyContract.trustedSequencer());
-    console.log('forceBatchAllowed:', await proofOfEfficiencyContract.forceBatchAllowed());
-    console.log('trustedSequencerURL:', await proofOfEfficiencyContract.trustedSequencerURL());
-    console.log('chainID:', Number(await proofOfEfficiencyContract.chainID()));
-    console.log('networkName:', await proofOfEfficiencyContract.networkName());
+    console.log('verifierAddress:', await proofOfEfficiencyContract.rollupVerifier());
     console.log('bridgeContract:', await proofOfEfficiencyContract.bridgeAddress());
-    console.log('securityCouncil:', await proofOfEfficiencyContract.securityCouncil());
+
+    console.log('admin:', await proofOfEfficiencyContract.admin());
+    console.log('chainID:', await proofOfEfficiencyContract.chainID());
+    console.log('trustedSequencer:', await proofOfEfficiencyContract.trustedSequencer());
+    console.log('pendingStateTimeout:', await proofOfEfficiencyContract.pendingStateTimeout());
+    console.log('forceBatchAllowed:', await proofOfEfficiencyContract.forceBatchAllowed());
+    console.log('trustedAggregator:', await proofOfEfficiencyContract.trustedAggregator());
+    console.log('trustedAggregatorTimeout:', await proofOfEfficiencyContract.trustedAggregatorTimeout());
+
+    console.log('genesiRoot:', await proofOfEfficiencyContract.batchNumToStateRoot(0));
+    console.log('trustedSequencerURL:', await proofOfEfficiencyContract.trustedSequencerURL());
+    console.log('networkName:', await proofOfEfficiencyContract.networkName());
     console.log('owner:', await proofOfEfficiencyContract.owner());
 
     // fund account with tokens and ether if it have less than 0.1 ether.

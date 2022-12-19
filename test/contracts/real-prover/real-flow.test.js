@@ -22,6 +22,8 @@ describe('Real flow test', () => {
     let globalExitRootManager;
     let deployer;
     let trustedSequencer;
+    let trustedAggregator;
+    let admin;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
@@ -34,10 +36,12 @@ describe('Real flow test', () => {
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const { chainID } = inputJson;
     const networkName = 'zkevm';
+    const pendingStateTimeoutDefault = 10;
+    const trustedAggregatorTimeoutDefault = 10;
 
     beforeEach('Deploy contract', async () => {
         // load signers
-        [deployer] = await ethers.getSigners();
+        [deployer, trustedAggregator, admin] = await ethers.getSigners();
 
         // Could be different address teorically but for now it's fine
         const trustedSequencerAddress = inputJson.singleBatchData[0].sequencerAddr;
@@ -74,23 +78,27 @@ describe('Real flow test', () => {
 
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerMock');
-        const claimTimeout = 0;
 
         globalExitRootManager = await globalExitRootManagerFactory.deploy(proofOfEfficiencyContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address, claimTimeout);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address);
 
         await proofOfEfficiencyContract.initialize(
             globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
-            genesisRoot,
-            trustedSequencer.address,
-            allowForcebatches,
-            urlSequencer,
-            chainID,
-            networkName,
             bridgeContract.address,
-            ethers.constants.AddressZero,
+            {
+                admin: admin.address,
+                chainID,
+                trustedSequencer: trustedSequencer.address,
+                pendingStateTimeout: pendingStateTimeoutDefault,
+                forceBatchAllowed: allowForcebatches,
+                trustedAggregator: trustedAggregator.address,
+                trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
+            },
+            genesisRoot,
+            urlSequencer,
+            networkName,
         );
 
         // fund sequencer address with Matic tokens
@@ -102,7 +110,7 @@ describe('Real flow test', () => {
         const batchesNum = batchesData.length;
 
         // Approve tokens
-        const maticAmount = await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE();
+        const maticAmount = await proofOfEfficiencyContract.getCurrentBatchFee();
         await expect(
             maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount.mul(batchesNum)),
         ).to.emit(maticTokenContract, 'Approval');
@@ -143,7 +151,7 @@ describe('Real flow test', () => {
             // check trusted sequencer
             const trustedSequencerAddress = inputJson.singleBatchData[i].sequencerAddr;
             if (trustedSequencer.address !== trustedSequencerAddress) {
-                await proofOfEfficiencyContract.connect(trustedSequencer).setTrustedSequencer(trustedSequencerAddress);
+                await proofOfEfficiencyContract.connect(admin).setTrustedSequencer(trustedSequencerAddress);
                 await ethers.provider.send('hardhat_impersonateAccount', [trustedSequencerAddress]);
                 trustedSequencer = await ethers.getSigner(trustedSequencerAddress);
                 await deployer.sendTransaction({
@@ -172,8 +180,9 @@ describe('Real flow test', () => {
             to: aggregatorAddress,
             value: ethers.utils.parseEther('4'),
         });
+        await proofOfEfficiencyContract.connect(admin).setTrustedAggregator(aggregatorAddress);
 
-        const batchAccInputHash = await proofOfEfficiencyContract.sequencedBatches(inputJson.newNumBatch);
+        const batchAccInputHash = (await proofOfEfficiencyContract.sequencedBatches(inputJson.newNumBatch)).accInputHash;
         expect(batchAccInputHash).to.be.equal(inputJson.newAccInputHash);
 
         const {
@@ -200,10 +209,11 @@ describe('Real flow test', () => {
         const { newStateRoot } = inputJson;
         const { oldNumBatch } = inputJson;
         const { newNumBatch } = inputJson;
-
+        const pendingStateNum = 0;
         // Verify batch
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+            proofOfEfficiencyContract.connect(aggregator).trustedVerifyBatches(
+                pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
                 newLocalExitRoot,
@@ -212,7 +222,7 @@ describe('Real flow test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(proofOfEfficiencyContract, 'VerifyBatches')
+        ).to.emit(proofOfEfficiencyContract, 'TrustedVerifyBatches')
             .withArgs(newNumBatch, newStateRoot, aggregator.address);
     });
 });

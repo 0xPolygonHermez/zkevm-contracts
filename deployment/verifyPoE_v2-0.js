@@ -5,7 +5,6 @@ const hre = require('hardhat');
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const openzeppelinUpgrade = require(`../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 const pathDeployOutputParameters = path.join(__dirname, './deploy_output.json');
 const deployOutputParameters = require(pathDeployOutputParameters);
 
@@ -37,7 +36,7 @@ async function main() {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
-    // verify verifierMock
+    // verify verifier
     try {
         await hre.run(
             'verify:verify',
@@ -49,11 +48,18 @@ async function main() {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
-    // verify upgradable SC (hermez and Auction)
-    for (const implementation in openzeppelinUpgrade.impls) {
-        const { address } = openzeppelinUpgrade.impls[implementation];
+    // verify proxies
+
+    const contractNames = ['proofOfEfficiencyAddress', 'bridgeAddress', 'globalExitRootManagerAddress'];
+
+    for (let i = 0; i < contractNames.length; i++) {
         try {
-            await hre.run('verify:verify', { address });
+            await hre.run(
+                'verify:verify',
+                {
+                    address: deployOutputParameters[contractNames[i]],
+                },
+            );
         } catch (error) {
             expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
         }

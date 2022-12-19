@@ -418,9 +418,9 @@ Internal function to activate emergency state on both PoE and Bridge contrats
 
 
 
-### calculateBatchFee
+### getCurrentBatchFee
 ```solidity
-  function calculateBatchFee(
+  function getCurrentBatchFee(
   ) public returns (uint256)
 ```
 Function to get the batch fee

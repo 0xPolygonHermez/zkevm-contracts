@@ -40,7 +40,6 @@ describe('Bridge Contract Permit tests', () => {
     const LEAF_TYPE_ASSET = 0;
 
     const proofOfEfficiencyAddress = ethers.constants.AddressZero;
-    const claimTimeout = 0;
 
     beforeEach('Deploy contracts', async () => {
         // load signers
@@ -55,7 +54,7 @@ describe('Bridge Contract Permit tests', () => {
         bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
 
         await globalExitRootManager.initialize(rollup.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyAddress, claimTimeout);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyAddress);
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory('TokenWrapped');
