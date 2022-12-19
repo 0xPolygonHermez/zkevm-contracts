@@ -1,9 +1,9 @@
-Contract responsible for managing the states and the updates of L2 network
+Contract responsible for managing the states and the updates of L2 network.
 There will be a trusted sequencer, which is able to send transactions.
-Any user can force some transaction and the sequencer will have a timeout to add them in the queue
-THe sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof
-The aggregators will be able to actually verify the sequenced state with zkProofs and be to perform withdrawals from L2 network
-To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks
+Any user can force some transaction and the sequencer will have a timeout to add them in the queue.
+The sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof.
+The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
+To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks.
 
 
 ## Functions
@@ -25,13 +25,13 @@ To enter and exit of the L2 network will be used a Bridge smart contract that wi
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_globalExitRootManager` | contract IGlobalExitRootManager | global exit root manager address
+|`_globalExitRootManager` | contract IGlobalExitRootManager | Global exit root manager address
 |`_matic` | contract IERC20Upgradeable | MATIC token address
-|`_rollupVerifier` | contract IVerifierRollup | rollup verifier address
-|`_bridgeAddress` | contract IBridge | bridge address
+|`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
+|`_bridgeAddress` | contract IBridge | Bridge address
 |`initializePackedParameters` | struct ProofOfEfficiency.InitializePackedParameters | Struct to save gas and avoid stack too depp errors
-|`genesisRoot` | bytes32 | rollup genesis root
-|`_trustedSequencerURL` | string | trusted sequencer URL
+|`genesisRoot` | bytes32 | Rollup genesis root
+|`_trustedSequencerURL` | string | Trusted sequencer URL
 |`_networkName` | string | L2 network name
 
 ### sequenceBatches
@@ -128,13 +128,13 @@ Verify batches internal function
 |`proofB` | uint256[2] | zk-snark input
 |`proofC` | uint256[2][2] | zk-snark input
 
-### _consolidateNextPendingState
+### _tryConsolidatePendingState
 ```solidity
-  function _consolidateNextPendingState(
+  function _tryConsolidatePendingState(
   ) internal
 ```
 Internal function to consolidate the state automatically once sequence or verify batches are called
-It trys to consolidatethe first and the middle pending state
+It trys to consolidate the first and the middle pending state
 
 
 
@@ -152,6 +152,16 @@ Can be called by the trusted aggregator, which can consolidate any state without
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`pendingStateNum` | uint64 | Pending state to consolidate
+
+### _updateBatchFee
+```solidity
+  function _updateBatchFee(
+  ) internal
+```
+Function to update the batch fee based on the new verfied batches
+The batch fee will not be updated when the trusted aggregator verify batches
+
+
 
 ### forceBatch
 ```solidity
@@ -190,7 +200,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer do not have do
     address newTrustedSequencer
   ) public
 ```
-Allow the current trusted sequencer to set a new trusted sequencer
+Allow the admin to set a new trusted sequencer
 
 
 #### Parameters:
@@ -204,7 +214,7 @@ Allow the current trusted sequencer to set a new trusted sequencer
     bool newForceBatchAllowed
   ) public
 ```
-Allow the current trusted sequencer to allow/disallow the forceBatch functionality
+Allow the admin to allow/disallow the forceBatch functionality
 
 
 #### Parameters:
@@ -218,7 +228,7 @@ Allow the current trusted sequencer to allow/disallow the forceBatch functionali
     string newTrustedSequencerURL
   ) public
 ```
-Allow the trusted sequencer to set the trusted sequencer URL
+Allow the admin to set the trusted sequencer URL
 
 
 #### Parameters:
@@ -232,7 +242,7 @@ Allow the trusted sequencer to set the trusted sequencer URL
     address newTrustedAggregator
   ) public
 ```
-Allow the current trusted aggregator to set a new trusted aggregator address
+Allow the admin to set a new trusted aggregator address
 If address 0 is set, everyone is free to aggregate
 
 
@@ -247,7 +257,7 @@ If address 0 is set, everyone is free to aggregate
     uint64 newTrustedAggregatorTimeout
   ) public
 ```
-Allow the current trusted aggregator to set a new trusted aggregator timeout
+Allow the admin to set a new trusted aggregator timeout
 The timeout can only be lowered, except if emergency state is active
 
 
@@ -262,7 +272,7 @@ The timeout can only be lowered, except if emergency state is active
     uint64 newPendingStateTimeout
   ) public
 ```
-Allow the current trusted aggregator to set a new trusted aggregator timeout
+Allow the admin to set a new trusted aggregator timeout
 The timeout can only be lowered, except if emergency state is active
 
 
@@ -399,13 +409,12 @@ Function to deactivate emergency state on both PoE and Bridge contrats
 
 
 
-### _updateBatchFee
+### _activateEmergencyState
 ```solidity
-  function _updateBatchFee(
+  function _activateEmergencyState(
   ) internal
 ```
-Function to update the batch fee based on the new verfied batches
-The batch fee will not be updated when the trusted aggregator verify batches
+Internal function to activate emergency state on both PoE and Bridge contrats
 
 
 
@@ -414,7 +423,7 @@ The batch fee will not be updated when the trusted aggregator verify batches
   function calculateBatchFee(
   ) public returns (uint256)
 ```
-Function to get the last verified batch
+Function to get the batch fee
 
 
 
@@ -432,7 +441,7 @@ Get the last verified batch
   function isPendingStateConsolidable(
   ) public returns (bool)
 ```
-Returns a boolean indicatinf is the pendingStateNum is or not consolidable
+Returns a boolean that indicates if the pendingStateNum is or not consolidable
 Note that his function do not check if the pending state currently exist, or if it's consolidated already
 
 
@@ -465,15 +474,6 @@ Function to calculate the input snark bytes
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-
-### _activateEmergencyState
-```solidity
-  function _activateEmergencyState(
-  ) internal
-```
-Internal function to activate emergency state on both PoE and Bridge contrats
-
-
 
 ## Events
 ### SequenceBatches

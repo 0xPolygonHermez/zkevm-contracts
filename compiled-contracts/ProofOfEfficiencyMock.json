@@ -20,9 +20,9 @@
         },
         {
           "indexed": true,
-          "internalType": "address",
-          "name": "aggregator",
-          "type": "address"
+          "internalType": "uint64",
+          "name": "pendingStateNum",
+          "type": "uint64"
         }
       ],
       "name": "ConsolidatePendingState",
@@ -342,7 +342,7 @@
     },
     {
       "inputs": [],
-      "name": "MAX_BATCH_LENGTH",
+      "name": "MAX_TRANSACTIONS_BYTE_LENGTH",
       "outputs": [
         {
           "internalType": "uint256",
@@ -356,6 +356,32 @@
     {
       "inputs": [],
       "name": "MAX_VERIFY_BATCHES",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MULTIPLIER_BATCH_FEE",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "VERIFY_BATCH_TIME_TARGET",
       "outputs": [
         {
           "internalType": "uint64",
@@ -387,6 +413,19 @@
           "internalType": "address",
           "name": "",
           "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "batchFee",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -1180,6 +1219,11 @@
           "internalType": "uint64",
           "name": "sequencedTimestamp",
           "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "previousLastBatchSequenced",
+          "type": "uint64"
         }
       ],
       "stateMutability": "view",
@@ -1265,6 +1309,11 @@
         {
           "internalType": "uint64",
           "name": "timestamp",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "lastPendingStateConsolidated",
           "type": "uint64"
         }
       ],

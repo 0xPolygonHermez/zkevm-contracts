@@ -172,11 +172,13 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
     function setSequencedBatches(
         uint64 batchNum,
         bytes32 accInputData,
-        uint64 timestamp
+        uint64 timestamp,
+        uint64 lastPendingStateConsolidated
     ) public onlyOwner {
         sequencedBatches[batchNum] = SequencedBatchData({
             accInputHash: accInputData,
-            sequencedTimestamp: timestamp
+            sequencedTimestamp: timestamp,
+            previousLastBatchSequenced: lastPendingStateConsolidated
         });
     }
 
@@ -201,9 +203,9 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         uint256[2] calldata proofC
     ) public onlyOwner {
         bytes32 oldStateRoot;
-        uint64 currentLastVerifiedBatch;
+        uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
 
-        // Use pending state if especified, otherwise use consolidate state
+        // Use pending state if specified, otherwise use consolidated state
         if (pendingStateNum != 0) {
             // Check that pending state exist
             // Already consolidated pending states can be used aswell
@@ -216,14 +218,15 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             PendingState storage currentPendingState = pendingStateTransitions[
                 pendingStateNum
             ];
+
+            // Get oldStateRoot from pending batch
             oldStateRoot = currentPendingState.stateRoot;
 
-            // Assert init batch
+            // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "ProofOfEfficiency::verifyBatches: initNumBatch must match the pending state batch"
             );
-            currentLastVerifiedBatch = initNumBatch;
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
@@ -232,15 +235,14 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
                 "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
             );
 
-            // Assert init batch
+            // Check initNumBatch is inside the range
             require(
-                initNumBatch <= lastVerifiedBatch,
+                initNumBatch <= currentLastVerifiedBatch,
                 "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
-            currentLastVerifiedBatch = lastVerifiedBatch;
         }
 
-        // Assert final batch
+        // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
             "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
@@ -255,23 +257,23 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             newStateRoot
         );
 
-        // Calulate the snark input
-        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
+        // // Calulate the snark input
+        // uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
-        // Verify proof
+        // // Verify proof
         // require(
         //     rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
         //     "ProofOfEfficiency::verifyBatches: INVALID_PROOF"
         // );
 
-        // Get MATIC reward
+        // // Get MATIC reward
         // matic.safeTransfer(
         //     msg.sender,
         //     calculateRewardPerBatch() *
         //         (finalNewBatch - currentLastVerifiedBatch)
         // );
 
-        // Update state
+        // Consolidate state
         lastVerifiedBatch = finalNewBatch;
         batchNumToStateRoot[finalNewBatch] = newStateRoot;
 

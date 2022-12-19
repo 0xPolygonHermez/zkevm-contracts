@@ -89,7 +89,7 @@ contract Bridge is
     }
 
     /**
-     * @dev Emitted when a bridge some tokens to another network
+     * @dev Emitted when bridge assets or messages to another network
      */
     event BridgeEvent(
         uint8 leafType,
