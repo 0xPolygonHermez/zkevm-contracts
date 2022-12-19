@@ -7,7 +7,6 @@ describe('Global Exit Root L2', () => {
     let bridge;
     let globalExitRootManager;
     const proofOfEfficiencyAddress = ethers.constants.AddressZero;
-    const claimTimeout = 0;
 
     beforeEach('Deploy contracts', async () => {
         const networkIDRollup = 1;
@@ -22,7 +21,7 @@ describe('Global Exit Root L2', () => {
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerL2Mock', deployer);
         globalExitRootManager = await globalExitRootManagerFactory.deploy(bridge.address);
 
-        await bridge.initialize(networkIDRollup, globalExitRootManager.address, proofOfEfficiencyAddress, claimTimeout);
+        await bridge.initialize(networkIDRollup, globalExitRootManager.address, proofOfEfficiencyAddress);
     });
 
     it('should check the constructor parameters', async () => {

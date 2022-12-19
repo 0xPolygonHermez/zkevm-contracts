@@ -53,15 +53,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         bytes32 newStateRoot
     ) public view returns (uint256) {
         bytes32 oldStateRoot;
-        uint64 currentLastVerifiedBatch;
-
-        // Get the last pending state if there's one, otherwise check consolidate state
-        if (lastPendingState > 0) {
-            currentLastVerifiedBatch = pendingStateTransitions[lastPendingState]
-                .lastVerifiedBatch;
-        } else {
-            currentLastVerifiedBatch = lastVerifiedBatch;
-        }
+        uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
 
         // Use pending state if specified, otherwise use consolidated state
         if (pendingStateNum != 0) {
@@ -87,11 +79,11 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             );
         } else {
             // Use consolidated state
+            oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
-                batchNumToStateRoot[initNumBatch] != bytes32(0),
+                oldStateRoot != bytes32(0),
                 "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
             );
-            oldStateRoot = batchNumToStateRoot[initNumBatch];
 
             // Check initNumBatch is inside the range
             require(
@@ -114,7 +106,6 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             oldStateRoot,
             newStateRoot
         );
-
         // Calulate the snark input
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 

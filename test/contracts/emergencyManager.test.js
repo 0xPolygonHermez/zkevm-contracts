@@ -3,9 +3,9 @@ const { ethers, upgrades } = require('hardhat');
 
 describe('Emergency mode test', () => {
     let deployer;
-    let aggregator;
+    let trustedAggregator;
     let trustedSequencer;
-    let securityCouncil;
+    let admin;
 
     let verifierContract;
     let bridgeContract;
@@ -24,10 +24,12 @@ describe('Emergency mode test', () => {
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const chainID = 1000;
     const networkName = 'zkevm';
+    const pendingStateTimeoutDefault = 10;
+    const trustedAggregatorTimeoutDefault = 10;
 
     beforeEach('Deploy contract', async () => {
         // load signers
-        [deployer, aggregator, trustedSequencer, securityCouncil] = await ethers.getSigners();
+        [deployer, trustedAggregator, trustedSequencer, admin] = await ethers.getSigners();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
@@ -57,21 +59,25 @@ describe('Emergency mode test', () => {
         const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
         proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
 
-        const claimTimeout = 0;
         await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address, claimTimeout);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address);
         await proofOfEfficiencyContract.initialize(
             globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
-            genesisRoot,
-            trustedSequencer.address,
-            allowForcebatches,
-            urlSequencer,
-            chainID,
-            networkName,
             bridgeContract.address,
-            securityCouncil.address,
+            {
+                admin: admin.address,
+                chainID,
+                trustedSequencer: trustedSequencer.address,
+                pendingStateTimeout: pendingStateTimeoutDefault,
+                forceBatchAllowed: allowForcebatches,
+                trustedAggregator: trustedAggregator.address,
+                trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
+            },
+            genesisRoot,
+            urlSequencer,
+            networkName,
         );
 
         // fund sequencer address with Matic tokens
@@ -84,13 +90,13 @@ describe('Emergency mode test', () => {
         expect(await bridgeContract.isEmergencyState()).to.be.equal(false);
 
         // Set isEmergencyState
-        await expect(proofOfEfficiencyContract.connect(securityCouncil).activateEmergencyState())
-            .to.be.revertedWith('owner');
+        await expect(proofOfEfficiencyContract.connect(admin).activateEmergencyState(1))
+            .to.be.revertedWith('ProofOfEfficiency::activateEmergencyState: Batch not sequenced or not end of sequence');
 
-        await expect(bridgeContract.connect(securityCouncil).activateEmergencyState())
+        await expect(bridgeContract.connect(deployer).activateEmergencyState())
             .to.be.revertedWith('ProofOfEfficiency::onlyProofOfEfficiency: only Proof of Efficiency contract');
 
-        await expect(proofOfEfficiencyContract.activateEmergencyState())
+        await expect(proofOfEfficiencyContract.activateEmergencyState(0))
             .to.emit(proofOfEfficiencyContract, 'EmergencyStateActivated')
             .to.emit(bridgeContract, 'EmergencyStateActivated');
 
@@ -99,7 +105,7 @@ describe('Emergency mode test', () => {
 
         // Once in emergency state no sequenceBatches/forceBatches can be done
         const l2txData = '0x123456';
-        const maticAmount = await proofOfEfficiencyContract.TRUSTED_SEQUENCER_FEE();
+        const maticAmount = await proofOfEfficiencyContract.getCurrentBatchFee();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
@@ -121,7 +127,7 @@ describe('Emergency mode test', () => {
         await expect(proofOfEfficiencyContract.forceBatch(l2txData, maticAmount))
             .to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
-        // aggregator forge the batch
+        // trustedAggregator forge the batch
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()).toNumber() + 1;
@@ -131,9 +137,11 @@ describe('Emergency mode test', () => {
             ['0', '0'],
         ];
         const proofC = ['0', '0'];
+        const pendingStateNum = 0;
 
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+            proofOfEfficiencyContract.connect(trustedAggregator).verifyBatches(
+                pendingStateNum,
                 numBatch - 1,
                 numBatch,
                 newLocalExitRoot,
@@ -195,16 +203,16 @@ describe('Emergency mode test', () => {
         )).to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
         // Emergency council should deactivate emergency mode
-        await expect(proofOfEfficiencyContract.activateEmergencyState())
+        await expect(proofOfEfficiencyContract.activateEmergencyState(0))
             .to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
-        await expect(bridgeContract.connect(securityCouncil).deactivateEmergencyState())
+        await expect(bridgeContract.connect(deployer).deactivateEmergencyState())
             .to.be.revertedWith('ProofOfEfficiency::onlyProofOfEfficiency: only Proof of Efficiency contract');
 
         await expect(proofOfEfficiencyContract.deactivateEmergencyState())
-            .to.be.revertedWith('ProofOfEfficiency::onlySecurityCouncil: only security council');
+            .to.be.revertedWith('ProofOfEfficiency::onlyAdmin: only admin');
 
-        await expect(proofOfEfficiencyContract.connect(securityCouncil).deactivateEmergencyState())
+        await expect(proofOfEfficiencyContract.connect(admin).deactivateEmergencyState())
             .to.emit(proofOfEfficiencyContract, 'EmergencyStateDeactivated')
             .to.emit(bridgeContract, 'EmergencyStateDeactivated');
 
@@ -226,14 +234,16 @@ describe('Emergency mode test', () => {
             .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
-        // aggregator forge the batch
+        // trustedAggregator forge the batch
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
-            await aggregator.getAddress(),
+            trustedAggregator.address,
         );
+        await ethers.provider.send('evm_increaseTime', [trustedAggregatorTimeoutDefault]); // evm_setNextBlockTimestamp
 
         // Verify batch
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).verifyBatches(
+            proofOfEfficiencyContract.connect(trustedAggregator).verifyBatches(
+                pendingStateNum,
                 numBatch - 1,
                 numBatch,
                 newLocalExitRoot,
@@ -243,19 +253,22 @@ describe('Emergency mode test', () => {
                 proofC,
             ),
         ).to.emit(proofOfEfficiencyContract, 'VerifyBatches')
-            .withArgs(numBatch, newStateRoot, aggregator.address);
+            .withArgs(numBatch, newStateRoot, trustedAggregator.address);
 
         const finalAggregatorMatic = await maticTokenContract.balanceOf(
-            await aggregator.getAddress(),
+            trustedAggregator.address,
         );
         expect(finalAggregatorMatic).to.equal(
             ethers.BigNumber.from(initialAggregatorMatic).add(ethers.BigNumber.from(maticAmount)),
         );
 
         // Finally enter in emergency mode again proving distinc state
+        const finalPendingStateNum = 1;
 
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).proveNonDeterministicState(
+            proofOfEfficiencyContract.connect(trustedAggregator).proveNonDeterministicPendingState(
+                pendingStateNum,
+                finalPendingStateNum,
                 numBatch - 1,
                 numBatch - 1,
                 newLocalExitRoot,
@@ -264,10 +277,12 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::proveNonDeterministicState: finalNewBatch must be bigger than initNumBatch');
+        ).to.be.revertedWith('ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
 
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).proveNonDeterministicState(
+            proofOfEfficiencyContract.connect(trustedAggregator).proveNonDeterministicPendingState(
+                pendingStateNum,
+                finalPendingStateNum,
                 numBatch - 1,
                 numBatch + 1,
                 newLocalExitRoot,
@@ -276,12 +291,14 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::proveNonDeterministicState: finalNewBatch must be less or equal than lastVerifiedBatch');
+        ).to.be.revertedWith('ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
 
         const newStateRootDistinct = '0x0000000000000000000000000000000000000000000000000000000000000002';
 
         await expect(
-            proofOfEfficiencyContract.proveNonDeterministicState(
+            proofOfEfficiencyContract.proveNonDeterministicPendingState(
+                pendingStateNum,
+                finalPendingStateNum,
                 numBatch - 1,
                 numBatch,
                 newLocalExitRoot,
@@ -290,7 +307,7 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(proofOfEfficiencyContract, 'ProveNonDeterministicState').withArgs(newStateRoot, newStateRootDistinct)
+        ).to.emit(proofOfEfficiencyContract, 'ProveNonDeterministicPendingState').withArgs(newStateRoot, newStateRootDistinct)
             .to.emit(proofOfEfficiencyContract, 'EmergencyStateActivated')
             .to.emit(bridgeContract, 'EmergencyStateActivated');
 

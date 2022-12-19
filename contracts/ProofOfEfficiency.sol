@@ -350,7 +350,7 @@ contract ProofOfEfficiency is
         forceBatchAllowed = initializePackedParameters.forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
-        batchFee = 10 ^ 18; // 1 Matic
+        batchFee = 10 ** 18; // 1 Matic
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -513,7 +513,7 @@ contract ProofOfEfficiency is
         matic.safeTransferFrom(
             msg.sender,
             address(this),
-            calculateBatchFee() * nonForcedBatchesSequenced
+            getCurrentBatchFee() * nonForcedBatchesSequenced
         );
 
         // Consolidate pending state if possible
@@ -542,7 +542,8 @@ contract ProofOfEfficiency is
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
     ) public ifNotEmergencyState {
-        // Check if the trusted aggregator timeout expired
+        // Check if the trusted aggregator timeout expired,
+        // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
         require(
             sequencedBatches[finalNewBatch].sequencedTimestamp +
                 trustedAggregatorTimeout <=
@@ -851,7 +852,7 @@ contract ProofOfEfficiency is
 
         // Assume that batch fee will be max 128 bits, therefore:
         // MULTIPLIER_BATCH_FEE --> (< 4 bits)
-        // MULTIPLIER_BATCH_FEE^32 --> (< 128 bits)
+        // MULTIPLIER_BATCH_FEE ** 32 --> (< 128 bits)
         // (< 128 bits) * (< 128 bits) = < 256 bits
         if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
             uint256 diffBatches = totalBatchesAboveTarget -
@@ -860,13 +861,13 @@ contract ProofOfEfficiency is
 
             while (diffBatches > 32) {
                 accMultiplier =
-                    (accMultiplier * (MULTIPLIER_BATCH_FEE ^ 32)) /
-                    (10 ^ 32);
+                    (accMultiplier * (MULTIPLIER_BATCH_FEE ** 32)) /
+                    (10 ** 32);
                 diffBatches -= 32;
             }
             accMultiplier =
-                (accMultiplier * (MULTIPLIER_BATCH_FEE ^ diffBatches)) /
-                (10 ^ diffBatches);
+                (accMultiplier * (MULTIPLIER_BATCH_FEE ** diffBatches)) /
+                (10 ** diffBatches);
             batchFee = accMultiplier;
         } else {
             uint256 diffBatches = totalBatchesBelowTarget -
@@ -875,13 +876,13 @@ contract ProofOfEfficiency is
 
             while (diffBatches > 32) {
                 accMultiplier =
-                    (accMultiplier * (MULTIPLIER_BATCH_FEE ^ 32)) /
-                    (10 ^ 32);
+                    (accMultiplier * (MULTIPLIER_BATCH_FEE ** 32)) /
+                    (10 ** 32);
                 diffBatches -= 32;
             }
             accMultiplier =
-                (accMultiplier * (MULTIPLIER_BATCH_FEE ^ diffBatches)) /
-                (10 ^ diffBatches);
+                (accMultiplier * (MULTIPLIER_BATCH_FEE ** diffBatches)) /
+                (10 ** diffBatches);
 
             batchFee = (batchFee * batchFee) / accMultiplier;
         }
@@ -902,7 +903,7 @@ contract ProofOfEfficiency is
         uint256 maticAmount
     ) public ifNotEmergencyState isForceBatchAllowed {
         // Calculate matic collateral
-        uint256 maticFee = calculateBatchFee();
+        uint256 maticFee = getCurrentBatchFee();
 
         require(
             maticFee <= maticAmount,
@@ -1102,7 +1103,7 @@ contract ProofOfEfficiency is
         }
 
         trustedAggregatorTimeout = newTrustedAggregatorTimeout;
-        emit SetTrustedAggregatorTimeout(trustedAggregatorTimeout);
+        emit SetTrustedAggregatorTimeout(newTrustedAggregatorTimeout);
     }
 
     /**
@@ -1114,7 +1115,7 @@ contract ProofOfEfficiency is
         uint64 newPendingStateTimeout
     ) public onlyAdmin {
         require(
-            pendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
+            newPendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
             "ProofOfEfficiency::setPendingStateTimeout: exceed halt aggregation timeout"
         );
         if (!isEmergencyState) {
@@ -1310,14 +1311,14 @@ contract ProofOfEfficiency is
             finalPendingStateNum <= lastPendingState &&
                 finalPendingStateNum > initPendingStateNum &&
                 finalPendingStateNum > lastPendingStateConsolidated,
-            "ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "ProofOfEfficiency::proveNonDeterministicPendingState: finalPendingStateNum incorrect"
         );
 
         // Check final num batch
         require(
             finalNewBatch ==
                 pendingStateTransitions[finalPendingStateNum].lastVerifiedBatch,
-            "ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -1361,10 +1362,18 @@ contract ProofOfEfficiency is
             } else {
                 lastVerifiedBatchToCompare = lastVerifiedBatch;
             }
+
             // Check that the batch has not been verified
             require(
                 sequencedBatchNum > lastVerifiedBatchToCompare,
                 "ProofOfEfficiency::activateEmergencyState: Batch already verified"
+            );
+
+            // Check that the batch has been sequenced and this was the end of a sequence
+            require(
+                sequencedBatchNum <= lastBatchSequenced &&
+                    sequencedBatches[sequencedBatchNum].sequencedTimestamp != 0,
+                "ProofOfEfficiency::activateEmergencyState: Batch not sequenced or not end of sequence"
             );
 
             // Check that has been passed HALT_AGGREGATION_TIMEOUT since it was sequenced
@@ -1407,7 +1416,7 @@ contract ProofOfEfficiency is
     /**
      * @notice Function to get the batch fee
      */
-    function calculateBatchFee() public view returns (uint256) {
+    function getCurrentBatchFee() public view returns (uint256) {
         return batchFee;
     }
 

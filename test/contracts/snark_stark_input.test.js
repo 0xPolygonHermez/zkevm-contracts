@@ -26,16 +26,22 @@ describe('Proof of efficiency snark stark input test', () => {
                 randomSigner.address,
                 randomSigner.address,
                 randomSigner.address,
-                genesisRoot,
                 randomSigner.address,
-                allowForcebatches,
+                {
+                    admin: randomSigner.address,
+                    chainID,
+                    trustedSequencer: randomSigner.address,
+                    pendingStateTimeout: 0,
+                    forceBatchAllowed: allowForcebatches,
+                    trustedAggregator: randomSigner.address,
+                    trustedAggregatorTimeout: 0,
+                },
+                genesisRoot,
                 urlSequencer,
-                chainID,
                 networkName,
-                ethers.constants.AddressZero,
-                ethers.constants.AddressZero,
             ],
         );
+
         await proofOfEfficiencyContract.deployed();
     });
 
@@ -76,9 +82,11 @@ describe('Proof of efficiency snark stark input test', () => {
         const aggregatorAddress = '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266';
         const expectedSnarkInputHash = '15588448576060468525242870965361192827910782996030023758348255084502752104347';
 
+        const lastPendingStateConsolidated = 0;
+        const sequencedTimestamp = 999;
         // set smart contract with correct parameters
         await proofOfEfficiencyContract.setStateRoot(oldStateRoot, oldNumBatch);
-        await proofOfEfficiencyContract.setSequencedBatches(newNumBatch, newAccInputHash);
+        await proofOfEfficiencyContract.setSequencedBatches(newNumBatch, newAccInputHash, sequencedTimestamp, lastPendingStateConsolidated);
         await proofOfEfficiencyContract.setSequencedBatch(1);
 
         await ethers.provider.send('hardhat_impersonateAccount', [aggregatorAddress]);
@@ -89,7 +97,9 @@ describe('Proof of efficiency snark stark input test', () => {
         });
 
         // Compute SC input
+        const pendingStateNum = 0;
         const inputSnarkSC = await proofOfEfficiencyContract.connect(aggregator).getNextSnarkInput(
+            pendingStateNum,
             oldNumBatch,
             newNumBatch,
             newLocalExitRoot,
