@@ -148,30 +148,30 @@ async function main() {
     console.log('Bridge deployed to:', bridgeContract.address);
 
     // deploy PoE
-    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock', deployer);
-    let proofOfEfficiencyContract;
+    const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock', deployer);
+    let polygonZKEVMContract;
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
-            proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
+            polygonZKEVMContract = await upgrades.deployProxy(PolygonZKEVMFactory, [], { initializer: false });
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of proofOfEfficiencyContract ', error.error.reason);
+            console.log('upgrades.deployProxy of polygonZKEVMContract ', error.error.reason);
         }
 
         // reach limits of attempts
         if (i + 1 === attemptsDeployProxy) {
-            throw new Error('ProofOfEfficiency contract has not been deployed');
+            throw new Error('PolygonZKEVM contract has not been deployed');
         }
     }
 
     console.log('#######################\n');
-    console.log('Proof of Efficiency deployed to:', proofOfEfficiencyContract.address);
+    console.log('Polygon ZK-EVM deployed to:', polygonZKEVMContract.address);
 
     /*
      * Initialize globalExitRootManager
      */
-    await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
+    await globalExitRootManager.initialize(polygonZKEVMContract.address, bridgeContract.address);
 
     /*
      * Initialize Bridge
@@ -179,7 +179,7 @@ async function main() {
     await (await bridgeContract.initialize(
         networkIDMainnet,
         globalExitRootManager.address,
-        proofOfEfficiencyContract.address,
+        polygonZKEVMContract.address,
     )).wait();
 
     console.log('\n#######################');
@@ -191,13 +191,13 @@ async function main() {
     console.log('owner:', await bridgeContract.owner());
 
     /*
-     * Initialize proof of efficiency
+     * Initialize Polygon ZK-EVM
      */
     // Check genesis file
     const genesisRootHex = genesis.root;
 
     console.log('\n#######################');
-    console.log('##### Deployment Proof of Efficiency #####');
+    console.log('##### Deployment Polygon ZK-EVM #####');
     console.log('#######################');
     console.log('deployer:', deployer.address);
     console.log('globalExitRootManagerAddress:', globalExitRootManager.address);
@@ -217,7 +217,7 @@ async function main() {
     console.log('trustedSequencerURL:', trustedSequencerURL);
     console.log('networkName:', networkName);
 
-    await (await proofOfEfficiencyContract.initialize(
+    await (await polygonZKEVMContract.initialize(
         globalExitRootManager.address,
         maticTokenContract.address,
         verifierContract.address,
@@ -236,28 +236,28 @@ async function main() {
         networkName,
     )).wait();
 
-    const deploymentBlockNumber = (await proofOfEfficiencyContract.deployTransaction.wait()).blockNumber;
+    const deploymentBlockNumber = (await polygonZKEVMContract.deployTransaction.wait()).blockNumber;
 
     console.log('\n#######################');
     console.log('#####    Checks  PoE  #####');
     console.log('#######################');
-    console.log('globalExitRootManagerAddress:', await proofOfEfficiencyContract.globalExitRootManager());
-    console.log('maticTokenAddress:', await proofOfEfficiencyContract.matic());
-    console.log('verifierAddress:', await proofOfEfficiencyContract.rollupVerifier());
-    console.log('bridgeContract:', await proofOfEfficiencyContract.bridgeAddress());
+    console.log('globalExitRootManagerAddress:', await polygonZKEVMContract.globalExitRootManager());
+    console.log('maticTokenAddress:', await polygonZKEVMContract.matic());
+    console.log('verifierAddress:', await polygonZKEVMContract.rollupVerifier());
+    console.log('bridgeContract:', await polygonZKEVMContract.bridgeAddress());
 
-    console.log('admin:', await proofOfEfficiencyContract.admin());
-    console.log('chainID:', await proofOfEfficiencyContract.chainID());
-    console.log('trustedSequencer:', await proofOfEfficiencyContract.trustedSequencer());
-    console.log('pendingStateTimeout:', await proofOfEfficiencyContract.pendingStateTimeout());
-    console.log('forceBatchAllowed:', await proofOfEfficiencyContract.forceBatchAllowed());
-    console.log('trustedAggregator:', await proofOfEfficiencyContract.trustedAggregator());
-    console.log('trustedAggregatorTimeout:', await proofOfEfficiencyContract.trustedAggregatorTimeout());
+    console.log('admin:', await polygonZKEVMContract.admin());
+    console.log('chainID:', await polygonZKEVMContract.chainID());
+    console.log('trustedSequencer:', await polygonZKEVMContract.trustedSequencer());
+    console.log('pendingStateTimeout:', await polygonZKEVMContract.pendingStateTimeout());
+    console.log('forceBatchAllowed:', await polygonZKEVMContract.forceBatchAllowed());
+    console.log('trustedAggregator:', await polygonZKEVMContract.trustedAggregator());
+    console.log('trustedAggregatorTimeout:', await polygonZKEVMContract.trustedAggregatorTimeout());
 
-    console.log('genesiRoot:', await proofOfEfficiencyContract.batchNumToStateRoot(0));
-    console.log('trustedSequencerURL:', await proofOfEfficiencyContract.trustedSequencerURL());
-    console.log('networkName:', await proofOfEfficiencyContract.networkName());
-    console.log('owner:', await proofOfEfficiencyContract.owner());
+    console.log('genesiRoot:', await polygonZKEVMContract.batchNumToStateRoot(0));
+    console.log('trustedSequencerURL:', await polygonZKEVMContract.trustedSequencerURL());
+    console.log('networkName:', await polygonZKEVMContract.networkName());
+    console.log('owner:', await polygonZKEVMContract.owner());
 
     // fund sequencer account with tokens and ether if it have less than 0.1 ether.
     const balanceEther = await ethers.provider.getBalance(trustedSequencer);
@@ -285,10 +285,10 @@ async function main() {
     // approve tokens
     if (deployParameters.trustedSequencerPvtKey) {
         const trustedSequencerWallet = new ethers.Wallet(deployParameters.trustedSequencerPvtKey, currentProvider);
-        await maticTokenContract.connect(trustedSequencerWallet).approve(proofOfEfficiencyContract.address, ethers.constants.MaxUint256);
+        await maticTokenContract.connect(trustedSequencerWallet).approve(polygonZKEVMContract.address, ethers.constants.MaxUint256);
     }
     const outputJson = {
-        proofOfEfficiencyAddress: proofOfEfficiencyContract.address,
+        polygonZKEVMAddress: polygonZKEVMContract.address,
         bridgeAddress: bridgeContract.address,
         globalExitRootManagerAddress: globalExitRootManager.address,
         maticTokenAddress: maticTokenContract.address,

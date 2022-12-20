@@ -3,8 +3,8 @@ const { ethers, upgrades } = require('hardhat');
 
 const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
-describe('Proof of efficiency snark stark input test', () => {
-    let proofOfEfficiencyContract;
+describe('Polygon ZK-EVM snark stark input test', () => {
+    let polygonZKEVMContract;
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
     let randomSigner;
 
@@ -18,10 +18,10 @@ describe('Proof of efficiency snark stark input test', () => {
         // load signers
         [randomSigner] = await ethers.getSigners();
 
-        // deploy proof of efficiency
-        const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
-        proofOfEfficiencyContract = await upgrades.deployProxy(
-            ProofOfEfficiencyFactory,
+        // deploy Polygon ZK-EVM
+        const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
+        polygonZKEVMContract = await upgrades.deployProxy(
+            PolygonZKEVMFactory,
             [
                 randomSigner.address,
                 randomSigner.address,
@@ -42,7 +42,7 @@ describe('Proof of efficiency snark stark input test', () => {
             ],
         );
 
-        await proofOfEfficiencyContract.deployed();
+        await polygonZKEVMContract.deployed();
     });
 
     it('Check Accumualte input Hash', async () => {
@@ -60,7 +60,7 @@ describe('Proof of efficiency snark stark input test', () => {
             timestamp,
             sequencerAddr,
         );
-        const accumulateInputHashSC = await proofOfEfficiencyContract.calculateAccInputHash(
+        const accumulateInputHashSC = await polygonZKEVMContract.calculateAccInputHash(
             oldAccInputHash,
             batchL2Data,
             globalExitRoot,
@@ -85,9 +85,9 @@ describe('Proof of efficiency snark stark input test', () => {
         const lastPendingStateConsolidated = 0;
         const sequencedTimestamp = 999;
         // set smart contract with correct parameters
-        await proofOfEfficiencyContract.setStateRoot(oldStateRoot, oldNumBatch);
-        await proofOfEfficiencyContract.setSequencedBatches(newNumBatch, newAccInputHash, sequencedTimestamp, lastPendingStateConsolidated);
-        await proofOfEfficiencyContract.setSequencedBatch(1);
+        await polygonZKEVMContract.setStateRoot(oldStateRoot, oldNumBatch);
+        await polygonZKEVMContract.setSequencedBatches(newNumBatch, newAccInputHash, sequencedTimestamp, lastPendingStateConsolidated);
+        await polygonZKEVMContract.setSequencedBatch(1);
 
         await ethers.provider.send('hardhat_impersonateAccount', [aggregatorAddress]);
         const aggregator = await ethers.getSigner(aggregatorAddress);
@@ -98,7 +98,7 @@ describe('Proof of efficiency snark stark input test', () => {
 
         // Compute SC input
         const pendingStateNum = 0;
-        const inputSnarkSC = await proofOfEfficiencyContract.connect(aggregator).getNextSnarkInput(
+        const inputSnarkSC = await polygonZKEVMContract.connect(aggregator).getNextSnarkInput(
             pendingStateNum,
             oldNumBatch,
             newNumBatch,

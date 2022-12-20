@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "ProofOfEfficiencyMock",
-  "sourceName": "contracts/mocks/ProofOfEfficiencyMock.sol",
+  "contractName": "PolygonZKEVMMock",
+  "sourceName": "contracts/mocks/PolygonZKEVMMock.sol",
   "abi": [
     {
       "anonymous": false,
@@ -788,7 +788,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct ProofOfEfficiency.InitializePackedParameters",
+          "internalType": "struct PolygonZKEVM.InitializePackedParameters",
           "name": "initializePackedParameters",
           "type": "tuple"
         },
@@ -1186,7 +1186,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct ProofOfEfficiency.BatchData[]",
+          "internalType": "struct PolygonZKEVM.BatchData[]",
           "name": "batches",
           "type": "tuple[]"
         }
@@ -1216,7 +1216,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct ProofOfEfficiency.ForcedBatchData[]",
+          "internalType": "struct PolygonZKEVM.ForcedBatchData[]",
           "name": "batches",
           "type": "tuple[]"
         }

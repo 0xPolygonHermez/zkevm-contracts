@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "ProofOfEfficiency",
-  "sourceName": "contracts/ProofOfEfficiency.sol",
+  "contractName": "PolygonZKEVM",
+  "sourceName": "contracts/PolygonZKEVM.sol",
   "abi": [
     {
       "anonymous": false,
@@ -710,7 +710,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct ProofOfEfficiency.InitializePackedParameters",
+          "internalType": "struct PolygonZKEVM.InitializePackedParameters",
           "name": "initializePackedParameters",
           "type": "tuple"
         },
@@ -1108,7 +1108,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct ProofOfEfficiency.BatchData[]",
+          "internalType": "struct PolygonZKEVM.BatchData[]",
           "name": "batches",
           "type": "tuple[]"
         }
@@ -1138,7 +1138,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct ProofOfEfficiency.ForcedBatchData[]",
+          "internalType": "struct PolygonZKEVM.ForcedBatchData[]",
           "name": "batches",
           "type": "tuple[]"
         }

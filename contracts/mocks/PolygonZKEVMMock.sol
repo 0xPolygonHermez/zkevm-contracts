@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.15;
 
-import "../ProofOfEfficiency.sol";
+import "../PolygonZKEVM.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
@@ -9,7 +9,7 @@ import "../ProofOfEfficiency.sol";
  * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
  * To enter and exit of the L2 network will be used a Bridge smart contract
  */
-contract ProofOfEfficiencyMock is ProofOfEfficiency {
+contract PolygonZKEVMMock is PolygonZKEVM {
     /**
      * @notice calculate accumulate input hash from parameters
      * @param currentAccInputHash Accumulate input hash
@@ -61,7 +61,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             // Already consolidated pending states can be used aswell
             require(
                 pendingStateNum <= lastPendingState,
-                "ProofOfEfficiency::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+                "PolygonZKEVM::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -75,27 +75,27 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must match the pending state batch"
+                "PolygonZKEVM::verifyBatches: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
+                "PolygonZKEVM::verifyBatches: initNumBatch state root does not exist"
             );
 
             // Check initNumBatch is inside the range
             require(
                 initNumBatch <= currentLastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "PolygonZKEVM::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
         // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "PolygonZKEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -202,7 +202,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             // Already consolidated pending states can be used aswell
             require(
                 pendingStateNum <= lastPendingState,
-                "ProofOfEfficiency::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+                "PolygonZKEVM::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -216,27 +216,27 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
             // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must match the pending state batch"
+                "PolygonZKEVM::verifyBatches: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
+                "PolygonZKEVM::verifyBatches: initNumBatch state root does not exist"
             );
 
             // Check initNumBatch is inside the range
             require(
                 initNumBatch <= currentLastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "PolygonZKEVM::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
         // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "PolygonZKEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -254,7 +254,7 @@ contract ProofOfEfficiencyMock is ProofOfEfficiency {
         // // Verify proof
         // require(
         //     rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-        //     "ProofOfEfficiency::verifyBatches: INVALID_PROOF"
+        //     "PolygonZKEVM::verifyBatches: INVALID_PROOF"
         // );
 
         // // Get MATIC reward

@@ -18,7 +18,7 @@ describe('Real flow test', () => {
     let verifierContract;
     let maticTokenContract;
     let bridgeContract;
-    let proofOfEfficiencyContract;
+    let polygonZKEVMContract;
     let globalExitRootManager;
     let deployer;
     let trustedSequencer;
@@ -73,16 +73,16 @@ describe('Real flow test', () => {
         bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
 
         // deploy PoE
-        const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
-        proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
+        const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
+        polygonZKEVMContract = await upgrades.deployProxy(PolygonZKEVMFactory, [], { initializer: false });
 
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerMock');
 
-        globalExitRootManager = await globalExitRootManagerFactory.deploy(proofOfEfficiencyContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address);
+        globalExitRootManager = await globalExitRootManagerFactory.deploy(polygonZKEVMContract.address, bridgeContract.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
 
-        await proofOfEfficiencyContract.initialize(
+        await polygonZKEVMContract.initialize(
             globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
@@ -110,14 +110,14 @@ describe('Real flow test', () => {
         const batchesNum = batchesData.length;
 
         // Approve tokens
-        const maticAmount = await proofOfEfficiencyContract.getCurrentBatchFee();
+        const maticAmount = await polygonZKEVMContract.getCurrentBatchFee();
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount.mul(batchesNum)),
+            maticTokenContract.connect(trustedSequencer).approve(polygonZKEVMContract.address, maticAmount.mul(batchesNum)),
         ).to.emit(maticTokenContract, 'Approval');
 
         // prepare PoE
-        await proofOfEfficiencyContract.setVerifiedBatch(inputJson.oldNumBatch);
-        await proofOfEfficiencyContract.setSequencedBatch(inputJson.oldNumBatch);
+        await polygonZKEVMContract.setVerifiedBatch(inputJson.oldNumBatch);
+        await polygonZKEVMContract.setSequencedBatch(inputJson.oldNumBatch);
         const lastTimestamp = batchesData[batchesNum - 1].timestamp;
         await ethers.provider.send('evm_setNextBlockTimestamp', [lastTimestamp]);
 
@@ -146,12 +146,12 @@ describe('Real flow test', () => {
             const { globalExitRoot } = batchesData[0];
             await globalExitRootManager.setGlobalExitRoot(globalExitRoot, randomTimestamp);
 
-            const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
+            const lastBatchSequenced = await polygonZKEVMContract.lastBatchSequenced();
 
             // check trusted sequencer
             const trustedSequencerAddress = inputJson.singleBatchData[i].sequencerAddr;
             if (trustedSequencer.address !== trustedSequencerAddress) {
-                await proofOfEfficiencyContract.connect(admin).setTrustedSequencer(trustedSequencerAddress);
+                await polygonZKEVMContract.connect(admin).setTrustedSequencer(trustedSequencerAddress);
                 await ethers.provider.send('hardhat_impersonateAccount', [trustedSequencerAddress]);
                 trustedSequencer = await ethers.getSigner(trustedSequencerAddress);
                 await deployer.sendTransaction({
@@ -159,19 +159,19 @@ describe('Real flow test', () => {
                     value: ethers.utils.parseEther('4'),
                 });
                 await expect(
-                    maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount.mul(batchesNum)),
+                    maticTokenContract.connect(trustedSequencer).approve(polygonZKEVMContract.address, maticAmount.mul(batchesNum)),
                 ).to.emit(maticTokenContract, 'Approval');
                 await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('100'));
             }
 
             // Sequence Batches
-            await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([currentSequence]))
-                .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
+            await expect(polygonZKEVMContract.connect(trustedSequencer).sequenceBatches([currentSequence]))
+                .to.emit(polygonZKEVMContract, 'SequenceBatches')
                 .withArgs(Number(lastBatchSequenced) + 1);
         }
 
         // Set state and exit root
-        await proofOfEfficiencyContract.setStateRoot(inputJson.oldStateRoot, inputJson.oldNumBatch);
+        await polygonZKEVMContract.setStateRoot(inputJson.oldStateRoot, inputJson.oldNumBatch);
 
         const { aggregatorAddress } = inputJson;
         await ethers.provider.send('hardhat_impersonateAccount', [aggregatorAddress]);
@@ -180,9 +180,9 @@ describe('Real flow test', () => {
             to: aggregatorAddress,
             value: ethers.utils.parseEther('4'),
         });
-        await proofOfEfficiencyContract.connect(admin).setTrustedAggregator(aggregatorAddress);
+        await polygonZKEVMContract.connect(admin).setTrustedAggregator(aggregatorAddress);
 
-        const batchAccInputHash = (await proofOfEfficiencyContract.sequencedBatches(inputJson.newNumBatch)).accInputHash;
+        const batchAccInputHash = (await polygonZKEVMContract.sequencedBatches(inputJson.newNumBatch)).accInputHash;
         expect(batchAccInputHash).to.be.equal(inputJson.newAccInputHash);
 
         const {
@@ -212,7 +212,7 @@ describe('Real flow test', () => {
         const pendingStateNum = 0;
         // Verify batch
         await expect(
-            proofOfEfficiencyContract.connect(aggregator).trustedVerifyBatches(
+            polygonZKEVMContract.connect(aggregator).trustedVerifyBatches(
                 pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
@@ -222,7 +222,7 @@ describe('Real flow test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(proofOfEfficiencyContract, 'TrustedVerifyBatches')
+        ).to.emit(polygonZKEVMContract, 'TrustedVerifyBatches')
             .withArgs(newNumBatch, newStateRoot, aggregator.address);
     });
 });

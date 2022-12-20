@@ -6,7 +6,7 @@ const zero32bytes = '0x000000000000000000000000000000000000000000000000000000000
 describe('Global Exit Root L2', () => {
     let bridge;
     let globalExitRootManager;
-    const proofOfEfficiencyAddress = ethers.constants.AddressZero;
+    const PolygonZKEVMAddress = ethers.constants.AddressZero;
 
     beforeEach('Deploy contracts', async () => {
         const networkIDRollup = 1;
@@ -21,7 +21,7 @@ describe('Global Exit Root L2', () => {
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerL2Mock', deployer);
         globalExitRootManager = await globalExitRootManagerFactory.deploy(bridge.address);
 
-        await bridge.initialize(networkIDRollup, globalExitRootManager.address, proofOfEfficiencyAddress);
+        await bridge.initialize(networkIDRollup, globalExitRootManager.address, PolygonZKEVMAddress);
     });
 
     it('should check the constructor parameters', async () => {

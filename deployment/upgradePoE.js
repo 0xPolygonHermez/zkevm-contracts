@@ -7,11 +7,11 @@ async function main() {
     // compìle contracts
     await hre.run('compile');
 
-    const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
-    const ProofOfEfficiencyProxyAddress = '0xfefefefefefefefefefefefee';
+    const polygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
+    const polygonZKEVMProxyAddress = '0xfefefefefefefefefefefefee';
 
     // Upgrade
-    const tx = await upgrades.upgradeProxy(ProofOfEfficiencyProxyAddress, ProofOfEfficiencyFactory);
+    const tx = await upgrades.upgradeProxy(polygonZKEVMProxyAddress, polygonZKEVMFactory);
 
     console.log(tx.deployTransaction);
     console.log('upgrade succesfull');

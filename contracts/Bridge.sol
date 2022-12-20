@@ -54,7 +54,7 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
     // Global Exit Root address
     IGlobalExitRootManager public globalExitRootManager;
 
-    // Proof of Efficiency address
+    // Polygon ZK-EVM address
     address public poeAddress;
 
     /**
@@ -71,10 +71,10 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
         poeAddress = _poeAddress;
     }
 
-    modifier onlyProofOfEfficiency() {
+    modifier onlyPolygonZKEVM() {
         require(
             poeAddress == msg.sender,
-            "ProofOfEfficiency::onlyProofOfEfficiency: only Proof of Efficiency contract"
+            "PolygonZKEVM::onlyPolygonZKEVM: only Polygon ZK-EVM contractt"
         );
         _;
     }
@@ -477,17 +477,17 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
 
     /**
      * @notice Function to activate the emergency state
-     " Only can be called by the proof of efficiency in extreme situations
+     " Only can be called by the Polygon ZK-EVM in extreme situations
      */
-    function activateEmergencyState() external onlyProofOfEfficiency {
+    function activateEmergencyState() external onlyPolygonZKEVM {
         _activateEmergencyState();
     }
 
     /**
      * @notice Function to deactivate the emergency state
-     " Only can be called by the proof of efficiency
+     " Only can be called by the Polygon ZK-EVM
      */
-    function deactivateEmergencyState() external onlyProofOfEfficiency {
+    function deactivateEmergencyState() external onlyPolygonZKEVM {
         _deactivateEmergencyState();
     }
 

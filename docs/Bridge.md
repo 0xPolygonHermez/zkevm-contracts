@@ -160,7 +160,7 @@ Returns the address of a wrapper using the token information if already exist
   ) external
 ```
 Function to activate the emergency state
-     " Only can be called by the proof of efficiency in extreme situations
+     " Only can be called by the Polygon ZK-EVM in extreme situations
 
 
 
@@ -170,7 +170,7 @@ Function to activate the emergency state
   ) external
 ```
 Function to deactivate the emergency state
-     " Only can be called by the proof of efficiency
+     " Only can be called by the Polygon ZK-EVM
 
 
 

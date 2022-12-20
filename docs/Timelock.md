@@ -11,7 +11,7 @@ If emergency mode of the zkevm contract system is active, this timelock have no 
     address[] proposers,
     address[] executors,
     address admin,
-    contract ProofOfEfficiency _proofOfEfficiency
+    contract PolygonZKEVM _polygonZKEVM
   ) public
 ```
 Constructor of timelock
@@ -24,7 +24,7 @@ Constructor of timelock
 |`proposers` | address[] | accounts to be granted proposer and canceller roles
 |`executors` | address[] | accounts to be granted executor role
 |`admin` | address | optional account to be granted admin role; disable with zero address
-|`_proofOfEfficiency` | contract ProofOfEfficiency | PoE address
+|`_polygonZKEVM` | contract PolygonZKEVM | PoE address
 
 
 ### getMinDelay
@@ -36,6 +36,6 @@ Constructor of timelock
 Returns the minimum delay for an operation to become valid.
 
 This value can be changed by executing an operation that calls `updateDelay`.
-If proof of efficiency is on emergency state the minDelay will be 0 instead.
+If Polygon ZK-EVM is on emergency state the minDelay will be 0 instead.
 
 

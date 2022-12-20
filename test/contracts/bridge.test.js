@@ -34,7 +34,7 @@ describe('Bridge Contract', () => {
     const LEAF_TYPE_ASSET = 0;
     const LEAF_TYPE_MESSAGE = 1;
 
-    const proofOfEfficiencyAddress = ethers.constants.AddressZero;
+    const polygonZKEVMAddress = ethers.constants.AddressZero;
 
     beforeEach('Deploy contracts', async () => {
         // load signers
@@ -50,7 +50,7 @@ describe('Bridge Contract', () => {
 
         await globalExitRootManager.initialize(rollup.address, bridgeContract.address);
 
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyAddress);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMAddress);
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
@@ -66,7 +66,7 @@ describe('Bridge Contract', () => {
     it('should check the constructor parameters', async () => {
         expect(await bridgeContract.globalExitRootManager()).to.be.equal(globalExitRootManager.address);
         expect(await bridgeContract.networkID()).to.be.equal(networkIDMainnet);
-        expect(await bridgeContract.poeAddress()).to.be.equal(proofOfEfficiencyAddress);
+        expect(await bridgeContract.poeAddress()).to.be.equal(polygonZKEVMAddress);
     });
 
     it('should bridge asset and verify merkle proof', async () => {

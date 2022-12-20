@@ -18,11 +18,7 @@ import "./lib/EmergencyManager.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks.
  */
-contract ProofOfEfficiency is
-    Initializable,
-    OwnableUpgradeable,
-    EmergencyManager
-{
+contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -372,17 +368,14 @@ contract ProofOfEfficiency is
     }
 
     modifier onlyAdmin() {
-        require(
-            admin == msg.sender,
-            "ProofOfEfficiency::onlyAdmin: only admin"
-        );
+        require(admin == msg.sender, "PolygonZKEVM::onlyAdmin: only admin");
         _;
     }
 
     modifier onlyTrustedSequencer() {
         require(
             trustedSequencer == msg.sender,
-            "ProofOfEfficiency::onlyTrustedSequencer: only trusted sequencer"
+            "PolygonZKEVM::onlyTrustedSequencer: only trusted sequencer"
         );
         _;
     }
@@ -390,7 +383,7 @@ contract ProofOfEfficiency is
     modifier onlyTrustedAggregator() {
         require(
             trustedAggregator == msg.sender,
-            "ProofOfEfficiency::onlyTrustedAggregator: only trusted Aggregator"
+            "PolygonZKEVM::onlyTrustedAggregator: only trusted Aggregator"
         );
         _;
     }
@@ -398,7 +391,7 @@ contract ProofOfEfficiency is
     modifier isForceBatchAllowed() {
         require(
             forceBatchAllowed == true,
-            "ProofOfEfficiency::isForceBatchAllowed: only if force batch is available"
+            "PolygonZKEVM::isForceBatchAllowed: only if force batch is available"
         );
         _;
     }
@@ -417,12 +410,12 @@ contract ProofOfEfficiency is
         uint256 batchesNum = batches.length;
         require(
             batchesNum > 0,
-            "ProofOfEfficiency::sequenceBatches: At least must sequence 1 batch"
+            "PolygonZKEVM::sequenceBatches: At least must sequence 1 batch"
         );
 
         require(
             batchesNum < MAX_VERIFY_BATCHES,
-            "ProofOfEfficiency::sequenceBatches: Cannot sequence that many batches"
+            "PolygonZKEVM::sequenceBatches: Cannot sequence that many batches"
         );
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
@@ -452,13 +445,13 @@ contract ProofOfEfficiency is
                 require(
                     hashedForcedBatchData ==
                         forcedBatches[currentLastForceBatchSequenced],
-                    "ProofOfEfficiency::sequenceBatches: Forced batches data must match"
+                    "PolygonZKEVM::sequenceBatches: Forced batches data must match"
                 );
 
                 // Check timestamp is bigger than min timestamp
                 require(
                     currentBatch.timestamp >= currentBatch.minForcedTimestamp,
-                    "ProofOfEfficiency::sequenceBatches: Forced batches timestamp must be bigger or equal than min"
+                    "PolygonZKEVM::sequenceBatches: Forced batches timestamp must be bigger or equal than min"
                 );
             } else {
                 // Check global exit root exist, and proper batch length, this checks are already done in the forceBatches call
@@ -468,7 +461,7 @@ contract ProofOfEfficiency is
                             currentBatch.globalExitRoot
                         ) !=
                         0,
-                    "ProofOfEfficiency::sequenceBatches: Global exit root must exist"
+                    "PolygonZKEVM::sequenceBatches: Global exit root must exist"
                 );
 
                 require(
@@ -482,7 +475,7 @@ contract ProofOfEfficiency is
             require(
                 currentBatch.timestamp >= currentTimestamp &&
                     currentBatch.timestamp <= block.timestamp,
-                "ProofOfEfficiency::sequenceBatches: Timestamp must be inside range"
+                "PolygonZKEVM::sequenceBatches: Timestamp must be inside range"
             );
 
             // Calculate next accumulated input hash
@@ -506,7 +499,7 @@ contract ProofOfEfficiency is
         // Sanity check, should be unreachable
         require(
             currentLastForceBatchSequenced <= lastForceBatch,
-            "ProofOfEfficiency::sequenceBatches: Force batches overflow"
+            "PolygonZKEVM::sequenceBatches: Force batches overflow"
         );
 
         uint256 nonForcedBatchesSequenced = batchesNum -
@@ -563,12 +556,12 @@ contract ProofOfEfficiency is
             sequencedBatches[finalNewBatch].sequencedTimestamp +
                 trustedAggregatorTimeout <=
                 block.timestamp,
-            "ProofOfEfficiency::verifyBatches: trusted aggregator timeout not expired"
+            "PolygonZKEVM::verifyBatches: trusted aggregator timeout not expired"
         );
 
         require(
             finalNewBatch - initNumBatch < MAX_VERIFY_BATCHES,
-            "ProofOfEfficiency::verifyBatches: cannot verify that many batches"
+            "PolygonZKEVM::verifyBatches: cannot verify that many batches"
         );
 
         _verifyBatches(
@@ -692,7 +685,7 @@ contract ProofOfEfficiency is
             // Already consolidated pending states can be used aswell
             require(
                 pendingStateNum <= lastPendingState,
-                "ProofOfEfficiency::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+                "PolygonZKEVM::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -706,27 +699,27 @@ contract ProofOfEfficiency is
             // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must match the pending state batch"
+                "PolygonZKEVM::verifyBatches: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "ProofOfEfficiency::verifyBatches: initNumBatch state root does not exist"
+                "PolygonZKEVM::verifyBatches: initNumBatch state root does not exist"
             );
 
             // Check initNumBatch is inside the range
             require(
                 initNumBatch <= currentLastVerifiedBatch,
-                "ProofOfEfficiency::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "PolygonZKEVM::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
         // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
-            "ProofOfEfficiency::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "PolygonZKEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -744,7 +737,7 @@ contract ProofOfEfficiency is
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "ProofOfEfficiency::verifyBatches: INVALID_PROOF"
+            "PolygonZKEVM::verifyBatches: INVALID_PROOF"
         );
 
         // Get MATIC reward
@@ -794,7 +787,7 @@ contract ProofOfEfficiency is
             pendingStateNum != 0 &&
                 pendingStateNum > lastPendingStateConsolidated &&
                 pendingStateNum <= lastPendingState,
-            "ProofOfEfficiency::consolidatePendingState: pendingStateNum must invalid"
+            "PolygonZKEVM::consolidatePendingState: pendingStateNum must invalid"
         );
 
         // Check if pending state can be consolidated
@@ -802,7 +795,7 @@ contract ProofOfEfficiency is
         if (msg.sender != trustedAggregator) {
             require(
                 isPendingStateConsolidable(pendingStateNum),
-                "ProofOfEfficiency::consolidatePendingState: pending state is not ready to be consolidated"
+                "PolygonZKEVM::consolidatePendingState: pending state is not ready to be consolidated"
             );
         }
 
@@ -923,12 +916,12 @@ contract ProofOfEfficiency is
 
         require(
             maticFee <= maticAmount,
-            "ProofOfEfficiency::forceBatch: not enough matic"
+            "PolygonZKEVM::forceBatch: not enough matic"
         );
 
         require(
             transactions.length < MAX_TRANSACTIONS_BYTE_LENGTH,
-            "ProofOfEfficiency::forceBatch: Transactions bytes overflow"
+            "PolygonZKEVM::forceBatch: Transactions bytes overflow"
         );
 
         matic.safeTransferFrom(msg.sender, address(this), maticFee);
@@ -973,17 +966,17 @@ contract ProofOfEfficiency is
 
         require(
             batchesNum > 0,
-            "ProofOfEfficiency::sequenceForceBatch: Must force at least 1 batch"
+            "PolygonZKEVM::sequenceForceBatch: Must force at least 1 batch"
         );
 
         require(
             batchesNum < MAX_VERIFY_BATCHES,
-            "ProofOfEfficiency::sequenceForceBatches: cannot verify that many batches"
+            "PolygonZKEVM::sequenceForceBatches: cannot verify that many batches"
         );
 
         require(
             lastForceBatchSequenced + batchesNum <= lastForceBatch,
-            "ProofOfEfficiency::sequenceForceBatch: Force batch invalid"
+            "PolygonZKEVM::sequenceForceBatch: Force batch invalid"
         );
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
@@ -1010,7 +1003,7 @@ contract ProofOfEfficiency is
             require(
                 hashedForcedBatchData ==
                     forcedBatches[currentLastForceBatchSequenced],
-                "ProofOfEfficiency::sequenceForceBatches: Forced batches data must match"
+                "PolygonZKEVM::sequenceForceBatches: Forced batches data must match"
             );
 
             if (i == (batchesNum - 1)) {
@@ -1018,7 +1011,7 @@ contract ProofOfEfficiency is
                 require(
                     currentBatch.minForcedTimestamp + FORCE_BATCH_TIMEOUT <=
                         block.timestamp,
-                    "ProofOfEfficiency::sequenceForceBatch: Forced batch is not in timeout period"
+                    "PolygonZKEVM::sequenceForceBatch: Forced batch is not in timeout period"
                 );
             }
             // Calculate next acc input hash
@@ -1109,12 +1102,12 @@ contract ProofOfEfficiency is
     ) public onlyAdmin {
         require(
             newTrustedAggregatorTimeout <= HALT_AGGREGATION_TIMEOUT,
-            "ProofOfEfficiency::setPendingStateTimeout: exceed halt aggregation timeout"
+            "PolygonZKEVM::setPendingStateTimeout: exceed halt aggregation timeout"
         );
         if (!isEmergencyState) {
             require(
                 newTrustedAggregatorTimeout < trustedAggregatorTimeout,
-                "ProofOfEfficiency::setTrustedAggregatorTimeout: new timeout must be lower"
+                "PolygonZKEVM::setTrustedAggregatorTimeout: new timeout must be lower"
             );
         }
 
@@ -1132,12 +1125,12 @@ contract ProofOfEfficiency is
     ) public onlyAdmin {
         require(
             newPendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
-            "ProofOfEfficiency::setPendingStateTimeout: exceed halt aggregation timeout"
+            "PolygonZKEVM::setPendingStateTimeout: exceed halt aggregation timeout"
         );
         if (!isEmergencyState) {
             require(
                 newPendingStateTimeout < pendingStateTimeout,
-                "ProofOfEfficiency::setPendingStateTimeout: new timeout must be lower"
+                "PolygonZKEVM::setPendingStateTimeout: new timeout must be lower"
             );
         }
 
@@ -1154,7 +1147,7 @@ contract ProofOfEfficiency is
     ) public onlyAdmin {
         require(
             newMultiplierBatchFee > 1000 && newMultiplierBatchFee < 1024,
-            "ProofOfEfficiency::setMultiplierBatchFee: newMultiplierBatchFee incorrect range"
+            "PolygonZKEVM::setMultiplierBatchFee: newMultiplierBatchFee incorrect range"
         );
 
         multiplierBatchFee = newMultiplierBatchFee;
@@ -1315,7 +1308,7 @@ contract ProofOfEfficiency is
             // Already consolidated pending states can be used aswell
             require(
                 initPendingStateNum <= lastPendingState,
-                "ProofOfEfficiency::proveNonDeterministicPendingState: pendingStateNum must be less or equal than lastPendingState"
+                "PolygonZKEVM::proveNonDeterministicPendingState: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -1329,20 +1322,20 @@ contract ProofOfEfficiency is
             // Check initNumBatch matches the init pending state
             require(
                 initNumBatch == initPendingState.lastVerifiedBatch,
-                "ProofOfEfficiency::proveNonDeterministicPendingState: initNumBatch must match the pending state batch"
+                "PolygonZKEVM::proveNonDeterministicPendingState: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "ProofOfEfficiency::proveNonDeterministicPendingState: initNumBatch state root does not exist"
+                "PolygonZKEVM::proveNonDeterministicPendingState: initNumBatch state root does not exist"
             );
 
             // Check initNumBatch is inside the range
             require(
                 initNumBatch <= lastVerifiedBatch,
-                "ProofOfEfficiency::proveNonDeterministicPendingState: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "PolygonZKEVM::proveNonDeterministicPendingState: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
@@ -1354,14 +1347,14 @@ contract ProofOfEfficiency is
             finalPendingStateNum <= lastPendingState &&
                 finalPendingStateNum > initPendingStateNum &&
                 finalPendingStateNum > lastPendingStateConsolidated,
-            "ProofOfEfficiency::proveNonDeterministicPendingState: finalPendingStateNum incorrect"
+            "PolygonZKEVM::proveNonDeterministicPendingState: finalPendingStateNum incorrect"
         );
 
         // Check final num batch
         require(
             finalNewBatch ==
                 pendingStateTransitions[finalPendingStateNum].lastVerifiedBatch,
-            "ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch"
+            "PolygonZKEVM::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -1379,13 +1372,13 @@ contract ProofOfEfficiency is
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "ProofOfEfficiency::proveNonDeterministicPendingState: INVALID_PROOF"
+            "PolygonZKEVM::proveNonDeterministicPendingState: INVALID_PROOF"
         );
 
         require(
             pendingStateTransitions[finalPendingStateNum].stateRoot !=
                 newStateRoot,
-            "ProofOfEfficiency::proveNonDeterministicPendingState: stored root must be different than new state root"
+            "PolygonZKEVM::proveNonDeterministicPendingState: stored root must be different than new state root"
         );
     }
 
@@ -1409,14 +1402,14 @@ contract ProofOfEfficiency is
             // Check that the batch has not been verified
             require(
                 sequencedBatchNum > lastVerifiedBatchToCompare,
-                "ProofOfEfficiency::activateEmergencyState: Batch already verified"
+                "PolygonZKEVM::activateEmergencyState: Batch already verified"
             );
 
             // Check that the batch has been sequenced and this was the end of a sequence
             require(
                 sequencedBatchNum <= lastBatchSequenced &&
                     sequencedBatches[sequencedBatchNum].sequencedTimestamp != 0,
-                "ProofOfEfficiency::activateEmergencyState: Batch not sequenced or not end of sequence"
+                "PolygonZKEVM::activateEmergencyState: Batch not sequenced or not end of sequence"
             );
 
             // Check that has been passed HALT_AGGREGATION_TIMEOUT since it was sequenced
@@ -1424,7 +1417,7 @@ contract ProofOfEfficiency is
                 sequencedBatches[sequencedBatchNum].sequencedTimestamp +
                     HALT_AGGREGATION_TIMEOUT <=
                     block.timestamp,
-                "ProofOfEfficiency::activateEmergencyState: Aggregation halt timeout is not expired"
+                "PolygonZKEVM::activateEmergencyState: Aggregation halt timeout is not expired"
             );
         }
         _activateEmergencyState();
@@ -1521,12 +1514,12 @@ contract ProofOfEfficiency is
 
         require(
             initNumBatch == 0 || oldAccInputHash != bytes32(0),
-            "ProofOfEfficiency::getInputSnarkBytes: oldAccInputHash does not exist"
+            "PolygonZKEVM::getInputSnarkBytes: oldAccInputHash does not exist"
         );
 
         require(
             newAccInputHash != bytes32(0),
-            "ProofOfEfficiency::getInputSnarkBytes: newAccInputHash does not exist"
+            "PolygonZKEVM::getInputSnarkBytes: newAccInputHash does not exist"
         );
 
         return

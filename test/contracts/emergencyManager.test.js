@@ -9,7 +9,7 @@ describe('Emergency mode test', () => {
 
     let verifierContract;
     let bridgeContract;
-    let proofOfEfficiencyContract;
+    let polygonZKEVMContract;
     let maticTokenContract;
     let globalExitRootManager;
 
@@ -56,12 +56,12 @@ describe('Emergency mode test', () => {
         bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
 
         // deploy PoE
-        const ProofOfEfficiencyFactory = await ethers.getContractFactory('ProofOfEfficiencyMock');
-        proofOfEfficiencyContract = await upgrades.deployProxy(ProofOfEfficiencyFactory, [], { initializer: false });
+        const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
+        polygonZKEVMContract = await upgrades.deployProxy(PolygonZKEVMFactory, [], { initializer: false });
 
-        await globalExitRootManager.initialize(proofOfEfficiencyContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, proofOfEfficiencyContract.address);
-        await proofOfEfficiencyContract.initialize(
+        await globalExitRootManager.initialize(polygonZKEVMContract.address, bridgeContract.address);
+        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
+        await polygonZKEVMContract.initialize(
             globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
@@ -86,26 +86,26 @@ describe('Emergency mode test', () => {
 
     it('should activate emergency mode', async () => {
         // Check isEmergencyState
-        expect(await proofOfEfficiencyContract.isEmergencyState()).to.be.equal(false);
+        expect(await polygonZKEVMContract.isEmergencyState()).to.be.equal(false);
         expect(await bridgeContract.isEmergencyState()).to.be.equal(false);
 
         // Set isEmergencyState
-        await expect(proofOfEfficiencyContract.connect(admin).activateEmergencyState(1))
-            .to.be.revertedWith('ProofOfEfficiency::activateEmergencyState: Batch not sequenced or not end of sequence');
+        await expect(polygonZKEVMContract.connect(admin).activateEmergencyState(1))
+            .to.be.revertedWith('PolygonZKEVM::activateEmergencyState: Batch not sequenced or not end of sequence');
 
         await expect(bridgeContract.connect(deployer).activateEmergencyState())
-            .to.be.revertedWith('ProofOfEfficiency::onlyProofOfEfficiency: only Proof of Efficiency contract');
+            .to.be.revertedWith('PolygonZKEVM::onlyPolygonZKEVM: only Polygon ZK-EVM contract');
 
-        await expect(proofOfEfficiencyContract.activateEmergencyState(0))
-            .to.emit(proofOfEfficiencyContract, 'EmergencyStateActivated')
+        await expect(polygonZKEVMContract.activateEmergencyState(0))
+            .to.emit(polygonZKEVMContract, 'EmergencyStateActivated')
             .to.emit(bridgeContract, 'EmergencyStateActivated');
 
-        expect(await proofOfEfficiencyContract.isEmergencyState()).to.be.equal(true);
+        expect(await polygonZKEVMContract.isEmergencyState()).to.be.equal(true);
         expect(await bridgeContract.isEmergencyState()).to.be.equal(true);
 
         // Once in emergency state no sequenceBatches/forceBatches can be done
         const l2txData = '0x123456';
-        const maticAmount = await proofOfEfficiencyContract.getCurrentBatchFee();
+        const maticAmount = await polygonZKEVMContract.getCurrentBatchFee();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
@@ -116,21 +116,21 @@ describe('Emergency mode test', () => {
         };
 
         // revert because emergency state
-        await expect(proofOfEfficiencyContract.sequenceBatches([sequence]))
+        await expect(polygonZKEVMContract.sequenceBatches([sequence]))
             .to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
         // revert because emergency state
-        await expect(proofOfEfficiencyContract.sequenceForceBatches([sequence]))
+        await expect(polygonZKEVMContract.sequenceForceBatches([sequence]))
             .to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
         // revert because emergency state
-        await expect(proofOfEfficiencyContract.forceBatch(l2txData, maticAmount))
+        await expect(polygonZKEVMContract.forceBatch(l2txData, maticAmount))
             .to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
         // trustedAggregator forge the batch
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
-        const numBatch = (await proofOfEfficiencyContract.lastVerifiedBatch()).toNumber() + 1;
+        const numBatch = (await polygonZKEVMContract.lastVerifiedBatch()).toNumber() + 1;
         const proofA = ['0', '0'];
         const proofB = [
             ['0', '0'],
@@ -140,7 +140,7 @@ describe('Emergency mode test', () => {
         const pendingStateNum = 0;
 
         await expect(
-            proofOfEfficiencyContract.connect(trustedAggregator).verifyBatches(
+            polygonZKEVMContract.connect(trustedAggregator).verifyBatches(
                 pendingStateNum,
                 numBatch - 1,
                 numBatch,
@@ -203,21 +203,21 @@ describe('Emergency mode test', () => {
         )).to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
         // Emergency council should deactivate emergency mode
-        await expect(proofOfEfficiencyContract.activateEmergencyState(0))
+        await expect(polygonZKEVMContract.activateEmergencyState(0))
             .to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
         await expect(bridgeContract.connect(deployer).deactivateEmergencyState())
-            .to.be.revertedWith('ProofOfEfficiency::onlyProofOfEfficiency: only Proof of Efficiency contract');
+            .to.be.revertedWith('PolygonZKEVM::onlyPolygonZKEVM: only Polygon ZK-EVM contract');
 
-        await expect(proofOfEfficiencyContract.deactivateEmergencyState())
-            .to.be.revertedWith('ProofOfEfficiency::onlyAdmin: only admin');
+        await expect(polygonZKEVMContract.deactivateEmergencyState())
+            .to.be.revertedWith('PolygonZKEVM::onlyAdmin: only admin');
 
-        await expect(proofOfEfficiencyContract.connect(admin).deactivateEmergencyState())
-            .to.emit(proofOfEfficiencyContract, 'EmergencyStateDeactivated')
+        await expect(polygonZKEVMContract.connect(admin).deactivateEmergencyState())
+            .to.emit(polygonZKEVMContract, 'EmergencyStateDeactivated')
             .to.emit(bridgeContract, 'EmergencyStateDeactivated');
 
         // Check isEmergencyState
-        expect(await proofOfEfficiencyContract.isEmergencyState()).to.be.equal(false);
+        expect(await polygonZKEVMContract.isEmergencyState()).to.be.equal(false);
         expect(await bridgeContract.isEmergencyState()).to.be.equal(false);
 
         /*
@@ -225,13 +225,13 @@ describe('Emergency mode test', () => {
          * Approve tokens
          */
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(proofOfEfficiencyContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(polygonZKEVMContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await proofOfEfficiencyContract.lastBatchSequenced();
+        const lastBatchSequenced = await polygonZKEVMContract.lastBatchSequenced();
         // Sequence Batches
-        await expect(proofOfEfficiencyContract.connect(trustedSequencer).sequenceBatches([sequence]))
-            .to.emit(proofOfEfficiencyContract, 'SequenceBatches')
+        await expect(polygonZKEVMContract.connect(trustedSequencer).sequenceBatches([sequence]))
+            .to.emit(polygonZKEVMContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
         // trustedAggregator forge the batch
@@ -242,7 +242,7 @@ describe('Emergency mode test', () => {
 
         // Verify batch
         await expect(
-            proofOfEfficiencyContract.connect(trustedAggregator).verifyBatches(
+            polygonZKEVMContract.connect(trustedAggregator).verifyBatches(
                 pendingStateNum,
                 numBatch - 1,
                 numBatch,
@@ -252,7 +252,7 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(proofOfEfficiencyContract, 'VerifyBatches')
+        ).to.emit(polygonZKEVMContract, 'VerifyBatches')
             .withArgs(numBatch, newStateRoot, trustedAggregator.address);
 
         const finalAggregatorMatic = await maticTokenContract.balanceOf(
@@ -266,7 +266,7 @@ describe('Emergency mode test', () => {
         const finalPendingStateNum = 1;
 
         await expect(
-            proofOfEfficiencyContract.connect(trustedAggregator).proveNonDeterministicPendingState(
+            polygonZKEVMContract.connect(trustedAggregator).proveNonDeterministicPendingState(
                 pendingStateNum,
                 finalPendingStateNum,
                 numBatch - 1,
@@ -277,10 +277,10 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZKEVM::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
 
         await expect(
-            proofOfEfficiencyContract.connect(trustedAggregator).proveNonDeterministicPendingState(
+            polygonZKEVMContract.connect(trustedAggregator).proveNonDeterministicPendingState(
                 pendingStateNum,
                 finalPendingStateNum,
                 numBatch - 1,
@@ -291,12 +291,12 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('ProofOfEfficiency::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZKEVM::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
 
         const newStateRootDistinct = '0x0000000000000000000000000000000000000000000000000000000000000002';
 
         await expect(
-            proofOfEfficiencyContract.proveNonDeterministicPendingState(
+            polygonZKEVMContract.proveNonDeterministicPendingState(
                 pendingStateNum,
                 finalPendingStateNum,
                 numBatch - 1,
@@ -307,12 +307,12 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(proofOfEfficiencyContract, 'ProveNonDeterministicPendingState').withArgs(newStateRoot, newStateRootDistinct)
-            .to.emit(proofOfEfficiencyContract, 'EmergencyStateActivated')
+        ).to.emit(polygonZKEVMContract, 'ProveNonDeterministicPendingState').withArgs(newStateRoot, newStateRootDistinct)
+            .to.emit(polygonZKEVMContract, 'EmergencyStateActivated')
             .to.emit(bridgeContract, 'EmergencyStateActivated');
 
         // Check emergency state is active
-        expect(await proofOfEfficiencyContract.isEmergencyState()).to.be.equal(true);
+        expect(await polygonZKEVMContract.isEmergencyState()).to.be.equal(true);
         expect(await bridgeContract.isEmergencyState()).to.be.equal(true);
     });
 });
