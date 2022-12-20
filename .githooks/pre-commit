@@ -7,13 +7,13 @@ if npm run lint; then
     npm run docgen
     git add docs
     cp artifacts/contracts/PolygonZKEVMBridge.sol/PolygonZKEVMBridge.json compiled-contracts/
-    cp artifacts/contracts/GlobalExitRootManager.sol/GlobalExitRootManager.json compiled-contracts/
-    cp artifacts/contracts/GlobalExitRootManagerL2.sol/GlobalExitRootManagerL2.json compiled-contracts/
+    cp artifacts/contracts/PolygonZKEVMGlobalExitRoot.sol/PolygonZKEVMGlobalExitRoot.json compiled-contracts/
+    cp artifacts/contracts/PolygonZKEVMGlobalExitRootL2.sol/PolygonZKEVMGlobalExitRootL2.json compiled-contracts/
     cp artifacts/contracts/lib/TokenWrapped.sol/TokenWrapped.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZKEVMBridgeMock.sol/PolygonZKEVMBridgeMock.json compiled-contracts/
     cp artifacts/contracts/mocks/ERC20PermitMock.sol/ERC20PermitMock.json compiled-contracts/
-    cp artifacts/contracts/mocks/GlobalExitRootManagerL2Mock.sol/GlobalExitRootManagerL2Mock.json compiled-contracts/
-    cp artifacts/contracts/mocks/GlobalExitRootManagerMock.sol/GlobalExitRootManagerMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/PolygonZKEVMGlobalExitRootL2Mock.sol/PolygonZKEVMGlobalExitRootL2Mock.json compiled-contracts/
+    cp artifacts/contracts/mocks/PolygonZKEVMGlobalExitRootMock.sol/PolygonZKEVMGlobalExitRootMock.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZKEVMMock.sol/PolygonZKEVMMock.json compiled-contracts/
     cp artifacts/contracts/mocks/VerifierRollupHelperMock.sol/VerifierRollupHelperMock.json compiled-contracts/
     cp artifacts/contracts/PolygonZKEVM.sol/PolygonZKEVM.json compiled-contracts/

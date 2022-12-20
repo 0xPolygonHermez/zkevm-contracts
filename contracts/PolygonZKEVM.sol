@@ -4,7 +4,7 @@ pragma solidity 0.8.15;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import "./interfaces/IVerifierRollup.sol";
-import "./interfaces/IGlobalExitRootManager.sol";
+import "./interfaces/IPolygonZKEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/IPolygonZKEVMBridge.sol";
@@ -171,7 +171,7 @@ contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     IVerifierRollup public rollupVerifier;
 
     // Global Exit Root interface
-    IGlobalExitRootManager public globalExitRootManager;
+    IPolygonZKEVMGlobalExitRoot public globalExitRootManager;
 
     // Indicates whether the force batch functionality is available
     bool public forceBatchAllowed;
@@ -335,7 +335,7 @@ contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
      * @param _networkName L2 network name
      */
     function initialize(
-        IGlobalExitRootManager _globalExitRootManager,
+        IPolygonZKEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZKEVMBridge _bridgeAddress,

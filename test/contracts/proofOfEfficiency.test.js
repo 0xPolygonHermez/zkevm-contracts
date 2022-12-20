@@ -16,7 +16,7 @@ describe('Polygon ZK-EVM', () => {
     let polygonZKEVMBridgeContract;
     let polygonZKEVMContract;
     let maticTokenContract;
-    let globalExitRootManager;
+    let polygonZKEVMGlobalExitRoot;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
@@ -53,8 +53,8 @@ describe('Polygon ZK-EVM', () => {
         await maticTokenContract.deployed();
 
         // deploy global exit root manager
-        const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-        globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
+        const PolygonZKEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZKEVMGlobalExitRoot');
+        polygonZKEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZKEVMGlobalExitRootFactory, [], { initializer: false });
 
         // deploy PolygonZKEVMBridge
         const polygonZKEVMBridgeFactory = await ethers.getContractFactory('PolygonZKEVMBridge');
@@ -64,10 +64,10 @@ describe('Polygon ZK-EVM', () => {
         const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
         polygonZKEVMContract = await upgrades.deployProxy(PolygonZKEVMFactory, [], { initializer: false });
 
-        await globalExitRootManager.initialize(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
-        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
+        await polygonZKEVMGlobalExitRoot.initialize(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
+        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, polygonZKEVMGlobalExitRoot.address, polygonZKEVMContract.address);
         await polygonZKEVMContract.initialize(
-            globalExitRootManager.address,
+            polygonZKEVMGlobalExitRoot.address,
             maticTokenContract.address,
             verifierContract.address,
             polygonZKEVMBridgeContract.address,
@@ -90,7 +90,7 @@ describe('Polygon ZK-EVM', () => {
     });
 
     it('should check the constructor parameters', async () => {
-        expect(await polygonZKEVMContract.globalExitRootManager()).to.be.equal(globalExitRootManager.address);
+        expect(await polygonZKEVMContract.globalExitRootManager()).to.be.equal(polygonZKEVMGlobalExitRoot.address);
         expect(await polygonZKEVMContract.matic()).to.be.equal(maticTokenContract.address);
         expect(await polygonZKEVMContract.rollupVerifier()).to.be.equal(verifierContract.address);
         expect(await polygonZKEVMContract.bridgeAddress()).to.be.equal(polygonZKEVMBridgeContract.address);
@@ -326,7 +326,7 @@ describe('Polygon ZK-EVM', () => {
     it('sequenceBatches should sequence multiple batches and force batches', async () => {
         const l2txDataForceBatch = '0x123456';
         const maticAmount = await polygonZKEVMContract.getCurrentBatchFee();
-        const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
+        const lastGlobalExitRoot = await polygonZKEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
             maticTokenContract.approve(polygonZKEVMContract.address, maticAmount),
@@ -507,7 +507,7 @@ describe('Polygon ZK-EVM', () => {
     it('should force a batch of transactions', async () => {
         const l2txData = '0x123456';
         const maticAmount = await polygonZKEVMContract.getCurrentBatchFee();
-        const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
+        const lastGlobalExitRoot = await polygonZKEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         expect(maticAmount.toString()).to.be.equal((await polygonZKEVMContract.getCurrentBatchFee()).toString());
 
@@ -558,7 +558,7 @@ describe('Polygon ZK-EVM', () => {
     it('should sequence force batches using sequenceForceBatches', async () => {
         const l2txData = '0x123456';
         const maticAmount = await polygonZKEVMContract.getCurrentBatchFee();
-        const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
+        const lastGlobalExitRoot = await polygonZKEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
             maticTokenContract.approve(polygonZKEVMContract.address, maticAmount),
@@ -735,7 +735,7 @@ describe('Polygon ZK-EVM', () => {
     it('should verify forced sequenced batch using trustedVerifyBatches', async () => {
         const l2txData = '0x123456';
         const maticAmount = await polygonZKEVMContract.getCurrentBatchFee();
-        const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
+        const lastGlobalExitRoot = await polygonZKEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
             maticTokenContract.approve(polygonZKEVMContract.address, maticAmount),
@@ -875,7 +875,7 @@ describe('Polygon ZK-EVM', () => {
     it('should match the computed SC input with the Js input in force batches', async () => {
         const l2txData = '0x123456';
         const maticAmount = await polygonZKEVMContract.getCurrentBatchFee();
-        const lastGlobalExitRoot = await globalExitRootManager.getLastGlobalExitRoot();
+        const lastGlobalExitRoot = await polygonZKEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
             maticTokenContract.approve(polygonZKEVMContract.address, maticAmount),

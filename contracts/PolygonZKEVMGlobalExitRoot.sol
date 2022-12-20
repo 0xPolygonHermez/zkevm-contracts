@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.15;
 
-import "./interfaces/IGlobalExitRootManager.sol";
+import "./interfaces/IPolygonZKEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
+contract PolygonZKEVMGlobalExitRoot is IPolygonZKEVMGlobalExitRoot, Initializable {
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
 
@@ -51,7 +51,7 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
     function updateExitRoot(bytes32 newRoot) external {
         require(
             msg.sender == rollupAddress || msg.sender == bridgeAddress,
-            "GlobalExitRootManager::updateExitRoot: ONLY_ALLOWED_CONTRACTS"
+            "PolygonZKEVMGlobalExitRoot::updateExitRoot: ONLY_ALLOWED_CONTRACTS"
         );
         if (msg.sender == rollupAddress) {
             lastRollupExitRoot = newRoot;

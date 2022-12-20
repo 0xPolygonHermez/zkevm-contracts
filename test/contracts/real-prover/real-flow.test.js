@@ -19,7 +19,7 @@ describe('Real flow test', () => {
     let maticTokenContract;
     let polygonZKEVMBridgeContract;
     let polygonZKEVMContract;
-    let globalExitRootManager;
+    let polygonZKEVMGlobalExitRoot;
     let deployer;
     let trustedSequencer;
     let trustedAggregator;
@@ -77,13 +77,20 @@ describe('Real flow test', () => {
         polygonZKEVMContract = await upgrades.deployProxy(PolygonZKEVMFactory, [], { initializer: false });
 
         // deploy global exit root manager
-        const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerMock');
+        const PolygonZKEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZKEVMGlobalExitRootMock');
 
-        globalExitRootManager = await globalExitRootManagerFactory.deploy(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
-        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
+        polygonZKEVMGlobalExitRoot = await PolygonZKEVMGlobalExitRootFactory.deploy(
+            polygonZKEVMContract.address,
+            polygonZKEVMBridgeContract.address,
+        );
+        await polygonZKEVMBridgeContract.initialize(
+            networkIDMainnet,
+            polygonZKEVMGlobalExitRoot.address,
+            polygonZKEVMContract.address,
+        );
 
         await polygonZKEVMContract.initialize(
-            globalExitRootManager.address,
+            polygonZKEVMGlobalExitRoot.address,
             maticTokenContract.address,
             verifierContract.address,
             polygonZKEVMBridgeContract.address,
@@ -144,7 +151,7 @@ describe('Real flow test', () => {
             // prapare globalExitRoot
             const randomTimestamp = 1001;
             const { globalExitRoot } = batchesData[0];
-            await globalExitRootManager.setGlobalExitRoot(globalExitRoot, randomTimestamp);
+            await polygonZKEVMGlobalExitRoot.setGlobalExitRoot(globalExitRoot, randomTimestamp);
 
             const lastBatchSequenced = await polygonZKEVMContract.lastBatchSequenced();
 

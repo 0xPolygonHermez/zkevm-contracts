@@ -5,7 +5,7 @@ pragma solidity 0.8.15;
 import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./lib/TokenWrapped.sol";
-import "./interfaces/IGlobalExitRootManager.sol";
+import "./interfaces/IPolygonZKEVMGlobalExitRoot.sol";
 import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IPolygonZKEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
@@ -56,7 +56,7 @@ contract PolygonZKEVMBridge is
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
     // Global Exit Root address
-    IGlobalExitRootManager public globalExitRootManager;
+    IPolygonZKEVMGlobalExitRoot public globalExitRootManager;
 
     // Polygon ZK-EVM address
     address public poeAddress;
@@ -67,7 +67,7 @@ contract PolygonZKEVMBridge is
      */
     function initialize(
         uint32 _networkID,
-        IGlobalExitRootManager _globalExitRootManager,
+        IPolygonZKEVMGlobalExitRoot _globalExitRootManager,
         address _poeAddress
     ) public virtual initializer {
         networkID = _networkID;

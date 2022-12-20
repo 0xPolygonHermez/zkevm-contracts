@@ -11,7 +11,7 @@ describe('Emergency mode test', () => {
     let polygonZKEVMBridgeContract;
     let polygonZKEVMContract;
     let maticTokenContract;
-    let globalExitRootManager;
+    let polygonZKEVMGlobalExitRoot;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
@@ -48,8 +48,8 @@ describe('Emergency mode test', () => {
         await maticTokenContract.deployed();
 
         // deploy global exit root manager
-        const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-        globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
+        const PolygonZKEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZKEVMGlobalExitRoot');
+        polygonZKEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZKEVMGlobalExitRootFactory, [], { initializer: false });
 
         // deploy PolygonZKEVMBridge
         const polygonZKEVMBridgeFactory = await ethers.getContractFactory('PolygonZKEVMBridge');
@@ -59,10 +59,10 @@ describe('Emergency mode test', () => {
         const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
         polygonZKEVMContract = await upgrades.deployProxy(PolygonZKEVMFactory, [], { initializer: false });
 
-        await globalExitRootManager.initialize(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
-        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
+        await polygonZKEVMGlobalExitRoot.initialize(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
+        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, polygonZKEVMGlobalExitRoot.address, polygonZKEVMContract.address);
         await polygonZKEVMContract.initialize(
-            globalExitRootManager.address,
+            polygonZKEVMGlobalExitRoot.address,
             maticTokenContract.address,
             verifierContract.address,
             polygonZKEVMBridgeContract.address,

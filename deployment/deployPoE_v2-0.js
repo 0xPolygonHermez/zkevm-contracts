@@ -100,25 +100,25 @@ async function main() {
      */
 
     // deploy global exit root manager
-    const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager', deployer);
-    let globalExitRootManager;
+    const PolygonZKEVMGlobalExitRootFactory = await ethers.getContractFactory('polygonZKEVMGlobalExitRoot', deployer);
+    let polygonZKEVMGlobalExitRoot;
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
-            globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
+            polygonZKEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZKEVMGlobalExitRootFactory, [], { initializer: false });
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of globalExitRootManager ', error.error.reason);
+            console.log('upgrades.deployProxy of polygonZKEVMGlobalExitRoot ', error.error.reason);
         }
 
         // reach limits of attempts
         if (i + 1 === attemptsDeployProxy) {
-            throw new Error('GlobalExitRootManager contract has not been deployed');
+            throw new Error('polygonZKEVMGlobalExitRoot contract has not been deployed');
         }
     }
 
     console.log('#######################\n');
-    console.log('globalExitRootManager deployed to:', globalExitRootManager.address);
+    console.log('polygonZKEVMGlobalExitRoot deployed to:', polygonZKEVMGlobalExitRoot.address);
 
     // deploy PolygonZKEVMBridge
     let polygonZKEVMBridgeFactory;
@@ -169,23 +169,23 @@ async function main() {
     console.log('Polygon ZK-EVM deployed to:', polygonZKEVMContract.address);
 
     /*
-     * Initialize globalExitRootManager
+     * Initialize polygonZKEVMGlobalExitRoot
      */
-    await globalExitRootManager.initialize(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
+    await polygonZKEVMGlobalExitRoot.initialize(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
 
     /*
      * Initialize PolygonZKEVMBridge
      */
     await (await polygonZKEVMBridgeContract.initialize(
         networkIDMainnet,
-        globalExitRootManager.address,
+        polygonZKEVMGlobalExitRoot.address,
         polygonZKEVMContract.address,
     )).wait();
 
     console.log('\n#######################');
     console.log('#####    Checks PolygonZKEVMBridge   #####');
     console.log('#######################');
-    console.log('globalExitRootManagerAddress:', await polygonZKEVMBridgeContract.globalExitRootManager());
+    console.log('PolygonZKEVMGlobalExitRootAddress:', await polygonZKEVMBridgeContract.globalExitRootManager());
     console.log('networkID:', await polygonZKEVMBridgeContract.networkID());
     console.log('poeAddress:', await polygonZKEVMBridgeContract.poeAddress());
     console.log('owner:', await polygonZKEVMBridgeContract.owner());
@@ -200,7 +200,7 @@ async function main() {
     console.log('##### Deployment Polygon ZK-EVM #####');
     console.log('#######################');
     console.log('deployer:', deployer.address);
-    console.log('globalExitRootManagerAddress:', globalExitRootManager.address);
+    console.log('PolygonZKEVMGlobalExitRootAddress:', polygonZKEVMGlobalExitRoot.address);
     console.log('maticTokenAddress:', maticTokenContract.address);
     console.log('verifierAddress:', verifierContract.address);
     console.log('polygonZKEVMBridgeContract:', polygonZKEVMBridgeContract.address);
@@ -218,7 +218,7 @@ async function main() {
     console.log('networkName:', networkName);
 
     await (await polygonZKEVMContract.initialize(
-        globalExitRootManager.address,
+        polygonZKEVMGlobalExitRoot.address,
         maticTokenContract.address,
         verifierContract.address,
         polygonZKEVMBridgeContract.address,
@@ -241,7 +241,7 @@ async function main() {
     console.log('\n#######################');
     console.log('#####    Checks  PoE  #####');
     console.log('#######################');
-    console.log('globalExitRootManagerAddress:', await polygonZKEVMContract.globalExitRootManager());
+    console.log('PolygonZKEVMGlobalExitRootAddress:', await polygonZKEVMContract.globalExitRootManager());
     console.log('maticTokenAddress:', await polygonZKEVMContract.matic());
     console.log('verifierAddress:', await polygonZKEVMContract.rollupVerifier());
     console.log('polygonZKEVMBridgeContract:', await polygonZKEVMContract.bridgeAddress());
@@ -290,7 +290,7 @@ async function main() {
     const outputJson = {
         polygonZKEVMAddress: polygonZKEVMContract.address,
         PolygonZKEVMBridgeAddress: polygonZKEVMBridgeContract.address,
-        globalExitRootManagerAddress: globalExitRootManager.address,
+        PolygonZKEVMGlobalExitRootAddress: polygonZKEVMGlobalExitRoot.address,
         maticTokenAddress: maticTokenContract.address,
         verifierAddress: verifierContract.address,
         deployerAddress: deployer.address,

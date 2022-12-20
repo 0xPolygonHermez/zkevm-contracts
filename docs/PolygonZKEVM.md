@@ -10,7 +10,7 @@ To enter and exit of the L2 network will be used a PolygonZKEVMBridge smart cont
 ### initialize
 ```solidity
   function initialize(
-    contract IGlobalExitRootManager _globalExitRootManager,
+    contract IPolygonZKEVMGlobalExitRoot _globalExitRootManager,
     contract IERC20Upgradeable _matic,
     contract IVerifierRollup _rollupVerifier,
     contract IPolygonZKEVMBridge _bridgeAddress,
@@ -25,7 +25,7 @@ To enter and exit of the L2 network will be used a PolygonZKEVMBridge smart cont
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_globalExitRootManager` | contract IGlobalExitRootManager | Global exit root manager address
+|`_globalExitRootManager` | contract IPolygonZKEVMGlobalExitRoot | Global exit root manager address
 |`_matic` | contract IERC20Upgradeable | MATIC token address
 |`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
 |`_bridgeAddress` | contract IPolygonZKEVMBridge | Bridge address

@@ -28,7 +28,7 @@
       "storage": {
         "0x0000000000000000000000000000000000000000000000000000000000000002": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"
       },
-      "contractName": "GlobalExitRootManagerL2"
+      "contractName": "PolygonZKEVMGlobalExitRootL2"
     }
   ]
 }

@@ -14,7 +14,7 @@ describe('PolygonZKEVMBridge Mock Contract', () => {
     let deployer;
     let rollup;
 
-    let globalExitRootManager;
+    let polygonZKEVMGlobalExitRoot;
     let polygonZKEVMBridgeContract;
     let tokenContract;
 
@@ -38,15 +38,15 @@ describe('PolygonZKEVMBridge Mock Contract', () => {
         [deployer, rollup] = await ethers.getSigners();
 
         // deploy global exit root manager
-        const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-        globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
+        const PolygonZKEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZKEVMGlobalExitRoot');
+        polygonZKEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZKEVMGlobalExitRootFactory, [], { initializer: false });
 
         // deploy PolygonZKEVMBridge
         const polygonZKEVMBridgeFactory = await ethers.getContractFactory('PolygonZKEVMBridgeMock');
         polygonZKEVMBridgeContract = await upgrades.deployProxy(polygonZKEVMBridgeFactory, [], { initializer: false });
 
-        await globalExitRootManager.initialize(rollup.address, polygonZKEVMBridgeContract.address);
-        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMAddress);
+        await polygonZKEVMGlobalExitRoot.initialize(rollup.address, polygonZKEVMBridgeContract.address);
+        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, polygonZKEVMGlobalExitRoot.address, polygonZKEVMAddress);
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
@@ -60,7 +60,7 @@ describe('PolygonZKEVMBridge Mock Contract', () => {
     });
 
     it('should check the constructor parameters', async () => {
-        expect(await polygonZKEVMBridgeContract.globalExitRootManager()).to.be.equal(globalExitRootManager.address);
+        expect(await polygonZKEVMBridgeContract.globalExitRootManager()).to.be.equal(polygonZKEVMGlobalExitRoot.address);
         expect(await polygonZKEVMBridgeContract.networkID()).to.be.equal(networkIDMainnet);
     });
 
@@ -78,7 +78,7 @@ describe('PolygonZKEVMBridge Mock Contract', () => {
         const balanceDeployer = await tokenContract.balanceOf(deployer.address);
         const balanceBridge = await tokenContract.balanceOf(polygonZKEVMBridgeContract.address);
 
-        const rollupExitRoot = await globalExitRootManager.lastRollupExitRoot();
+        const rollupExitRoot = await polygonZKEVMGlobalExitRoot.lastRollupExitRoot();
 
         // create a new deposit
         await expect(tokenContract.approve(polygonZKEVMBridgeContract.address, amount))
@@ -103,7 +103,7 @@ describe('PolygonZKEVMBridge Mock Contract', () => {
         await expect(polygonZKEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
             .to.emit(polygonZKEVMBridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
-            .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
+            .to.emit(polygonZKEVMGlobalExitRoot, 'UpdateGlobalExitRoot')
             .withArgs(rootJSMainnet, rollupExitRoot);
 
         expect(await tokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer.sub(amount));
@@ -127,7 +127,7 @@ describe('PolygonZKEVMBridge Mock Contract', () => {
         )).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
-        expect(computedGlobalExitRoot).to.be.equal(await globalExitRootManager.getLastGlobalExitRoot());
+        expect(computedGlobalExitRoot).to.be.equal(await polygonZKEVMGlobalExitRoot.getLastGlobalExitRoot());
     });
 
     it('shouldnt be able to PolygonZKEVMBridge more thna 0.25e ehters', async () => {

@@ -7,7 +7,7 @@ Contract responsible to manage the token interactions with other networks
 ```solidity
   function initialize(
     uint32 _networkID,
-    contract IGlobalExitRootManager _globalExitRootManager
+    contract IPolygonZKEVMGlobalExitRoot _globalExitRootManager
   ) public
 ```
 
@@ -16,7 +16,7 @@ Contract responsible to manage the token interactions with other networks
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkID` | uint32 | networkID
-|`_globalExitRootManager` | contract IGlobalExitRootManager | global exit root manager address
+|`_globalExitRootManager` | contract IPolygonZKEVMGlobalExitRoot | global exit root manager address
 
 ### bridgeAsset
 ```solidity

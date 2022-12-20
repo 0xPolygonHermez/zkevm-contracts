@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.15;
 
-import "../GlobalExitRootManagerL2.sol";
+import "../PolygonZKEVMGlobalExitRootL2.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
 
  */
-contract GlobalExitRootManagerL2Mock is GlobalExitRootManagerL2 {
+contract PolygonZKEVMGlobalExitRootL2Mock is PolygonZKEVMGlobalExitRootL2 {
     /**
      * @param _bridgeAddress PolygonZKEVM Bridge contract address
      */
     constructor(
         address _bridgeAddress
-    ) GlobalExitRootManagerL2(_bridgeAddress) {}
+    ) PolygonZKEVMGlobalExitRootL2(_bridgeAddress) {}
 
     /**
      * @notice Set globalExitRoot
