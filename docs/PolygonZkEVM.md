@@ -337,7 +337,7 @@ Allow the current admin to set a new admin address
     uint256[2] proofC
   ) public
 ```
-Allows to halt the PoE if its possible to prove a different state root given the same batches
+Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
 
 
 #### Parameters:
@@ -367,7 +367,7 @@ Allows to halt the PoE if its possible to prove a different state root given the
     uint256[2] proofC
   ) public
 ```
-Allows to halt the PoE if its possible to prove a different state root given the same batches
+Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
 
 
 #### Parameters:
@@ -419,7 +419,7 @@ Internal functoin that prove a different state root given the same batches to ve
     uint64 sequencedBatchNum
   ) external
 ```
-Function to activate emergency state, which also enable the emergency mode on both PoE and PolygonZkEVM Bridge contrats
+Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contrats
 If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
 
 
@@ -433,7 +433,7 @@ If not called by the owner owner must be provided a batcnNum that does not have 
   function deactivateEmergencyState(
   ) external
 ```
-Function to deactivate emergency state on both PoE and PolygonZkEVMBridge contrats
+Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
 
 
 
@@ -442,7 +442,7 @@ Function to deactivate emergency state on both PoE and PolygonZkEVMBridge contra
   function _activateEmergencyState(
   ) internal
 ```
-Internal function to activate emergency state on both PoE and PolygonZkEVM Bridge contrats
+Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
 
 
 
