@@ -9,7 +9,7 @@ import "./PolygonZKEVM.sol";
  * This gives time for users of the controlled contract to exit before a potentially dangerous maintenance operation is applied.
  * If emergency mode of the zkevm contract system is active, this timelock have no delay.
  */
-contract Timelock is TimelockController {
+contract PolygonZKEVMTimelock is TimelockController {
     // Polygon ZK-EVM address. Will be used to check if it's on emergency state.
     PolygonZKEVM public polygonZKEVM;
 
