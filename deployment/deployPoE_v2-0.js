@@ -100,7 +100,7 @@ async function main() {
      */
 
     // deploy global exit root manager
-    const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('polygonZkEVMGlobalExitRoot', deployer);
+    const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot', deployer);
     let polygonZkEVMGlobalExitRoot;
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
@@ -122,7 +122,7 @@ async function main() {
 
     // deploy PolygonZkEVMBridge
     let polygonZkEVMBridgeFactory;
-    if (deployParameters.PolygonZkEVMBridgeMock) {
+    if (deployParameters.polygonZkEVMBridgeMock) {
         polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeMock', deployer);
     } else {
         polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
@@ -188,7 +188,6 @@ async function main() {
     console.log('PolygonZkEVMGlobalExitRootAddress:', await polygonZkEVMBridgeContract.globalExitRootManager());
     console.log('networkID:', await polygonZkEVMBridgeContract.networkID());
     console.log('poeAddress:', await polygonZkEVMBridgeContract.poeAddress());
-    console.log('owner:', await polygonZkEVMBridgeContract.owner());
 
     /*
      * Initialize Polygon ZK-EVM
@@ -287,6 +286,7 @@ async function main() {
         const trustedSequencerWallet = new ethers.Wallet(deployParameters.trustedSequencerPvtKey, currentProvider);
         await maticTokenContract.connect(trustedSequencerWallet).approve(polygonZkEVMContract.address, ethers.constants.MaxUint256);
     }
+
     const outputJson = {
         polygonZkEVMAddress: polygonZkEVMContract.address,
         PolygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.address,
