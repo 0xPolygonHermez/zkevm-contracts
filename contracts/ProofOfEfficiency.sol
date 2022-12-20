@@ -109,13 +109,13 @@ contract ProofOfEfficiency is
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
-    // Max batch byte length
-    // Max keccaks circuit = (2**23 / 158418) * 9 = 2376
-    // Bytes per keccak = 136
-    // Minimum Static keccaks batch = 2
-    // Max bytes allowed = (2376 - 2) * 136 = 322864 bytes - 1 byte padding
-    // Rounded to 300000 bytes
-    uint256 public constant MAX_BATCH_LENGTH = 300000;
+    // Max transactions bytes that can be added in a single batch
+    // Max keccaks circuit = (2**23 / 158418) * 9 = 468
+    // Bytes hashed per keccak = 136
+    // Minimum constant keccaks batch = 4
+    // Max bytes allowed = (468 - 4) * 136 = 63104 bytes - 1 byte padding
+    // Rounded to 60000 bytes
+    uint256 public constant MAX_TRANSACTIONS_BYTE_LENGTH = 60000;
 
     // Force batch timeout
     uint64 public constant FORCE_BATCH_TIMEOUT = 5 days;
