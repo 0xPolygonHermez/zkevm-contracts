@@ -55,20 +55,12 @@ contract TokenWrapped is ERC20 {
         _DEPLOYMENT_DOMAIN_SEPARATOR = _calculateDomainSeparator(block.chainid);
     }
 
-    function mint(
-        address to,
-        uint256 value
-    ) external onlyBridge returns (bool) {
+    function mint(address to, uint256 value) external onlyBridge {
         _mint(to, value);
-        return true;
     }
 
-    function burn(
-        address account,
-        uint256 value
-    ) external onlyBridge returns (bool) {
+    function burn(address account, uint256 value) external onlyBridge {
         _burn(account, value);
-        return true;
     }
 
     function decimals() public view virtual override returns (uint8) {

@@ -60,7 +60,7 @@ async function main() {
         [deployer] = (await ethers.getSigners());
     }
 
-    const minDelayTimelock = deployParameters.minDelayTimelock || 0;
+    const minDelayTimelock = deployParameters.minDelayTimelock || 10;
     const timelockAddress = deployParameters.timelockAddress || deployer.address;
     try {
         await hre.run(
