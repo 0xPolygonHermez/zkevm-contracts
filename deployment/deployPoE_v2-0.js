@@ -1,7 +1,7 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
 
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
@@ -18,6 +18,7 @@ async function main() {
     const trustedSequencerURL = deployParameters.trustedSequencerURL || 'http://zkevm-json-rpc:8123';
     const realVerifier = deployParameters.realVerifier || false;
     const { chainID, networkName } = deployParameters;
+    const minDelayTimelock = deployParameters.minDelayTimelock || 10; // Should put some default parameter
 
     const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1);
     const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1);
@@ -59,6 +60,7 @@ async function main() {
     }
     const admin = deployParameters.admin || deployer.address;
     const trustedAggregator = deployParameters.trustedAggregator || deployer.address;
+    const timelockAddress = deployParameters.timelockAddress || deployer.address;
 
     /*
      *Deployment MATIC
@@ -187,7 +189,7 @@ async function main() {
     console.log('#######################');
     console.log('PolygonZkEVMGlobalExitRootAddress:', await polygonZkEVMBridgeContract.globalExitRootManager());
     console.log('networkID:', await polygonZkEVMBridgeContract.networkID());
-    console.log('poeAddress:', await polygonZkEVMBridgeContract.poeAddress());
+    console.log('zkEVMaddress:', await polygonZkEVMBridgeContract.zkEVMaddress());
 
     /*
      * Initialize Polygon ZK-EVM
@@ -281,19 +283,58 @@ async function main() {
         await deployer.sendTransaction(params);
     }
 
-    // approve tokens
+    // approve tokens for trusted sequencer
     if (deployParameters.trustedSequencerPvtKey) {
         const trustedSequencerWallet = new ethers.Wallet(deployParameters.trustedSequencerPvtKey, currentProvider);
         await maticTokenContract.connect(trustedSequencerWallet).approve(polygonZkEVMContract.address, ethers.constants.MaxUint256);
     }
 
+    /*
+     *Deployment Time lock
+     */
+
+    console.log('\n#######################');
+    console.log('##### Deployment TimelockContract  #####');
+    console.log('#######################');
+    console.log('minDelayTimelock:', minDelayTimelock);
+    console.log('timelockAddress:', timelockAddress);
+    console.log('zkEVMAddress:', polygonZkEVMContract.address);
+
+    const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock');
+    const timelockContract = await timelockContractFactory.deploy(
+        minDelayTimelock,
+        [timelockAddress],
+        [timelockAddress],
+        timelockAddress,
+        polygonZkEVMContract.address,
+    );
+    await timelockContract.deployed();
+
+    console.log('#######################\n');
+    console.log(
+        'Polygon timelockContract deployed to:',
+        timelockContract.address,
+    );
+
+    console.log('\n#######################');
+    console.log('#####  Checks TimelockContract  #####');
+    console.log('#######################');
+    console.log('minDelayTimelock:', await timelockContract.getMinDelay());
+    console.log('polygonZkEVM:', polygonZkEVMContract.address);
+
+    /*
+     *  Transfer ownership of the proxyAdmin to timelock
+     * await upgrades.admin.transferProxyAdminOwnership(timelockContract.address);
+     */
+
     const outputJson = {
         polygonZkEVMAddress: polygonZkEVMContract.address,
-        PolygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.address,
-        PolygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot.address,
+        polygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.address,
+        polygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot.address,
         maticTokenAddress: maticTokenContract.address,
         verifierAddress: verifierContract.address,
         deployerAddress: deployer.address,
+        timelockContractAddress: timelockContract.address,
         deploymentBlockNumber,
         genesisRoot: genesisRootHex,
         trustedSequencer,

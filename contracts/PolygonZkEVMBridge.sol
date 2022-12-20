@@ -59,7 +59,7 @@ contract PolygonZkEVMBridge is
     IPolygonZkEVMGlobalExitRoot public globalExitRootManager;
 
     // Polygon ZK-EVM address
-    address public poeAddress;
+    address public zkEVMaddress;
 
     /**
      * @param _networkID networkID
@@ -68,16 +68,16 @@ contract PolygonZkEVMBridge is
     function initialize(
         uint32 _networkID,
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        address _poeAddress
+        address _zkEVMaddress
     ) public virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
-        poeAddress = _poeAddress;
+        zkEVMaddress = _zkEVMaddress;
     }
 
     modifier onlyPolygonZkEVM() {
         require(
-            poeAddress == msg.sender,
+            zkEVMaddress == msg.sender,
             "PolygonZkEVM::onlyPolygonZkEVM: only Polygon ZK-EVM contractt"
         );
         _;

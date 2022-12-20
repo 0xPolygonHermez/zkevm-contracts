@@ -202,7 +202,6 @@ describe('Polygon ZK-EVM', () => {
         await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
 
         // Transfer ownership to timelock
-        await upgrades.admin.transferProxyAdminOwnership(timelockContract.address);
 
         // Can't upgrade the contract since it does not have the ownership
         await expect(upgrades.upgradeProxy(polygonZkEVMBridgeContract.address, polygonZkEVMBridgeFactoryV2))
@@ -224,6 +223,15 @@ describe('Polygon ZK-EVM', () => {
             ethers.constants.HashZero,
         );
 
+        // Check current delay
+        expect(await timelockContract.getMinDelay()).to.be.equal(minDelay);
+
+        // Put zkevmcontract on emergency mode
+        await polygonZkEVMContract.activateEmergencyState(0);
+
+        // Check delay is 0
+        expect(await timelockContract.getMinDelay()).to.be.equal(0);
+
         // Schedule operation
         await timelockContract.schedule(
             operation.target,
@@ -231,30 +239,19 @@ describe('Polygon ZK-EVM', () => {
             operation.data,
             operation.predecessor,
             operation.salt,
-            minDelay,
+            0,
         );
 
-        // Can't upgrade because the timeout didint expire yet
+        // Check that is the v0 contract
+        await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
+
+        // Transaction cna be executed, delay is reduced to 0, but fails bc this timelock is not owner
         await expect(timelockContract.execute(
             operation.target,
             operation.value,
             operation.data,
             operation.predecessor,
             operation.salt,
-        )).to.be.revertedWith('TimelockController: operation is not ready');
-
-        // Check that is the v0 contract
-        await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
-
-        await ethers.provider.send('evm_increaseTime', [minDelay]);
-        await timelockContract.execute(
-            operation.target,
-            operation.value,
-            operation.data,
-            operation.predecessor,
-            operation.salt,
-        );
-
-        await expect(await polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.equal(0);
+        )).to.be.revertedWith('TimelockController: underlying transaction reverted');
     });
 });

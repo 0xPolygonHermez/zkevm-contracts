@@ -66,7 +66,7 @@ describe('PolygonZkEVMBridge Contract', () => {
     it('should check the constructor parameters', async () => {
         expect(await polygonZkEVMBridgeContract.globalExitRootManager()).to.be.equal(polygonZkEVMGlobalExitRoot.address);
         expect(await polygonZkEVMBridgeContract.networkID()).to.be.equal(networkIDMainnet);
-        expect(await polygonZkEVMBridgeContract.poeAddress()).to.be.equal(polygonZkEVMAddress);
+        expect(await polygonZkEVMBridgeContract.zkEVMaddress()).to.be.equal(polygonZkEVMAddress);
     });
 
     it('should PolygonZkEVMBridge asset and verify merkle proof', async () => {

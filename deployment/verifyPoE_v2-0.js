@@ -6,7 +6,9 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
 const pathDeployOutputParameters = path.join(__dirname, './deploy_output.json');
+const pathDeployParameters = path.join(__dirname, './deploy_parameters.json');
 const deployOutputParameters = require(pathDeployOutputParameters);
+const deployParameters = require(pathDeployParameters);
 
 async function main() {
     // load deployer account
@@ -48,9 +50,38 @@ async function main() {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
-    // verify proxies
+    // verify timeLock
+    let deployer;
+    if (deployParameters.privateKey) {
+        deployer = new ethers.Wallet(deployParameters.privateKey);
+    } else if (process.env.MNEMONIC) {
+        deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0');
+    } else {
+        [deployer] = (await ethers.getSigners());
+    }
 
-    const contractNames = ['polygonZkEVMAddress', 'PolygonZkEVMBridgeAddress', 'PolygonZkEVMGlobalExitRootAddress'];
+    const minDelayTimelock = deployParameters.minDelayTimelock || 0;
+    const timelockAddress = deployParameters.timelockAddress || deployer.address;
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: deployOutputParameters.timelockContractAddress,
+                constructorArguments: [
+                    minDelayTimelock,
+                    [timelockAddress],
+                    [timelockAddress],
+                    timelockAddress,
+                    deployOutputParameters.polygonZkEVMAddress,
+                ],
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
+    }
+
+    // verify proxies
+    const contractNames = ['polygonZkEVMAddress', 'polygonZkEVMBridgeAddress', 'polygonZkEVMGlobalExitRootAddress'];
 
     for (let i = 0; i < contractNames.length; i++) {
         try {
