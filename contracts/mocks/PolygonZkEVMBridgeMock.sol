@@ -17,11 +17,11 @@ contract PolygonZkEVMBridgeMock is PolygonZkEVMBridge, OwnableUpgradeable {
     function initialize(
         uint32 _networkID,
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        address _zkEVMaddress
+        address _polygonZkEVMaddress
     ) public override initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
-        zkEVMaddress = _zkEVMaddress;
+        polygonZkEVMaddress = _polygonZkEVMaddress;
 
         maxEtherBridge = 0.25 ether;
 

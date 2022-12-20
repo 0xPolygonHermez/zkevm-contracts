@@ -68,11 +68,11 @@ contract PolygonZkEVMBridge is
     function initialize(
         uint32 _networkID,
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        address _PolygonZkEVMaddress
+        address _polygonZkEVMaddress
     ) public virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
-        polygonZkEVMaddress = _PolygonZkEVMAddress;
+        polygonZkEVMaddress = _polygonZkEVMaddress;
     }
 
     modifier onlyPolygonZkEVM() {
