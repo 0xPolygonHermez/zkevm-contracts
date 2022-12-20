@@ -6,28 +6,28 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * Contract responsible for managing the exit roots for the L2 and global exit roots
- * The special circuit variables will be accesed and updated directly by the circuit
+ * The special circuit variables will be accessed and updated directly by the circuit
  */
 contract PolygonZkEVMGlobalExitRootL2 {
     /////////////////////////////
     // Special circuit variables
     ////////////////////////////
 
-    // Store every global exit root
+    // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // Rollup exit root, will be updated for every PolygonZKEVM Bridge call
+    // Rollup exit root will be updated for every PolygonZkEVMBridge call
     bytes32 public lastRollupExitRoot;
 
     ////////////////////
     // Regular variables
     ///////////////////
 
-    // PolygonZKEVM Bridge address
+    // PolygonZkEVM Bridge address
     address public bridgeAddress;
 
     /**
-     * @param _bridgeAddress PolygonZKEVMBridge contract address
+     * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
     constructor(address _bridgeAddress) {
         bridgeAddress = _bridgeAddress;
@@ -40,7 +40,7 @@ contract PolygonZkEVMGlobalExitRootL2 {
     function updateExitRoot(bytes32 newRoot) external {
         require(
             msg.sender == bridgeAddress,
-            "PolygonZKEVMGlobalExitRootL2::updateExitRoot: ONLY_BRIDGE"
+            "PolygonZkEVMGlobalExitRootL2::updateExitRoot: ONLY_BRIDGE"
         );
         lastRollupExitRoot = newRoot;
     }

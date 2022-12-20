@@ -195,6 +195,7 @@ contract PolygonZkEVMBridge is
             metadata,
             uint32(depositCount)
         );
+
         _deposit(
             getLeafValue(
                 LEAF_TYPE_ASSET,

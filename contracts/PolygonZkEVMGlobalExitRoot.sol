@@ -18,7 +18,7 @@ contract PolygonZkEVMGlobalExitRoot is
     // Mainnet exit root, this will be updated every time a deposit is made in mainnet
     bytes32 public lastMainnetExitRoot;
 
-    // Store every global exit root: Root --> rootNum
+    // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
 
     // PolygonZkEVMBridge address
@@ -67,7 +67,7 @@ contract PolygonZkEVMGlobalExitRoot is
             abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
         );
 
-        // If it already exist, do not modify the timestamp
+        // If it already exists, do not modify the timestamp
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
             globalExitRootMap[newGlobalExitRoot] = block.timestamp;
             emit UpdateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);
