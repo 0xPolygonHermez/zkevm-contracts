@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "BridgeMock",
-  "sourceName": "contracts/mocks/BridgeMock.sol",
+  "contractName": "PolygonZKEVMBridgeMock",
+  "sourceName": "contracts/mocks/PolygonZKEVMBridgeMock.sol",
   "abi": [
     {
       "anonymous": false,
@@ -577,7 +577,7 @@
     },
     {
       "inputs": [],
-      "name": "maxEtherBridge",
+      "name": "maxEtherPolygonZKEVMBridge",
       "outputs": [
         {
           "internalType": "uint256",
@@ -677,11 +677,11 @@
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "_maxEtherBridge",
+          "name": "_maxEtherPolygonZKEVMBridge",
           "type": "uint256"
         }
       ],
-      "name": "setMaxEtherBridge",
+      "name": "setMaxEtherPolygonZKEVMBridge",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

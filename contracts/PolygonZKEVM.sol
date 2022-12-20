@@ -7,7 +7,7 @@ import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "./interfaces/IBridge.sol";
+import "./interfaces/IPolygonZKEVMBridge.sol";
 import "./lib/EmergencyManager.sol";
 
 /**
@@ -16,7 +16,7 @@ import "./lib/EmergencyManager.sol";
  * Any user can force some transaction and the sequencer will have a timeout to add them in the queue.
  * The sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof.
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
- * To enter and exit of the L2 network will be used a Bridge smart contract that will be deployed in both networks.
+ * To enter and exit of the L2 network will be used a PolygonZKEVMBridge smart contract that will be deployed in both networks.
  */
 contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -189,8 +189,8 @@ contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     // L2 network name
     string public networkName;
 
-    // Bridge Address
-    IBridge public bridgeAddress;
+    // PolygonZKEVM Bridge Address
+    IPolygonZKEVMBridge public bridgeAddress;
 
     // Pending state mapping
     // pendingStateNumber --> PendingState
@@ -338,7 +338,7 @@ contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         IGlobalExitRootManager _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
-        IBridge _bridgeAddress,
+        IPolygonZKEVMBridge _bridgeAddress,
         InitializePackedParameters calldata initializePackedParameters,
         bytes32 genesisRoot,
         string memory _trustedSequencerURL,
@@ -1383,7 +1383,7 @@ contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Function to activate emergency state, which also enable the emergency mode on both PoE and Bridge contrats
+     * @notice Function to activate emergency state, which also enable the emergency mode on both PoE and PolygonZKEVM Bridge contrats
      * If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
      * @param sequencedBatchNum Sequenced batch number that has not been aggreagated in HALT_AGGREGATION_TIMEOUT
      */
@@ -1424,10 +1424,10 @@ contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Function to deactivate emergency state on both PoE and Bridge contrats
+     * @notice Function to deactivate emergency state on both PoE and PolygonZKEVMBridge contrats
      */
     function deactivateEmergencyState() external ifEmergencyState onlyAdmin {
-        // Deactivate emergency state on bridge
+        // Deactivate emergency state on PolygonZKEVMBridge
         bridgeAddress.deactivateEmergencyState();
 
         // Deactivate emergency state on this contract
@@ -1435,10 +1435,10 @@ contract PolygonZKEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Internal function to activate emergency state on both PoE and Bridge contrats
+     * @notice Internal function to activate emergency state on both PoE and PolygonZKEVM Bridge contrats
      */
     function _activateEmergencyState() internal override {
-        // Activate emergency state on bridge
+        // Activate emergency state on PolygonZKEVM Bridge
         bridgeAddress.activateEmergencyState();
 
         // Activate emergency state on this contract

@@ -25,7 +25,7 @@ contract TokenWrapped is ERC20 {
     // Domain separator calculated on deployment
     bytes32 private immutable _DEPLOYMENT_DOMAIN_SEPARATOR;
 
-    // Bridge address
+    // PolygonZKEVM Bridge address
     address public bridgeAddress;
 
     // Decimals

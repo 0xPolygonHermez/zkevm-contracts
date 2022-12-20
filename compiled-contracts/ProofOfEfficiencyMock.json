@@ -465,10 +465,10 @@
     },
     {
       "inputs": [],
-      "name": "bridgeAddress",
+      "name": "PolygonZKEVMBridgeAddress",
       "outputs": [
         {
-          "internalType": "contract IBridge",
+          "internalType": "contract IPolygonZKEVMBridge",
           "name": "",
           "type": "address"
         }
@@ -746,8 +746,8 @@
           "type": "address"
         },
         {
-          "internalType": "contract IBridge",
-          "name": "_bridgeAddress",
+          "internalType": "contract IPolygonZKEVMBridge",
+          "name": "_PolygonZKEVMBridgeAddress",
           "type": "address"
         },
         {

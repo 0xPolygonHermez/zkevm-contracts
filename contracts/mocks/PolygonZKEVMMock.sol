@@ -7,7 +7,7 @@ import "../PolygonZKEVM.sol";
  * Contract responsible for managing the state and the updates of the L2 network
  * There will be sequencer, which are able to send transactions. That transactions will be stored in the contract.
  * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
- * To enter and exit of the L2 network will be used a Bridge smart contract
+ * To enter and exit of the L2 network will be used a PolygonZKEVM Bridge smart contract
  */
 contract PolygonZKEVMMock is PolygonZKEVM {
     /**

@@ -4,7 +4,7 @@ const { ethers, upgrades } = require('hardhat');
 const zero32bytes = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 describe('Global Exit Root L2', () => {
-    let bridge;
+    let PolygonZKEVMBridge;
     let globalExitRootManager;
     const PolygonZKEVMAddress = ethers.constants.AddressZero;
 
@@ -14,18 +14,18 @@ describe('Global Exit Root L2', () => {
         // load signers
         const deployer = (await ethers.getSigners())[0];
 
-        // deploy bridge
-        const bridgeFactory = await ethers.getContractFactory('Bridge');
-        bridge = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
+        // deploy PolygonZKEVMBridge
+        const polygonZKEVMBridgeFactory = await ethers.getContractFactory('PolygonZKEVMBridge');
+        PolygonZKEVMBridge = await upgrades.deployProxy(polygonZKEVMBridgeFactory, [], { initializer: false });
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerL2Mock', deployer);
-        globalExitRootManager = await globalExitRootManagerFactory.deploy(bridge.address);
+        globalExitRootManager = await globalExitRootManagerFactory.deploy(PolygonZKEVMBridge.address);
 
-        await bridge.initialize(networkIDRollup, globalExitRootManager.address, PolygonZKEVMAddress);
+        await PolygonZKEVMBridge.initialize(networkIDRollup, globalExitRootManager.address, PolygonZKEVMAddress);
     });
 
     it('should check the constructor parameters', async () => {
-        expect(await globalExitRootManager.bridgeAddress()).to.be.equal(bridge.address);
+        expect(await globalExitRootManager.bridgeAddress()).to.be.equal(PolygonZKEVMBridge.address);
         expect(await globalExitRootManager.lastRollupExitRoot()).to.be.equal(zero32bytes);
     });
 

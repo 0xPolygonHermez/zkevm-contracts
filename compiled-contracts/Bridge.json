@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "Bridge",
-  "sourceName": "contracts/Bridge.sol",
+  "contractName": "PolygonZKEVMBridge",
+  "sourceName": "contracts/PolygonZKEVMBridge.sol",
   "abi": [
     {
       "anonymous": false,

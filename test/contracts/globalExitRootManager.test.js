@@ -8,22 +8,22 @@ const zero32bytes = '0x000000000000000000000000000000000000000000000000000000000
 
 describe('Global Exit Root', () => {
     let rollup;
-    let bridge;
+    let PolygonZKEVMBridge;
 
     let globalExitRootManager;
     beforeEach('Deploy contracts', async () => {
         // load signers
-        [, rollup, bridge] = await ethers.getSigners();
+        [, rollup, PolygonZKEVMBridge] = await ethers.getSigners();
 
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
-        globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [rollup.address, bridge.address]);
+        globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [rollup.address, PolygonZKEVMBridge.address]);
         await globalExitRootManager.deployed();
     });
 
     it('should check the constructor parameters', async () => {
         expect(await globalExitRootManager.rollupAddress()).to.be.equal(rollup.address);
-        expect(await globalExitRootManager.bridgeAddress()).to.be.equal(bridge.address);
+        expect(await globalExitRootManager.bridgeAddress()).to.be.equal(PolygonZKEVMBridge.address);
         expect(await globalExitRootManager.lastRollupExitRoot()).to.be.equal(zero32bytes);
         expect(await globalExitRootManager.lastMainnetExitRoot()).to.be.equal(zero32bytes);
     });
@@ -42,9 +42,9 @@ describe('Global Exit Root', () => {
         expect(await globalExitRootManager.getLastGlobalExitRoot())
             .to.be.equal(calculateGlobalExitRoot(zero32bytes, newRootRollup));
 
-        // Update root from the bridge
+        // Update root from the PolygonZKEVMBridge
         const newRootBridge = ethers.utils.hexlify(ethers.utils.randomBytes(32));
-        await expect(globalExitRootManager.connect(bridge).updateExitRoot(newRootBridge))
+        await expect(globalExitRootManager.connect(PolygonZKEVMBridge).updateExitRoot(newRootBridge))
             .to.emit(globalExitRootManager, 'UpdateGlobalExitRoot')
             .withArgs(newRootBridge, newRootRollup);
 

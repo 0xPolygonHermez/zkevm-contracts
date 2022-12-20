@@ -13,7 +13,7 @@ describe('Polygon ZK-EVM', () => {
     let aggregator1;
 
     let verifierContract;
-    let bridgeContract;
+    let polygonZKEVMBridgeContract;
     let polygonZKEVMContract;
     let maticTokenContract;
     let globalExitRootManager;
@@ -56,21 +56,21 @@ describe('Polygon ZK-EVM', () => {
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManager');
         globalExitRootManager = await upgrades.deployProxy(globalExitRootManagerFactory, [], { initializer: false });
 
-        // deploy bridge
-        const bridgeFactory = await ethers.getContractFactory('Bridge');
-        bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
+        // deploy PolygonZKEVMBridge
+        const polygonZKEVMBridgeFactory = await ethers.getContractFactory('PolygonZKEVMBridge');
+        polygonZKEVMBridgeContract = await upgrades.deployProxy(polygonZKEVMBridgeFactory, [], { initializer: false });
 
         // deploy PoE
         const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
         polygonZKEVMContract = await upgrades.deployProxy(PolygonZKEVMFactory, [], { initializer: false });
 
-        await globalExitRootManager.initialize(polygonZKEVMContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
+        await globalExitRootManager.initialize(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
+        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
         await polygonZKEVMContract.initialize(
             globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
-            bridgeContract.address,
+            polygonZKEVMBridgeContract.address,
             {
                 admin: admin.address,
                 chainID,
@@ -93,7 +93,7 @@ describe('Polygon ZK-EVM', () => {
         expect(await polygonZKEVMContract.globalExitRootManager()).to.be.equal(globalExitRootManager.address);
         expect(await polygonZKEVMContract.matic()).to.be.equal(maticTokenContract.address);
         expect(await polygonZKEVMContract.rollupVerifier()).to.be.equal(verifierContract.address);
-        expect(await polygonZKEVMContract.bridgeAddress()).to.be.equal(bridgeContract.address);
+        expect(await polygonZKEVMContract.bridgeAddress()).to.be.equal(polygonZKEVMBridgeContract.address);
 
         expect(await polygonZKEVMContract.admin()).to.be.equal(admin.address);
         expect(await polygonZKEVMContract.chainID()).to.be.equal(chainID);

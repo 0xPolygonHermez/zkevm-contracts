@@ -48,7 +48,7 @@
       "gasLimit": 10000000,
       "gasPrice": "0",
       "chainId": 1000,
-      "contractName": "Bridge"
+      "contractName": "PolygonZKEVMBridge"
       },
       {
         "from": "0xC949254d682D8c9ad5682521675b8F43b102aec4",
@@ -64,7 +64,7 @@
             "0xAE4bB80bE56B819606589DE61d5ec3b522EEB032",
             "0x0000000000000000000000000000000000000000"
         ],
-        "contractName": "Bridge"
+        "contractName": "PolygonZKEVMBridge"
       }
   ],
   "timestamp": 1944498031

@@ -10,7 +10,7 @@ import "../GlobalExitRootManager.sol";
 contract GlobalExitRootManagerMock is GlobalExitRootManager {
     /**
      * @param _rollupAddress Rollup contract address
-     * @param _bridgeAddress Bridge contract address
+     * @param _bridgeAddress PolygonZKEVM Bridge contract address
      */
     constructor(address _rollupAddress, address _bridgeAddress) {
         initialize(_rollupAddress, _bridgeAddress);
@@ -28,9 +28,10 @@ contract GlobalExitRootManagerMock is GlobalExitRootManager {
      * @notice Set last global exit root
      * @param timestamp timestamp
      */
-    function setGlobalExitRoot(bytes32 globalExitRoot, uint256 timestamp)
-        public
-    {
+    function setGlobalExitRoot(
+        bytes32 globalExitRoot,
+        uint256 timestamp
+    ) public {
         globalExitRootMap[globalExitRoot] = timestamp;
     }
 }

@@ -17,7 +17,7 @@ const inputJson = require('./test-inputs/input.json');
 describe('Real flow test', () => {
     let verifierContract;
     let maticTokenContract;
-    let bridgeContract;
+    let polygonZKEVMBridgeContract;
     let polygonZKEVMContract;
     let globalExitRootManager;
     let deployer;
@@ -68,9 +68,9 @@ describe('Real flow test', () => {
         );
         await maticTokenContract.deployed();
 
-        // deploy bridge
-        const bridgeFactory = await ethers.getContractFactory('Bridge');
-        bridgeContract = await upgrades.deployProxy(bridgeFactory, [], { initializer: false });
+        // deploy PolygonZKEVMBridge
+        const polygonZKEVMBridgeFactory = await ethers.getContractFactory('PolygonZKEVMBridge');
+        polygonZKEVMBridgeContract = await upgrades.deployProxy(polygonZKEVMBridgeFactory, [], { initializer: false });
 
         // deploy PoE
         const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
@@ -79,14 +79,14 @@ describe('Real flow test', () => {
         // deploy global exit root manager
         const globalExitRootManagerFactory = await ethers.getContractFactory('GlobalExitRootManagerMock');
 
-        globalExitRootManager = await globalExitRootManagerFactory.deploy(polygonZKEVMContract.address, bridgeContract.address);
-        await bridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
+        globalExitRootManager = await globalExitRootManagerFactory.deploy(polygonZKEVMContract.address, polygonZKEVMBridgeContract.address);
+        await polygonZKEVMBridgeContract.initialize(networkIDMainnet, globalExitRootManager.address, polygonZKEVMContract.address);
 
         await polygonZKEVMContract.initialize(
             globalExitRootManager.address,
             maticTokenContract.address,
             verifierContract.address,
-            bridgeContract.address,
+            polygonZKEVMBridgeContract.address,
             {
                 admin: admin.address,
                 chainID,

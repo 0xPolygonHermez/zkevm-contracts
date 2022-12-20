@@ -7,15 +7,19 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./lib/TokenWrapped.sol";
 import "./interfaces/IGlobalExitRootManager.sol";
 import "./interfaces/IBridgeMessageReceiver.sol";
-import "./interfaces/IBridge.sol";
+import "./interfaces/IPolygonZKEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./lib/EmergencyManager.sol";
 
 /**
- * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
+ * PolygonZKEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is DepositContract, EmergencyManager, IBridge {
+contract PolygonZKEVMBridge is
+    DepositContract,
+    EmergencyManager,
+    IPolygonZKEVMBridge
+{
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Wrapped Token information struct
@@ -130,7 +134,7 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
     ) public payable virtual ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
-            "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
+            "PolygonZKEVMBridge::bridgeAsset: DESTINATION_CANT_BE_ITSELF"
         );
 
         address originTokenAddress;
@@ -141,7 +145,7 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
             // Ether transfer
             require(
                 msg.value == amount,
-                "Bridge::bridge: AMOUNT_DOES_NOT_MATCH_MSG_VALUE"
+                "PolygonZKEVMBridge::bridgeAsset: AMOUNT_DOES_NOT_MATCH_MSG_VALUE"
             );
 
             // Ether is treated as ether from mainnet
@@ -220,7 +224,7 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
     ) public payable ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
-            "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
+            "PolygonZKEVMBridge::bridgeMessage: DESTINATION_CANT_BE_ITSELF"
         );
 
         emit BridgeEvent(
@@ -300,7 +304,10 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
             (bool success, ) = destinationAddress.call{value: amount}(
                 new bytes(0)
             );
-            require(success, "Bridge::claimAsset: ETH_TRANSFER_FAILED");
+            require(
+                success,
+                "PolygonZKEVMBridge::claimAsset: ETH_TRANSFER_FAILED"
+            );
         } else {
             // Transfer tokens
             if (originNetwork == networkID) {
@@ -415,7 +422,7 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
                 (originAddress, originNetwork, metadata)
             )
         );
-        require(success, "Bridge::claimMessage: MESSAGE_FAILED");
+        require(success, "PolygonZKEVMBridge::claimMessage: MESSAGE_FAILED");
 
         emit ClaimEvent(
             index,
@@ -519,7 +526,10 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
         uint8 leafType
     ) internal {
         // Check nullifier
-        require(!isClaimed(index), "Bridge::_verifyLeaf: ALREADY_CLAIMED");
+        require(
+            !isClaimed(index),
+            "PolygonZKEVMBridge::_verifyLeaf: ALREADY_CLAIMED"
+        );
 
         // Check timestamp where the global exit root was set
         uint256 timestampGlobalExitRoot = globalExitRootManager
@@ -529,13 +539,13 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
 
         require(
             timestampGlobalExitRoot != 0,
-            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID"
+            "PolygonZKEVMBridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID"
         );
 
         // Destination network must be networkID
         require(
             destinationNetwork == networkID,
-            "Bridge::_verifyLeaf: DESTINATION_NETWORK_DOES_NOT_MATCH"
+            "PolygonZKEVMBridge::_verifyLeaf: DESTINATION_NETWORK_DOES_NOT_MATCH"
         );
 
         bytes32 claimRoot;
@@ -561,7 +571,7 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
                 index,
                 claimRoot
             ),
-            "Bridge::_verifyLeaf: SMT_INVALID"
+            "PolygonZKEVMBridge::_verifyLeaf: SMT_INVALID"
         );
     }
 
@@ -636,15 +646,15 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
                 );
             require(
                 owner == msg.sender,
-                "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
+                "PolygonZKEVMBridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
             );
             require(
                 spender == address(this),
-                "Bridge::_permit: SPENDER_MUST_BE_THIS"
+                "PolygonZKEVMBridge::_permit: SPENDER_MUST_BE_THIS"
             );
             require(
                 value == amount,
-                "Bridge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
+                "PolygonZKEVMBridge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
             );
 
             // we call without checking the result, in case it fails and he doesn't have enough balance
@@ -666,7 +676,7 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
         } else {
             require(
                 sig == _PERMIT_SIGNATURE_DAI,
-                "Bridge::_permit: NOT_VALID_CALL"
+                "PolygonZKEVMBridge::_permit: NOT_VALID_CALL"
             );
 
             (
@@ -693,11 +703,11 @@ contract Bridge is DepositContract, EmergencyManager, IBridge {
                 );
             require(
                 holder == msg.sender,
-                "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
+                "PolygonZKEVMBridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
             );
             require(
                 spender == address(this),
-                "Bridge::_permit: SPENDER_MUST_BE_THIS"
+                "PolygonZKEVMBridge::_permit: SPENDER_MUST_BE_THIS"
             );
 
             // we call without checking the result, in case it fails and he doesn't have enough balance

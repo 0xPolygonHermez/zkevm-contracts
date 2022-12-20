@@ -14,7 +14,7 @@ The special circuit variables will be accesed and updated directly by the circui
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_bridgeAddress` | address | Bridge contract address
+|`_bridgeAddress` | address | PolygonZKEVMBridge contract address
 
 ### updateExitRoot
 ```solidity

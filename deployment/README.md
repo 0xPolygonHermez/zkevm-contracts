@@ -51,7 +51,7 @@ npm run verify:PoE2_0:goerli
 - `maxPriorityFeePerGas`:string, maxPriorityFeePerGas of all txs
 - `multiplierGas`: number, Gas multiplier. If maxFeePerGas and maxPriorityFeePerGas are set, will not take effect
 - `trustedSequencerPvtKey`: string, Trusted sequencer pvtKey in order to approve the matic tokens
-- `bridgeMock`:Boolean, Wheather the bridge will be mock or not ( the mock version has a ether limitation on deposits)
+- `PolygonZKEVMBridgeMock`:Boolean, Wheather the PolygonZKEVMBridge will be mock or not ( the mock version has a ether limitation on deposits)
 - `admin`:address, Admin address
 - `trustedAggregator`:address, Trusted aggregator address
 

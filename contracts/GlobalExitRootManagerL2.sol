@@ -16,18 +16,18 @@ contract GlobalExitRootManagerL2 {
     // Store every global exit root
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // Rollup exit root, will be updated for every bridge call
+    // Rollup exit root, will be updated for every PolygonZKEVM Bridge call
     bytes32 public lastRollupExitRoot;
 
     ////////////////////
     // Regular variables
     ///////////////////
 
-    // Bridge address
+    // PolygonZKEVM Bridge address
     address public bridgeAddress;
 
     /**
-     * @param _bridgeAddress Bridge contract address
+     * @param _bridgeAddress PolygonZKEVMBridge contract address
      */
     constructor(address _bridgeAddress) {
         bridgeAddress = _bridgeAddress;

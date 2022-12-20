@@ -9,20 +9,21 @@ import "../GlobalExitRootManagerL2.sol";
  */
 contract GlobalExitRootManagerL2Mock is GlobalExitRootManagerL2 {
     /**
-     * @param _bridgeAddress Bridge contract address
+     * @param _bridgeAddress PolygonZKEVM Bridge contract address
      */
-    constructor(address _bridgeAddress)
-        GlobalExitRootManagerL2(_bridgeAddress)
-    {}
+    constructor(
+        address _bridgeAddress
+    ) GlobalExitRootManagerL2(_bridgeAddress) {}
 
     /**
      * @notice Set globalExitRoot
      * @param globalExitRoot New global exit root
      * @param blockNumber block number
      */
-    function setLastGlobalExitRoot(bytes32 globalExitRoot, uint256 blockNumber)
-        public
-    {
+    function setLastGlobalExitRoot(
+        bytes32 globalExitRoot,
+        uint256 blockNumber
+    ) public {
         globalExitRootMap[globalExitRoot] = blockNumber;
     }
 

@@ -18,7 +18,7 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
     // Store every global exit root: Root --> rootNum
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // Bridge address
+    // PolygonZKEVMBridge address
     address public bridgeAddress;
 
     // Rollup contract address
@@ -34,12 +34,12 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
 
     /**
      * @param _rollupAddress Rollup contract address
-     * @param _bridgeAddress Bridge contract address
+     * @param _bridgeAddress PolygonZKEVMBridge contract address
      */
-    function initialize(address _rollupAddress, address _bridgeAddress)
-        public
-        initializer
-    {
+    function initialize(
+        address _rollupAddress,
+        address _bridgeAddress
+    ) public initializer {
         rollupAddress = _rollupAddress;
         bridgeAddress = _bridgeAddress;
     }
