@@ -2,12 +2,12 @@
 
 pragma solidity 0.8.15;
 
-interface IPolygonZKEVMGlobalExitRoot {
+interface IPolygonZkEVMGlobalExitRoot {
     function getLastGlobalExitRoot() external view returns (bytes32);
 
     function updateExitRoot(bytes32 newRollupExitRoot) external;
 
-    function globalExitRootMap(bytes32 globalExitRootNum)
-        external
-        returns (uint256);
+    function globalExitRootMap(
+        bytes32 globalExitRootNum
+    ) external returns (uint256);
 }

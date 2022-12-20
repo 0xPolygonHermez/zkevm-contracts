@@ -2,13 +2,16 @@
 
 pragma solidity 0.8.15;
 
-import "./interfaces/IPolygonZKEVMGlobalExitRoot.sol";
+import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract PolygonZKEVMGlobalExitRoot is IPolygonZKEVMGlobalExitRoot, Initializable {
+contract PolygonZkEVMGlobalExitRoot is
+    IPolygonZkEVMGlobalExitRoot,
+    Initializable
+{
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
 
@@ -18,7 +21,7 @@ contract PolygonZKEVMGlobalExitRoot is IPolygonZKEVMGlobalExitRoot, Initializabl
     // Store every global exit root: Root --> rootNum
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // PolygonZKEVMBridge address
+    // PolygonZkEVMBridge address
     address public bridgeAddress;
 
     // Rollup contract address
@@ -34,7 +37,7 @@ contract PolygonZKEVMGlobalExitRoot is IPolygonZKEVMGlobalExitRoot, Initializabl
 
     /**
      * @param _rollupAddress Rollup contract address
-     * @param _bridgeAddress PolygonZKEVMBridge contract address
+     * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
     function initialize(
         address _rollupAddress,
@@ -51,7 +54,7 @@ contract PolygonZKEVMGlobalExitRoot is IPolygonZKEVMGlobalExitRoot, Initializabl
     function updateExitRoot(bytes32 newRoot) external {
         require(
             msg.sender == rollupAddress || msg.sender == bridgeAddress,
-            "PolygonZKEVMGlobalExitRoot::updateExitRoot: ONLY_ALLOWED_CONTRACTS"
+            "PolygonZkEVMGlobalExitRoot::updateExitRoot: ONLY_ALLOWED_CONTRACTS"
         );
         if (msg.sender == rollupAddress) {
             lastRollupExitRoot = newRoot;

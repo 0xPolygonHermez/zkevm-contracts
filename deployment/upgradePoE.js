@@ -7,11 +7,11 @@ async function main() {
     // compìle contracts
     await hre.run('compile');
 
-    const polygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
-    const polygonZKEVMProxyAddress = '0xfefefefefefefefefefefefee';
+    const polygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
+    const polygonZkEVMProxyAddress = '0xfefefefefefefefefefefefee';
 
     // Upgrade
-    const tx = await upgrades.upgradeProxy(polygonZKEVMProxyAddress, polygonZKEVMFactory);
+    const tx = await upgrades.upgradeProxy(polygonZkEVMProxyAddress, polygonZkEVMFactory);
 
     console.log(tx.deployTransaction);
     console.log('upgrade succesfull');

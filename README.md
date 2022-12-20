@@ -18,10 +18,10 @@ Private keys and mnemonics contained in this repository are used for internal te
 ## Repository structure
 
 - `contracts`: zkevm contracts
-  - `PolygonZKEVMBridge.sol`: transfer assets between chains
-    - `PolygonZKEVMGlobalExitRoot.sol`: manage global exit root in L1
-    - `PolygonZKEVMGlobalExitRootL2.sol`: manage global exit root in L2
-  - `PolygonZKEVM.sol`: consensus algorithm used by polyhon hermez zkevm
+  - `PolygonZkEVMBridge.sol`: transfer assets between chains
+    - `PolygonZkEVMGlobalExitRoot.sol`: manage global exit root in L1
+    - `PolygonZkEVMGlobalExitRootL2.sol`: manage global exit root in L2
+  - `PolygonZkEVM.sol`: consensus algorithm used by polyhon hermez zkevm
 - `docs`: specs and useful links
 - `test`: contracts tests
 

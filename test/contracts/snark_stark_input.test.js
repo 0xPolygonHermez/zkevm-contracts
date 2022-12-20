@@ -4,7 +4,7 @@ const { ethers, upgrades } = require('hardhat');
 const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
 describe('Polygon ZK-EVM snark stark input test', () => {
-    let polygonZKEVMContract;
+    let polygonZkEVMContract;
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
     let randomSigner;
 
@@ -19,9 +19,9 @@ describe('Polygon ZK-EVM snark stark input test', () => {
         [randomSigner] = await ethers.getSigners();
 
         // deploy Polygon ZK-EVM
-        const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
-        polygonZKEVMContract = await upgrades.deployProxy(
-            PolygonZKEVMFactory,
+        const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
+        polygonZkEVMContract = await upgrades.deployProxy(
+            PolygonZkEVMFactory,
             [
                 randomSigner.address,
                 randomSigner.address,
@@ -42,7 +42,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
             ],
         );
 
-        await polygonZKEVMContract.deployed();
+        await polygonZkEVMContract.deployed();
     });
 
     it('Check Accumualte input Hash', async () => {
@@ -60,7 +60,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
             timestamp,
             sequencerAddr,
         );
-        const accumulateInputHashSC = await polygonZKEVMContract.calculateAccInputHash(
+        const accumulateInputHashSC = await polygonZkEVMContract.calculateAccInputHash(
             oldAccInputHash,
             batchL2Data,
             globalExitRoot,
@@ -85,9 +85,9 @@ describe('Polygon ZK-EVM snark stark input test', () => {
         const lastPendingStateConsolidated = 0;
         const sequencedTimestamp = 999;
         // set smart contract with correct parameters
-        await polygonZKEVMContract.setStateRoot(oldStateRoot, oldNumBatch);
-        await polygonZKEVMContract.setSequencedBatches(newNumBatch, newAccInputHash, sequencedTimestamp, lastPendingStateConsolidated);
-        await polygonZKEVMContract.setSequencedBatch(1);
+        await polygonZkEVMContract.setStateRoot(oldStateRoot, oldNumBatch);
+        await polygonZkEVMContract.setSequencedBatches(newNumBatch, newAccInputHash, sequencedTimestamp, lastPendingStateConsolidated);
+        await polygonZkEVMContract.setSequencedBatch(1);
 
         await ethers.provider.send('hardhat_impersonateAccount', [aggregatorAddress]);
         const aggregator = await ethers.getSigner(aggregatorAddress);
@@ -98,7 +98,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
 
         // Compute SC input
         const pendingStateNum = 0;
-        const inputSnarkSC = await polygonZKEVMContract.connect(aggregator).getNextSnarkInput(
+        const inputSnarkSC = await polygonZkEVMContract.connect(aggregator).getNextSnarkInput(
             pendingStateNum,
             oldNumBatch,
             newNumBatch,

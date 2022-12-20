@@ -2,16 +2,16 @@
 pragma solidity 0.8.15;
 
 import "@openzeppelin/contracts/governance/TimelockController.sol";
-import "./PolygonZKEVM.sol";
+import "./PolygonZkEVM.sol";
 
 /**
  * @dev Contract module which acts as a timelocked controller.
  * This gives time for users of the controlled contract to exit before a potentially dangerous maintenance operation is applied.
  * If emergency mode of the zkevm contract system is active, this timelock have no delay.
  */
-contract PolygonZKEVMTimelock is TimelockController {
+contract PolygonZkEVMTimelock is TimelockController {
     // Polygon ZK-EVM address. Will be used to check if it's on emergency state.
-    PolygonZKEVM public polygonZKEVM;
+    PolygonZkEVM public polygonZkEVM;
 
     /**
      * @notice Constructor of timelock
@@ -19,16 +19,16 @@ contract PolygonZKEVMTimelock is TimelockController {
      * @param proposers accounts to be granted proposer and canceller roles
      * @param executors accounts to be granted executor role
      * @param admin optional account to be granted admin role; disable with zero address
-     * @param _polygonZKEVM PoE address
+     * @param _polygonZkEVM PoE address
      **/
     constructor(
         uint256 minDelay,
         address[] memory proposers,
         address[] memory executors,
         address admin,
-        PolygonZKEVM _polygonZKEVM
+        PolygonZkEVM _polygonZkEVM
     ) TimelockController(minDelay, proposers, executors, admin) {
-        polygonZKEVM = _polygonZKEVM;
+        polygonZkEVM = _polygonZkEVM;
     }
 
     /**
@@ -38,7 +38,7 @@ contract PolygonZKEVMTimelock is TimelockController {
      * If Polygon ZK-EVM is on emergency state the minDelay will be 0 instead.
      */
     function getMinDelay() public view override returns (uint256 duration) {
-        if (polygonZKEVM.isEmergencyState()) {
+        if (polygonZkEVM.isEmergencyState()) {
             return 0;
         } else {
             return super.getMinDelay();

@@ -38,7 +38,7 @@
           "0x9D98DeAbC42dd696Deb9e40b4f1CAB7dDBF55988"
         ]
       },
-      "contractName": "PolygonZKEVMGlobalExitRootL2",
+      "contractName": "PolygonZkEVMGlobalExitRootL2",
       "reason": ""
     },
     {
@@ -48,7 +48,7 @@
       "gasLimit": 10000000,
       "gasPrice": "0",
       "chainId": 1000,
-      "contractName": "PolygonZKEVMBridge"
+      "contractName": "PolygonZkEVMBridge"
       },
       {
         "from": "0xC949254d682D8c9ad5682521675b8F43b102aec4",
@@ -64,7 +64,7 @@
             "0xAE4bB80bE56B819606589DE61d5ec3b522EEB032",
             "0x0000000000000000000000000000000000000000"
         ],
-        "contractName": "PolygonZKEVMBridge"
+        "contractName": "PolygonZkEVMBridge"
       }
   ],
   "timestamp": 1944498031

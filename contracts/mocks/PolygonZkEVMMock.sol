@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.15;
 
-import "../PolygonZKEVM.sol";
+import "../PolygonZkEVM.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
  * There will be sequencer, which are able to send transactions. That transactions will be stored in the contract.
  * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
- * To enter and exit of the L2 network will be used a PolygonZKEVM Bridge smart contract
+ * To enter and exit of the L2 network will be used a PolygonZkEVM Bridge smart contract
  */
-contract PolygonZKEVMMock is PolygonZKEVM {
+contract PolygonZkEVMMock is PolygonZkEVM {
     /**
      * @notice calculate accumulate input hash from parameters
      * @param currentAccInputHash Accumulate input hash
@@ -61,7 +61,7 @@ contract PolygonZKEVMMock is PolygonZKEVM {
             // Already consolidated pending states can be used aswell
             require(
                 pendingStateNum <= lastPendingState,
-                "PolygonZKEVM::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+                "PolygonZkEVM::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -75,27 +75,27 @@ contract PolygonZKEVMMock is PolygonZKEVM {
             // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "PolygonZKEVM::verifyBatches: initNumBatch must match the pending state batch"
+                "PolygonZkEVM::verifyBatches: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "PolygonZKEVM::verifyBatches: initNumBatch state root does not exist"
+                "PolygonZkEVM::verifyBatches: initNumBatch state root does not exist"
             );
 
             // Check initNumBatch is inside the range
             require(
                 initNumBatch <= currentLastVerifiedBatch,
-                "PolygonZKEVM::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "PolygonZkEVM::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
         // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
-            "PolygonZKEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "PolygonZkEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -202,7 +202,7 @@ contract PolygonZKEVMMock is PolygonZKEVM {
             // Already consolidated pending states can be used aswell
             require(
                 pendingStateNum <= lastPendingState,
-                "PolygonZKEVM::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+                "PolygonZkEVM::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -216,27 +216,27 @@ contract PolygonZKEVMMock is PolygonZKEVM {
             // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "PolygonZKEVM::verifyBatches: initNumBatch must match the pending state batch"
+                "PolygonZkEVM::verifyBatches: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "PolygonZKEVM::verifyBatches: initNumBatch state root does not exist"
+                "PolygonZkEVM::verifyBatches: initNumBatch state root does not exist"
             );
 
             // Check initNumBatch is inside the range
             require(
                 initNumBatch <= currentLastVerifiedBatch,
-                "PolygonZKEVM::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "PolygonZkEVM::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
         // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
-            "PolygonZKEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "PolygonZkEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -254,7 +254,7 @@ contract PolygonZKEVMMock is PolygonZKEVM {
         // // Verify proof
         // require(
         //     rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-        //     "PolygonZKEVM::verifyBatches: INVALID_PROOF"
+        //     "PolygonZkEVM::verifyBatches: INVALID_PROOF"
         // );
 
         // // Get MATIC reward

@@ -1,4 +1,4 @@
-PolygonZKEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
+PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
 Contract responsible to manage the token interactions with other networks
 
 
@@ -7,7 +7,7 @@ Contract responsible to manage the token interactions with other networks
 ```solidity
   function initialize(
     uint32 _networkID,
-    contract IPolygonZKEVMGlobalExitRoot _globalExitRootManager
+    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager
   ) public
 ```
 
@@ -16,7 +16,7 @@ Contract responsible to manage the token interactions with other networks
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkID` | uint32 | networkID
-|`_globalExitRootManager` | contract IPolygonZKEVMGlobalExitRoot | global exit root manager address
+|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | global exit root manager address
 
 ### bridgeAsset
 ```solidity

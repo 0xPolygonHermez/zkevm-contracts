@@ -3,7 +3,7 @@
 pragma solidity 0.8.15;
 
 /**
- * @dev Define interface for PolygonZKEVM Bridge message receiver
+ * @dev Define interface for PolygonZkEVM Bridge message receiver
  */
 interface IBridgeMessageReceiver {
     function onMessageReceived(

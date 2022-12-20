@@ -15,7 +15,7 @@ Contract responsible for managing the exit roots across multiple networks
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_rollupAddress` | address | Rollup contract address
-|`_bridgeAddress` | address | PolygonZKEVMBridge contract address
+|`_bridgeAddress` | address | PolygonZkEVMBridge contract address
 
 ### updateExitRoot
 ```solidity

@@ -6,17 +6,17 @@ if npm run lint; then
     npx hardhat compile --force
     npm run docgen
     git add docs
-    cp artifacts/contracts/PolygonZKEVMBridge.sol/PolygonZKEVMBridge.json compiled-contracts/
-    cp artifacts/contracts/PolygonZKEVMGlobalExitRoot.sol/PolygonZKEVMGlobalExitRoot.json compiled-contracts/
-    cp artifacts/contracts/PolygonZKEVMGlobalExitRootL2.sol/PolygonZKEVMGlobalExitRootL2.json compiled-contracts/
+    cp artifacts/contracts/PolygonZkEVMBridge.sol/PolygonZkEVMBridge.json compiled-contracts/
+    cp artifacts/contracts/PolygonZkEVMGlobalExitRoot.sol/PolygonZkEVMGlobalExitRoot.json compiled-contracts/
+    cp artifacts/contracts/PolygonZkEVMGlobalExitRootL2.sol/PolygonZkEVMGlobalExitRootL2.json compiled-contracts/
     cp artifacts/contracts/lib/TokenWrapped.sol/TokenWrapped.json compiled-contracts/
-    cp artifacts/contracts/mocks/PolygonZKEVMBridgeMock.sol/PolygonZKEVMBridgeMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/PolygonZkEVMBridgeMock.sol/PolygonZkEVMBridgeMock.json compiled-contracts/
     cp artifacts/contracts/mocks/ERC20PermitMock.sol/ERC20PermitMock.json compiled-contracts/
-    cp artifacts/contracts/mocks/PolygonZKEVMGlobalExitRootL2Mock.sol/PolygonZKEVMGlobalExitRootL2Mock.json compiled-contracts/
-    cp artifacts/contracts/mocks/PolygonZKEVMGlobalExitRootMock.sol/PolygonZKEVMGlobalExitRootMock.json compiled-contracts/
-    cp artifacts/contracts/mocks/PolygonZKEVMMock.sol/PolygonZKEVMMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/PolygonZkEVMGlobalExitRootL2Mock.sol/PolygonZkEVMGlobalExitRootL2Mock.json compiled-contracts/
+    cp artifacts/contracts/mocks/PolygonZkEVMGlobalExitRootMock.sol/PolygonZkEVMGlobalExitRootMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/PolygonZkEVMMock.sol/PolygonZkEVMMock.json compiled-contracts/
     cp artifacts/contracts/mocks/VerifierRollupHelperMock.sol/VerifierRollupHelperMock.json compiled-contracts/
-    cp artifacts/contracts/PolygonZKEVM.sol/PolygonZKEVM.json compiled-contracts/
+    cp artifacts/contracts/PolygonZkEVM.sol/PolygonZkEVM.json compiled-contracts/
     cp artifacts/contracts/verifiers/Verifier.sol/Verifier.json compiled-contracts/
     git add compiled-contracts
     exit 0

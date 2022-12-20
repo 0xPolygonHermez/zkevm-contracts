@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  * Contract responsible for managing the exit roots for the L2 and global exit roots
  * The special circuit variables will be accesed and updated directly by the circuit
  */
-contract PolygonZKEVMGlobalExitRootL2 {
+contract PolygonZkEVMGlobalExitRootL2 {
     /////////////////////////////
     // Special circuit variables
     ////////////////////////////

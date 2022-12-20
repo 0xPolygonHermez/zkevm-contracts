@@ -3,18 +3,18 @@ There will be a trusted sequencer, which is able to send transactions.
 Any user can force some transaction and the sequencer will have a timeout to add them in the queue.
 The sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof.
 The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
-To enter and exit of the L2 network will be used a PolygonZKEVMBridge smart contract that will be deployed in both networks.
+To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
 
 
 ## Functions
 ### initialize
 ```solidity
   function initialize(
-    contract IPolygonZKEVMGlobalExitRoot _globalExitRootManager,
+    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
     contract IERC20Upgradeable _matic,
     contract IVerifierRollup _rollupVerifier,
-    contract IPolygonZKEVMBridge _bridgeAddress,
-    struct PolygonZKEVM.InitializePackedParameters initializePackedParameters,
+    contract IPolygonZkEVMBridge _bridgeAddress,
+    struct PolygonZkEVM.InitializePackedParameters initializePackedParameters,
     bytes32 genesisRoot,
     string _trustedSequencerURL,
     string _networkName
@@ -25,11 +25,11 @@ To enter and exit of the L2 network will be used a PolygonZKEVMBridge smart cont
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_globalExitRootManager` | contract IPolygonZKEVMGlobalExitRoot | Global exit root manager address
+|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | Global exit root manager address
 |`_matic` | contract IERC20Upgradeable | MATIC token address
 |`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
-|`_bridgeAddress` | contract IPolygonZKEVMBridge | Bridge address
-|`initializePackedParameters` | struct PolygonZKEVM.InitializePackedParameters | Struct to save gas and avoid stack too depp errors
+|`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
+|`initializePackedParameters` | struct PolygonZkEVM.InitializePackedParameters | Struct to save gas and avoid stack too depp errors
 |`genesisRoot` | bytes32 | Rollup genesis root
 |`_trustedSequencerURL` | string | Trusted sequencer URL
 |`_networkName` | string | L2 network name
@@ -37,7 +37,7 @@ To enter and exit of the L2 network will be used a PolygonZKEVMBridge smart cont
 ### sequenceBatches
 ```solidity
   function sequenceBatches(
-    struct PolygonZKEVM.BatchData[] batches
+    struct PolygonZkEVM.BatchData[] batches
   ) public
 ```
 Allows a sequencer to send multiple batches
@@ -46,7 +46,7 @@ Allows a sequencer to send multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonZKEVM.BatchData[] | Struct array which the necessary data to append new batces ot the sequence
+|`batches` | struct PolygonZkEVM.BatchData[] | Struct array which the necessary data to append new batces ot the sequence
 
 ### verifyBatches
 ```solidity
@@ -183,7 +183,7 @@ This should be used only in extreme cases where the trusted sequencer does not w
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
-    struct PolygonZKEVM.ForcedBatchData[] batches
+    struct PolygonZkEVM.ForcedBatchData[] batches
   ) public
 ```
 Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
@@ -192,7 +192,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer do not have do
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonZKEVM.ForcedBatchData[] | Struct array which the necessary data to append new batces ot the sequence
+|`batches` | struct PolygonZkEVM.ForcedBatchData[] | Struct array which the necessary data to append new batces ot the sequence
 
 ### setTrustedSequencer
 ```solidity
@@ -419,7 +419,7 @@ Internal functoin that prove a different state root given the same batches to ve
     uint64 sequencedBatchNum
   ) external
 ```
-Function to activate emergency state, which also enable the emergency mode on both PoE and PolygonZKEVM Bridge contrats
+Function to activate emergency state, which also enable the emergency mode on both PoE and PolygonZkEVM Bridge contrats
 If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
 
 
@@ -433,7 +433,7 @@ If not called by the owner owner must be provided a batcnNum that does not have 
   function deactivateEmergencyState(
   ) external
 ```
-Function to deactivate emergency state on both PoE and PolygonZKEVMBridge contrats
+Function to deactivate emergency state on both PoE and PolygonZkEVMBridge contrats
 
 
 
@@ -442,7 +442,7 @@ Function to deactivate emergency state on both PoE and PolygonZKEVMBridge contra
   function _activateEmergencyState(
   ) internal
 ```
-Internal function to activate emergency state on both PoE and PolygonZKEVM Bridge contrats
+Internal function to activate emergency state on both PoE and PolygonZkEVM Bridge contrats
 
 
 

@@ -17,9 +17,9 @@ const inputJson = require('./test-inputs/input.json');
 describe('Real flow test', () => {
     let verifierContract;
     let maticTokenContract;
-    let polygonZKEVMBridgeContract;
-    let polygonZKEVMContract;
-    let polygonZKEVMGlobalExitRoot;
+    let polygonZkEVMBridgeContract;
+    let polygonZkEVMContract;
+    let polygonZkEVMGlobalExitRoot;
     let deployer;
     let trustedSequencer;
     let trustedAggregator;
@@ -68,32 +68,32 @@ describe('Real flow test', () => {
         );
         await maticTokenContract.deployed();
 
-        // deploy PolygonZKEVMBridge
-        const polygonZKEVMBridgeFactory = await ethers.getContractFactory('PolygonZKEVMBridge');
-        polygonZKEVMBridgeContract = await upgrades.deployProxy(polygonZKEVMBridgeFactory, [], { initializer: false });
+        // deploy PolygonZkEVMBridge
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
+        polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });
 
         // deploy PoE
-        const PolygonZKEVMFactory = await ethers.getContractFactory('PolygonZKEVMMock');
-        polygonZKEVMContract = await upgrades.deployProxy(PolygonZKEVMFactory, [], { initializer: false });
+        const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
+        polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], { initializer: false });
 
         // deploy global exit root manager
-        const PolygonZKEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZKEVMGlobalExitRootMock');
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootMock');
 
-        polygonZKEVMGlobalExitRoot = await PolygonZKEVMGlobalExitRootFactory.deploy(
-            polygonZKEVMContract.address,
-            polygonZKEVMBridgeContract.address,
+        polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
+            polygonZkEVMContract.address,
+            polygonZkEVMBridgeContract.address,
         );
-        await polygonZKEVMBridgeContract.initialize(
+        await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,
-            polygonZKEVMGlobalExitRoot.address,
-            polygonZKEVMContract.address,
+            polygonZkEVMGlobalExitRoot.address,
+            polygonZkEVMContract.address,
         );
 
-        await polygonZKEVMContract.initialize(
-            polygonZKEVMGlobalExitRoot.address,
+        await polygonZkEVMContract.initialize(
+            polygonZkEVMGlobalExitRoot.address,
             maticTokenContract.address,
             verifierContract.address,
-            polygonZKEVMBridgeContract.address,
+            polygonZkEVMBridgeContract.address,
             {
                 admin: admin.address,
                 chainID,
@@ -117,14 +117,14 @@ describe('Real flow test', () => {
         const batchesNum = batchesData.length;
 
         // Approve tokens
-        const maticAmount = await polygonZKEVMContract.getCurrentBatchFee();
+        const maticAmount = await polygonZkEVMContract.getCurrentBatchFee();
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZKEVMContract.address, maticAmount.mul(batchesNum)),
+            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount.mul(batchesNum)),
         ).to.emit(maticTokenContract, 'Approval');
 
         // prepare PoE
-        await polygonZKEVMContract.setVerifiedBatch(inputJson.oldNumBatch);
-        await polygonZKEVMContract.setSequencedBatch(inputJson.oldNumBatch);
+        await polygonZkEVMContract.setVerifiedBatch(inputJson.oldNumBatch);
+        await polygonZkEVMContract.setSequencedBatch(inputJson.oldNumBatch);
         const lastTimestamp = batchesData[batchesNum - 1].timestamp;
         await ethers.provider.send('evm_setNextBlockTimestamp', [lastTimestamp]);
 
@@ -151,14 +151,14 @@ describe('Real flow test', () => {
             // prapare globalExitRoot
             const randomTimestamp = 1001;
             const { globalExitRoot } = batchesData[0];
-            await polygonZKEVMGlobalExitRoot.setGlobalExitRoot(globalExitRoot, randomTimestamp);
+            await polygonZkEVMGlobalExitRoot.setGlobalExitRoot(globalExitRoot, randomTimestamp);
 
-            const lastBatchSequenced = await polygonZKEVMContract.lastBatchSequenced();
+            const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
 
             // check trusted sequencer
             const trustedSequencerAddress = inputJson.singleBatchData[i].sequencerAddr;
             if (trustedSequencer.address !== trustedSequencerAddress) {
-                await polygonZKEVMContract.connect(admin).setTrustedSequencer(trustedSequencerAddress);
+                await polygonZkEVMContract.connect(admin).setTrustedSequencer(trustedSequencerAddress);
                 await ethers.provider.send('hardhat_impersonateAccount', [trustedSequencerAddress]);
                 trustedSequencer = await ethers.getSigner(trustedSequencerAddress);
                 await deployer.sendTransaction({
@@ -166,19 +166,19 @@ describe('Real flow test', () => {
                     value: ethers.utils.parseEther('4'),
                 });
                 await expect(
-                    maticTokenContract.connect(trustedSequencer).approve(polygonZKEVMContract.address, maticAmount.mul(batchesNum)),
+                    maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount.mul(batchesNum)),
                 ).to.emit(maticTokenContract, 'Approval');
                 await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('100'));
             }
 
             // Sequence Batches
-            await expect(polygonZKEVMContract.connect(trustedSequencer).sequenceBatches([currentSequence]))
-                .to.emit(polygonZKEVMContract, 'SequenceBatches')
+            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([currentSequence]))
+                .to.emit(polygonZkEVMContract, 'SequenceBatches')
                 .withArgs(Number(lastBatchSequenced) + 1);
         }
 
         // Set state and exit root
-        await polygonZKEVMContract.setStateRoot(inputJson.oldStateRoot, inputJson.oldNumBatch);
+        await polygonZkEVMContract.setStateRoot(inputJson.oldStateRoot, inputJson.oldNumBatch);
 
         const { aggregatorAddress } = inputJson;
         await ethers.provider.send('hardhat_impersonateAccount', [aggregatorAddress]);
@@ -187,9 +187,9 @@ describe('Real flow test', () => {
             to: aggregatorAddress,
             value: ethers.utils.parseEther('4'),
         });
-        await polygonZKEVMContract.connect(admin).setTrustedAggregator(aggregatorAddress);
+        await polygonZkEVMContract.connect(admin).setTrustedAggregator(aggregatorAddress);
 
-        const batchAccInputHash = (await polygonZKEVMContract.sequencedBatches(inputJson.newNumBatch)).accInputHash;
+        const batchAccInputHash = (await polygonZkEVMContract.sequencedBatches(inputJson.newNumBatch)).accInputHash;
         expect(batchAccInputHash).to.be.equal(inputJson.newAccInputHash);
 
         const {
@@ -219,7 +219,7 @@ describe('Real flow test', () => {
         const pendingStateNum = 0;
         // Verify batch
         await expect(
-            polygonZKEVMContract.connect(aggregator).trustedVerifyBatches(
+            polygonZkEVMContract.connect(aggregator).trustedVerifyBatches(
                 pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
@@ -229,7 +229,7 @@ describe('Real flow test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(polygonZKEVMContract, 'TrustedVerifyBatches')
+        ).to.emit(polygonZkEVMContract, 'TrustedVerifyBatches')
             .withArgs(newNumBatch, newStateRoot, aggregator.address);
     });
 });

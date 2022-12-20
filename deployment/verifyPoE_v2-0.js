@@ -50,7 +50,7 @@ async function main() {
 
     // verify proxies
 
-    const contractNames = ['polygonZKEVMAddress', 'PolygonZKEVMBridgeAddress', 'PolygonZKEVMGlobalExitRootAddress'];
+    const contractNames = ['polygonZkEVMAddress', 'PolygonZkEVMBridgeAddress', 'PolygonZkEVMGlobalExitRootAddress'];
 
     for (let i = 0; i < contractNames.length; i++) {
         try {

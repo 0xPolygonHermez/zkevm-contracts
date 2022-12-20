@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.15;
 
-interface IPolygonZKEVMBridge {
+interface IPolygonZkEVMBridge {
     function bridgeAsset(
         address token,
         uint32 destinationNetwork,

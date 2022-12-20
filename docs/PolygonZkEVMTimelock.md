@@ -11,7 +11,7 @@ If emergency mode of the zkevm contract system is active, this timelock have no 
     address[] proposers,
     address[] executors,
     address admin,
-    contract PolygonZKEVM _polygonZKEVM
+    contract PolygonZkEVM _polygonZkEVM
   ) public
 ```
 Constructor of timelock
@@ -24,7 +24,7 @@ Constructor of timelock
 |`proposers` | address[] | accounts to be granted proposer and canceller roles
 |`executors` | address[] | accounts to be granted executor role
 |`admin` | address | optional account to be granted admin role; disable with zero address
-|`_polygonZKEVM` | contract PolygonZKEVM | PoE address
+|`_polygonZkEVM` | contract PolygonZkEVM | PoE address
 
 
 ### getMinDelay
