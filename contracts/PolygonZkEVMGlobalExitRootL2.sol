@@ -40,7 +40,7 @@ contract PolygonZkEVMGlobalExitRootL2 {
     function updateExitRoot(bytes32 newRoot) external {
         require(
             msg.sender == bridgeAddress,
-            "PolygonZkEVMGlobalExitRootL2::updateExitRoot: ONLY_BRIDGE"
+            "PolygonZkEVMGlobalExitRootL2::updateExitRoot: Only PolygonZkEVMBridge"
         );
         lastRollupExitRoot = newRoot;
     }
