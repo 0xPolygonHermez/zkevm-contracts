@@ -7,11 +7,11 @@ const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
-
 const deployParameters = require('./deploy_parameters.json');
 const genesis = require('./genesis.json');
 
 async function main() {
+    // Check if it's .openzeppelin and revert if it exists
     const networkIDMainnet = 0;
     const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployParameters.trustedSequencerAddress;

@@ -129,6 +129,15 @@ module.exports = {
         count: 20,
       },
     },
+    zkevm: {
+      url: 'https://rpc.public2.zkevm-test.net',
+      accounts: {
+        mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+        path: "m/44'/60'/0'/0",
+        initialIndex: 0,
+        count: 20,
+      },
+    },
   },
   gasReporter: {
     currency: 'USD',
@@ -137,5 +146,15 @@ module.exports = {
   },
   etherscan: {
     apiKey: `${process.env.ETHERSCAN_API_KEY}`,
+    customChains: [
+      {
+        network: "zkevm",
+        chainId: 1422,
+        urls: {
+          apiURL: "https://explorer.public2.zkevm-test.net/api",
+          browserURL: "https://explorer.public2.zkevm-test.net"
+        }
+      }
+    ]
   }
 };
