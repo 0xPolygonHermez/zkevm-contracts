@@ -30,6 +30,10 @@
   "homepage": "https://github.com/0xPolygonHermez/contracts-zkEVM#readme",
   "license": "pending",
   "dependencies": {
+    "chai": "^4.3.4",
+    "ethers": "^5.5.1"
+  },
+  "devDependencies": {
     "@0xpolygonhermez/zkevm-commonjs": "github:0xPolygonHermez/zkevm-commonjs#v0.6.0.0-rc.1",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
@@ -38,14 +42,12 @@
     "@openzeppelin/contracts-upgradeable": "^4.7.3",
     "@openzeppelin/hardhat-upgrades": "^1.20.0",
     "@openzeppelin/test-helpers": "^0.5.15",
-    "chai": "^4.3.4",
     "circomlibjs": "0.1.1",
     "dotenv": "^8.2.0",
     "eslint": "^8.3.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-mocha": "^9.0.0",
     "ethereum-waffle": "^3.4.4",
-    "ethers": "^5.5.1",
     "ffjavascript": "^0.2.39",
     "hardhat": "^2.11.1",
     "hardhat-gas-reporter": "^1.0.4",

@@ -25,5 +25,6 @@ module.exports = {
         'import/prefer-default-export': [0],
         'lines-between-class-members': ['error', 'always', { exceptAfterSingleLine: true }],
         'multiline-comment-style': 'error',
+        'import/no-extraneous-dependencies': 'off'
     },
 };
