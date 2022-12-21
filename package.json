@@ -56,15 +56,16 @@
     "solidity-docgen": "^0.5.16"
   },
   "scripts": {
+    "saveDeployment:goerli": "mkdir -p deployments/goerli_$(date +%s) && cp -r deployment/deploy_*.json deployments/goerli_$(date +%s) && cp .openzeppelin/goerli.json deployments/goerli_$(date +%s)",
     "test": "npx hardhat test test/contracts/**.test.js",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates -e ./contracts/verifiers,./contracts/mocks",
-    "deploy:PoE2_0:hardhat": "npx hardhat run deployment/deployPoE_v2-0.js --network hardhat",
-    "deploy:PoE2_0:goerli": "npx hardhat run deployment/deployPoE_v2-0.js --network goerli",
-    "verify:PoE2_0:goerli": "npx hardhat run deployment/verifyPoE_v2-0.js --network goerli",
+    "deploy:ZkEVM:hardhat": "npx hardhat run deployment/deployContracts.js --network hardhat",
+    "deploy:ZkEVM:goerli": "npx hardhat run deployment/deployContracts.js --network goerli && npm run saveDeployment:goerli",
+    "upgrade:timelock:goerli": "npx hardhat run deployment/timeLockUpgrade.js --network goerli",
+    "verify:ZkEVM:goerli": "npx hardhat run deployment/verifyContracts.js --network goerli",
     "lint": "npx eslint ./test && npx eslint ./docker/scripts && npx eslint ./deployment && npx eslint ./src",
     "lint:fix": "npx eslint ./test --fix && npx eslint ./docker/scripts --fix && npx eslint ./deployment --fix && npx eslint ./src --fix",
     "compile": "npx hardhat compile",
-    "check:deploy:PoE": "npx hardhat node > /dev/null 2>&1 & npx hardhat run --network localhost deployment/testnet/deployPoETestnet.js && npx hardhat run --network localhost deployment/testnet/checkDeployment.js && pkill -f 'hardhat'",
     "docker:contracts": "./docker/scripts/deploy-docker.sh",
     "push:docker:contracts": "docker push hermeznetwork/geth-zkevm-contracts",
     "update:genesis": "node src/create-genesis.js --gen ../deployment/genesis-gen.json --out ../deployment/genesis.json && node src/create-genesis.js --gen ../docker/scripts/genesis_gen_docker.json --out ../docker/scripts/genesis_docker.json"

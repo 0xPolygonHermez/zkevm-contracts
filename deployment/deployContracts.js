@@ -10,9 +10,19 @@ const pathOutputJson = path.join(__dirname, './deploy_output.json');
 const deployParameters = require('./deploy_parameters.json');
 const genesis = require('./genesis.json');
 
+const pathOZUpgradability = path.join(__dirname, `../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
+
 async function main() {
-    // Check if it's .openzeppelin and revert if it exists
+    // Check that there0s no previous OZ deployment
+    if (fs.existsSync(pathOZUpgradability)) {
+        throw new Error(`Theres upggradability information from previous deployments, it's mandatory to erase them before start a new one, path: ${pathOZUpgradability}`);
+    }
+
+    // Constant variables
     const networkIDMainnet = 0;
+    const attemptsDeployProxy = 20;
+
+    // Check deploy parameters
     const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || 'http://zkevm-json-rpc:8123';
@@ -23,8 +33,7 @@ async function main() {
     const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1);
     const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1);
 
-    const attemptsDeployProxy = 20;
-
+    // Load provider
     let currentProvider = ethers.provider;
     if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK !== 'hardhat') {
@@ -50,6 +59,7 @@ async function main() {
         }
     }
 
+    // Load deployer
     let deployer;
     if (deployParameters.privateKey) {
         deployer = new ethers.Wallet(deployParameters.privateKey, currentProvider);
@@ -58,6 +68,7 @@ async function main() {
     } else {
         [deployer] = (await ethers.getSigners());
     }
+    // Check trusted address from deploy parameters
     const admin = deployParameters.admin || deployer.address;
     const trustedAggregator = deployParameters.trustedAggregator || deployer.address;
     const timelockAddress = deployParameters.timelockAddress || deployer.address;
@@ -149,7 +160,7 @@ async function main() {
     console.log('#######################\n');
     console.log('PolygonZkEVMBridge deployed to:', polygonZkEVMBridgeContract.address);
 
-    // deploy PoE
+    // deploy PolygonZkEVMMock
     const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock', deployer);
     let polygonZkEVMContract;
     for (let i = 0; i < attemptsDeployProxy; i++) {
@@ -189,7 +200,7 @@ async function main() {
     console.log('#######################');
     console.log('PolygonZkEVMGlobalExitRootAddress:', await polygonZkEVMBridgeContract.globalExitRootManager());
     console.log('networkID:', await polygonZkEVMBridgeContract.networkID());
-    console.log('zkEVMaddress:', await polygonZkEVMBridgeContract.zkEVMaddress());
+    console.log('zkEVMaddress:', await polygonZkEVMBridgeContract.polygonZkEVMaddress());
 
     /*
      * Initialize Polygon ZK-EVM
@@ -240,7 +251,7 @@ async function main() {
     const deploymentBlockNumber = (await polygonZkEVMContract.deployTransaction.wait()).blockNumber;
 
     console.log('\n#######################');
-    console.log('#####    Checks  PoE  #####');
+    console.log('#####    Checks  PolygonZkEVMMock  #####');
     console.log('#######################');
     console.log('PolygonZkEVMGlobalExitRootAddress:', await polygonZkEVMContract.globalExitRootManager());
     console.log('maticTokenAddress:', await polygonZkEVMContract.matic());
@@ -300,7 +311,7 @@ async function main() {
     console.log('timelockAddress:', timelockAddress);
     console.log('zkEVMAddress:', polygonZkEVMContract.address);
 
-    const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock');
+    const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock', deployer);
     const timelockContract = await timelockContractFactory.deploy(
         minDelayTimelock,
         [timelockAddress],
@@ -322,10 +333,8 @@ async function main() {
     console.log('minDelayTimelock:', await timelockContract.getMinDelay());
     console.log('polygonZkEVM:', polygonZkEVMContract.address);
 
-    /*
-     *  Transfer ownership of the proxyAdmin to timelock
-     * await upgrades.admin.transferProxyAdminOwnership(timelockContract.address);
-     */
+    // Transfer ownership of the proxyAdmin to timelock
+    await upgrades.admin.transferProxyAdminOwnership(timelockContract.address);
 
     const outputJson = {
         polygonZkEVMAddress: polygonZkEVMContract.address,

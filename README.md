@@ -60,7 +60,7 @@ npm run lint:fix
 ## Deploy on hardhat
 
 ```
-npm run deploy:PoE2_0:hardhat
+npm run deploy:ZkEVM:hardhat
 ```
 
 ## Build dockers
