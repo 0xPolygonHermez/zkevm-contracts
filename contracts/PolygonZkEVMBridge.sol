@@ -145,7 +145,7 @@ contract PolygonZkEVMBridge is
             // Ether transfer
             require(
                 msg.value == amount,
-                "PolygonZkEVMBridge::bridgeAsset: amount does not match message.value"
+                "PolygonZkEVMBridge::bridgeAsset: Amount does not match message.value"
             );
 
             // Ether is treated as ether from mainnet

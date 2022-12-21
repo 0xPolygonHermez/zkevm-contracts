@@ -737,7 +737,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "PolygonZkEVM::verifyBatches: invalid proof"
+            "PolygonZkEVM::verifyBatches: Invalid proof"
         );
 
         // Get MATIC reward
@@ -1372,7 +1372,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "PolygonZkEVM::proveNonDeterministicPendingState: invalid proof"
+            "PolygonZkEVM::proveNonDeterministicPendingState: Invalid proof"
         );
 
         require(
