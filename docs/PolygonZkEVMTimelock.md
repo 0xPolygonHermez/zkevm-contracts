@@ -24,7 +24,7 @@ Constructor of timelock
 |`proposers` | address[] | accounts to be granted proposer and canceller roles
 |`executors` | address[] | accounts to be granted executor role
 |`admin` | address | optional account to be granted admin role; disable with zero address
-|`_polygonZkEVM` | contract PolygonZkEVM | PoE address
+|`_polygonZkEVM` | contract PolygonZkEVM | polygonZkEVM address
 
 
 ### getMinDelay

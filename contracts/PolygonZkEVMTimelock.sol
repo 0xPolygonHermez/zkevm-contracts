@@ -19,7 +19,7 @@ contract PolygonZkEVMTimelock is TimelockController {
      * @param proposers accounts to be granted proposer and canceller roles
      * @param executors accounts to be granted executor role
      * @param admin optional account to be granted admin role; disable with zero address
-     * @param _polygonZkEVM PoE address
+     * @param _polygonZkEVM polygonZkEVM address
      **/
     constructor(
         uint256 minDelay,

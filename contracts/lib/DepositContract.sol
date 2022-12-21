@@ -57,7 +57,7 @@ contract DepositContract is Initializable {
         // Avoid overflowing the Merkle tree (and prevent edge case in computing `_branch`)
         require(
             depositCount < _MAX_DEPOSIT_COUNT,
-            "DepositContract:_deposit: MERKLE_TREE_FULL"
+            "DepositContract:_deposit: Merkle tree full"
         );
 
         // Add deposit data root to Merkle tree (update a single `_branch` node)

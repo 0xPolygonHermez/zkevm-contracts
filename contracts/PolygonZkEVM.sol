@@ -106,12 +106,12 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
     // Max transactions bytes that can be added in a single batch
-    // Max keccaks circuit = (2**23 / 158418) * 9 = 468
-    // Bytes hashed per keccak = 136
-    // Minimum constant keccaks batch = 4
-    // Max bytes allowed = (468 - 4) * 136 = 63104 bytes - 1 byte padding
-    // Rounded to 60000 bytes
-    uint256 public constant MAX_TRANSACTIONS_BYTE_LENGTH = 60000;
+    // Max keccaks circuit = (2**23 / 155286) * 44 = 2376
+    // Bytes per keccak = 136
+    // Minimum Static keccaks batch = 2
+    // Max bytes allowed = (2376 - 2) * 136 = 322864 bytes - 1 byte padding
+    // Rounded to 300000 bytes
+    uint256 public constant MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
 
     // Force batch timeout
     uint64 public constant FORCE_BATCH_TIMEOUT = 5 days;
@@ -119,7 +119,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
     uint64 public constant HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
-    // Maximum batches that can be verified in one call TODO depends on our current metrics
+    // Maximum batches that can be verified in one call. It depends on our current metrics
     // This should be a protection against someone that trys to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 public constant MAX_VERIFY_BATCHES = 1000;
 
@@ -130,7 +130,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     // Adaptatly the batchFee will be updated to achieve this target
     uint64 public veryBatchTimeTarget;
 
-    // Batch fee multiplier with 3 decimal that goes from 1000 - 1024
+    // Batch fee multiplier with 3 decimals that goes from 1000 - 1024
     uint16 public multiplierBatchFee;
 
     // MATIC token address
@@ -467,7 +467,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
                 require(
                     currentBatch.transactions.length <
                         MAX_TRANSACTIONS_BYTE_LENGTH,
-                    "ProofOfEfficiePendingStatecy::sequenceBatches: Transactions bytes overflow"
+                    "PolygonZkEVM::sequenceBatches: Transactions bytes overflow"
                 );
             }
 
@@ -737,7 +737,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "PolygonZkEVM::verifyBatches: INVALID_PROOF"
+            "PolygonZkEVM::verifyBatches: Invalid proof"
         );
 
         // Get MATIC reward
@@ -1180,7 +1180,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     /////////////////////////////////
 
     /**
-     * @notice Allows to halt the PoE if its possible to prove a different state root given the same batches
+     * @notice Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
      * @param initPendingStateNum Init pending state, 0 when consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -1234,7 +1234,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Allows to halt the PoE if its possible to prove a different state root given the same batches
+     * @notice Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
      * @param initPendingStateNum Init pending state, 0 when consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -1372,7 +1372,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "PolygonZkEVM::proveNonDeterministicPendingState: INVALID_PROOF"
+            "PolygonZkEVM::proveNonDeterministicPendingState: Invalid proof"
         );
 
         require(
@@ -1383,7 +1383,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Function to activate emergency state, which also enable the emergency mode on both PoE and PolygonZkEVM Bridge contrats
+     * @notice Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contrats
      * If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
      * @param sequencedBatchNum Sequenced batch number that has not been aggreagated in HALT_AGGREGATION_TIMEOUT
      */
@@ -1424,7 +1424,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Function to deactivate emergency state on both PoE and PolygonZkEVMBridge contrats
+     * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
      */
     function deactivateEmergencyState() external ifEmergencyState onlyAdmin {
         // Deactivate emergency state on PolygonZkEVMBridge
@@ -1435,7 +1435,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Internal function to activate emergency state on both PoE and PolygonZkEVM Bridge contrats
+     * @notice Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
      */
     function _activateEmergencyState() internal override {
         // Activate emergency state on PolygonZkEVM Bridge

@@ -54,7 +54,7 @@ contract PolygonZkEVMGlobalExitRoot is
     function updateExitRoot(bytes32 newRoot) external {
         require(
             msg.sender == rollupAddress || msg.sender == bridgeAddress,
-            "PolygonZkEVMGlobalExitRoot::updateExitRoot: ONLY_ALLOWED_CONTRACTS"
+            "PolygonZkEVMGlobalExitRoot::updateExitRoot: Only allowed contracts"
         );
         if (msg.sender == rollupAddress) {
             lastRollupExitRoot = newRoot;

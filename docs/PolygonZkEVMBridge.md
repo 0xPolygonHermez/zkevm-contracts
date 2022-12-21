@@ -119,7 +119,7 @@ Verify merkle proof and execute message
 |`originAddress` | address | Origin address
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
-|`amount` | uint256 | Amount of tokens
+|`amount` | uint256 | message value
 |`metadata` | bytes | Abi encoded metadata if any, empty otherwise
 
 ### precalculatedWrapperAddress
