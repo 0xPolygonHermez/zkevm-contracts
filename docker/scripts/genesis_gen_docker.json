@@ -6,7 +6,7 @@
     {
       "address": "0x9D98DeAbC42dd696Deb9e40b4f1CAB7dDBF55988",
       "pvtKey": "0x00",
-      "balance": "100000000000000000000000",
+      "balance": "200000000000000000000000000",
       "nonce": "0"
     },
     {
@@ -38,7 +38,7 @@
           "0x9D98DeAbC42dd696Deb9e40b4f1CAB7dDBF55988"
         ]
       },
-      "contractName": "GlobalExitRootManagerL2",
+      "contractName": "PolygonZkEVMGlobalExitRootL2",
       "reason": ""
     },
     {
@@ -48,7 +48,7 @@
       "gasLimit": 10000000,
       "gasPrice": "0",
       "chainId": 1000,
-      "contractName": "Bridge"
+      "contractName": "PolygonZkEVMBridge"
       },
       {
         "from": "0xC949254d682D8c9ad5682521675b8F43b102aec4",
@@ -62,10 +62,9 @@
         "paramsFunction": [
             1,
             "0xAE4bB80bE56B819606589DE61d5ec3b522EEB032",
-            "0x0000000000000000000000000000000000000000",
-            0
+            "0x0000000000000000000000000000000000000000"
         ],
-        "contractName": "Bridge"
+        "contractName": "PolygonZkEVMBridge"
       }
   ],
   "timestamp": 1944498031

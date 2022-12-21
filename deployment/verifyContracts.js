@@ -5,9 +5,10 @@ const hre = require('hardhat');
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const openzeppelinUpgrade = require(`../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 const pathDeployOutputParameters = path.join(__dirname, './deploy_output.json');
+const pathDeployParameters = path.join(__dirname, './deploy_parameters.json');
 const deployOutputParameters = require(pathDeployOutputParameters);
+const deployParameters = require(pathDeployParameters);
 
 async function main() {
     // load deployer account
@@ -37,7 +38,7 @@ async function main() {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
-    // verify verifierMock
+    // verify verifier
     try {
         await hre.run(
             'verify:verify',
@@ -49,11 +50,47 @@ async function main() {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
-    // verify upgradable SC (hermez and Auction)
-    for (const implementation in openzeppelinUpgrade.impls) {
-        const { address } = openzeppelinUpgrade.impls[implementation];
+    // verify timeLock
+    let deployer;
+    if (deployParameters.privateKey) {
+        deployer = new ethers.Wallet(deployParameters.privateKey);
+    } else if (process.env.MNEMONIC) {
+        deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0');
+    } else {
+        [deployer] = (await ethers.getSigners());
+    }
+
+    const minDelayTimelock = deployParameters.minDelayTimelock || 10;
+    const timelockAddress = deployParameters.timelockAddress || deployer.address;
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: deployOutputParameters.timelockContractAddress,
+                constructorArguments: [
+                    minDelayTimelock,
+                    [timelockAddress],
+                    [timelockAddress],
+                    timelockAddress,
+                    deployOutputParameters.polygonZkEVMAddress,
+                ],
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
+    }
+
+    // verify proxies
+    const contractNames = ['polygonZkEVMAddress', 'polygonZkEVMBridgeAddress', 'polygonZkEVMGlobalExitRootAddress'];
+
+    for (let i = 0; i < contractNames.length; i++) {
         try {
-            await hre.run('verify:verify', { address });
+            await hre.run(
+                'verify:verify',
+                {
+                    address: deployOutputParameters[contractNames[i]],
+                },
+            );
         } catch (error) {
             expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
         }

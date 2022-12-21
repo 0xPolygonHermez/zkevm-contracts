@@ -14,7 +14,7 @@
 ### mint
 ```solidity
   function mint(
-  ) external returns (bool)
+  ) external
 ```
 
 
@@ -23,7 +23,7 @@
 ### burn
 ```solidity
   function burn(
-  ) external returns (bool)
+  ) external
 ```
 
 

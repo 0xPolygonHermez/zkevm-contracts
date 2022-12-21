@@ -2,23 +2,26 @@
 
 pragma solidity 0.8.15;
 
-import "./interfaces/IGlobalExitRootManager.sol";
+import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
+contract PolygonZkEVMGlobalExitRoot is
+    IPolygonZkEVMGlobalExitRoot,
+    Initializable
+{
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
 
     // Mainnet exit root, this will be updated every time a deposit is made in mainnet
     bytes32 public lastMainnetExitRoot;
 
-    // Store every global exit root: Root --> rootNum
+    // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // Bridge address
+    // PolygonZkEVMBridge address
     address public bridgeAddress;
 
     // Rollup contract address
@@ -34,12 +37,12 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
 
     /**
      * @param _rollupAddress Rollup contract address
-     * @param _bridgeAddress Bridge contract address
+     * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
-    function initialize(address _rollupAddress, address _bridgeAddress)
-        public
-        initializer
-    {
+    function initialize(
+        address _rollupAddress,
+        address _bridgeAddress
+    ) public initializer {
         rollupAddress = _rollupAddress;
         bridgeAddress = _bridgeAddress;
     }
@@ -51,7 +54,7 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
     function updateExitRoot(bytes32 newRoot) external {
         require(
             msg.sender == rollupAddress || msg.sender == bridgeAddress,
-            "GlobalExitRootManager::updateExitRoot: ONLY_ALLOWED_CONTRACTS"
+            "PolygonZkEVMGlobalExitRoot::updateExitRoot: Only allowed contracts"
         );
         if (msg.sender == rollupAddress) {
             lastRollupExitRoot = newRoot;
@@ -64,7 +67,7 @@ contract GlobalExitRootManager is IGlobalExitRootManager, Initializable {
             abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
         );
 
-        // If it already exist, do not modify the timestamp
+        // If it already exists, do not modify the timestamp
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
             globalExitRootMap[newGlobalExitRoot] = block.timestamp;
             emit UpdateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);

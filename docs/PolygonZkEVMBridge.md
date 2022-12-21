@@ -1,4 +1,4 @@
-Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
+PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
 Contract responsible to manage the token interactions with other networks
 
 
@@ -7,7 +7,7 @@ Contract responsible to manage the token interactions with other networks
 ```solidity
   function initialize(
     uint32 _networkID,
-    contract IGlobalExitRootManager _globalExitRootManager
+    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager
   ) public
 ```
 
@@ -16,7 +16,7 @@ Contract responsible to manage the token interactions with other networks
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkID` | uint32 | networkID
-|`_globalExitRootManager` | contract IGlobalExitRootManager | global exit root manager address
+|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | global exit root manager address
 
 ### bridgeAsset
 ```solidity
@@ -119,7 +119,7 @@ Verify merkle proof and execute message
 |`originAddress` | address | Origin address
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
-|`amount` | uint256 | Amount of tokens
+|`amount` | uint256 | message value
 |`metadata` | bytes | Abi encoded metadata if any, empty otherwise
 
 ### precalculatedWrapperAddress
@@ -160,7 +160,7 @@ Returns the address of a wrapper using the token information if already exist
   ) external
 ```
 Function to activate the emergency state
-     " Only can be called by the proof of efficiency in extreme situations
+     " Only can be called by the Polygon ZK-EVM in extreme situations
 
 
 
@@ -170,24 +170,9 @@ Function to activate the emergency state
   ) external
 ```
 Function to deactivate the emergency state
-     " Only can be called by the proof of efficiency
+     " Only can be called by the Polygon ZK-EVM
 
 
-
-### setClaimTimeout
-```solidity
-  function setClaimTimeout(
-    uint256 newClaimTimeout
-  ) external
-```
-Function to update the claim timeout
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newClaimTimeout` | uint256 | new claim timeout value
-Only can be called by the owner
 
 ### _verifyLeaf
 ```solidity
@@ -223,6 +208,20 @@ Verify leaf and checks that it has not been claimed
 |`metadata` | bytes | Abi encoded metadata if any, empty otherwise
 |`leafType` | uint8 | Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
 
+### isClaimed
+```solidity
+  function isClaimed(
+    uint256 index
+  ) public returns (bool)
+```
+Function to check if an index is claimed or not
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`index` | uint256 | Index
+
 ### _permit
 ```solidity
   function _permit(
@@ -247,7 +246,7 @@ Function to call token permit method of extended ERC20
   )
 ```
 
-Emitted when a bridge some tokens to another network
+Emitted when bridge assets or messages to another network
 
 ### ClaimEvent
 ```solidity
@@ -264,12 +263,4 @@ Emitted when a claim is done from another network
 ```
 
 Emitted when a new wrapped token is created
-
-### SetClaimTimeout
-```solidity
-  event SetClaimTimeout(
-  )
-```
-
-Emitted when newClaimTimeout is updated
 

@@ -25,7 +25,7 @@ contract TokenWrapped is ERC20 {
     // Domain separator calculated on deployment
     bytes32 private immutable _DEPLOYMENT_DOMAIN_SEPARATOR;
 
-    // Bridge address
+    // PolygonZkEVM Bridge address
     address public bridgeAddress;
 
     // Decimals
@@ -37,7 +37,7 @@ contract TokenWrapped is ERC20 {
     modifier onlyBridge() {
         require(
             msg.sender == bridgeAddress,
-            "TokenWrapped::onlyBridge: NOT_BRIDGE"
+            "TokenWrapped::onlyBridge: Not PolygonZkEVMBridge"
         );
         _;
     }
@@ -45,30 +45,22 @@ contract TokenWrapped is ERC20 {
     constructor(
         string memory name,
         string memory symbol,
-        uint8 decimals
+        uint8 __decimals
     ) ERC20(name, symbol) {
         bridgeAddress = msg.sender;
-        _decimals = decimals;
+        _decimals = __decimals;
 
         // initialize inmutable variables
         deploymentChainId = block.chainid;
         _DEPLOYMENT_DOMAIN_SEPARATOR = _calculateDomainSeparator(block.chainid);
     }
 
-    function mint(
-        address to,
-        uint256 value
-    ) external onlyBridge returns (bool) {
+    function mint(address to, uint256 value) external onlyBridge {
         _mint(to, value);
-        return true;
     }
 
-    function burn(
-        address account,
-        uint256 value
-    ) external onlyBridge returns (bool) {
+    function burn(address account, uint256 value) external onlyBridge {
         _burn(account, value);
-        return true;
     }
 
     function decimals() public view virtual override returns (uint8) {

@@ -13,7 +13,7 @@ contract DepositContract is Initializable {
 
     // This ensures `depositCount` will fit into 32-bits
     uint256 internal constant _MAX_DEPOSIT_COUNT =
-        2**_DEPOSIT_CONTRACT_TREE_DEPTH - 1;
+        2 ** _DEPOSIT_CONTRACT_TREE_DEPTH - 1;
 
     // Branch array which contains the necessary sibilings to compute the next root when a new
     // leaf is inserted
@@ -57,7 +57,7 @@ contract DepositContract is Initializable {
         // Avoid overflowing the Merkle tree (and prevent edge case in computing `_branch`)
         require(
             depositCount < _MAX_DEPOSIT_COUNT,
-            "DepositContract:_deposit: MERKLE_TREE_FULL"
+            "DepositContract:_deposit: Merkle tree full"
         );
 
         // Add deposit data root to Merkle tree (update a single `_branch` node)

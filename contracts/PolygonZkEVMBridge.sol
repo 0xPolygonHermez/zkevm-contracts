@@ -5,22 +5,20 @@ pragma solidity 0.8.15;
 import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./lib/TokenWrapped.sol";
-import "./interfaces/IGlobalExitRootManager.sol";
+import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "./interfaces/IBridgeMessageReceiver.sol";
-import "./interfaces/IBridge.sol";
+import "./interfaces/IPolygonZkEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./lib/EmergencyManager.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /**
- * Bridge that will be deployed on both networks Ethereum and Polygon zkEVM
+ * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract Bridge is
+contract PolygonZkEVMBridge is
     DepositContract,
     EmergencyManager,
-    IBridge,
-    OwnableUpgradeable
+    IPolygonZkEVMBridge
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -48,8 +46,8 @@ contract Bridge is
     // Network identifier
     uint32 public networkID;
 
-    // Leaf index --> claimed
-    mapping(uint256 => bool) public claimNullifier;
+    // Leaf index --> claimed bit map
+    mapping(uint256 => uint256) public claimedBitMap;
 
     // keccak256(OriginNetwork || tokenAddress) --> Wrapped token address
     mapping(bytes32 => address) public tokenInfoToWrappedToken;
@@ -58,13 +56,10 @@ contract Bridge is
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
     // Global Exit Root address
-    IGlobalExitRootManager public globalExitRootManager;
+    IPolygonZkEVMGlobalExitRoot public globalExitRootManager;
 
-    // Proof of Efficiency address
-    address public poeAddress;
-
-    // Claim timeout period
-    uint256 public claimTimeout;
+    // PolygonZkEVM address
+    address public polygonZkEVMaddress;
 
     /**
      * @param _networkID networkID
@@ -72,29 +67,24 @@ contract Bridge is
      */
     function initialize(
         uint32 _networkID,
-        IGlobalExitRootManager _globalExitRootManager,
-        address _poeAddress,
-        uint256 _claimTimeout
+        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        address _polygonZkEVMaddress
     ) public virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
-        poeAddress = _poeAddress;
-        claimTimeout = _claimTimeout;
-
-        // Initialize OZ contracts
-        __Ownable_init_unchained();
+        polygonZkEVMaddress = _polygonZkEVMaddress;
     }
 
-    modifier onlyProofOfEfficiency() {
+    modifier onlyPolygonZkEVM() {
         require(
-            poeAddress == msg.sender,
-            "ProofOfEfficiency::onlyProofOfEfficiency: only Proof of Efficiency contract"
+            polygonZkEVMaddress == msg.sender,
+            "PolygonZkEVM::onlyPolygonZkEVM: only PolygonZkEVM contract"
         );
         _;
     }
 
     /**
-     * @dev Emitted when a bridge some tokens to another network
+     * @dev Emitted when bridge assets or messages to another network
      */
     event BridgeEvent(
         uint8 leafType,
@@ -128,11 +118,6 @@ contract Bridge is
     );
 
     /**
-     * @dev Emitted when newClaimTimeout is updated
-     */
-    event SetClaimTimeout(uint256 newClaimTimeout);
-
-    /**
      * @notice Deposit add a new leaf to the merkle tree
      * @param token Token address, 0 address is reserved for ether
      * @param destinationNetwork Network destination
@@ -149,7 +134,7 @@ contract Bridge is
     ) public payable virtual ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
-            "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
+            "PolygonZkEVMBridge::bridgeAsset: Destination cannot be itself"
         );
 
         address originTokenAddress;
@@ -160,7 +145,7 @@ contract Bridge is
             // Ether transfer
             require(
                 msg.value == amount,
-                "Bridge::bridge: AMOUNT_DOES_NOT_MATCH_MSG_VALUE"
+                "PolygonZkEVMBridge::bridgeAsset: Amount does not match message.value"
             );
 
             // Ether is treated as ether from mainnet
@@ -210,6 +195,7 @@ contract Bridge is
             metadata,
             uint32(depositCount)
         );
+
         _deposit(
             getLeafValue(
                 LEAF_TYPE_ASSET,
@@ -239,7 +225,7 @@ contract Bridge is
     ) public payable ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
-            "Bridge::bridge: DESTINATION_CANT_BE_ITSELF"
+            "PolygonZkEVMBridge::bridgeMessage: Destination cannot be itself"
         );
 
         emit BridgeEvent(
@@ -310,7 +296,7 @@ contract Bridge is
         );
 
         // Update nullifier
-        claimNullifier[index] = true;
+        _setClaimed(index);
 
         // Transfer funds
         if (originTokenAddress == address(0)) {
@@ -319,7 +305,10 @@ contract Bridge is
             (bool success, ) = destinationAddress.call{value: amount}(
                 new bytes(0)
             );
-            require(success, "Bridge::claimAsset: ETH_TRANSFER_FAILED");
+            require(
+                success,
+                "PolygonZkEVMBridge::claimAsset: Ether transfer failed"
+            );
         } else {
             // Transfer tokens
             if (originNetwork == networkID) {
@@ -392,7 +381,7 @@ contract Bridge is
      * @param originAddress Origin address
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
-     * @param amount Amount of tokens
+     * @param amount message value
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimMessage(
@@ -423,7 +412,7 @@ contract Bridge is
         );
 
         // Update nullifier
-        claimNullifier[index] = true;
+        _setClaimed(index);
 
         // Execute message
         // Transfer ether
@@ -434,7 +423,7 @@ contract Bridge is
                 (originAddress, originNetwork, metadata)
             )
         );
-        require(success, "Bridge::claimMessage: MESSAGE_FAILED");
+        require(success, "PolygonZkEVMBridge::claimMessage: Message failed");
 
         emit ClaimEvent(
             index,
@@ -496,28 +485,18 @@ contract Bridge is
 
     /**
      * @notice Function to activate the emergency state
-     " Only can be called by the proof of efficiency in extreme situations
+     " Only can be called by the Polygon ZK-EVM in extreme situations
      */
-    function activateEmergencyState() external onlyProofOfEfficiency {
+    function activateEmergencyState() external onlyPolygonZkEVM {
         _activateEmergencyState();
     }
 
     /**
      * @notice Function to deactivate the emergency state
-     " Only can be called by the proof of efficiency
+     " Only can be called by the Polygon ZK-EVM
      */
-    function deactivateEmergencyState() external onlyProofOfEfficiency {
+    function deactivateEmergencyState() external onlyPolygonZkEVM {
         _deactivateEmergencyState();
-    }
-
-    /**
-     * @notice Function to update the claim timeout
-     * @param newClaimTimeout new claim timeout value
-     * Only can be called by the owner
-     */
-    function setClaimTimeout(uint256 newClaimTimeout) external onlyOwner {
-        claimTimeout = newClaimTimeout;
-        emit SetClaimTimeout(newClaimTimeout);
     }
 
     /**
@@ -549,8 +528,8 @@ contract Bridge is
     ) internal {
         // Check nullifier
         require(
-            claimNullifier[index] == false,
-            "Bridge::_verifyLeaf: ALREADY_CLAIMED"
+            !isClaimed(index),
+            "PolygonZkEVMBridge::_verifyLeaf: Already claimed"
         );
 
         // Check timestamp where the global exit root was set
@@ -560,15 +539,14 @@ contract Bridge is
             );
 
         require(
-            timestampGlobalExitRoot != 0 &&
-                (block.timestamp - timestampGlobalExitRoot) >= claimTimeout,
-            "Bridge::_verifyLeaf: GLOBAL_EXIT_ROOT_INVALID_OR_NOT_YET_CLAIMABLE"
+            timestampGlobalExitRoot != 0,
+            "PolygonZkEVMBridge::_verifyLeaf: GlobalExitRoot invalid"
         );
 
         // Destination network must be networkID
         require(
             destinationNetwork == networkID,
-            "Bridge::_verifyLeaf: DESTINATION_NETWORK_DOES_NOT_MATCH"
+            "PolygonZkEVMBridge::_verifyLeaf: Destination network does not match"
         );
 
         bytes32 claimRoot;
@@ -594,8 +572,32 @@ contract Bridge is
                 index,
                 claimRoot
             ),
-            "Bridge::_verifyLeaf: SMT_INVALID"
+            "PolygonZkEVMBridge::_verifyLeaf: Invalid smt proof"
         );
+    }
+
+    /**
+     * @notice Function to check if an index is claimed or not
+     * @param index Index
+     */
+    function isClaimed(uint256 index) public view returns (bool) {
+        uint256 claimedWordIndex = index / 256;
+        uint256 claimedBitIndex = index % 256;
+        uint256 claimedWord = claimedBitMap[claimedWordIndex];
+        uint256 mask = (1 << claimedBitIndex);
+        return (claimedWord & mask) == mask;
+    }
+
+    /**
+     * @notice Function set a index as claimed
+     * @param index Index
+     */
+    function _setClaimed(uint256 index) private {
+        uint256 claimedWordIndex = index / 256;
+        uint256 claimedBitIndex = index % 256;
+        claimedBitMap[claimedWordIndex] =
+            claimedBitMap[claimedWordIndex] |
+            (1 << claimedBitIndex);
     }
 
     /**
@@ -645,15 +647,15 @@ contract Bridge is
                 );
             require(
                 owner == msg.sender,
-                "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
+                "PolygonZkEVMBridge::_permit: Permit owner must be the sender"
             );
             require(
                 spender == address(this),
-                "Bridge::_permit: SPENDER_MUST_BE_THIS"
+                "PolygonZkEVMBridge::_permit: Spender must be 'this'"
             );
             require(
                 value == amount,
-                "Bridge::_permit: PERMIT_AMOUNT_DOES_NOT_MATCH"
+                "PolygonZkEVMBridge::_permit: Permit amount does not match"
             );
 
             // we call without checking the result, in case it fails and he doesn't have enough balance
@@ -675,7 +677,7 @@ contract Bridge is
         } else {
             require(
                 sig == _PERMIT_SIGNATURE_DAI,
-                "Bridge::_permit: NOT_VALID_CALL"
+                "PolygonZkEVMBridge::_permit: Not valid call"
             );
 
             (
@@ -702,11 +704,11 @@ contract Bridge is
                 );
             require(
                 holder == msg.sender,
-                "Bridge::_permit: PERMIT_OWNER_MUST_BE_THE_SENDER"
+                "PolygonZkEVMBridge::_permit: Permit owner must be the sender"
             );
             require(
                 spender == address(this),
-                "Bridge::_permit: SPENDER_MUST_BE_THIS"
+                "PolygonZkEVMBridge::_permit: Spender must be 'this'"
             );
 
             // we call without checking the result, in case it fails and he doesn't have enough balance
