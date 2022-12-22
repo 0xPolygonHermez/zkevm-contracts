@@ -827,6 +827,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     /**
      * @notice Function to update the batch fee based on the new verfied batches
      * The batch fee will not be updated when the trusted aggregator verify batches
+     * @param newLastVerifiedBatch New last verified batch
      */
     function _updateBatchFee(uint64 newLastVerifiedBatch) internal {
         uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
@@ -1493,7 +1494,8 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
      * @notice Function to calculate the input snark bytes
      * @param initNumBatch Batch which the aggregator starts teh verification
      * @param finalNewBatch Last batch aggregator intends to verify
-     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newLocalExitRoot New local exit root once the batch is processed
+     * @param oldStateRoot State root before batch is processed
      * @param newStateRoot New State root once the batch is processed
      */
     function getInputSnarkBytes(

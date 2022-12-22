@@ -438,6 +438,9 @@ contract PolygonZkEVMBridge is
      * @notice Returns the precalculated address of a wrapper using the token information
      * @param originNetwork Origin network
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param name Name of the token
+     * @param symbol Symbol of the token
+     * @param decimals Decimals of the token
      */
     function precalculatedWrapperAddress(
         uint32 originNetwork,
