@@ -64,6 +64,7 @@ contract PolygonZkEVMBridge is
     /**
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
+     * @param _polygonZkEVMaddress polygonZkEVM address
      */
     function initialize(
         uint32 _networkID,

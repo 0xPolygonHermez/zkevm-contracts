@@ -1072,12 +1072,12 @@ describe('Polygon ZK-EVM', () => {
         // Pending state can't be 0
         await expect(
             polygonZkEVMContract.consolidatePendingState(0),
-        ).to.be.revertedWith('PolygonZkEVM::consolidatePendingState: pendingStateNum must invalid');
+        ).to.be.revertedWith('PolygonZkEVM::_consolidatePendingState: pendingStateNum invalid');
 
         // Pending state does not exist
         await expect(
             polygonZkEVMContract.consolidatePendingState(2),
-        ).to.be.revertedWith('PolygonZkEVM::consolidatePendingState: pendingStateNum must invalid');
+        ).to.be.revertedWith('PolygonZkEVM::_consolidatePendingState: pendingStateNum invalid');
 
         // Not ready to be consolidated
         await expect(
@@ -1098,7 +1098,7 @@ describe('Polygon ZK-EVM', () => {
         // Pending state already consolidated
         await expect(
             polygonZkEVMContract.consolidatePendingState(1),
-        ).to.be.revertedWith('PolygonZkEVM::consolidatePendingState: pendingStateNum must invalid');
+        ).to.be.revertedWith('PolygonZkEVM::_consolidatePendingState: pendingStateNum invalid');
 
         // Fee es divided because is was fast verified
         const multiplierFee = await polygonZkEVMContract.multiplierBatchFee();

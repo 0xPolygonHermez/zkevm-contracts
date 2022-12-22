@@ -767,9 +767,9 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
 
                 // Try to consolidate it, and if not, consolidate the nextPendingState
                 if (isPendingStateConsolidable(middlePendingState)) {
-                    consolidatePendingState(middlePendingState);
+                    _consolidatePendingState(middlePendingState);
                 } else {
-                    consolidatePendingState(nextPendingState);
+                    _consolidatePendingState(nextPendingState);
                 }
             }
         }
@@ -781,17 +781,6 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
      * @param pendingStateNum Pending state to consolidate
      */
     function consolidatePendingState(uint64 pendingStateNum) public {
-        // Check if pendingStateNum is in correct range
-        // - not 0
-        // - not consolidated
-        // - exist ( has been added)
-        require(
-            pendingStateNum != 0 &&
-                pendingStateNum > lastPendingStateConsolidated &&
-                pendingStateNum <= lastPendingState,
-            "PolygonZkEVM::consolidatePendingState: pendingStateNum must invalid"
-        );
-
         // Check if pending state can be consolidated
         // If trusted aggregator is the sender, do not check the timeout
         if (msg.sender != trustedAggregator) {
@@ -800,6 +789,24 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
                 "PolygonZkEVM::consolidatePendingState: Pending state is not ready to be consolidated"
             );
         }
+        _consolidatePendingState(pendingStateNum);
+    }
+
+    /**
+     * @notice Internal function to consolidate any pending state that has already exceed the pendingStateTimeout
+     * @param pendingStateNum Pending state to consolidate
+     */
+    function _consolidatePendingState(uint64 pendingStateNum) internal {
+        // Check if pendingStateNum is in correct range
+        // - not 0
+        // - not consolidated
+        // - exist ( has been added)
+        require(
+            pendingStateNum != 0 &&
+                pendingStateNum > lastPendingStateConsolidated &&
+                pendingStateNum <= lastPendingState,
+            "PolygonZkEVM::_consolidatePendingState: pendingStateNum invalid"
+        );
 
         PendingState storage currentPendingState = pendingStateTransitions[
             pendingStateNum

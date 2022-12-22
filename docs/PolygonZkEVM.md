@@ -153,6 +153,20 @@ Can be called by the trusted aggregator, which can consolidate any state without
 | :--- | :--- | :------------------------------------------------------------------- |
 |`pendingStateNum` | uint64 | Pending state to consolidate
 
+### _consolidatePendingState
+```solidity
+  function _consolidatePendingState(
+    uint64 pendingStateNum
+  ) internal
+```
+Internal function to consolidate any pending state that has already exceed the pendingStateTimeout
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`pendingStateNum` | uint64 | Pending state to consolidate
+
 ### _updateBatchFee
 ```solidity
   function _updateBatchFee(
