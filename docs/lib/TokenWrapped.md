@@ -2,9 +2,9 @@
 
 
 ## Functions
-### initialize
+### constructor
 ```solidity
-  function initialize(
+  function constructor(
   ) public
 ```
 
@@ -14,7 +14,7 @@
 ### mint
 ```solidity
   function mint(
-  ) external returns (bool)
+  ) external
 ```
 
 
@@ -23,7 +23,7 @@
 ### burn
 ```solidity
   function burn(
-  ) external returns (bool)
+  ) external
 ```
 
 
@@ -36,5 +36,23 @@
 ```
 
 
+
+
+### permit
+```solidity
+  function permit(
+  ) external
+```
+
+
+
+
+### DOMAIN_SEPARATOR
+```solidity
+  function DOMAIN_SEPARATOR(
+  ) public returns (bytes32)
+```
+
+Return the DOMAIN_SEPARATOR.
 
 

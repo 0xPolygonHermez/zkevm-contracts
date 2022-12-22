@@ -3,15 +3,6 @@ Based on the implementation of the deposit eth2.0 contract https://github.com/et
 
 
 ## Functions
-### __DepositContract_init
-```solidity
-  function __DepositContract_init(
-  ) internal
-```
-
-
-
-
 ### getDepositRoot
 ```solidity
   function getDepositRoot(
@@ -58,8 +49,9 @@ Verify merkle proof
 ### getLeafValue
 ```solidity
   function getLeafValue(
+    uint8 leafType,
     uint32 originNetwork,
-    address originTokenAddress,
+    address originAddress,
     uint32 destinationNetwork,
     address destinationAddress,
     uint256 amount,
@@ -72,10 +64,11 @@ Given the leaf data returns the leaf value
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
+|`leafType` | uint8 | Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
 |`originNetwork` | uint32 | Origin Network
-|`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
+|`originAddress` | address | [0] Origin token address, 0 address is reserved for ether, [1] msg.sender of the message
 |`destinationNetwork` | uint32 | Destination network
 |`destinationAddress` | address | Destination address
-|`amount` | uint256 | Amount of tokens
+|`amount` | uint256 | [0] Amount of tokens/ether, [1] Amount of ether
 |`metadataHash` | bytes32 | Hash of the metadata
 

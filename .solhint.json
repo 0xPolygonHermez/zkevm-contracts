@@ -6,6 +6,9 @@
     "compiler-version": ["error", "0.8.15"],
     "private-vars-leading-underscore": "error",
     "bracket-align": "off",
-    "reason-string": "off"
+    "reason-string": "off",
+    "not-rely-on-time": "off",
+    "no-inline-assembly": "off",
+    "check-send-result": "off"
   }
 }

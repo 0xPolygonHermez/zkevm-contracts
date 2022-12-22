@@ -12,12 +12,11 @@ contract DepositContractMock is DepositContract {
         initialize();
     }
 
-    function initialize() public initializer {
-        __DepositContract_init();
-    }
+    function initialize() public initializer {}
 
     /**
      * @notice Given the leaf data returns the leaf value
+     * @param leafType Leaf type
      * @param originNetwork Origin Network
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
      * @param destinationNetwork Destination network
@@ -26,6 +25,7 @@ contract DepositContractMock is DepositContract {
      * @param metadataHash Hash of the metadata
      */
     function deposit(
+        uint8 leafType,
         uint32 originNetwork,
         address originTokenAddress,
         uint32 destinationNetwork,
@@ -35,6 +35,7 @@ contract DepositContractMock is DepositContract {
     ) public {
         _deposit(
             getLeafValue(
+                leafType,
                 originNetwork,
                 originTokenAddress,
                 destinationNetwork,
