@@ -121,7 +121,7 @@ describe('Polygon ZK-EVM', () => {
 
         // setTrustedSequencer
         await expect(polygonZkEVMContract.setTrustedSequencer(deployer.address))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: only admin');
+            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
         await expect(
             polygonZkEVMContract.connect(admin).setTrustedSequencer(deployer.address),
         ).to.emit(polygonZkEVMContract, 'SetTrustedSequencer').withArgs(deployer.address);
@@ -129,7 +129,7 @@ describe('Polygon ZK-EVM', () => {
 
         // setForceBatchAllowed
         await expect(polygonZkEVMContract.setForceBatchAllowed(!allowForcebatches))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: only admin');
+            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
         await expect(
             polygonZkEVMContract.connect(admin).setForceBatchAllowed(!allowForcebatches),
         ).to.emit(polygonZkEVMContract, 'SetForceBatchAllowed').withArgs(!allowForcebatches);
@@ -138,7 +138,7 @@ describe('Polygon ZK-EVM', () => {
         // setTrustedSequencerURL
         const url = 'https://test';
         await expect(polygonZkEVMContract.setTrustedSequencerURL(url))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: only admin');
+            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
         await expect(
             polygonZkEVMContract.connect(admin).setTrustedSequencerURL(url),
         ).to.emit(polygonZkEVMContract, 'SetTrustedSequencerURL').withArgs(url);
@@ -147,7 +147,7 @@ describe('Polygon ZK-EVM', () => {
         // setTrustedAggregator
         const newTrustedAggregator = deployer.address;
         await expect(polygonZkEVMContract.setTrustedAggregator(newTrustedAggregator))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: only admin');
+            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
         await expect(
             polygonZkEVMContract.connect(admin).setTrustedAggregator(newTrustedAggregator),
         ).to.emit(polygonZkEVMContract, 'SetTrustedAggregator').withArgs(newTrustedAggregator);
@@ -155,10 +155,10 @@ describe('Polygon ZK-EVM', () => {
 
         // setTrustedAggregatorTimeout
         await expect(polygonZkEVMContract.setTrustedAggregatorTimeout(trustedAggregatorTimeoutDefault))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: only admin');
+            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
 
         await expect(polygonZkEVMContract.connect(admin).setTrustedAggregatorTimeout(trustedAggregatorTimeoutDefault))
-            .to.be.revertedWith('PolygonZkEVM::setTrustedAggregatorTimeout: new timeout must be lower');
+            .to.be.revertedWith('PolygonZkEVM::setTrustedAggregatorTimeout: New timeout must be lower');
 
         const newTrustedAggregatorTimeout = trustedAggregatorTimeoutDefault - 1;
         await expect(
@@ -168,10 +168,10 @@ describe('Polygon ZK-EVM', () => {
 
         // setPendingStateTimeoutDefault
         await expect(polygonZkEVMContract.setPendingStateTimeout(pendingStateTimeoutDefault))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: only admin');
+            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
 
         await expect(polygonZkEVMContract.connect(admin).setPendingStateTimeout(pendingStateTimeoutDefault))
-            .to.be.revertedWith('PolygonZkEVM::setPendingStateTimeout: new timeout must be lower');
+            .to.be.revertedWith('PolygonZkEVM::setPendingStateTimeout: New timeout must be lower');
 
         const newPendingStateTimeoutDefault = pendingStateTimeoutDefault - 1;
         await expect(
@@ -181,7 +181,7 @@ describe('Polygon ZK-EVM', () => {
 
         // setAdmin
         await expect(polygonZkEVMContract.setAdmin(deployer.address))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: only admin');
+            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
         await expect(
             polygonZkEVMContract.connect(admin).setAdmin(deployer.address),
         ).to.emit(polygonZkEVMContract, 'SetAdmin').withArgs(deployer.address);
@@ -202,7 +202,7 @@ describe('Polygon ZK-EVM', () => {
 
         // revert because sender is not truested sequencer
         await expect(polygonZkEVMContract.sequenceBatches([sequence]))
-            .to.be.revertedWith('PolygonZkEVM::onlyTrustedSequencer: only trusted sequencer');
+            .to.be.revertedWith('PolygonZkEVM::onlyTrustedSequencer: Only trusted sequencer');
 
         // revert because tokens were not approved
         await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence]))
@@ -513,7 +513,7 @@ describe('Polygon ZK-EVM', () => {
 
         // revert because the maxMatic amount is less than the necessary to pay
         await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount.sub(1)))
-            .to.be.revertedWith('PolygonZkEVM::forceBatch: not enough matic');
+            .to.be.revertedWith('PolygonZkEVM::forceBatch: Not enough matic');
 
         // revert because tokens were not approved
         await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
@@ -597,11 +597,11 @@ describe('Polygon ZK-EVM', () => {
 
         // revert because the timeout is not expired
         await expect(polygonZkEVMContract.sequenceForceBatches([]))
-            .to.be.revertedWith('PolygonZkEVM::sequenceForceBatch: Must force at least 1 batch');
+            .to.be.revertedWith('PolygonZkEVM::sequenceForceBatches: Must force at least 1 batch');
 
         // revert because the timeout is not expired
         await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStruct]))
-            .to.be.revertedWith('PolygonZkEVM::sequenceForceBatch: Forced batch is not in timeout period');
+            .to.be.revertedWith('PolygonZkEVM::sequenceForceBatches: Forced batch is not in timeout period');
 
         // Increment timestamp
         const forceBatchTimeout = await polygonZkEVMContract.FORCE_BATCH_TIMEOUT();
@@ -681,7 +681,7 @@ describe('Polygon ZK-EVM', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::onlyTrustedAggregator: only trusted Aggregator');
+        ).to.be.revertedWith('PolygonZkEVM::onlyTrustedAggregator: Only trusted aggregator');
 
         await expect(
             polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
@@ -694,7 +694,7 @@ describe('Polygon ZK-EVM', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch');
 
         await expect(
             polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
@@ -1002,7 +1002,7 @@ describe('Polygon ZK-EVM', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::verifyBatches: trusted aggregator timeout not expired');
+        ).to.be.revertedWith('PolygonZkEVM::verifyBatches: Trusted aggregator timeout not expired');
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [sequencedTimestamp.toNumber() + trustedAggregatorTimeoutDefault - 1]);
 
@@ -1017,7 +1017,7 @@ describe('Polygon ZK-EVM', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::verifyBatches: trusted aggregator timeout not expired');
+        ).to.be.revertedWith('PolygonZkEVM::verifyBatches: Trusted aggregator timeout not expired');
 
         await expect(
             polygonZkEVMContract.connect(aggregator1).verifyBatches(
@@ -1082,13 +1082,13 @@ describe('Polygon ZK-EVM', () => {
         // Not ready to be consolidated
         await expect(
             polygonZkEVMContract.consolidatePendingState(lastPendingstate),
-        ).to.be.revertedWith('PolygonZkEVM::consolidatePendingState: pending state is not ready to be consolidated');
+        ).to.be.revertedWith('PolygonZkEVM::consolidatePendingState: Pending state is not ready to be consolidated');
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [verifyTimestamp + pendingStateTimeoutDefault - 1]);
 
         await expect(
             polygonZkEVMContract.consolidatePendingState(lastPendingstate),
-        ).to.be.revertedWith('PolygonZkEVM::consolidatePendingState: pending state is not ready to be consolidated');
+        ).to.be.revertedWith('PolygonZkEVM::consolidatePendingState: Pending state is not ready to be consolidated');
 
         await expect(
             polygonZkEVMContract.consolidatePendingState(lastPendingstate),

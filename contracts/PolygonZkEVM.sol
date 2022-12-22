@@ -359,6 +359,8 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         forceBatchAllowed = initializePackedParameters.forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
+
+        // Constant variables
         batchFee = 10 ** 18; // 1 Matic
         veryBatchTimeTarget = 30 minutes;
         multiplierBatchFee = 1002;
@@ -368,14 +370,14 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     }
 
     modifier onlyAdmin() {
-        require(admin == msg.sender, "PolygonZkEVM::onlyAdmin: only admin");
+        require(admin == msg.sender, "PolygonZkEVM::onlyAdmin: Only admin");
         _;
     }
 
     modifier onlyTrustedSequencer() {
         require(
             trustedSequencer == msg.sender,
-            "PolygonZkEVM::onlyTrustedSequencer: only trusted sequencer"
+            "PolygonZkEVM::onlyTrustedSequencer: Only trusted sequencer"
         );
         _;
     }
@@ -383,7 +385,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     modifier onlyTrustedAggregator() {
         require(
             trustedAggregator == msg.sender,
-            "PolygonZkEVM::onlyTrustedAggregator: only trusted Aggregator"
+            "PolygonZkEVM::onlyTrustedAggregator: Only trusted aggregator"
         );
         _;
     }
@@ -391,7 +393,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     modifier isForceBatchAllowed() {
         require(
             forceBatchAllowed == true,
-            "PolygonZkEVM::isForceBatchAllowed: only if force batch is available"
+            "PolygonZkEVM::isForceBatchAllowed: Only if force batch is available"
         );
         _;
     }
@@ -556,12 +558,12 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
             sequencedBatches[finalNewBatch].sequencedTimestamp +
                 trustedAggregatorTimeout <=
                 block.timestamp,
-            "PolygonZkEVM::verifyBatches: trusted aggregator timeout not expired"
+            "PolygonZkEVM::verifyBatches: Trusted aggregator timeout not expired"
         );
 
         require(
             finalNewBatch - initNumBatch < MAX_VERIFY_BATCHES,
-            "PolygonZkEVM::verifyBatches: cannot verify that many batches"
+            "PolygonZkEVM::verifyBatches: Cannot verify that many batches"
         );
 
         _verifyBatches(
@@ -685,7 +687,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
             // Already consolidated pending states can be used aswell
             require(
                 pendingStateNum <= lastPendingState,
-                "PolygonZkEVM::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+                "PolygonZkEVM::_verifyBatches: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -699,27 +701,27 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
             // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "PolygonZkEVM::verifyBatches: initNumBatch must match the pending state batch"
+                "PolygonZkEVM::_verifyBatches: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "PolygonZkEVM::verifyBatches: initNumBatch state root does not exist"
+                "PolygonZkEVM::_verifyBatches: initNumBatch state root does not exist"
             );
 
-            // Check initNumBatch is inside the range
+            // Check initNumBatch is inside the range, sanity check
             require(
                 initNumBatch <= currentLastVerifiedBatch,
-                "PolygonZkEVM::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "PolygonZkEVM::_verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
         // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
-            "PolygonZkEVM::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "PolygonZkEVM::_verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -737,7 +739,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "PolygonZkEVM::verifyBatches: Invalid proof"
+            "PolygonZkEVM::_verifyBatches: Invalid proof"
         );
 
         // Get MATIC reward
@@ -795,7 +797,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         if (msg.sender != trustedAggregator) {
             require(
                 isPendingStateConsolidable(pendingStateNum),
-                "PolygonZkEVM::consolidatePendingState: pending state is not ready to be consolidated"
+                "PolygonZkEVM::consolidatePendingState: Pending state is not ready to be consolidated"
             );
         }
 
@@ -838,7 +840,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
             // Load sequenced batchdata
             SequencedBatchData
                 storage currentSequencedBatchData = sequencedBatches[
-                    currentLastVerifiedBatch
+                    currentBatch
                 ];
 
             // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
@@ -847,7 +849,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
                 veryBatchTimeTarget
             ) {
                 totalBatchesAboveTarget +=
-                    currentLastVerifiedBatch -
+                    currentBatch -
                     currentSequencedBatchData.previousLastBatchSequenced;
             }
 
@@ -916,7 +918,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
 
         require(
             maticFee <= maticAmount,
-            "PolygonZkEVM::forceBatch: not enough matic"
+            "PolygonZkEVM::forceBatch: Not enough matic"
         );
 
         require(
@@ -966,17 +968,17 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
 
         require(
             batchesNum > 0,
-            "PolygonZkEVM::sequenceForceBatch: Must force at least 1 batch"
+            "PolygonZkEVM::sequenceForceBatches: Must force at least 1 batch"
         );
 
         require(
             batchesNum < MAX_VERIFY_BATCHES,
-            "PolygonZkEVM::sequenceForceBatches: cannot verify that many batches"
+            "PolygonZkEVM::sequenceForceBatches: Cannot verify that many batches"
         );
 
         require(
             lastForceBatchSequenced + batchesNum <= lastForceBatch,
-            "PolygonZkEVM::sequenceForceBatch: Force batch invalid"
+            "PolygonZkEVM::sequenceForceBatches: Force batch invalid"
         );
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
@@ -1011,7 +1013,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
                 require(
                     currentBatch.minForcedTimestamp + FORCE_BATCH_TIMEOUT <=
                         block.timestamp,
-                    "PolygonZkEVM::sequenceForceBatch: Forced batch is not in timeout period"
+                    "PolygonZkEVM::sequenceForceBatches: Forced batch is not in timeout period"
                 );
             }
             // Calculate next acc input hash
@@ -1102,12 +1104,12 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     ) public onlyAdmin {
         require(
             newTrustedAggregatorTimeout <= HALT_AGGREGATION_TIMEOUT,
-            "PolygonZkEVM::setPendingStateTimeout: exceed halt aggregation timeout"
+            "PolygonZkEVM::setTrustedAggregatorTimeout: Exceed max halt aggregation timeout"
         );
         if (!isEmergencyState) {
             require(
                 newTrustedAggregatorTimeout < trustedAggregatorTimeout,
-                "PolygonZkEVM::setTrustedAggregatorTimeout: new timeout must be lower"
+                "PolygonZkEVM::setTrustedAggregatorTimeout: New timeout must be lower"
             );
         }
 
@@ -1125,12 +1127,12 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     ) public onlyAdmin {
         require(
             newPendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
-            "PolygonZkEVM::setPendingStateTimeout: exceed halt aggregation timeout"
+            "PolygonZkEVM::setPendingStateTimeout: Exceed max halt aggregation timeout"
         );
         if (!isEmergencyState) {
             require(
                 newPendingStateTimeout < pendingStateTimeout,
-                "PolygonZkEVM::setPendingStateTimeout: new timeout must be lower"
+                "PolygonZkEVM::setPendingStateTimeout: New timeout must be lower"
             );
         }
 
@@ -1146,7 +1148,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         uint16 newMultiplierBatchFee
     ) public onlyAdmin {
         require(
-            newMultiplierBatchFee > 1000 && newMultiplierBatchFee < 1024,
+            newMultiplierBatchFee >= 1000 && newMultiplierBatchFee < 1024,
             "PolygonZkEVM::setMultiplierBatchFee: newMultiplierBatchFee incorrect range"
         );
 
@@ -1308,7 +1310,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
             // Already consolidated pending states can be used aswell
             require(
                 initPendingStateNum <= lastPendingState,
-                "PolygonZkEVM::proveNonDeterministicPendingState: pendingStateNum must be less or equal than lastPendingState"
+                "PolygonZkEVM::_proveDistinctPendingState: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -1322,20 +1324,20 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
             // Check initNumBatch matches the init pending state
             require(
                 initNumBatch == initPendingState.lastVerifiedBatch,
-                "PolygonZkEVM::proveNonDeterministicPendingState: initNumBatch must match the pending state batch"
+                "PolygonZkEVM::_proveDistinctPendingState: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "PolygonZkEVM::proveNonDeterministicPendingState: initNumBatch state root does not exist"
+                "PolygonZkEVM::_proveDistinctPendingState: initNumBatch state root does not exist"
             );
 
-            // Check initNumBatch is inside the range
+            // Check initNumBatch is inside the range, sanity check
             require(
                 initNumBatch <= lastVerifiedBatch,
-                "PolygonZkEVM::proveNonDeterministicPendingState: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "PolygonZkEVM::_proveDistinctPendingState: initNumBatch must be less or equal than lastVerifiedBatch"
             );
         }
 
@@ -1347,14 +1349,14 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
             finalPendingStateNum <= lastPendingState &&
                 finalPendingStateNum > initPendingStateNum &&
                 finalPendingStateNum > lastPendingStateConsolidated,
-            "PolygonZkEVM::proveNonDeterministicPendingState: finalPendingStateNum incorrect"
+            "PolygonZkEVM::_proveDistinctPendingState: finalPendingStateNum incorrect"
         );
 
         // Check final num batch
         require(
             finalNewBatch ==
                 pendingStateTransitions[finalPendingStateNum].lastVerifiedBatch,
-            "PolygonZkEVM::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch"
+            "PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -1372,13 +1374,13 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
         // Verify proof
         require(
             rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "PolygonZkEVM::proveNonDeterministicPendingState: Invalid proof"
+            "PolygonZkEVM::_proveDistinctPendingState: Invalid proof"
         );
 
         require(
             pendingStateTransitions[finalPendingStateNum].stateRoot !=
                 newStateRoot,
-            "PolygonZkEVM::proveNonDeterministicPendingState: stored root must be different than new state root"
+            "PolygonZkEVM::_proveDistinctPendingState: Stored root must be different than new state root"
         );
     }
 
@@ -1390,18 +1392,11 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     function activateEmergencyState(uint64 sequencedBatchNum) external {
         if (msg.sender != owner()) {
             // Only check conditions if is not called by the owner
-            uint256 lastVerifiedBatchToCompare;
-            if (lastPendingState > 0) {
-                lastVerifiedBatchToCompare = pendingStateTransitions[
-                    lastPendingState
-                ].lastVerifiedBatch;
-            } else {
-                lastVerifiedBatchToCompare = lastVerifiedBatch;
-            }
+            uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
 
             // Check that the batch has not been verified
             require(
-                sequencedBatchNum > lastVerifiedBatchToCompare,
+                sequencedBatchNum > currentLastVerifiedBatch,
                 "PolygonZkEVM::activateEmergencyState: Batch already verified"
             );
 
