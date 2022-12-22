@@ -64,6 +64,7 @@ contract PolygonZkEVMBridge is
     /**
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
+     * @param _polygonZkEVMaddress polygonZkEVM address
      */
     function initialize(
         uint32 _networkID,
@@ -438,6 +439,9 @@ contract PolygonZkEVMBridge is
      * @notice Returns the precalculated address of a wrapper using the token information
      * @param originNetwork Origin network
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param name Name of the token
+     * @param symbol Symbol of the token
+     * @param decimals Decimals of the token
      */
     function precalculatedWrapperAddress(
         uint32 originNetwork,

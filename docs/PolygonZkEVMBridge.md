@@ -7,7 +7,8 @@ Contract responsible to manage the token interactions with other networks
 ```solidity
   function initialize(
     uint32 _networkID,
-    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager
+    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+    address _polygonZkEVMaddress
   ) public
 ```
 
@@ -17,6 +18,7 @@ Contract responsible to manage the token interactions with other networks
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkID` | uint32 | networkID
 |`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | global exit root manager address
+|`_polygonZkEVMaddress` | address | polygonZkEVM address
 
 ### bridgeAsset
 ```solidity
@@ -126,7 +128,10 @@ Verify merkle proof and execute message
 ```solidity
   function precalculatedWrapperAddress(
     uint32 originNetwork,
-    address originTokenAddress
+    address originTokenAddress,
+    string name,
+    string symbol,
+    uint8 decimals
   ) public returns (address)
 ```
 Returns the precalculated address of a wrapper using the token information
@@ -137,6 +142,9 @@ Returns the precalculated address of a wrapper using the token information
 | :--- | :--- | :------------------------------------------------------------------- |
 |`originNetwork` | uint32 | Origin network
 |`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
+|`name` | string | Name of the token
+|`symbol` | string | Symbol of the token
+|`decimals` | uint8 | Decimals of the token
 
 ### getTokenWrappedAddress
 ```solidity

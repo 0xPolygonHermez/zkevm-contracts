@@ -153,15 +153,34 @@ Can be called by the trusted aggregator, which can consolidate any state without
 | :--- | :--- | :------------------------------------------------------------------- |
 |`pendingStateNum` | uint64 | Pending state to consolidate
 
+### _consolidatePendingState
+```solidity
+  function _consolidatePendingState(
+    uint64 pendingStateNum
+  ) internal
+```
+Internal function to consolidate any pending state that has already exceed the pendingStateTimeout
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`pendingStateNum` | uint64 | Pending state to consolidate
+
 ### _updateBatchFee
 ```solidity
   function _updateBatchFee(
+    uint64 newLastVerifiedBatch
   ) internal
 ```
 Function to update the batch fee based on the new verfied batches
 The batch fee will not be updated when the trusted aggregator verify batches
 
 
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newLastVerifiedBatch` | uint64 | New last verified batch
 
 ### forceBatch
 ```solidity
@@ -489,6 +508,7 @@ Function to calculate the reward to verify a single batch
     uint64 initNumBatch,
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
+    bytes32 oldStateRoot,
     bytes32 newStateRoot
   ) public returns (bytes)
 ```
@@ -500,7 +520,8 @@ Function to calculate the input snark bytes
 | :--- | :--- | :------------------------------------------------------------------- |
 |`initNumBatch` | uint64 | Batch which the aggregator starts teh verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
+|`oldStateRoot` | bytes32 | State root before batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 
 ## Events

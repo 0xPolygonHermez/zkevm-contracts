@@ -210,7 +210,7 @@ describe('Emergency mode test', () => {
             .to.be.revertedWith('PolygonZkEVM::onlyPolygonZkEVM: only PolygonZkEVM contract');
 
         await expect(polygonZkEVMContract.deactivateEmergencyState())
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: only admin');
+            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
 
         await expect(polygonZkEVMContract.connect(admin).deactivateEmergencyState())
             .to.emit(polygonZkEVMContract, 'EmergencyStateDeactivated')
@@ -277,7 +277,7 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
 
         await expect(
             polygonZkEVMContract.connect(trustedAggregator).proveNonDeterministicPendingState(
@@ -291,7 +291,7 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::proveNonDeterministicPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
 
         const newStateRootDistinct = '0x0000000000000000000000000000000000000000000000000000000000000002';
 
