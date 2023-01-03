@@ -27,23 +27,26 @@ async function main() {
     // compìle contracts
     await hre.run('compile');
 
-    const proxyPolygonZkEVMAddress = '0xFD44A8D8f28AadB1Ce916012c7C921f759056Ef7';
-    const polygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
+    const proxyPolygonAddress = '0xfefefefefefefefefefefefee';
+    const polygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock', deployer);
 
     // Upgrade zkevm
-    const newImplPolygonZkEVMAddress = await upgrades.prepareUpgrade(proxyPolygonZkEVMAddress, polygonZkEVMFactory);
+    const newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, polygonZkEVMFactory);
     const proxyAdmin = await upgrades.admin.getInstance();
 
-    console.log({ newImplPolygonZkEVMAddress });
+    console.log({ newImplPolygonAddress });
+    console.log("you can verify the new impl address with:")
+    console.log(`npx hardhat verify ${proxyPolygonAddress} --network ${process.env.HARDHAT_NETWORK}`);
 
+    // show timelock address
     // Use timelock
     const operation = genOperation(
         proxyAdmin.address,
         0, // value
         proxyAdmin.interface.encodeFunctionData(
             'upgrade',
-            [proxyPolygonZkEVMAddress,
-                newImplPolygonZkEVMAddress],
+            [proxyPolygonAddress,
+                newImplPolygonAddress],
         ),
         ethers.constants.HashZero, // predecesoor
         ethers.constants.HashZero, // salt TODO

@@ -23,7 +23,7 @@ Fill created `deploy_parameters.json` with appropiate parameters.
 
 To deploy contracts run `npm run deploy:ZkEVM:${network}`, for example:
 
-> set `runs` parameter from the compiler settings in `hardhat.config.js` (i.e. `runs: 200`)
+> set `runs` parameter from the compiler settings in `hardhat.config.js` (i.e. `runs: 100`)
 
 ```
 npm run deploy:ZkEVM:goerli
@@ -34,6 +34,8 @@ To verify contracts run `npm run verify:ZkEVM:${network}`, for example:
 ```
 npm run verify:ZkEVM:goerli
 ```
+
+A new folder will be created witth the following name `deployments/${network}_$(date +%s)` with all the output information and the OZ proxy information.
 
 ## deploy-parameters.json
 
@@ -46,7 +48,7 @@ npm run verify:ZkEVM:goerli
 
 ### Optional Parameters
 
-- `privateKey`: string, privateKey of the deployment
+- `deployerPvtKey`: string, deployerPvtKey of the deployer
 - `maxFeePerGas`:string, maxFeePerGas of all txs
 - `maxPriorityFeePerGas`:string, maxPriorityFeePerGas of all txs
 - `multiplierGas`: number, Gas multiplier. If maxFeePerGas and maxPriorityFeePerGas are set, will not take effect
@@ -54,7 +56,9 @@ npm run verify:ZkEVM:goerli
 - `PolygonZkEVMBridgeMock`:Boolean, Wheather the PolygonZkEVMBridge will be mock or not ( the mock version has a ether limitation on deposits)
 - `admin`:address, Admin address
 - `trustedAggregator`:address, Trusted aggregator address
+- `minDelayTimelock`: number, minimum timelock delay,
+- `timelockAddress`: address, Timelock owner address
 
 ## Notes
 
-- `gensis.json` has been generated using the tool: `https://github.com/0xPolygonHermez/zkevm-commonjs/blob/main/tools/fill-genesis/create-genesis.js` using as generator file: `genesis-gen.json`
+- `gensis.json` has been generated using the tool: `src/create-genesis.js` using as generator file: `genesis-gen.json`

@@ -5,7 +5,7 @@
     "realVerifier": false,
     "chainID": 1001,
     "networkName": "zkevm",
-    "privateKey": "",
+    "deployerPvtKey": "",
     "maxFeePerGas":0,
     "maxPriorityFeePerGas":0,
     "multiplierGas": 0,

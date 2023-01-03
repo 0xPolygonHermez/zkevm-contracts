@@ -27,24 +27,15 @@ async function main() {
     // compìle contracts
     await hre.run('compile');
 
-    const polygonZkEVMProxyAddress = '0xfefefefefefefefefefefefee';
-    const polygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
+    const proxyPolygonAddress = '0xfefefefefefefefefefefefee';
+    const polygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock', deployer);
 
     // Upgrade zkevm
-    const txZKEVM = await upgrades.upgradeProxy(polygonZkEVMProxyAddress, polygonZkEVMFactory);
+    const txZKEVM = await upgrades.upgradeProxy(proxyPolygonAddress, polygonZkEVMFactory);
 
     console.log(txZKEVM.deployTransaction);
     console.log(await txZKEVM.deployTransaction.wait());
     console.log('upgrade succesfull ZKEVM');
-
-    const polygonZkEVMBridgeProxyAddress = '0xfefefefefefefefefefefefee';
-    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeMock');
-
-    // Upgrade bridge
-    const txBridge = await upgrades.upgradeProxy(polygonZkEVMBridgeProxyAddress, polygonZkEVMBridgeFactory);
-    console.log(txBridge.deployTransaction);
-    console.log(await txBridge.deployTransaction.wait());
-    console.log('upgrade succesfull Bridge');
 }
 main()
     .then(() => process.exit(0))

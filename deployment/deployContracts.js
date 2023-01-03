@@ -61,8 +61,8 @@ async function main() {
 
     // Load deployer
     let deployer;
-    if (deployParameters.privateKey) {
-        deployer = new ethers.Wallet(deployParameters.privateKey, currentProvider);
+    if (deployParameters.deployerPvtKey) {
+        deployer = new ethers.Wallet(deployParameters.deployerPvtKey, currentProvider);
     } else if (process.env.MNEMONIC) {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0').connect(currentProvider);
     } else {
