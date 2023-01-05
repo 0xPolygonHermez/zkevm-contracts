@@ -3,85 +3,106 @@ const hre = require('hardhat');
 const { ethers, upgrades } = require('hardhat');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const fs = require('fs');
+
+const upgradeParameters = require('./upgrade_parameters.json');
+const pathOutputJson = path.join(__dirname, `./upgrade_output_${new Date().getTime() / 1000}.json`);
 
 async function main() {
     // Set multiplier Gas
-    const multiplierGas = 3;
-    const currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
-    async function overrideFeeData() {
-        const feedata = await ethers.provider.getFeeData();
-        return {
-            maxFeePerGas: feedata.maxFeePerGas.mul(multiplierGas),
-            maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(multiplierGas),
-        };
+    let currentProvider = ethers.provider;
+    if (upgradeParameters.multiplierGas) {
+        if (process.env.HARDHAT_NETWORK !== 'hardhat') {
+            const multiplierGas = upgradeParameters.multiplierGas;
+            currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
+            async function overrideFeeData() {
+                const feedata = await ethers.provider.getFeeData();
+                return {
+                    maxFeePerGas: feedata.maxFeePerGas.mul(multiplierGas),
+                    maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(multiplierGas),
+                };
+            }
+            currentProvider.getFeeData = overrideFeeData;
+        }
     }
-    currentProvider.getFeeData = overrideFeeData;
 
     let deployer;
-    if (process.env.MNEMONIC) {
+    if (upgradeParameters.deployerPvtKey) {
+        deployer = new ethers.Wallet(upgradeParameters.deployerPvtKey, currentProvider);
+    } else if (process.env.MNEMONIC) {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0').connect(currentProvider);
     } else {
         [deployer] = (await ethers.getSigners());
     }
-
     // compìle contracts
     await hre.run('compile');
 
-    const proxyPolygonAddress = '0xfefefefefefefefefefefefee';
-    const polygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock', deployer);
+    const proxyAdmin = await upgrades.admin.getInstance();
+    const output = [];
 
     // Upgrade zkevm
-    const newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, polygonZkEVMFactory);
-    const proxyAdmin = await upgrades.admin.getInstance();
+    for (const upgrade of upgradeParameters.upgrades) {
+        const proxyPolygonAddress = upgrade.address;
+        const polygonZkEVMFactory = await ethers.getContractFactory(upgrade.contractName, deployer);
 
-    console.log({ newImplPolygonAddress });
-    console.log("you can verify the new impl address with:")
-    console.log(`npx hardhat verify ${proxyPolygonAddress} --network ${process.env.HARDHAT_NETWORK}`);
+        const newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, polygonZkEVMFactory);
 
-    // show timelock address
-    // Use timelock
-    const operation = genOperation(
-        proxyAdmin.address,
-        0, // value
-        proxyAdmin.interface.encodeFunctionData(
-            'upgrade',
-            [proxyPolygonAddress,
-                newImplPolygonAddress],
-        ),
-        ethers.constants.HashZero, // predecesoor
-        ethers.constants.HashZero, // salt TODO
-    );
+        console.log({ newImplPolygonAddress });
+        console.log("you can verify the new impl address with:")
+        console.log(`npx hardhat verify ${newImplPolygonAddress} --network ${process.env.HARDHAT_NETWORK}`);
 
-    // Timelock operations
-    const TimelockFactory = await ethers.getContractFactory('PolygonZkEVMTimelock', deployer);
-    const minDelay = 10; // TODO upgrade parameter
+        // Use timelock
+        const salt = upgradeParameters.timelockSalt || ethers.constants.HashZero;
+        const operation = genOperation(
+            proxyAdmin.address,
+            0, // value
+            proxyAdmin.interface.encodeFunctionData(
+                'upgrade',
+                [proxyPolygonAddress,
+                    newImplPolygonAddress],
+            ),
+            ethers.constants.HashZero, // predecesoor
+            salt, // salt
+        );
 
-    // Schedule operation
-    const scheduleData = TimelockFactory.interface.encodeFunctionData(
-        'schedule',
-        [
-            operation.target,
-            operation.value,
-            operation.data,
-            operation.predecessor,
-            operation.salt,
-            minDelay,
-        ],
-    );
-    // Executre operation
-    const executeData = TimelockFactory.interface.encodeFunctionData(
-        'execute',
-        [
-            operation.target,
-            operation.value,
-            operation.data,
-            operation.predecessor,
-            operation.salt,
-        ],
-    );
+        // Timelock operations
+        const TimelockFactory = await ethers.getContractFactory('PolygonZkEVMTimelock', deployer);
+        const minDelay = upgradeParameters.timelockMinDelay || 0;
 
-    console.log({ scheduleData });
-    console.log({ executeData });
+        // Schedule operation
+        const scheduleData = TimelockFactory.interface.encodeFunctionData(
+            'schedule',
+            [
+                operation.target,
+                operation.value,
+                operation.data,
+                operation.predecessor,
+                operation.salt,
+                minDelay,
+            ],
+        );
+        // Executre operation
+        const executeData = TimelockFactory.interface.encodeFunctionData(
+            'execute',
+            [
+                operation.target,
+                operation.value,
+                operation.data,
+                operation.predecessor,
+                operation.salt,
+            ],
+        );
+
+        console.log({ scheduleData });
+        console.log({ executeData });
+        output.push({
+            contractName: upgrade.contractName,
+            scheduleData,
+            executeData
+        })
+    }
+
+    fs.writeFileSync(pathOutputJson, JSON.stringify(output, null, 1));
 }
 main()
     .then(() => process.exit(0))

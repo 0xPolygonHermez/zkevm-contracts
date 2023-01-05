@@ -1,0 +1,16 @@
+{   
+    "timelockMinDelay":10,
+    "upgrades": [
+        {
+            "address": "0x6958d5f1AFa6f668c7D7F37a444d09E2330eB104",
+            "contractName": "PolygonZkEVM"
+        },
+        {
+            "address": "0x5cA95a1629e7dDD51b66Bf1505560cd7edA91d83",
+            "contractName": "PolygonZkEVMBridgeMock"
+        }
+    ],
+    "multiplierGas": 0,
+    "deployerPvtKey": "",
+    "timelockSalt": ""
+}

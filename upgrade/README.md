@@ -17,18 +17,37 @@ In order to upgrade the contracts we will need the information on `deployments/$
 In project root, copy the `${network}.json` of the deployment that you want to upgrade and copy it on the `./.openzeppelin`
 e.g. `cp deployments/${network}_$(date +%s)/${network}.json ./.openzeppelin`
 
+Then fill the upgrade parameters:
+
+```
+cd deployment
+cp upgrade_parameters.json.example upgrade_parameters.json
+```
+
+Fill created `upgrade_parameters.json` with appropiate parameters.
+You should fullfill the upgrades array, with all the updates that you intend to do ( more information in `upgrade-parameters.json` section)
+
 if the deployment was deployed without a timelock you can use the `simpleUpgradeScript.js`:
 
-- Update the `proxyPolygonAddress` with the proxy address you want to update
-- Update the `polygonZkEVMFactory` with the new implementation contract you want to upgrade
 - Run the script
 
-Otherwise, inc ase of timelock use `timeLockUpgrade.js`
+Otherwise, in case of timelock use `timeLockUpgrade.js`
 
-- Update the `proxyPolygonAddress` with the proxy address you want to update
-- Update the `polygonZkEVMFactory` with the new implementation contract you want to upgrade
-- Update the `minDelay` with the delay that you want to use
 - Run the script
-- Now the necessary transactions to interact with the timelock are printed in the screen `schedule` and `execute`
-- With the owner of the timelock ( multisig or account), send the data printed by `schedule` to the `Timelock` contract.
-- Once the necessary timeout has pass, with the same account you can now send the data printed by `execute` to the `Timelock` contract and the contracts will be upgraded.
+- Now the necessary transactions to interact with the timelock are printed in the screen `schedule` and `execute`, also will be saved in
+  `./upgrade_output_${new Date().getTime() / 1000}.json` file
+- With the owner of the timelock (multisig or account), send the data printed by `schedule` to the `Timelock` contract.
+- Once the necessary `timelockMinDelay` has expired, with the same account you can now send the data printed by `execute` to the `Timelock` contract and the contracts will be upgraded.
+
+## upgrade-parameters.json
+
+- `timelockMinDelay`: number, timelock delay between the schedule and execution, must be bigger than current min delay
+- `upgrades`: Object, Indicates which address and to which implementation must upgrade
+  - address: address of the current proxy
+  - contractName: string, contract name that the proxy will be updated to.s
+
+### Optional Parameters
+
+- `multiplierGas`: number, Gas multiplier. If maxFeePerGas and maxPriorityFeePerGas are set, will not take effect
+- `deployerPvtKey`: string, deployerPvtKey of the deployer
+- `timelockSalt`: string, Optional salt for the timelock

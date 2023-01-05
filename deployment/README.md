@@ -61,4 +61,4 @@ A new folder will be created witth the following name `deployments/${network}_$(
 
 ## Notes
 
-- `gensis.json` has been generated using the tool: `src/create-genesis.js` using as generator file: `genesis-gen.json`
+- `genesis.json` has been generated using the tool: `src/create-genesis.js` using as generator file: `genesis-gen.json`
