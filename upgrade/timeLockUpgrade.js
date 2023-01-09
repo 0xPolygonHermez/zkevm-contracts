@@ -26,6 +26,11 @@ async function main() {
         }
     }
 
+    // Check contract name existence
+    for (const upgrade of upgradeParameters.upgrades) {
+        await ethers.getContractFactory(upgrade.contractName);
+    }
+
     let deployer;
     if (upgradeParameters.deployerPvtKey) {
         deployer = new ethers.Wallet(upgradeParameters.deployerPvtKey, currentProvider);
@@ -81,7 +86,7 @@ async function main() {
                 minDelay,
             ],
         );
-        // Executre operation
+        // Execute operation
         const executeData = TimelockFactory.interface.encodeFunctionData(
             'execute',
             [
