@@ -16,3 +16,4 @@ docs/mocks
 deploy_output.json
 deploy_parameters.json
 deployments
+upgrade_parameters.json
