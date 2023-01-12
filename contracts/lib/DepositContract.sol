@@ -90,7 +90,7 @@ contract DepositContract is Initializable {
     function verifyMerkleProof(
         bytes32 leafHash,
         bytes32[] memory smtProof,
-        uint64 index,
+        uint32 index,
         bytes32 root
     ) public pure returns (bool) {
         bytes32 node = leafHash;

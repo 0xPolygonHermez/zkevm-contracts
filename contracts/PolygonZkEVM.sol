@@ -18,7 +18,7 @@ import "./lib/EmergencyManager.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
+contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -752,7 +752,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Internal function to consolidate the state automatically once sequence or verify batches are called
-     * It trys to consolidate the first and the middle pending state
+     * It trys to consolidate the first and the middle pending state in the queue
      */
     function _tryConsolidatePendingState() internal {
         // Check if there's any state to consolidate
@@ -1429,7 +1429,7 @@ contract PolygonZkEVM is Initializable, OwnableUpgradeable, EmergencyManager {
     /**
      * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
      */
-    function deactivateEmergencyState() external ifEmergencyState onlyAdmin {
+    function deactivateEmergencyState() external onlyAdmin {
         // Deactivate emergency state on PolygonZkEVMBridge
         bridgeAddress.deactivateEmergencyState();
 

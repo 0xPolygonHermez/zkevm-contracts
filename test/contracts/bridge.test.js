@@ -415,7 +415,7 @@ describe('PolygonZkEVMBridge Contract', () => {
                 destinationAddress,
                 amount,
             ).to.emit(polygonZkEVMBridgeContract, 'NewWrappedToken')
-            .withArgs(originNetwork, tokenAddress, precalculateWrappedErc20)
+            .withArgs(originNetwork, tokenAddress, precalculateWrappedErc20, metadata)
             .to.emit(newWrappedToken, 'Transfer')
             .withArgs(ethers.constants.AddressZero, deployer.address, amount);
 
