@@ -1,6 +1,6 @@
 
 {
-  "defaultChainId": 1000,
+  "defaultChainId": 0,
   "sequencerAddress": "0xC949254d682D8c9ad5682521675b8F43b102aec4",
   "genesis": [
     {
@@ -23,7 +23,6 @@
       "value": "0",
       "gasLimit": 10000000,
       "gasPrice": "0",
-      "chainId": 1000,
       "paramsDeploy": {
         "types": [
           "address"
@@ -41,7 +40,6 @@
       "value": "0",
       "gasLimit": 10000000,
       "gasPrice": "0",
-      "chainId": 1000,
       "contractName": "PolygonZkEVMBridge"
       },
       {
@@ -51,7 +49,6 @@
         "value": "0",
         "gasLimit": 10000000,
         "gasPrice": "0",
-        "chainId": 1000,
         "function": "initialize",
         "paramsFunction": [
             1,
