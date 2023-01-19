@@ -340,6 +340,9 @@ describe('PolygonZkEVMBridge Contract', () => {
             amount,
             metadataHash,
         );
+
+        // Add 2 leafs
+        merkleTreeRollup.add(leafValue);
         merkleTreeRollup.add(leafValue);
 
         // check merkle root with SC
@@ -457,6 +460,32 @@ describe('PolygonZkEVMBridge Contract', () => {
         // Check new token
         expect(await newWrappedToken.totalSupply()).to.be.equal(amount);
 
+        // Claim again the other leaf to mint tokens
+        const index2 = 1;
+        const proof2 = merkleTreeRollup.getProofTreeByIndex(index2);
+
+        await expect(polygonZkEVMBridgeContract.claimAsset(
+            proof2,
+            index2,
+            mainnetExitRoot,
+            rollupExitRootSC,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata,
+        ))
+            .to.emit(polygonZkEVMBridgeContract, 'ClaimEvent')
+            .withArgs(
+                index,
+                originNetwork,
+                tokenAddress,
+                destinationAddress,
+                amount,
+            ).to.emit(newWrappedToken, 'Transfer')
+            .withArgs(ethers.constants.AddressZero, deployer.address, amount);
+
         // Burn Tokens
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const wrappedTokenAddress = newWrappedToken.address;
@@ -503,6 +532,9 @@ describe('PolygonZkEVMBridge Contract', () => {
         const rootJSMainnet = merkleTreeMainnet.getRoot();
 
         // Tokens are burnt
+        expect(await newWrappedToken.totalSupply()).to.be.equal(ethers.BigNumber.from(amount).mul(2));
+        expect(await newWrappedToken.balanceOf(deployer.address)).to.be.equal(ethers.BigNumber.from(amount).mul(2));
+
         await expect(polygonZkEVMBridgeContract.bridgeAsset(wrappedTokenAddress, newDestinationNetwork, destinationAddress, amount, '0x'))
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
             .withArgs(
@@ -520,8 +552,8 @@ describe('PolygonZkEVMBridge Contract', () => {
             .to.emit(newWrappedToken, 'Transfer')
             .withArgs(deployer.address, ethers.constants.AddressZero, amount);
 
-        expect(await newWrappedToken.totalSupply()).to.be.equal(0);
-        expect(await newWrappedToken.balanceOf(deployer.address)).to.be.equal(0);
+        expect(await newWrappedToken.totalSupply()).to.be.equal(amount);
+        expect(await newWrappedToken.balanceOf(deployer.address)).to.be.equal(amount);
         expect(await newWrappedToken.balanceOf(polygonZkEVMBridgeContract.address)).to.be.equal(0);
 
         // check merkle root with SC

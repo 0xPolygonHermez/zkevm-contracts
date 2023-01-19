@@ -155,6 +155,15 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         networkName = _networkName;
     }
 
+
+    /**
+     * @notice Update fee mock function 
+     * @param newLastVerifiedBatch New last verified batch
+     */
+    function updateBatchFee(uint64 newLastVerifiedBatch) public onlyOwner {
+        _updateBatchFee(newLastVerifiedBatch);
+    }
+
     /**
      * @notice Set sequencedBatches
      * @param batchNum bathc num

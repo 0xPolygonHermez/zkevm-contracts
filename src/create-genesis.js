@@ -195,7 +195,30 @@ async function main() {
 
     genesisOutput.root = smtUtils.h4toString(batch.currentStateRoot);
     genesisOutput.genesis = accountsOutput;
-    genesisOutput.rawTxs = rawTxs;
+
+    const decodedTxs = await batch.getDecodedTxs();
+    genesisOutput.transactions = rawTxs.map((rawTx, index) => {
+        if (decodedTxs[index].receipt) {
+            const receipt = {
+                status: decodedTxs[index].receipt.status,
+                gasUsed: `0x${decodedTxs[index].receipt.gasUsed.toString('hex')}`,
+                logs: decodedTxs[index].receipt.logs ? decodedTxs[index].receipt.logs.map((log) => log.map((infoLogs) => {
+                    if (Array.isArray(infoLogs)) {
+                        return infoLogs.map((buffer) => `0x${buffer.toString('hex')}`);
+                    }
+                    return `0x${infoLogs.toString('hex')}`;
+                })) : [],
+            };
+            return {
+                rawTx,
+                receipt,
+                createAddress: decodedTxs[index].createdAddress ? `${decodedTxs[index].createdAddress.toString('hex')}` : null,
+            };
+        }
+        return {
+            rawTx,
+        };
+    });
 
     const genesisOutputPath = path.join(__dirname, outPath);
     await fs.writeFileSync(genesisOutputPath, JSON.stringify(genesisOutput, null, 2));
