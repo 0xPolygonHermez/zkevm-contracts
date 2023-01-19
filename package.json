@@ -72,6 +72,7 @@
     "push:docker:contracts": "docker push hermeznetwork/geth-zkevm-contracts",
     "update:genesis": "node src/create-genesis.js --gen ../deployment/genesis-gen.json --out ../deployment/genesis.json && node src/create-genesis.js --gen ../docker/scripts/genesis_gen_docker.json --out ../docker/scripts/genesis_docker.json",
     "coverage":"npx hardhat coverage",
-    "gas:report":"REPORT_GAS=true npx hardhat test"
+    "gas:report":"REPORT_GAS=true npx hardhat test",
+    "gas:report:file":"REPORT_GAS=true REPORT_GAS_FILE=true npx hardhat test"
   }
 }

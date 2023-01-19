@@ -1,32 +1,37 @@
 const { expect } = require('chai');
-const { ethers, upgrades } = require('hardhat');
+const { ethers } = require('hardhat');
 
 const zero32bytes = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 describe('Global Exit Root L2', () => {
     let PolygonZkEVMBridge;
     let polygonZkEVMGlobalExitRoot;
-    const PolygonZkEVMAddress = ethers.constants.AddressZero;
+    let deployer;
 
     beforeEach('Deploy contracts', async () => {
-        const networkIDRollup = 1;
-
         // load signers
-        const deployer = (await ethers.getSigners())[0];
+        [deployer, PolygonZkEVMBridge] = await ethers.getSigners();
 
-        // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
-        PolygonZkEVMBridge = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });
         // deploy global exit root manager
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootL2Mock', deployer);
         polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(PolygonZkEVMBridge.address);
-
-        await PolygonZkEVMBridge.initialize(networkIDRollup, polygonZkEVMGlobalExitRoot.address, PolygonZkEVMAddress);
     });
 
     it('should check the constructor parameters', async () => {
         expect(await polygonZkEVMGlobalExitRoot.bridgeAddress()).to.be.equal(PolygonZkEVMBridge.address);
         expect(await polygonZkEVMGlobalExitRoot.lastRollupExitRoot()).to.be.equal(zero32bytes);
+    });
+
+    it('should update root and check global exit root', async () => {
+        const newRootRollup = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+
+        await expect(polygonZkEVMGlobalExitRoot.updateExitRoot(newRootRollup))
+            .to.be.revertedWith('PolygonZkEVMGlobalExitRootL2::updateExitRoot: Only PolygonZkEVMBridge');
+
+        // Update root from the rollup
+        await polygonZkEVMGlobalExitRoot.connect(PolygonZkEVMBridge).updateExitRoot(newRootRollup);
+
+        expect(await polygonZkEVMGlobalExitRoot.lastRollupExitRoot()).to.be.equal(newRootRollup);
     });
 
     it('should update root and check the storage position matches', async () => {
