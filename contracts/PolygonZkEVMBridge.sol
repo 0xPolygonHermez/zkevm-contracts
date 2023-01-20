@@ -297,9 +297,6 @@ contract PolygonZkEVMBridge is
             LEAF_TYPE_ASSET
         );
 
-        // Update nullifier
-        _setClaimed(index);
-
         // Transfer funds
         if (originTokenAddress == address(0)) {
             // Transfer ether
@@ -413,9 +410,6 @@ contract PolygonZkEVMBridge is
             metadata,
             LEAF_TYPE_MESSAGE
         );
-
-        // Update nullifier
-        _setClaimed(index);
 
         // Execute message
         // Transfer ether
@@ -532,11 +526,8 @@ contract PolygonZkEVMBridge is
         bytes memory metadata,
         uint8 leafType
     ) internal {
-        // Check nullifier
-        require(
-            !isClaimed(index),
-            "PolygonZkEVMBridge::_verifyLeaf: Already claimed"
-        );
+        // Set and check nullifier
+       _setAndCheckClaimed(index);
 
         // Check timestamp where the global exit root was set
         uint256 timestampGlobalExitRoot = globalExitRootManager
@@ -587,35 +578,29 @@ contract PolygonZkEVMBridge is
      * @param index Index
      */
     function isClaimed(uint256 index) public view returns (bool) {
-        uint256 claimedWordIndex = index / 256;
-        uint256 claimedBitIndex = index % 256;
-        uint256 claimedWord = claimedBitMap[claimedWordIndex];
-        uint256 mask = (1 << claimedBitIndex);
-        return (claimedWord & mask) == mask;
+        (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
+        uint256 mask = (1 << bitPos);
+        return (claimedBitMap[wordPos] & mask) == mask;
     }
 
     /**
-     * @notice Function set a index as claimed
+     * @notice Function to check that an index is not claimed and set it as claimed
      * @param index Index
      */
-    function _setClaimed(uint256 index) private {
-        uint256 claimedWordIndex = index / 256;
-        uint256 claimedBitIndex = index % 256;
-        claimedBitMap[claimedWordIndex] =
-            claimedBitMap[claimedWordIndex] |
-            (1 << claimedBitIndex);
+    function _setAndCheckClaimed(uint256 index) private {
+        (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
+        uint256 mask = 1 << bitPos;
+        uint256 flipped = claimedBitMap[wordPos] ^= mask;
+        require (flipped & mask != 0,"PolygonZkEVMBridge::_setAndCheckClaimed: Already claimed");
     }
 
     /**
-     * @notice Function to extract the selector of a bytes calldata
-     * @param _data The calldata bytes
+     * @notice Function decode a index into a wordPos and bitPos
+     * @param index Index
      */
-    function _getSelector(
-        bytes memory _data
-    ) private pure returns (bytes4 sig) {
-        assembly {
-            sig := mload(add(_data, 32))
-        }
+    function _bitmapPositions(uint256 index) private pure returns (uint256 wordPos, uint256 bitPos) {
+        wordPos = uint248(index >> 8);
+        bitPos = uint8(index);
     }
 
     /**
@@ -629,7 +614,7 @@ contract PolygonZkEVMBridge is
         uint256 amount,
         bytes calldata permitData
     ) internal {
-        bytes4 sig = _getSelector(permitData);
+        bytes4 sig = bytes4(permitData[:4]);
         if (sig == _PERMIT_SIGNATURE) {
             (
                 address owner,

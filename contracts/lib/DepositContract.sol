@@ -61,8 +61,7 @@ contract DepositContract is Initializable {
         );
 
         // Add deposit data root to Merkle tree (update a single `_branch` node)
-        depositCount += 1;
-        uint256 size = depositCount;
+        uint256 size = ++depositCount;
         for (
             uint256 height = 0;
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;

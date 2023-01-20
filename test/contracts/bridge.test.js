@@ -312,7 +312,7 @@ describe('PolygonZkEVMBridge Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('PolygonZkEVMBridge::_verifyLeaf: Already claimed');
+        )).to.be.revertedWith('PolygonZkEVMBridge::_setAndCheckClaimed: Already claimed');
         expect(true).to.be.equal(await polygonZkEVMBridgeContract.isClaimed(index));
     });
 
@@ -455,7 +455,7 @@ describe('PolygonZkEVMBridge Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('PolygonZkEVMBridge::_verifyLeaf: Already claimed');
+        )).to.be.revertedWith('PolygonZkEVMBridge::_setAndCheckClaimed: Already claimed');
 
         // Check new token
         expect(await newWrappedToken.totalSupply()).to.be.equal(amount);
@@ -841,7 +841,7 @@ describe('PolygonZkEVMBridge Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('PolygonZkEVMBridge::_verifyLeaf: Already claimed');
+        )).to.be.revertedWith('PolygonZkEVMBridge::_setAndCheckClaimed: Already claimed');
     });
 
     it('should claim ether', async () => {
@@ -991,7 +991,7 @@ describe('PolygonZkEVMBridge Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('PolygonZkEVMBridge::_verifyLeaf: Already claimed');
+        )).to.be.revertedWith('PolygonZkEVMBridge::_setAndCheckClaimed: Already claimed');
     });
 
     it('should claim message', async () => {
@@ -1172,6 +1172,6 @@ describe('PolygonZkEVMBridge Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('PolygonZkEVMBridge::_verifyLeaf: Already claimed');
+        )).to.be.revertedWith('PolygonZkEVMBridge::_setAndCheckClaimed: Already claimed');
     });
 });
