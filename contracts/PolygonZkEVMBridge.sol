@@ -115,7 +115,8 @@ contract PolygonZkEVMBridge is
     event NewWrappedToken(
         uint32 originNetwork,
         address originTokenAddress,
-        address wrappedTokenAddress
+        address wrappedTokenAddress,
+        bytes metadata
     );
 
     /**
@@ -354,7 +355,8 @@ contract PolygonZkEVMBridge is
                     emit NewWrappedToken(
                         originNetwork,
                         originTokenAddress,
-                        address(newWrappedToken)
+                        address(newWrappedToken),
+                        metadata
                     );
                 } else {
                     // Use the existing wrapped erc20

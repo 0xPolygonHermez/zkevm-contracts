@@ -1,3 +1,4 @@
+/* eslint-disable no-plusplus, no-await-in-loop */
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 
@@ -29,7 +30,7 @@ describe('Polygon ZK-EVM', () => {
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const chainID = 1000;
     const networkName = 'zkevm';
-    const pendingStateTimeoutDefault = 10;
+    const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeoutDefault = 10;
 
     beforeEach('Deploy contract', async () => {
@@ -86,7 +87,7 @@ describe('Polygon ZK-EVM', () => {
         );
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('100'));
+        await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('1000'));
     });
 
     it('should check the constructor parameters', async () => {
@@ -95,6 +96,7 @@ describe('Polygon ZK-EVM', () => {
         expect(await polygonZkEVMContract.rollupVerifier()).to.be.equal(verifierContract.address);
         expect(await polygonZkEVMContract.bridgeAddress()).to.be.equal(polygonZkEVMBridgeContract.address);
 
+        expect(await polygonZkEVMContract.owner()).to.be.equal(deployer.address);
         expect(await polygonZkEVMContract.admin()).to.be.equal(admin.address);
         expect(await polygonZkEVMContract.chainID()).to.be.equal(chainID);
         expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
@@ -178,6 +180,23 @@ describe('Polygon ZK-EVM', () => {
             polygonZkEVMContract.connect(admin).setPendingStateTimeout(newPendingStateTimeoutDefault),
         ).to.emit(polygonZkEVMContract, 'SetPendingStateTimeout').withArgs(newPendingStateTimeoutDefault);
         expect(await polygonZkEVMContract.pendingStateTimeout()).to.be.equal(newPendingStateTimeoutDefault);
+
+        // setMultiplierBatchFee
+        const newMultiplierBatchFee = 1023;
+        await expect(polygonZkEVMContract.connect(admin).setMultiplierBatchFee(newMultiplierBatchFee + 1))
+            .to.be.revertedWith('PolygonZkEVM::setMultiplierBatchFee: newMultiplierBatchFee incorrect range');
+
+        await expect(
+            polygonZkEVMContract.connect(admin).setMultiplierBatchFee(newMultiplierBatchFee),
+        ).to.emit(polygonZkEVMContract, 'SetMultiplierBatchFee').withArgs(newMultiplierBatchFee);
+        expect(await polygonZkEVMContract.multiplierBatchFee()).to.be.equal(newMultiplierBatchFee);
+
+        // setVeryBatchTimeTarget
+        const newVeryBatchTimeTarget = 100;
+        await expect(
+            polygonZkEVMContract.connect(admin).setVeryBatchTimeTarget(newVeryBatchTimeTarget),
+        ).to.emit(polygonZkEVMContract, 'SetVeryBatchTimeTarget').withArgs(newVeryBatchTimeTarget);
+        expect(await polygonZkEVMContract.veryBatchTimeTarget()).to.be.equal(newVeryBatchTimeTarget);
 
         // setAdmin
         await expect(polygonZkEVMContract.setAdmin(deployer.address))
@@ -321,6 +340,32 @@ describe('Polygon ZK-EVM', () => {
             trustedSequencer.address,
         );
         expect(batchAccInputHash2).to.be.equal(batchAccInputHashJs);
+    });
+
+    it('force batches through smart contract', async () => {
+        const l2txDataForceBatch = '0x123456';
+        const maticAmount = await polygonZkEVMContract.getCurrentBatchFee();
+        const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+
+        // deploy sender SC
+        const sendDataFactory = await ethers.getContractFactory('SendData');
+        const sendDataContract = await sendDataFactory.deploy();
+        await sendDataContract.deployed();
+
+        // transfer matic
+        await maticTokenContract.transfer(sendDataContract.address, ethers.utils.parseEther('1000'));
+
+        // Approve matic
+        const approveTx = await maticTokenContract.populateTransaction.approve(polygonZkEVMContract.address, maticAmount);
+        await sendDataContract.sendData(approveTx.to, approveTx.data);
+
+        // Force batch
+        const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
+
+        const forceBatchTx = await polygonZkEVMContract.populateTransaction.forceBatch(l2txDataForceBatch, maticAmount);
+        await expect(sendDataContract.sendData(forceBatchTx.to, forceBatchTx.data))
+            .to.emit(polygonZkEVMContract, 'ForceBatch')
+            .withArgs(lastForcedBatch, lastGlobalExitRoot, sendDataContract.address, l2txDataForceBatch);
     });
 
     it('sequenceBatches should sequence multiple batches and force batches', async () => {
@@ -1108,5 +1153,745 @@ describe('Polygon ZK-EVM', () => {
         expect(1).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
         expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(1));
         expect(1).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+    });
+
+    it('should test the pending state properly', async () => {
+        const l2txData = '0x123456';
+        const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
+
+        const batchesForSequence = 5;
+        const sequence = {
+            transactions: l2txData,
+            globalExitRoot: ethers.constants.HashZero,
+            timestamp: currentTimestamp,
+            minForcedTimestamp: 0,
+        };
+        const sequencesArray = Array(batchesForSequence).fill(sequence);
+        // Array(5).fill("girl", 0);
+
+        // Approve lots of tokens
+        await expect(
+            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticTokenInitialBalance),
+        ).to.emit(maticTokenContract, 'Approval');
+
+        // Make 20 sequences of 5 batches, with 1 minut timestamp difference
+        for (let i = 0; i < 20; i++) {
+            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches(sequencesArray))
+                .to.emit(polygonZkEVMContract, 'SequenceBatches');
+        }
+        await ethers.provider.send('evm_increaseTime', [60]);
+
+        // Forge first sequence with verifyBAtches
+        const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
+        const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
+        const proofA = ['0', '0'];
+        const proofB = [
+            ['0', '0'],
+            ['0', '0'],
+        ];
+        const proofC = ['0', '0'];
+
+        let currentPendingState = 0;
+        let currentNumBatch = 0;
+        let newBatch = currentNumBatch + batchesForSequence;
+
+        // Verify batch
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            .withArgs(newBatch, newStateRoot, aggregator1.address);
+
+        let verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
+
+        // Check pending state
+        currentPendingState++;
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+
+        let currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
+        expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
+        expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
+        expect(newStateRoot).to.be.equal(currentPendingStateData.stateRoot);
+
+        // Try to verify Batches that does not go beyond the last pending state
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                0,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                10,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: pendingStateNum must be less or equal than lastPendingState');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: initNumBatch must match the pending state batch');
+
+        currentNumBatch = newBatch;
+        newBatch += batchesForSequence;
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'TrustedVerifyBatches')
+            .withArgs(newBatch, newStateRoot, trustedAggregator.address);
+
+        // Check pending state is clear
+        currentPendingState = 0;
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(0).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+
+        // Check consolidated state
+        let currentVerifiedBatch = newBatch;
+        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                1,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: pendingStateNum must be less or equal than lastPendingState');
+
+        // Since this pending state was not consolidated, the currentNumBatch does not have stored root
+        expect(ethers.constants.HashZero).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentNumBatch));
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: initNumBatch state root does not exist');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                currentPendingState,
+                0,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch');
+
+        // Again use verifyBatches
+        currentNumBatch = newBatch;
+        newBatch += batchesForSequence;
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            .withArgs(newBatch, newStateRoot, aggregator1.address);
+
+        // Check pending state
+        verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
+        currentPendingState++;
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+
+        currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
+        expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
+        expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
+        expect(newStateRoot).to.be.equal(currentPendingStateData.stateRoot);
+
+        // Verify another sequence from batch 0
+        currentNumBatch = newBatch;
+        newBatch += batchesForSequence;
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                0,
+                1,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: initNumBatch state root does not exist');
+
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                0,
+                0,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            .withArgs(newBatch, newStateRoot, aggregator1.address);
+
+        // Check pending state
+        verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
+        currentPendingState++;
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+
+        currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
+        expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
+        expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
+        expect(newStateRoot).to.be.equal(currentPendingStateData.stateRoot);
+
+        // Verify batches using old pending state
+        currentNumBatch = newBatch;
+        newBatch += batchesForSequence;
+
+        // Must specify pending state num while is not consolidated
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).trustedVerifyBatches(
+                0,
+                currentNumBatch - 5,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_verifyBatches: initNumBatch state root does not exist');
+
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                currentPendingState - 1,
+                currentNumBatch - 5,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            .withArgs(newBatch, newStateRoot, aggregator1.address);
+
+        verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
+        currentPendingState++;
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+
+        currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
+        expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
+        expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
+        expect(newStateRoot).to.be.equal(currentPendingStateData.stateRoot);
+
+        // Consolidate using verifyBatches
+        const firstPendingState = await polygonZkEVMContract.pendingStateTransitions(1);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [firstPendingState.timestamp.toNumber() + pendingStateTimeoutDefault]);
+
+        let currentPendingConsolidated = 0;
+        currentNumBatch = newBatch;
+        newBatch += batchesForSequence;
+
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            .withArgs(newBatch, newStateRoot, aggregator1.address)
+            .to.emit(polygonZkEVMContract, 'ConsolidatePendingState')
+            .withArgs(firstPendingState.lastVerifiedBatch, newStateRoot, ++currentPendingConsolidated);
+
+        verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
+        currentPendingState++;
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(currentPendingConsolidated).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+
+        currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
+        expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
+        expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
+        expect(newStateRoot).to.be.equal(currentPendingStateData.stateRoot);
+
+        // Check state consolidated
+        currentVerifiedBatch += batchesForSequence;
+        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+
+        // Consolidate using sendBatches
+        const secondPendingState = await polygonZkEVMContract.pendingStateTransitions(2);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [secondPendingState.timestamp.toNumber() + pendingStateTimeoutDefault]);
+
+        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches(sequencesArray))
+            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+            .to.emit(polygonZkEVMContract, 'ConsolidatePendingState')
+            .withArgs(secondPendingState.lastVerifiedBatch, newStateRoot, ++currentPendingConsolidated);
+
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(currentPendingConsolidated).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+
+        // Check state consolidated
+        currentVerifiedBatch += batchesForSequence;
+        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+
+        // Put a lot of pending states and check that half of them are consoldiated
+        for (let i = 0; i < 8; i++) {
+            currentNumBatch = newBatch;
+            newBatch += batchesForSequence;
+            await expect(
+                polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                    currentPendingState,
+                    currentNumBatch,
+                    newBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    proofA,
+                    proofB,
+                    proofC,
+                ),
+            ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+                .withArgs(newBatch, newStateRoot, aggregator1.address);
+
+            currentPendingState++;
+        }
+
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+
+        currentPendingConsolidated = await polygonZkEVMContract.lastPendingStateConsolidated();
+        const lastPendingState = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [lastPendingState.timestamp.toNumber() + pendingStateTimeoutDefault]);
+
+        // call verify batches and check that half of them are consolidated
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(currentPendingConsolidated).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+
+        const nextPendingConsolidated = Number(currentPendingConsolidated) + 1;
+        const nextConsolidatedStateNum = nextPendingConsolidated + Number(Math.floor((currentPendingState - nextPendingConsolidated) / 2));
+        const nextConsolidatedState = await polygonZkEVMContract.pendingStateTransitions(nextConsolidatedStateNum);
+
+        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches(sequencesArray))
+            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+            .to.emit(polygonZkEVMContract, 'ConsolidatePendingState')
+            .withArgs(nextConsolidatedState.lastVerifiedBatch, newStateRoot, nextConsolidatedStateNum);
+
+        // Put pendingState to 0 and check that the pending state is clear after verifyBatches
+        await expect(
+            polygonZkEVMContract.connect(admin).setPendingStateTimeout(0),
+        ).to.emit(polygonZkEVMContract, 'SetPendingStateTimeout').withArgs(0);
+
+        currentNumBatch = newBatch;
+        newBatch += batchesForSequence;
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            .withArgs(newBatch, newStateRoot, aggregator1.address);
+
+        currentPendingState = 0;
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(0).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+
+        // Check consolidated state
+        currentVerifiedBatch = newBatch;
+        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+    });
+
+    it('Activate emergency state due halt timeout', async () => {
+        const l2txData = '0x123456';
+        const maticAmount = await polygonZkEVMContract.getCurrentBatchFee();
+        const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
+
+        const sequence = {
+            transactions: l2txData,
+            globalExitRoot: ethers.constants.HashZero,
+            timestamp: ethers.BigNumber.from(currentTimestamp),
+            minForcedTimestamp: 0,
+        };
+
+        // Approve tokens
+        await expect(
+            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount),
+        ).to.emit(maticTokenContract, 'Approval');
+
+        // Sequence batch
+        const lastBatchSequenced = 1;
+        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence]))
+            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+            .withArgs(lastBatchSequenced);
+
+        const sequencedTimestmap = Number((await polygonZkEVMContract.sequencedBatches(1)).sequencedTimestamp);
+        const haltTimeout = Number(await polygonZkEVMContract.HALT_AGGREGATION_TIMEOUT());
+
+        // Try to activate the emergency state
+
+        // Check batch is not sequenced
+        await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(2))
+            .to.be.revertedWith('PolygonZkEVM::activateEmergencyState: Batch not sequenced or not end of sequence');
+
+        // Check batch is already verified
+        await polygonZkEVMContract.setVerifiedBatch(1);
+        await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(1))
+            .to.be.revertedWith('PolygonZkEVM::activateEmergencyState: Batch already verified');
+        await polygonZkEVMContract.setVerifiedBatch(0);
+
+        // check timeout is not expired
+        await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(1))
+            .to.be.revertedWith('PolygonZkEVM::activateEmergencyState: Aggregation halt timeout is not expired');
+
+        await ethers.provider.send('evm_setNextBlockTimestamp', [sequencedTimestmap + haltTimeout]);
+
+        // Succesfully acitvate emergency state
+        await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(1))
+            .to.emit(polygonZkEVMContract, 'EmergencyStateActivated');
+    });
+
+    it('Test overridePendingState properly', async () => {
+        const l2txData = '0x123456';
+        const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
+
+        const batchesForSequence = 5;
+        const sequence = {
+            transactions: l2txData,
+            globalExitRoot: ethers.constants.HashZero,
+            timestamp: currentTimestamp,
+            minForcedTimestamp: 0,
+        };
+        const sequencesArray = Array(batchesForSequence).fill(sequence);
+        // Array(5).fill("girl", 0);
+
+        // Approve lots of tokens
+        await expect(
+            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticTokenInitialBalance),
+        ).to.emit(maticTokenContract, 'Approval');
+
+        // Make 20 sequences of 5 batches, with 1 minut timestamp difference
+        for (let i = 0; i < 20; i++) {
+            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches(sequencesArray))
+                .to.emit(polygonZkEVMContract, 'SequenceBatches');
+        }
+        await ethers.provider.send('evm_increaseTime', [60]);
+
+        // Forge first sequence with verifyBAtches
+        const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
+        const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
+        const proofA = ['0', '0'];
+        const proofB = [
+            ['0', '0'],
+            ['0', '0'],
+        ];
+        const proofC = ['0', '0'];
+
+        let currentPendingState = 0;
+        let currentNumBatch = 0;
+        let newBatch = currentNumBatch + batchesForSequence;
+
+        // Verify batch 2 batches
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            .withArgs(newBatch, newStateRoot, aggregator1.address);
+
+        // verify second sequence
+        currentPendingState++;
+        currentNumBatch = newBatch;
+        newBatch += batchesForSequence;
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                currentPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            .withArgs(newBatch, newStateRoot, aggregator1.address);
+
+        const finalPendingState = 2;
+
+        await expect(
+            polygonZkEVMContract.connect(aggregator1).overridePendingState(
+                currentPendingState,
+                finalPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::onlyTrustedAggregator: Only trusted aggregator');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                finalPendingState + 1,
+                finalPendingState + 2,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: pendingStateNum must be less or equal than lastPendingState');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                currentPendingState,
+                finalPendingState,
+                currentNumBatch + 1,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: initNumBatch must match the pending state batch');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                currentPendingState,
+                finalPendingState,
+                currentNumBatch,
+                newBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                0,
+                finalPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: initNumBatch state root does not exist');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                finalPendingState,
+                finalPendingState,
+                currentNumBatch + 5,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalPendingStateNum incorrect');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                finalPendingState,
+                finalPendingState + 2,
+                currentNumBatch + 5,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalPendingStateNum incorrect');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                currentPendingState,
+                finalPendingState,
+                currentNumBatch,
+                newBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                currentPendingState,
+                finalPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: Stored root must be different than new state root');
+
+        const newStateRoot2 = '0x0000000000000000000000000000000000000000000000000000000000000003';
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+                currentPendingState,
+                finalPendingState,
+                currentNumBatch,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot2,
+                proofA,
+                proofB,
+                proofC,
+            ),
+        ).to.emit(polygonZkEVMContract, 'OverridePendingState').withArgs(newBatch, newStateRoot2, trustedAggregator.address);
+
+        // check pending state is clear
+        currentPendingState = 0;
+        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(0).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+
+        // check consolidated state
+        const currentVerifiedBatch = newBatch;
+        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
+        expect(newStateRoot2).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+    });
+
+    it('Test batch fees properly', async () => {
+        const accInputData = ethers.constants.HashZero;
+        const veryBatchTimeTarget = Number(await polygonZkEVMContract.veryBatchTimeTarget());
+        const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
+
+        const MAX_BATCH_MULTIPLIER = ethers.BigNumber.from(await polygonZkEVMContract.MAX_BATCH_MULTIPLIER()); // 12
+        const multiplierFee = ethers.BigNumber.from(await polygonZkEVMContract.multiplierBatchFee()); // 1002
+        const bingNumber1000 = ethers.BigNumber.from(1000);
+
+        // Create sequenced to update the fee
+        await polygonZkEVMContract.setSequencedBatches(
+            50,
+            accInputData,
+            currentTimestamp + veryBatchTimeTarget,
+            0,
+        ); // Edge case, will be below
+
+        await polygonZkEVMContract.setSequencedBatches(
+            100,
+            accInputData,
+            currentTimestamp + veryBatchTimeTarget - 1,
+            50,
+        ); // Edge case, will be above
+
+        // Assert currentFee
+        let currentBatchFee = await polygonZkEVMContract.batchFee();
+        expect(currentBatchFee).to.be.equal(ethers.utils.parseEther('1'));
+
+        await ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + veryBatchTimeTarget * 2]);
+
+        await polygonZkEVMContract.updateBatchFee(100);
+
+        // Fee does not change since there are the same batches above than below
+        expect(await polygonZkEVMContract.batchFee()).to.be.equal(currentBatchFee);
+
+        /*
+         * Now all the batches will be above
+         * since the MAX_BATCH_MULTIPLIER is 12 this will be the pow
+         */
+        await polygonZkEVMContract.updateBatchFee(100);
+
+        currentBatchFee = currentBatchFee.mul(multiplierFee.pow(MAX_BATCH_MULTIPLIER)).div(bingNumber1000.pow(MAX_BATCH_MULTIPLIER));
+        expect(currentBatchFee).to.be.equal(await polygonZkEVMContract.batchFee());
+
+        // Check the fee is now below
+        await polygonZkEVMContract.setSequencedBatches(50, accInputData, currentTimestamp + veryBatchTimeTarget * 2, 0); // Below
+        currentBatchFee = currentBatchFee.mul(bingNumber1000.pow(MAX_BATCH_MULTIPLIER)).div(multiplierFee.pow(MAX_BATCH_MULTIPLIER));
     });
 });

@@ -134,7 +134,7 @@ Verify batches internal function
   ) internal
 ```
 Internal function to consolidate the state automatically once sequence or verify batches are called
-It trys to consolidate the first and the middle pending state
+It trys to consolidate the first and the middle pending state in the queue
 
 
 

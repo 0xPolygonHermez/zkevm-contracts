@@ -31,7 +31,7 @@ Add a new leaf to the merkle tree
   function verifyMerkleProof(
     bytes32 leafHash,
     bytes32[] smtProof,
-    uint64 index,
+    uint32 index,
     bytes32 root
   ) public returns (bool)
 ```
@@ -43,7 +43,7 @@ Verify merkle proof
 | :--- | :--- | :------------------------------------------------------------------- |
 |`leafHash` | bytes32 | Leaf hash
 |`smtProof` | bytes32[] | Smt proof
-|`index` | uint64 | Index of the leaf
+|`index` | uint32 | Index of the leaf
 |`root` | bytes32 | Merkle root
 
 ### getLeafValue
