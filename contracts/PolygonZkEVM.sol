@@ -86,6 +86,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @param admin Admin address
      * @param chainID L2 chainID
      * @param trustedSequencer Trusted sequencer address
+     * @param pendingStateTimeout Pending state timeout
      * @param forceBatchAllowed Indicates whether the force batch functionality is available
      * @param trustedAggregator Trusted aggregator
      * @param trustedAggregatorTimeout Trusted aggregator timeout
@@ -561,6 +562,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Allows an aggregator to verify multiple batches
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
@@ -639,7 +641,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Allows an aggregator to verify multiple batches
-     * @param pendingStateNum Init pending state, 0 when consolidated state is used
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
@@ -687,6 +689,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Verify batches internal function
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
@@ -1237,7 +1240,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     /**
      * @notice Allows the trusted aggregator to override the pending state
      * if its possible to prove a different state root given the same batches
-     * @param initPendingStateNum Init pending state, 0 when consolidated state is used
+     * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
@@ -1291,7 +1294,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
-     * @param initPendingStateNum Init pending state, 0 when consolidated state is used
+     * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
@@ -1335,7 +1338,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Internal function that prove a different state root given the same batches to verify
-     * @param initPendingStateNum Init pending state, 0 when consolidated state is used
+     * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify

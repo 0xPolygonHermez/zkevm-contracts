@@ -51,13 +51,14 @@ Allows a sequencer to send multiple batches
 ### verifyBatches
 ```solidity
   function verifyBatches(
+    uint64 pendingStateNum,
     uint64 initNumBatch,
     uint64 finalNewBatch,
-    uint64 newLocalExitRoot,
+    bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    bytes32 proofA,
-    uint256[2] proofB,
-    uint256[2][2] proofC
+    uint256[2] proofA,
+    uint256[2][2] proofB,
+    uint256[2] proofC
   ) external
 ```
 Allows an aggregator to verify multiple batches
@@ -66,13 +67,14 @@ Allows an aggregator to verify multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
+|`pendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | uint64 |  New local exit root once the batch is processed
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | bytes32 | zk-snark input
-|`proofB` | uint256[2] | zk-snark input
-|`proofC` | uint256[2][2] | zk-snark input
+|`proofA` | uint256[2] | zk-snark input
+|`proofB` | uint256[2][2] | zk-snark input
+|`proofC` | uint256[2] | zk-snark input
 
 ### trustedVerifyBatches
 ```solidity
@@ -93,7 +95,7 @@ Allows an aggregator to verify multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`pendingStateNum` | uint64 | Init pending state, 0 when consolidated state is used
+|`pendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
@@ -105,13 +107,14 @@ Allows an aggregator to verify multiple batches
 ### _verifyAndRewardBatches
 ```solidity
   function _verifyAndRewardBatches(
+    uint64 pendingStateNum,
     uint64 initNumBatch,
     uint64 finalNewBatch,
-    uint64 newLocalExitRoot,
+    bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    bytes32 proofA,
-    uint256[2] proofB,
-    uint256[2][2] proofC
+    uint256[2] proofA,
+    uint256[2][2] proofB,
+    uint256[2] proofC
   ) internal
 ```
 Verify batches internal function
@@ -120,13 +123,14 @@ Verify batches internal function
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
+|`pendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | uint64 |  New local exit root once the batch is processed
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | bytes32 | zk-snark input
-|`proofB` | uint256[2] | zk-snark input
-|`proofC` | uint256[2][2] | zk-snark input
+|`proofA` | uint256[2] | zk-snark input
+|`proofB` | uint256[2][2] | zk-snark input
+|`proofC` | uint256[2] | zk-snark input
 
 ### _tryConsolidatePendingState
 ```solidity
@@ -375,7 +379,7 @@ if its possible to prove a different state root given the same batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`initPendingStateNum` | uint64 | Init pending state, 0 when consolidated state is used
+|`initPendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`finalPendingStateNum` | uint64 | Final pending state, that will be used to compare with the newStateRoot
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
@@ -405,7 +409,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`initPendingStateNum` | uint64 | Init pending state, 0 when consolidated state is used
+|`initPendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`finalPendingStateNum` | uint64 | Final pending state, that will be used to compare with the newStateRoot
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
@@ -435,7 +439,7 @@ Internal function that prove a different state root given the same batches to ve
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`initPendingStateNum` | uint64 | Init pending state, 0 when consolidated state is used
+|`initPendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`finalPendingStateNum` | uint64 | Final pending state, that will be used to compare with the newStateRoot
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
