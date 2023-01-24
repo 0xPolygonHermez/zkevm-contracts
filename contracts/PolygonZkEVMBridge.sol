@@ -155,6 +155,9 @@ contract PolygonZkEVMBridge is
             // Ether is treated as ether from mainnet
             originNetwork = MAINNET_NETWORK_ID;
         } else {
+            // Check msg.value is 0 if tokens are bridged
+            require(msg.value == 0, "PolygonZkEVMBridge::bridgeAsset: Expected zero native asset value when bridging ERC20 tokens");
+
             TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[token];
 
             if (tokenInfo.originTokenAddress != address(0)) {
