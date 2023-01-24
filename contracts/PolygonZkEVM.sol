@@ -211,6 +211,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Address that will be able to adjust contract parameters or stop the emergency state
     address public admin;
 
+    // This account will be able to accept the admin role
+    address public pendingAdmin;
+
     // Current matic fee per batch sequenced
     uint256 public batchFee;
 
@@ -302,9 +305,14 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     event SetVeryBatchTimeTarget(uint64 newVeryBatchTimeTarget);
 
     /**
-     * @dev Emitted when a admin update his address
+     * @dev Emitted when the admin starts the two-step transfer role setting a new pending admin
      */
-    event SetAdmin(address newAdmin);
+    event TransferAdminRole(address newPendingAdmin);
+
+   /**
+     * @dev Emitted when the pending admin accepts the admin role
+     */
+    event AcceptAdminRole(address newAdmin);
 
     /**
      * @dev Emitted when is proved a different state given the same batches
@@ -1203,13 +1211,23 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Allow the current admin to set a new admin address
-     * @param newAdmin Address of the new admin
+     * @notice Starts the admin role transfer
+     * This is a two step process, the pending admin must accepted to finalize the process
+     * @param newPendingAdmin Address of the new pending admin
      */
-    function setAdmin(address newAdmin) external onlyAdmin {
-        admin = newAdmin;
+    function transferAdminRole(address newPendingAdmin) external onlyAdmin {
+        pendingAdmin = newPendingAdmin;
+        emit TransferAdminRole(newPendingAdmin);
+    }
 
-        emit SetAdmin(newAdmin);
+
+    /**
+     * @notice Allow the current pending admin to accept the admin role
+     */
+    function acceptAdminRole() external {
+        require(pendingAdmin == msg.sender, "PolygonZkEVM::acceptAdminRole: caller is not pendingAdmin");
+        admin = pendingAdmin;
+        emit AcceptAdminRole(pendingAdmin);
     }
 
     /////////////////////////////////
@@ -1422,7 +1440,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
-     * If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
+     * If not called by the owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
      * @param sequencedBatchNum Sequenced batch number that has not been aggreagated in HALT_AGGREGATION_TIMEOUT
      */
     function activateEmergencyState(uint64 sequencedBatchNum) external {

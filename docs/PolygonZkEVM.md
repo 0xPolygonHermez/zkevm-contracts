@@ -330,19 +330,29 @@ Allow the admin to set a new verify batch time target
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newVeryBatchTimeTarget` | uint64 | Verify batch time target
 
-### setAdmin
+### transferAdminRole
 ```solidity
-  function setAdmin(
-    address newAdmin
+  function transferAdminRole(
+    address newPendingAdmin
   ) external
 ```
-Allow the current admin to set a new admin address
+Starts the admin role transfer
+This is a two step process, the pending admin must accepted to finalize the process
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newAdmin` | address | Address of the new admin
+|`newPendingAdmin` | address | Address of the new pending admin
+
+### acceptAdminRole
+```solidity
+  function acceptAdminRole(
+  ) external
+```
+Allow the current pending admin to accept the admin role
+
+
 
 ### overridePendingState
 ```solidity
@@ -442,7 +452,7 @@ Internal function that prove a different state root given the same batches to ve
   ) external
 ```
 Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
-If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
+If not called by the owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
 
 
 #### Parameters:
@@ -640,13 +650,21 @@ Emitted when the admin update the multiplier batch fee
 
 Emitted when the admin update the verify batch timeout
 
-### SetAdmin
+### TransferAdminRole
 ```solidity
-  event SetAdmin(
+  event TransferAdminRole(
   )
 ```
 
-Emitted when a admin update his address
+Emitted when the admin starts the two-step transfer role setting a new pending admin
+
+### AcceptAdminRole
+```solidity
+  event AcceptAdminRole(
+  )
+```
+
+Emitted when the pending admin accepts the admin role
 
 ### ProveNonDeterministicPendingState
 ```solidity

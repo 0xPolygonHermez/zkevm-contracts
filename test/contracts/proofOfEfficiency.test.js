@@ -198,12 +198,26 @@ describe('Polygon ZK-EVM', () => {
         ).to.emit(polygonZkEVMContract, 'SetVeryBatchTimeTarget').withArgs(newVeryBatchTimeTarget);
         expect(await polygonZkEVMContract.veryBatchTimeTarget()).to.be.equal(newVeryBatchTimeTarget);
 
-        // setAdmin
-        await expect(polygonZkEVMContract.setAdmin(deployer.address))
+        // Transfer admin role
+
+        // First set pending Admin
+        expect(await polygonZkEVMContract.pendingAdmin()).to.be.equal(ethers.constants.AddressZero);
+        await expect(polygonZkEVMContract.transferAdminRole(deployer.address))
             .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
+
         await expect(
-            polygonZkEVMContract.connect(admin).setAdmin(deployer.address),
-        ).to.emit(polygonZkEVMContract, 'SetAdmin').withArgs(deployer.address);
+            polygonZkEVMContract.connect(admin).transferAdminRole(deployer.address),
+        ).to.emit(polygonZkEVMContract, 'TransferAdminRole').withArgs(deployer.address);
+        expect(await polygonZkEVMContract.pendingAdmin()).to.be.equal(deployer.address);
+
+        // Accept transfer admin
+        expect(await polygonZkEVMContract.admin()).to.be.equal(admin.address);
+        await expect(polygonZkEVMContract.connect(admin).acceptAdminRole())
+            .to.be.revertedWith('PolygonZkEVM::acceptAdminRole: caller is not pendingAdmin');
+
+        await expect(
+            polygonZkEVMContract.connect(deployer).acceptAdminRole(),
+        ).to.emit(polygonZkEVMContract, 'AcceptAdminRole').withArgs(deployer.address);
         expect(await polygonZkEVMContract.admin()).to.be.equal(deployer.address);
     });
 
