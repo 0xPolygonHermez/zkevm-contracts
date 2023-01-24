@@ -464,6 +464,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                     "PolygonZkEVM::sequenceBatches: Forced batches data must match"
                 );
 
+                // Delete forceBatch data since won't be used anymore
+                delete forcedBatches[currentLastForceBatchSequenced];
+
                 // Check timestamp is bigger than min timestamp
                 require(
                     currentBatch.timestamp >= currentBatch.minForcedTimestamp,
@@ -1035,6 +1038,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                     forcedBatches[currentLastForceBatchSequenced],
                 "PolygonZkEVM::sequenceForceBatches: Forced batches data must match"
             );
+
+            // Delete forceBatch data since won't be used anymore
+            delete forcedBatches[currentLastForceBatchSequenced];
 
             if (i == (batchesNum - 1)) {
                 // The last batch will have the most restrictive timestamp
