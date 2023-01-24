@@ -442,6 +442,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             // Load current sequence
             BatchData memory currentBatch = batches[i];
 
+            // Store the current transactions hash since can be used more than once for gas saving
+            bytes32 currentTransactionsHash = keccak256(currentBatch.transactions);
+
             // Check if it's a forced batch
             if (currentBatch.minForcedTimestamp > 0) {
                 currentLastForceBatchSequenced++;
@@ -449,7 +452,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                 // Check forced data matches
                 bytes32 hashedForcedBatchData = keccak256(
                     abi.encodePacked(
-                        keccak256(currentBatch.transactions),
+                        currentTransactionsHash,
                         currentBatch.globalExitRoot,
                         currentBatch.minForcedTimestamp
                     )
@@ -495,7 +498,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             currentAccInputHash = keccak256(
                 abi.encodePacked(
                     currentAccInputHash,
-                    keccak256(currentBatch.transactions),
+                    currentTransactionsHash,
                     currentBatch.globalExitRoot,
                     currentBatch.timestamp,
                     msg.sender
@@ -1015,10 +1018,13 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             ForcedBatchData memory currentBatch = batches[i];
             currentLastForceBatchSequenced++;
 
+            // Store the current transactions hash since it's used more than once for gas saving
+            bytes32 currentTransactionsHash = keccak256(currentBatch.transactions);
+
             // Check forced data matches
             bytes32 hashedForcedBatchData = keccak256(
                 abi.encodePacked(
-                    keccak256(currentBatch.transactions),
+                    currentTransactionsHash,
                     currentBatch.globalExitRoot,
                     currentBatch.minForcedTimestamp
                 )
@@ -1042,7 +1048,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             currentAccInputHash = keccak256(
                 abi.encodePacked(
                     currentAccInputHash,
-                    keccak256(currentBatch.transactions),
+                    currentTransactionsHash,
                     currentBatch.globalExitRoot,
                     uint64(block.timestamp),
                     msg.sender
