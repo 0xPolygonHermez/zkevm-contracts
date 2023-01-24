@@ -988,7 +988,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            lastForceBatchSequenced + batchesNum <= lastForceBatch,
+            uint256(lastForceBatchSequenced) + batchesNum <= uint256(lastForceBatch),
             "PolygonZkEVM::sequenceForceBatches: Force batch invalid"
         );
 
