@@ -271,7 +271,7 @@ contract PolygonZkEVMBridge is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimAsset(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -385,7 +385,7 @@ contract PolygonZkEVMBridge is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimMessage(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -514,7 +514,7 @@ contract PolygonZkEVMBridge is
      * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
      */
     function _verifyLeaf(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
