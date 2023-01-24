@@ -550,7 +550,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         // Consolidate pending state if possible
         _tryConsolidatePendingState();
 
-        emit SequenceBatches(lastBatchSequenced);
+        emit SequenceBatches(currentBatchSequenced);
     }
 
     /**
@@ -1080,7 +1080,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
-        emit SequenceForceBatches(lastBatchSequenced);
+        emit SequenceForceBatches(currentBatchSequenced);
     }
 
     //////////////////
