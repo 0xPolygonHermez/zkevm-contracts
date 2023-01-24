@@ -433,6 +433,9 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Returns the precalculated address of a wrapper using the token information
+     * Note Updating the metadata of a token is not supported.
+     * Since the metadata has relevance in the address deployed, this function will not return a valid
+     * wrapped address if the metadata provided is not the original one.
      * @param originNetwork Origin network
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
      * @param name Name of the token

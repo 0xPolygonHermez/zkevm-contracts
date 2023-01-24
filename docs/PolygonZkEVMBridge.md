@@ -135,6 +135,9 @@ Verify merkle proof and execute message
   ) external returns (address)
 ```
 Returns the precalculated address of a wrapper using the token information
+Note Updating the metadata of a token is not supported.
+Since the metadata has relevance in the address deployed, this function will not return a valid
+wrapped address if the metadata provided is not the original one.
 
 
 #### Parameters:
