@@ -510,12 +510,11 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                 )
             );
 
-            // Update currentBatchSequenced
-            currentBatchSequenced++;
-
             // Update timestamp
             currentTimestamp = currentBatch.timestamp;
         }
+        // Update currentBatchSequenced
+        currentBatchSequenced += uint64(batchesNum);
 
         // Sanity check, should be unreachable
         require(
