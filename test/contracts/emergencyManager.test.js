@@ -172,7 +172,7 @@ describe('Emergency mode test', () => {
             '0x',
         )).to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
-        const proof = [ethers.constants.HashZero, ethers.constants.HashZero];
+        const proof = Array(32).fill(ethers.constants.HashZero);
         const index = 0;
         const root = ethers.constants.HashZero;
 

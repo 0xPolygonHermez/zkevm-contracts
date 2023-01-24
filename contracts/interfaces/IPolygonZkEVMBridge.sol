@@ -18,7 +18,7 @@ interface IPolygonZkEVMBridge {
     ) external payable;
 
     function claimAsset(
-        bytes32[] memory smtProof,
+        bytes32[32] memory smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -31,7 +31,7 @@ interface IPolygonZkEVMBridge {
     ) external;
 
     function claimMessage(
-        bytes32[] memory smtProof,
+        bytes32[32] memory smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,

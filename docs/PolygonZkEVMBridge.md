@@ -63,7 +63,7 @@ Bridge message
 ### claimAsset
 ```solidity
   function claimAsset(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -81,7 +81,7 @@ Verify merkle proof and withdraw tokens/ether
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -95,7 +95,7 @@ Verify merkle proof and withdraw tokens/ether
 ### claimMessage
 ```solidity
   function claimMessage(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -113,7 +113,7 @@ Verify merkle proof and execute message
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -185,7 +185,7 @@ Function to deactivate the emergency state
 ### _verifyLeaf
 ```solidity
   function _verifyLeaf(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -204,7 +204,7 @@ Verify leaf and checks that it has not been claimed
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
