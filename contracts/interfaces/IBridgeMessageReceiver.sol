@@ -10,5 +10,5 @@ interface IBridgeMessageReceiver {
         address originAddress,
         uint32 originNetwork,
         bytes memory data
-    ) external view returns (bool);
+    ) external;
 }

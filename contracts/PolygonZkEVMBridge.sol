@@ -420,13 +420,13 @@ contract PolygonZkEVMBridge is
         // Execute message
         // Transfer ether
         /* solhint-disable avoid-low-level-calls */
-        (bool success, ) = destinationAddress.call{value: amount}(
+        destinationAddress.call{value: amount}(
             abi.encodeCall(
                 IBridgeMessageReceiver.onMessageReceived,
                 (originAddress, originNetwork, metadata)
             )
         );
-        require(success, "PolygonZkEVMBridge::claimMessage: Message failed");
+
 
         emit ClaimEvent(
             index,
