@@ -9,7 +9,7 @@ Contract responsible to manage the token interactions with other networks
     uint32 _networkID,
     contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
     address _polygonZkEVMaddress
-  ) public
+  ) external
 ```
 
 
@@ -48,7 +48,7 @@ Deposit add a new leaf to the merkle tree
     uint32 destinationNetwork,
     address destinationAddress,
     bytes metadata
-  ) public
+  ) external
 ```
 Bridge message
 
@@ -73,7 +73,7 @@ Bridge message
     address destinationAddress,
     uint256 amount,
     bytes metadata
-  ) public
+  ) external
 ```
 Verify merkle proof and withdraw tokens/ether
 
@@ -105,7 +105,7 @@ Verify merkle proof and withdraw tokens/ether
     address destinationAddress,
     uint256 amount,
     bytes metadata
-  ) public
+  ) external
 ```
 Verify merkle proof and execute message
 

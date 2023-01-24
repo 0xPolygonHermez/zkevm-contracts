@@ -343,7 +343,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         bytes32 genesisRoot,
         string memory _trustedSequencerURL,
         string memory _networkName
-    ) public initializer {
+    ) external initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
@@ -408,7 +408,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function sequenceBatches(
         BatchData[] memory batches
-    ) public ifNotEmergencyState onlyTrustedSequencer {
+    ) external ifNotEmergencyState onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         require(
             batchesNum > 0,
@@ -551,7 +551,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
-    ) public ifNotEmergencyState {
+    ) external ifNotEmergencyState {
         // Check if the trusted aggregator timeout expired,
         // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
         require(
@@ -630,7 +630,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
-    ) public onlyTrustedAggregator {
+    ) external onlyTrustedAggregator {
         _verifyBatches(
             pendingStateNum,
             initNumBatch,
@@ -780,7 +780,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * Can be called by the trusted aggregator, which can consolidate any state without the timeout restrictions
      * @param pendingStateNum Pending state to consolidate
      */
-    function consolidatePendingState(uint64 pendingStateNum) public {
+    function consolidatePendingState(uint64 pendingStateNum) external {
         // Check if pending state can be consolidated
         // If trusted aggregator is the sender, do not check the timeout
         if (msg.sender != trustedAggregator) {
@@ -920,7 +920,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     function forceBatch(
         bytes memory transactions,
         uint256 maticAmount
-    ) public ifNotEmergencyState isForceBatchAllowed {
+    ) external ifNotEmergencyState isForceBatchAllowed {
         // Calculate matic collateral
         uint256 maticFee = getCurrentBatchFee();
 
@@ -971,7 +971,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function sequenceForceBatches(
         ForcedBatchData[] memory batches
-    ) public ifNotEmergencyState isForceBatchAllowed {
+    ) external ifNotEmergencyState isForceBatchAllowed {
         uint256 batchesNum = batches.length;
 
         require(
@@ -1061,7 +1061,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @notice Allow the admin to set a new trusted sequencer
      * @param newTrustedSequencer Address of the new trusted sequuencer
      */
-    function setTrustedSequencer(address newTrustedSequencer) public onlyAdmin {
+    function setTrustedSequencer(address newTrustedSequencer) external onlyAdmin {
         trustedSequencer = newTrustedSequencer;
 
         emit SetTrustedSequencer(newTrustedSequencer);
@@ -1071,7 +1071,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @notice Allow the admin to allow/disallow the forceBatch functionality
      * @param newForceBatchAllowed Whether is allowed or not the forceBatch functionality
      */
-    function setForceBatchAllowed(bool newForceBatchAllowed) public onlyAdmin {
+    function setForceBatchAllowed(bool newForceBatchAllowed) external onlyAdmin {
         forceBatchAllowed = newForceBatchAllowed;
 
         emit SetForceBatchAllowed(newForceBatchAllowed);
@@ -1083,7 +1083,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function setTrustedSequencerURL(
         string memory newTrustedSequencerURL
-    ) public onlyAdmin {
+    ) external onlyAdmin {
         trustedSequencerURL = newTrustedSequencerURL;
 
         emit SetTrustedSequencerURL(newTrustedSequencerURL);
@@ -1096,7 +1096,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function setTrustedAggregator(
         address newTrustedAggregator
-    ) public onlyAdmin {
+    ) external onlyAdmin {
         trustedAggregator = newTrustedAggregator;
 
         emit SetTrustedAggregator(newTrustedAggregator);
@@ -1109,7 +1109,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function setTrustedAggregatorTimeout(
         uint64 newTrustedAggregatorTimeout
-    ) public onlyAdmin {
+    ) external onlyAdmin {
         require(
             newTrustedAggregatorTimeout <= HALT_AGGREGATION_TIMEOUT,
             "PolygonZkEVM::setTrustedAggregatorTimeout: Exceed max halt aggregation timeout"
@@ -1132,7 +1132,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function setPendingStateTimeout(
         uint64 newPendingStateTimeout
-    ) public onlyAdmin {
+    ) external onlyAdmin {
         require(
             newPendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
             "PolygonZkEVM::setPendingStateTimeout: Exceed max halt aggregation timeout"
@@ -1154,7 +1154,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function setMultiplierBatchFee(
         uint16 newMultiplierBatchFee
-    ) public onlyAdmin {
+    ) external onlyAdmin {
         require(
             newMultiplierBatchFee >= 1000 && newMultiplierBatchFee < 1024,
             "PolygonZkEVM::setMultiplierBatchFee: newMultiplierBatchFee incorrect range"
@@ -1170,7 +1170,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function setVeryBatchTimeTarget(
         uint64 newVeryBatchTimeTarget
-    ) public onlyAdmin {
+    ) external onlyAdmin {
         veryBatchTimeTarget = newVeryBatchTimeTarget;
         emit SetVeryBatchTimeTarget(newVeryBatchTimeTarget);
     }
@@ -1179,7 +1179,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @notice Allow the current admin to set a new admin address
      * @param newAdmin Address of the new admin
      */
-    function setAdmin(address newAdmin) public onlyAdmin {
+    function setAdmin(address newAdmin) external onlyAdmin {
         admin = newAdmin;
 
         emit SetAdmin(newAdmin);
@@ -1211,7 +1211,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
-    ) public onlyTrustedAggregator {
+    ) external onlyTrustedAggregator {
         _proveDistinctPendingState(
             initPendingStateNum,
             finalPendingStateNum,
@@ -1265,7 +1265,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint256[2] calldata proofA,
         uint256[2][2] calldata proofB,
         uint256[2] calldata proofC
-    ) public ifNotEmergencyState {
+    ) external ifNotEmergencyState {
         _proveDistinctPendingState(
             initPendingStateNum,
             finalPendingStateNum,

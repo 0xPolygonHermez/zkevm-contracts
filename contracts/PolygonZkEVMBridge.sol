@@ -70,7 +70,7 @@ contract PolygonZkEVMBridge is
         uint32 _networkID,
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress
-    ) public virtual initializer {
+    ) external virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
@@ -224,7 +224,7 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         bytes memory metadata
-    ) public payable ifNotEmergencyState {
+    ) external payable ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
             "PolygonZkEVMBridge::bridgeMessage: Destination cannot be itself"
@@ -281,7 +281,7 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         uint256 amount,
         bytes memory metadata
-    ) public ifNotEmergencyState {
+    ) external ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
@@ -395,7 +395,7 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         uint256 amount,
         bytes memory metadata
-    ) public ifNotEmergencyState {
+    ) external ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
