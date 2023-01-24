@@ -65,6 +65,8 @@ contract PolygonZkEVMBridge is
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
      * @param _polygonZkEVMaddress polygonZkEVM address
+     * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so 
+     * emergency state is not possible for the L2 deployment of the bridge, intentionally   
      */
     function initialize(
         uint32 _networkID,
@@ -215,7 +217,7 @@ contract PolygonZkEVMBridge is
     }
 
     /**
-     * @notice Bridge message
+     * @notice Bridge message and send ETH value
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param metadata Message metadata

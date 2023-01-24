@@ -278,7 +278,7 @@ Allow the admin to set a new trusted aggregator address
     uint64 newTrustedAggregatorTimeout
   ) external
 ```
-Allow the admin to set a new trusted aggregator timeout
+Allow the admin to set a new pending state timeout
 The timeout can only be lowered, except if emergency state is active
 
 
@@ -358,7 +358,8 @@ Allow the current admin to set a new admin address
     uint256[2] proofC
   ) external
 ```
-Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
+Allows the trusted aggregator to override the pending state
+if its possible to prove a different state root given the same batches
 
 
 #### Parameters:

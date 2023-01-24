@@ -138,7 +138,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Queue of forced batches with their associated data
     // ForceBatchNum --> hashedForcedBatchData
     // hashedForcedBatchData: hash containing the necessary information to force a batch:
-    // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minTimestamp)
+    // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minForcedTimestamp)
     mapping(uint64 => bytes32) public forcedBatches;
 
     // Queue of batches that defines the virtual state
@@ -539,7 +539,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         if (currentLastForceBatchSequenced != orgLastForceBatchSequenced)  
             lastForceBatchSequenced = currentLastForceBatchSequenced;
 
-        // Pay collateral for every batch submitted
+        // Pay collateral for every non-forced batch submitted
         matic.safeTransferFrom(
             msg.sender,
             address(this),
@@ -881,7 +881,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                     currentSequencedBatchData.previousLastBatchSequenced;
             }
 
-            // update currentLastVerifiedBatch
+            // update currentBatch
             currentBatch = currentSequencedBatchData.previousLastBatchSequenced;
         }
 
@@ -1131,7 +1131,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Allow the admin to set a new trusted aggregator timeout
+     * @notice Allow the admin to set a new pending state timeout
      * The timeout can only be lowered, except if emergency state is active
      * @param newTrustedAggregatorTimeout Trusted aggregator timeout
      */
@@ -1218,7 +1218,8 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     /////////////////////////////////
 
     /**
-     * @notice Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
+     * @notice Allows the trusted aggregator to override the pending state
+     * if its possible to prove a different state root given the same batches
      * @param initPendingStateNum Init pending state, 0 when consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
