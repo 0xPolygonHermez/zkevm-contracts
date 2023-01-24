@@ -50,7 +50,7 @@ contract TokenWrapped is ERC20 {
         bridgeAddress = msg.sender;
         _decimals = __decimals;
 
-        // initialize inmutable variables
+        // initialize immutable variables
         deploymentChainId = block.chainid;
         _DEPLOYMENT_DOMAIN_SEPARATOR = _calculateDomainSeparator(block.chainid);
     }

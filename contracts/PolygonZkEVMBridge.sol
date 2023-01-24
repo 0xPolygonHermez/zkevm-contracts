@@ -34,7 +34,7 @@ contract PolygonZkEVMBridge is
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)")));
     bytes4 private constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
 
-    // Mainnet indentifier
+    // Mainnet identifier
     uint32 public constant MAINNET_NETWORK_ID = 0;
 
     // Leaf type asset

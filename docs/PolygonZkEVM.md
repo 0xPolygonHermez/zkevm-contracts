@@ -29,7 +29,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 |`_matic` | contract IERC20Upgradeable | MATIC token address
 |`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
 |`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
-|`initializePackedParameters` | struct PolygonZkEVM.InitializePackedParameters | Struct to save gas and avoid stack too depp errors
+|`initializePackedParameters` | struct PolygonZkEVM.InitializePackedParameters | Struct to save gas and avoid stack too deep errors
 |`genesisRoot` | bytes32 | Rollup genesis root
 |`_trustedSequencerURL` | string | Trusted sequencer URL
 |`_networkName` | string | L2 network name
@@ -46,7 +46,7 @@ Allows a sequencer to send multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonZkEVM.BatchData[] | Struct array which the necessary data to append new batces ot the sequence
+|`batches` | struct PolygonZkEVM.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
 
 ### verifyBatches
 ```solidity
@@ -102,9 +102,9 @@ Allows an aggregator to verify multiple batches
 |`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
 
-### _verifyBatches
+### _verifyAndRewardBatches
 ```solidity
-  function _verifyBatches(
+  function _verifyAndRewardBatches(
     uint64 initNumBatch,
     uint64 finalNewBatch,
     uint64 newLocalExitRoot,
@@ -134,7 +134,7 @@ Verify batches internal function
   ) internal
 ```
 Internal function to consolidate the state automatically once sequence or verify batches are called
-It trys to consolidate the first and the middle pending state in the queue
+It tries to consolidate the first and the middle pending state in the queue
 
 
 
@@ -208,13 +208,13 @@ with the same nonce
     struct PolygonZkEVM.ForcedBatchData[] batches
   ) external
 ```
-Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
+Allows anyone to sequence forced Batches if the trusted sequencer has not done so in the timeout period
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonZkEVM.ForcedBatchData[] | Struct array which the necessary data to append new batces ot the sequence
+|`batches` | struct PolygonZkEVM.ForcedBatchData[] | Struct array which holds the necessary data to append force batches
 
 ### setTrustedSequencer
 ```solidity
@@ -228,7 +228,7 @@ Allow the admin to set a new trusted sequencer
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newTrustedSequencer` | address | Address of the new trusted sequuencer
+|`newTrustedSequencer` | address | Address of the new trusted sequencer
 
 ### setForceBatchAllowed
 ```solidity
@@ -265,7 +265,6 @@ Allow the admin to set the trusted sequencer URL
   ) external
 ```
 Allow the admin to set a new trusted aggregator address
-If address 0 is set, everyone is free to aggregate
 
 
 #### Parameters:
@@ -286,7 +285,7 @@ The timeout can only be lowered, except if emergency state is active
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newTrustedAggregatorTimeout` | uint64 | Trusted aggreagator timeout
+|`newTrustedAggregatorTimeout` | uint64 | Trusted aggregator timeout
 
 ### setPendingStateTimeout
 ```solidity
@@ -301,7 +300,7 @@ The timeout can only be lowered, except if emergency state is active
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newPendingStateTimeout` | uint64 | Trusted aggreagator timeout
+|`newPendingStateTimeout` | uint64 | Trusted aggregator timeout
 
 ### setMultiplierBatchFee
 ```solidity
@@ -315,7 +314,7 @@ Allow the admin to set a new multiplier batch fee
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newMultiplierBatchFee` | uint16 | multiplier bathc fee
+|`newMultiplierBatchFee` | uint16 | multiplier batch fee
 
 ### setVeryBatchTimeTarget
 ```solidity
@@ -419,7 +418,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
     uint256[2] proofC
   ) internal
 ```
-Internal functoin that prove a different state root given the same batches to verify
+Internal function that prove a different state root given the same batches to verify
 
 
 #### Parameters:
@@ -441,7 +440,7 @@ Internal functoin that prove a different state root given the same batches to ve
     uint64 sequencedBatchNum
   ) external
 ```
-Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contrats
+Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
 If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
 
 
@@ -455,7 +454,7 @@ If not called by the owner owner must be provided a batcnNum that does not have 
   function deactivateEmergencyState(
   ) external
 ```
-Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
+Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
 
 
 
@@ -464,7 +463,7 @@ Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBrid
   function _activateEmergencyState(
   ) internal
 ```
-Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
+Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
 
 
 
@@ -598,7 +597,7 @@ Emitted when the admin update the forcebatch boolean
   )
 ```
 
-Emitted when the admin update the seequencer URL
+Emitted when the admin update the sequencer URL
 
 ### SetTrustedAggregatorTimeout
 ```solidity
