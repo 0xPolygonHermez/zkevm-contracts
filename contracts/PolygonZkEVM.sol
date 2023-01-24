@@ -352,13 +352,24 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         trustedSequencer = initializePackedParameters.trustedSequencer;
         trustedAggregator = initializePackedParameters.trustedAggregator;
         batchNumToStateRoot[0] = genesisRoot;
-        trustedAggregatorTimeout = initializePackedParameters
-            .trustedAggregatorTimeout;
+   
         chainID = initializePackedParameters.chainID;
-        pendingStateTimeout = initializePackedParameters.pendingStateTimeout;
         forceBatchAllowed = initializePackedParameters.forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
+
+        // Check initialize parameters
+        require(
+            initializePackedParameters.pendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
+            "PolygonZkEVM::initialize: Exceed halt aggregation timeout"
+        );
+        pendingStateTimeout = initializePackedParameters.pendingStateTimeout;
+
+        require(
+            initializePackedParameters.trustedAggregatorTimeout <= HALT_AGGREGATION_TIMEOUT,
+            "PolygonZkEVM::initialize: Exceed halt aggregation timeout"
+        );
+        trustedAggregatorTimeout = initializePackedParameters.trustedAggregatorTimeout;
 
         // Constant variables
         batchFee = 10 ** 18; // 1 Matic
