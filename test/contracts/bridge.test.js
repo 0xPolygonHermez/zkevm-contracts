@@ -1002,7 +1002,7 @@ describe('PolygonZkEVMBridge Contract', () => {
         const destinationNetwork = networkIDMainnet;
         const destinationAddress = deployer.address;
 
-        const metadata = '0x'; // since is ether does not have metadata
+        const metadata = '0x176923791298713271763697869132'; // since is ether does not have metadata
         const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
 
         const mainnetExitRoot = await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot();

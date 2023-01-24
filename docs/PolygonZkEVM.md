@@ -191,6 +191,9 @@ The batch fee will not be updated when the trusted aggregator verify batches
 ```
 Allows a sequencer/user to force a batch of L2 transactions.
 This should be used only in extreme cases where the trusted sequencer does not work as expected
+Note The sequencer has certain degree of control on how non-forced and forced batches are ordered
+In order to assure that users force transactions will be processed properly, user must not sign any other transaction
+with the same nonce
 
 
 #### Parameters:

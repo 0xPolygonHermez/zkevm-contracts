@@ -407,7 +407,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @param batches Struct array which the necessary data to append new batces ot the sequence
      */
     function sequenceBatches(
-        BatchData[] memory batches
+        BatchData[] calldata batches
     ) external ifNotEmergencyState onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         require(
@@ -914,11 +914,14 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     /**
      * @notice Allows a sequencer/user to force a batch of L2 transactions.
      * This should be used only in extreme cases where the trusted sequencer does not work as expected
+     * Note The sequencer has certain degree of control on how non-forced and forced batches are ordered
+     * In order to assure that users force transactions will be processed properly, user must not sign any other transaction
+     * with the same nonce
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * @param maticAmount Max amount of MATIC tokens that the sender is willing to pay
      */
     function forceBatch(
-        bytes memory transactions,
+        bytes calldata transactions,
         uint256 maticAmount
     ) external ifNotEmergencyState isForceBatchAllowed {
         // Calculate matic collateral
@@ -970,7 +973,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @param batches Struct array which the necessary data to append new batces ot the sequence
      */
     function sequenceForceBatches(
-        ForcedBatchData[] memory batches
+        ForcedBatchData[] calldata batches
     ) external ifNotEmergencyState isForceBatchAllowed {
         uint256 batchesNum = batches.length;
 

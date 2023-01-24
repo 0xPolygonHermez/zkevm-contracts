@@ -223,7 +223,7 @@ contract PolygonZkEVMBridge is
     function bridgeMessage(
         uint32 destinationNetwork,
         address destinationAddress,
-        bytes memory metadata
+        bytes calldata metadata
     ) external payable ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
@@ -280,7 +280,7 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
+        bytes calldata metadata
     ) external ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
@@ -394,7 +394,7 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
+        bytes calldata metadata
     ) external ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
@@ -445,7 +445,7 @@ contract PolygonZkEVMBridge is
         string calldata name,
         string calldata symbol,
         uint8 decimals
-    ) public view returns (address) {
+    ) external view returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
@@ -476,7 +476,7 @@ contract PolygonZkEVMBridge is
     function getTokenWrappedAddress(
         uint32 originNetwork,
         address originTokenAddress
-    ) public view returns (address) {
+    ) external view returns (address) {
         return
             tokenInfoToWrappedToken[
                 keccak256(abi.encodePacked(originNetwork, originTokenAddress))
@@ -523,7 +523,7 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata,
+        bytes calldata metadata,
         uint8 leafType
     ) internal {
         // Set and check nullifier
@@ -577,7 +577,7 @@ contract PolygonZkEVMBridge is
      * @notice Function to check if an index is claimed or not
      * @param index Index
      */
-    function isClaimed(uint256 index) public view returns (bool) {
+    function isClaimed(uint256 index) external view returns (bool) {
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
         uint256 mask = (1 << bitPos);
         return (claimedBitMap[wordPos] & mask) == mask;

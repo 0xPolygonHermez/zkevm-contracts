@@ -132,7 +132,7 @@ Verify merkle proof and execute message
     string name,
     string symbol,
     uint8 decimals
-  ) public returns (address)
+  ) external returns (address)
 ```
 Returns the precalculated address of a wrapper using the token information
 
@@ -151,7 +151,7 @@ Returns the precalculated address of a wrapper using the token information
   function getTokenWrappedAddress(
     uint32 originNetwork,
     address originTokenAddress
-  ) public returns (address)
+  ) external returns (address)
 ```
 Returns the address of a wrapper using the token information if already exist
 
@@ -220,7 +220,7 @@ Verify leaf and checks that it has not been claimed
 ```solidity
   function isClaimed(
     uint256 index
-  ) public returns (bool)
+  ) external returns (bool)
 ```
 Function to check if an index is claimed or not
 
