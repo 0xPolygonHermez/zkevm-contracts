@@ -435,7 +435,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            batchesNum < MAX_VERIFY_BATCHES,
+            batchesNum <= MAX_VERIFY_BATCHES,
             "PolygonZkEVM::sequenceBatches: Cannot sequence that many batches"
         );
 
@@ -495,7 +495,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                 );
 
                 require(
-                    currentBatch.transactions.length <
+                    currentBatch.transactions.length <=
                         MAX_TRANSACTIONS_BYTE_LENGTH,
                     "PolygonZkEVM::sequenceBatches: Transactions bytes overflow"
                 );
@@ -591,7 +591,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            finalNewBatch - initNumBatch < MAX_VERIFY_BATCHES,
+            finalNewBatch - initNumBatch <= MAX_VERIFY_BATCHES,
             "PolygonZkEVM::verifyBatches: Cannot verify that many batches"
         );
 
@@ -962,7 +962,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            transactions.length < MAX_TRANSACTIONS_BYTE_LENGTH,
+            transactions.length <= MAX_TRANSACTIONS_BYTE_LENGTH,
             "PolygonZkEVM::forceBatch: Transactions bytes overflow"
         );
 
@@ -1012,7 +1012,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            batchesNum < MAX_VERIFY_BATCHES,
+            batchesNum <= MAX_VERIFY_BATCHES,
             "PolygonZkEVM::sequenceForceBatches: Cannot verify that many batches"
         );
 
