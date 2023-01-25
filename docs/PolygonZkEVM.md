@@ -18,7 +18,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
     bytes32 genesisRoot,
     string _trustedSequencerURL,
     string _networkName
-  ) public
+  ) external
 ```
 
 
@@ -38,7 +38,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 ```solidity
   function sequenceBatches(
     struct PolygonZkEVM.BatchData[] batches
-  ) public
+  ) external
 ```
 Allows a sequencer to send multiple batches
 
@@ -58,7 +58,7 @@ Allows a sequencer to send multiple batches
     bytes32 proofA,
     uint256[2] proofB,
     uint256[2][2] proofC
-  ) public
+  ) external
 ```
 Allows an aggregator to verify multiple batches
 
@@ -85,7 +85,7 @@ Allows an aggregator to verify multiple batches
     uint256[2] proofA,
     uint256[2][2] proofB,
     uint256[2] proofC
-  ) public
+  ) external
 ```
 Allows an aggregator to verify multiple batches
 
@@ -142,7 +142,7 @@ It trys to consolidate the first and the middle pending state in the queue
 ```solidity
   function consolidatePendingState(
     uint64 pendingStateNum
-  ) public
+  ) external
 ```
 Allows to consolidate any pending state that has already exceed the pendingStateTimeout
 Can be called by the trusted aggregator, which can consolidate any state without the timeout restrictions
@@ -187,10 +187,13 @@ The batch fee will not be updated when the trusted aggregator verify batches
   function forceBatch(
     bytes transactions,
     uint256 maticAmount
-  ) public
+  ) external
 ```
 Allows a sequencer/user to force a batch of L2 transactions.
 This should be used only in extreme cases where the trusted sequencer does not work as expected
+Note The sequencer has certain degree of control on how non-forced and forced batches are ordered
+In order to assure that users force transactions will be processed properly, user must not sign any other transaction
+with the same nonce
 
 
 #### Parameters:
@@ -203,7 +206,7 @@ This should be used only in extreme cases where the trusted sequencer does not w
 ```solidity
   function sequenceForceBatches(
     struct PolygonZkEVM.ForcedBatchData[] batches
-  ) public
+  ) external
 ```
 Allows anyone to sequence forced Batches if the trusted sequencer do not have done it in the timeout period
 
@@ -217,7 +220,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer do not have do
 ```solidity
   function setTrustedSequencer(
     address newTrustedSequencer
-  ) public
+  ) external
 ```
 Allow the admin to set a new trusted sequencer
 
@@ -231,7 +234,7 @@ Allow the admin to set a new trusted sequencer
 ```solidity
   function setForceBatchAllowed(
     bool newForceBatchAllowed
-  ) public
+  ) external
 ```
 Allow the admin to allow/disallow the forceBatch functionality
 
@@ -245,7 +248,7 @@ Allow the admin to allow/disallow the forceBatch functionality
 ```solidity
   function setTrustedSequencerURL(
     string newTrustedSequencerURL
-  ) public
+  ) external
 ```
 Allow the admin to set the trusted sequencer URL
 
@@ -259,7 +262,7 @@ Allow the admin to set the trusted sequencer URL
 ```solidity
   function setTrustedAggregator(
     address newTrustedAggregator
-  ) public
+  ) external
 ```
 Allow the admin to set a new trusted aggregator address
 If address 0 is set, everyone is free to aggregate
@@ -274,7 +277,7 @@ If address 0 is set, everyone is free to aggregate
 ```solidity
   function setTrustedAggregatorTimeout(
     uint64 newTrustedAggregatorTimeout
-  ) public
+  ) external
 ```
 Allow the admin to set a new trusted aggregator timeout
 The timeout can only be lowered, except if emergency state is active
@@ -289,7 +292,7 @@ The timeout can only be lowered, except if emergency state is active
 ```solidity
   function setPendingStateTimeout(
     uint64 newPendingStateTimeout
-  ) public
+  ) external
 ```
 Allow the admin to set a new trusted aggregator timeout
 The timeout can only be lowered, except if emergency state is active
@@ -304,7 +307,7 @@ The timeout can only be lowered, except if emergency state is active
 ```solidity
   function setMultiplierBatchFee(
     uint16 newMultiplierBatchFee
-  ) public
+  ) external
 ```
 Allow the admin to set a new multiplier batch fee
 
@@ -318,7 +321,7 @@ Allow the admin to set a new multiplier batch fee
 ```solidity
   function setVeryBatchTimeTarget(
     uint64 newVeryBatchTimeTarget
-  ) public
+  ) external
 ```
 Allow the admin to set a new verify batch time target
 
@@ -332,7 +335,7 @@ Allow the admin to set a new verify batch time target
 ```solidity
   function setAdmin(
     address newAdmin
-  ) public
+  ) external
 ```
 Allow the current admin to set a new admin address
 
@@ -354,7 +357,7 @@ Allow the current admin to set a new admin address
     uint256[2] proofA,
     uint256[2][2] proofB,
     uint256[2] proofC
-  ) public
+  ) external
 ```
 Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
 
@@ -384,7 +387,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
     uint256[2] proofA,
     uint256[2][2] proofB,
     uint256[2] proofC
-  ) public
+  ) external
 ```
 Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
 

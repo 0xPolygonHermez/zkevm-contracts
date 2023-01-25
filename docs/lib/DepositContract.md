@@ -30,7 +30,7 @@ Add a new leaf to the merkle tree
 ```solidity
   function verifyMerkleProof(
     bytes32 leafHash,
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 root
   ) public returns (bool)
@@ -42,7 +42,7 @@ Verify merkle proof
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`leafHash` | bytes32 | Leaf hash
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`root` | bytes32 | Merkle root
 

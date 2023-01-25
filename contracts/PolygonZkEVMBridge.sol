@@ -70,7 +70,7 @@ contract PolygonZkEVMBridge is
         uint32 _networkID,
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress
-    ) public virtual initializer {
+    ) external virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
@@ -223,8 +223,8 @@ contract PolygonZkEVMBridge is
     function bridgeMessage(
         uint32 destinationNetwork,
         address destinationAddress,
-        bytes memory metadata
-    ) public payable ifNotEmergencyState {
+        bytes calldata metadata
+    ) external payable ifNotEmergencyState {
         require(
             destinationNetwork != networkID,
             "PolygonZkEVMBridge::bridgeMessage: Destination cannot be itself"
@@ -271,7 +271,7 @@ contract PolygonZkEVMBridge is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimAsset(
-        bytes32[] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -280,8 +280,8 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
-    ) public ifNotEmergencyState {
+        bytes calldata metadata
+    ) external ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
@@ -385,7 +385,7 @@ contract PolygonZkEVMBridge is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimMessage(
-        bytes32[] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -394,8 +394,8 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
-    ) public ifNotEmergencyState {
+        bytes calldata metadata
+    ) external ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
@@ -433,6 +433,9 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Returns the precalculated address of a wrapper using the token information
+     * Note Updating the metadata of a token is not supported.
+     * Since the metadata has relevance in the address deployed, this function will not return a valid
+     * wrapped address if the metadata provided is not the original one.
      * @param originNetwork Origin network
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
      * @param name Name of the token
@@ -445,7 +448,7 @@ contract PolygonZkEVMBridge is
         string calldata name,
         string calldata symbol,
         uint8 decimals
-    ) public view returns (address) {
+    ) external view returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
@@ -476,7 +479,7 @@ contract PolygonZkEVMBridge is
     function getTokenWrappedAddress(
         uint32 originNetwork,
         address originTokenAddress
-    ) public view returns (address) {
+    ) external view returns (address) {
         return
             tokenInfoToWrappedToken[
                 keccak256(abi.encodePacked(originNetwork, originTokenAddress))
@@ -514,7 +517,7 @@ contract PolygonZkEVMBridge is
      * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
      */
     function _verifyLeaf(
-        bytes32[] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -523,7 +526,7 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata,
+        bytes calldata metadata,
         uint8 leafType
     ) internal {
         // Set and check nullifier
@@ -577,7 +580,7 @@ contract PolygonZkEVMBridge is
      * @notice Function to check if an index is claimed or not
      * @param index Index
      */
-    function isClaimed(uint256 index) public view returns (bool) {
+    function isClaimed(uint256 index) external view returns (bool) {
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
         uint256 mask = (1 << bitPos);
         return (claimedBitMap[wordPos] & mask) == mask;

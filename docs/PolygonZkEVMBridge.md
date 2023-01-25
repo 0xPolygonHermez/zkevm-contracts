@@ -9,7 +9,7 @@ Contract responsible to manage the token interactions with other networks
     uint32 _networkID,
     contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
     address _polygonZkEVMaddress
-  ) public
+  ) external
 ```
 
 
@@ -48,7 +48,7 @@ Deposit add a new leaf to the merkle tree
     uint32 destinationNetwork,
     address destinationAddress,
     bytes metadata
-  ) public
+  ) external
 ```
 Bridge message
 
@@ -63,7 +63,7 @@ Bridge message
 ### claimAsset
 ```solidity
   function claimAsset(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -73,7 +73,7 @@ Bridge message
     address destinationAddress,
     uint256 amount,
     bytes metadata
-  ) public
+  ) external
 ```
 Verify merkle proof and withdraw tokens/ether
 
@@ -81,7 +81,7 @@ Verify merkle proof and withdraw tokens/ether
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -95,7 +95,7 @@ Verify merkle proof and withdraw tokens/ether
 ### claimMessage
 ```solidity
   function claimMessage(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -105,7 +105,7 @@ Verify merkle proof and withdraw tokens/ether
     address destinationAddress,
     uint256 amount,
     bytes metadata
-  ) public
+  ) external
 ```
 Verify merkle proof and execute message
 
@@ -113,7 +113,7 @@ Verify merkle proof and execute message
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -132,9 +132,12 @@ Verify merkle proof and execute message
     string name,
     string symbol,
     uint8 decimals
-  ) public returns (address)
+  ) external returns (address)
 ```
 Returns the precalculated address of a wrapper using the token information
+Note Updating the metadata of a token is not supported.
+Since the metadata has relevance in the address deployed, this function will not return a valid
+wrapped address if the metadata provided is not the original one.
 
 
 #### Parameters:
@@ -151,7 +154,7 @@ Returns the precalculated address of a wrapper using the token information
   function getTokenWrappedAddress(
     uint32 originNetwork,
     address originTokenAddress
-  ) public returns (address)
+  ) external returns (address)
 ```
 Returns the address of a wrapper using the token information if already exist
 
@@ -185,7 +188,7 @@ Function to deactivate the emergency state
 ### _verifyLeaf
 ```solidity
   function _verifyLeaf(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -204,7 +207,7 @@ Verify leaf and checks that it has not been claimed
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -220,7 +223,7 @@ Verify leaf and checks that it has not been claimed
 ```solidity
   function isClaimed(
     uint256 index
-  ) public returns (bool)
+  ) external returns (bool)
 ```
 Function to check if an index is claimed or not
 

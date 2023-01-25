@@ -14,11 +14,11 @@ interface IPolygonZkEVMBridge {
     function bridgeMessage(
         uint32 destinationNetwork,
         address destinationAddress,
-        bytes memory metadata
+        bytes calldata metadata
     ) external payable;
 
     function claimAsset(
-        bytes32[] memory smtProof,
+        bytes32[32] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -27,11 +27,11 @@ interface IPolygonZkEVMBridge {
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
+        bytes calldata metadata
     ) external;
 
     function claimMessage(
-        bytes32[] memory smtProof,
+        bytes32[32] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -40,7 +40,7 @@ interface IPolygonZkEVMBridge {
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
+        bytes calldata metadata
     ) external;
 
     function activateEmergencyState() external;
