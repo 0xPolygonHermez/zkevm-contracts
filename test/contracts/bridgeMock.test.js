@@ -245,7 +245,7 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
             destinationAddress,
             amount,
             metadata,
-        )).to.be.revertedWith('PolygonZkEVMBridge::_verifyLeaf: Already claimed');
+        )).to.be.revertedWith('PolygonZkEVMBridge::_setAndCheckClaimed: Already claimed');
         expect(true).to.be.equal(await polygonZkEVMBridgeContract.isClaimed(index));
     });
 });

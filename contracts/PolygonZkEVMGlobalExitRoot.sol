@@ -56,21 +56,28 @@ contract PolygonZkEVMGlobalExitRoot is
             msg.sender == rollupAddress || msg.sender == bridgeAddress,
             "PolygonZkEVMGlobalExitRoot::updateExitRoot: Only allowed contracts"
         );
+
+        // Store storage variables into temporal variables since will be used multiple times
+        bytes32 cacheLastRollupExitRoot = lastRollupExitRoot;
+	    bytes32 cacheLastMainnetExitRoot = lastMainnetExitRoot;
+
         if (msg.sender == rollupAddress) {
             lastRollupExitRoot = newRoot;
+            cacheLastRollupExitRoot = newRoot;
         }
         if (msg.sender == bridgeAddress) {
             lastMainnetExitRoot = newRoot;
+            cacheLastMainnetExitRoot = newRoot;
         }
 
         bytes32 newGlobalExitRoot = keccak256(
-            abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
+            abi.encodePacked(cacheLastMainnetExitRoot, cacheLastRollupExitRoot)
         );
 
         // If it already exists, do not modify the timestamp
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
             globalExitRootMap[newGlobalExitRoot] = block.timestamp;
-            emit UpdateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);
+            emit UpdateGlobalExitRoot(cacheLastMainnetExitRoot, cacheLastRollupExitRoot);
         }
     }
 
