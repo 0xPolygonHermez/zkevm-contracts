@@ -144,6 +144,7 @@ contract PolygonZkEVMBridge is
         address originTokenAddress;
         uint32 originNetwork;
         bytes memory metadata;
+        uint256 leafAmount = amount;
 
         if (token == address(0)) {
             // Ether transfer
@@ -173,12 +174,14 @@ contract PolygonZkEVMBridge is
                 if (permitData.length != 0) {
                     _permit(token, amount, permitData);
                 }
-                // The token is from this network.
-                IERC20Upgradeable(token).safeTransferFrom(
-                    msg.sender,
-                    address(this),
-                    amount
-                );
+
+                // In order to support fee tokens check the amount received, not the transferred
+                uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(address(this));
+                IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
+                uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(address(this));
+                
+                // Override leafAmount with the received amount
+                leafAmount = balanceAfter - balanceBefore;
 
                 originTokenAddress = token;
                 originNetwork = networkID;
@@ -198,7 +201,7 @@ contract PolygonZkEVMBridge is
             originTokenAddress,
             destinationNetwork,
             destinationAddress,
-            amount,
+            leafAmount,
             metadata,
             uint32(depositCount)
         );
@@ -210,7 +213,7 @@ contract PolygonZkEVMBridge is
                 originTokenAddress,
                 destinationNetwork,
                 destinationAddress,
-                amount,
+                leafAmount,
                 keccak256(metadata)
             )
         );
