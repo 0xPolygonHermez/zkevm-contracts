@@ -829,11 +829,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function _consolidatePendingState(uint64 pendingStateNum) internal {
         // Check if pendingStateNum is in correct range
-        // - not 0
-        // - not consolidated
+        // - not consolidated (implicity checks that is not 0)
         // - exist ( has been added)
         require(
-            pendingStateNum != 0 &&
                 pendingStateNum > lastPendingStateConsolidated &&
                 pendingStateNum <= lastPendingState,
             "PolygonZkEVM::_consolidatePendingState: pendingStateNum invalid"
