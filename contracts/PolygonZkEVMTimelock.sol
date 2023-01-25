@@ -11,7 +11,7 @@ import "./PolygonZkEVM.sol";
  */
 contract PolygonZkEVMTimelock is TimelockController {
     // Polygon ZK-EVM address. Will be used to check if it's on emergency state.
-    PolygonZkEVM public polygonZkEVM;
+    PolygonZkEVM public immutable polygonZkEVM;
 
     /**
      * @notice Constructor of timelock

@@ -26,10 +26,10 @@ contract TokenWrapped is ERC20 {
     bytes32 private immutable _DEPLOYMENT_DOMAIN_SEPARATOR;
 
     // PolygonZkEVM Bridge address
-    address public bridgeAddress;
+    address public immutable bridgeAddress;
 
     // Decimals
-    uint8 private _decimals;
+    uint8 private immutable _decimals;
 
     // Permit nonces
     mapping(address => uint256) public nonces;
@@ -49,8 +49,6 @@ contract TokenWrapped is ERC20 {
     ) ERC20(name, symbol) {
         bridgeAddress = msg.sender;
         _decimals = __decimals;
-
-        // initialize immutable variables
         deploymentChainId = block.chainid;
         _DEPLOYMENT_DOMAIN_SEPARATOR = _calculateDomainSeparator(block.chainid);
     }

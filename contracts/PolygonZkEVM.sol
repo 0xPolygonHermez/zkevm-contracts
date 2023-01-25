@@ -447,7 +447,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             .accInputHash;
 
         // Store in a temporal variable, for avoid access again the storage slot
-        uint64 orgLastForceBatchSequenced = currentLastForceBatchSequenced;
+        uint64 initLastForceBatchSequenced = currentLastForceBatchSequenced;
 
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
@@ -531,7 +531,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             "PolygonZkEVM::sequenceBatches: Force batches overflow"
         );
 
-        uint256 nonForcedBatchesSequenced = batchesNum - (currentLastForceBatchSequenced - orgLastForceBatchSequenced);
+        uint256 nonForcedBatchesSequenced = batchesNum - (currentLastForceBatchSequenced - initLastForceBatchSequenced);
 
         // Update sequencedBatches mapping
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
@@ -544,7 +544,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         lastTimestamp = currentTimestamp;
         lastBatchSequenced = currentBatchSequenced;
 
-        if (currentLastForceBatchSequenced != orgLastForceBatchSequenced)  
+        if (currentLastForceBatchSequenced != initLastForceBatchSequenced)  
             lastForceBatchSequenced = currentLastForceBatchSequenced;
 
         // Pay collateral for every non-forced batch submitted
@@ -1072,10 +1072,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                     msg.sender
                 )
             );
-
-            // Update currentBatchSequenced
-            currentBatchSequenced++;
         }
+        // Update currentBatchSequenced
+        currentBatchSequenced += uint64(batchesNum);
 
         lastTimestamp = uint64(block.timestamp);
 

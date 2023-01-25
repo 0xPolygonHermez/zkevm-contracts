@@ -603,7 +603,7 @@ contract PolygonZkEVMBridge is
     }
 
     /**
-     * @notice Function decode a index into a wordPos and bitPos
+     * @notice Function decode an index into a wordPos and bitPos
      * @param index Index
      */
     function _bitmapPositions(uint256 index) private pure returns (uint256 wordPos, uint256 bitPos) {

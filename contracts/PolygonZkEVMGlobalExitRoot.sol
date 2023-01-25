@@ -22,10 +22,10 @@ contract PolygonZkEVMGlobalExitRoot is
     mapping(bytes32 => uint256) public globalExitRootMap;
 
     // PolygonZkEVMBridge address
-    address public bridgeAddress;
+    address public immutable bridgeAddress;
 
     // Rollup contract address
-    address public rollupAddress;
+    address public immutable rollupAddress;
 
     /**
      * @dev Emitted when the the global exit root is updated
@@ -39,14 +39,14 @@ contract PolygonZkEVMGlobalExitRoot is
      * @param _rollupAddress Rollup contract address
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
-    function initialize(
+    constructor( 
         address _rollupAddress,
         address _bridgeAddress
-    ) public initializer {
+    ) {
         rollupAddress = _rollupAddress;
         bridgeAddress = _bridgeAddress;
     }
-
+    
     /**
      * @notice Update the exit root of one of the networks and the global exit root
      * @param newRoot new exit tree root
