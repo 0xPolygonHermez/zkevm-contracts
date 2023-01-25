@@ -127,6 +127,10 @@ describe('Emergency mode test', () => {
         await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
             .to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
 
+        // revert because emergency state
+        await expect(polygonZkEVMContract.consolidatePendingState(0))
+            .to.be.revertedWith('PolygonZkEVM::consolidatePendingState: only if not emergency state');
+
         // trustedAggregator forge the batch
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';

@@ -812,8 +812,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function consolidatePendingState(uint64 pendingStateNum) external {
         // Check if pending state can be consolidated
-        // If trusted aggregator is the sender, do not check the timeout
+        // If trusted aggregator is the sender, do not check the timeout or the emergency state
         if (msg.sender != trustedAggregator) {
+            require(!isEmergencyState,"PolygonZkEVM::consolidatePendingState: only if not emergency state");
             require(
                 isPendingStateConsolidable(pendingStateNum),
                 "PolygonZkEVM::consolidatePendingState: Pending state is not ready to be consolidated"
