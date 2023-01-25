@@ -3,14 +3,12 @@
 pragma solidity 0.8.15;
 
 import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
 contract PolygonZkEVMGlobalExitRoot is
-    IPolygonZkEVMGlobalExitRoot,
-    Initializable
+    IPolygonZkEVMGlobalExitRoot
 {
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;

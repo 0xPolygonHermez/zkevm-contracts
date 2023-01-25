@@ -117,7 +117,7 @@ Allows an aggregator to verify multiple batches
     uint256[2] proofC
   ) internal
 ```
-Verify batches internal function
+Verify and reward batches internal function
 
 
 #### Parameters:

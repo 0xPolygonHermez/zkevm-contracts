@@ -32,8 +32,11 @@ describe('Polygon ZK-EVM', () => {
     const networkName = 'zkevm';
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeoutDefault = 10;
+    let firstDeployment = true;
 
     beforeEach('Deploy contract', async () => {
+        upgrades.silenceWarnings();
+
         // load signers
         [deployer, trustedAggregator, trustedSequencer, admin, aggregator1] = await ethers.getSigners();
 
@@ -53,9 +56,27 @@ describe('Polygon ZK-EVM', () => {
         );
         await maticTokenContract.deployed();
 
-        // deploy global exit root manager
+        /*
+         * deploy global exit root manager
+         * In order to not have trouble with nonce deploy first proxy admin
+         */
+        await upgrades.deployProxyAdmin();
+        if ((await upgrades.admin.getInstance()).address !== '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0') {
+            firstDeployment = false;
+        }
+        const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
+        const nonceProxyZkevm = nonceProxyBridge + (firstDeployment ? 2 : 1);
+
+        const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
+        const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        firstDeployment = false;
+
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
-        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], { initializer: false });
+        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+            initializer: false,
+            constructorArgs: [precalculateZkevmAddress, precalculateBridgeAddress],
+            unsafeAllow: ['constructor', 'state-variable-immutable'],
+        });
 
         // deploy PolygonZkEVMBridge
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
@@ -65,7 +86,9 @@ describe('Polygon ZK-EVM', () => {
         const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
         polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], { initializer: false });
 
-        await polygonZkEVMGlobalExitRoot.initialize(polygonZkEVMContract.address, polygonZkEVMBridgeContract.address);
+        expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
+        expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
+
         await polygonZkEVMBridgeContract.initialize(networkIDMainnet, polygonZkEVMGlobalExitRoot.address, polygonZkEVMContract.address);
         await polygonZkEVMContract.initialize(
             polygonZkEVMGlobalExitRoot.address,
