@@ -111,20 +111,20 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Minimum Static keccaks batch = 2
     // Max bytes allowed = (2376 - 2) * 136 = 322864 bytes - 1 byte padding
     // Rounded to 300000 bytes
-    uint256 public constant MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
+    uint256 private constant MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
 
     // Force batch timeout
-    uint64 public constant FORCE_BATCH_TIMEOUT = 5 days;
+    uint64 private constant FORCE_BATCH_TIMEOUT = 5 days;
 
     // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
-    uint64 public constant HALT_AGGREGATION_TIMEOUT = 1 weeks;
+    uint64 private constant HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
     // Maximum batches that can be verified in one call. It depends on our current metrics
     // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
-    uint64 public constant MAX_VERIFY_BATCHES = 1000;
+    uint64 private constant MAX_VERIFY_BATCHES = 1000;
 
     // Max batch multiplier per verification
-    uint256 public constant MAX_BATCH_MULTIPLIER = 12;
+    uint256 private constant MAX_BATCH_MULTIPLIER = 12;
 
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target

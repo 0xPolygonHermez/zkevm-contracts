@@ -34,6 +34,11 @@ describe('Polygon ZK-EVM', () => {
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
 
+    // PolygonZkEVM Constants
+    const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
+    const MAX_BATCH_MULTIPLIER = 12;
+    const HALT_AGGREGATION_TIMEOUT = 60 * 60 * 24 * 7; // 7 days
+
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
 
@@ -686,8 +691,7 @@ describe('Polygon ZK-EVM', () => {
             .to.be.revertedWith('PolygonZkEVM::sequenceForceBatches: Forced batch is not in timeout period');
 
         // Increment timestamp
-        const forceBatchTimeout = await polygonZkEVMContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + FORCE_BATCH_TIMEOUT]);
 
         // sequence force batch
         await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStruct]))
@@ -830,8 +834,7 @@ describe('Polygon ZK-EVM', () => {
 
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
         // Increment timestamp
-        const forceBatchTimeout = await polygonZkEVMContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + FORCE_BATCH_TIMEOUT]);
 
         const forceBatchStruct = {
             transactions: l2txData,
@@ -971,8 +974,7 @@ describe('Polygon ZK-EVM', () => {
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
 
         // Increment timestamp
-        const forceBatchTimeout = await polygonZkEVMContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + FORCE_BATCH_TIMEOUT]);
 
         const forceBatchStruct = {
             transactions: l2txData,
@@ -1631,7 +1633,7 @@ describe('Polygon ZK-EVM', () => {
             .withArgs(lastBatchSequenced);
 
         const sequencedTimestmap = Number((await polygonZkEVMContract.sequencedBatches(1)).sequencedTimestamp);
-        const haltTimeout = Number(await polygonZkEVMContract.HALT_AGGREGATION_TIMEOUT());
+        const haltTimeout = HALT_AGGREGATION_TIMEOUT;
 
         // Try to activate the emergency state
 
@@ -1888,7 +1890,6 @@ describe('Polygon ZK-EVM', () => {
         const veryBatchTimeTarget = Number(await polygonZkEVMContract.veryBatchTimeTarget());
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
-        const MAX_BATCH_MULTIPLIER = ethers.BigNumber.from(await polygonZkEVMContract.MAX_BATCH_MULTIPLIER()); // 12
         const multiplierFee = ethers.BigNumber.from(await polygonZkEVMContract.multiplierBatchFee()); // 1002
         const bingNumber1000 = ethers.BigNumber.from(1000);
 

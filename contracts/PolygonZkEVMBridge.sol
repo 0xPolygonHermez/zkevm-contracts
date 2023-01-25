@@ -35,13 +35,13 @@ contract PolygonZkEVMBridge is
     bytes4 private constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
 
     // Mainnet identifier
-    uint32 public constant MAINNET_NETWORK_ID = 0;
+    uint32 private constant MAINNET_NETWORK_ID = 0;
 
     // Leaf type asset
-    uint8 public constant LEAF_TYPE_ASSET = 0;
+    uint8 private constant LEAF_TYPE_ASSET = 0;
 
     // Leaf type message
-    uint8 public constant LEAF_TYPE_MESSAGE = 1;
+    uint8 private constant LEAF_TYPE_MESSAGE = 1;
 
     // Network identifier
     uint32 public networkID;
