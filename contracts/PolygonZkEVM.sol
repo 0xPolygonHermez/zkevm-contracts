@@ -130,7 +130,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Adaptatly the batchFee will be updated to achieve this target
     uint64 public veryBatchTimeTarget;
 
-    // Batch fee multiplier with 3 decimals that goes from 1000 - 1024
+    // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
     uint16 public multiplierBatchFee;
 
     // MATIC token address
