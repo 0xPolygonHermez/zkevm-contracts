@@ -10,6 +10,12 @@ import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 contract PolygonZkEVMGlobalExitRoot is
     IPolygonZkEVMGlobalExitRoot
 {
+    // PolygonZkEVMBridge address
+    address public immutable bridgeAddress;
+
+    // Rollup contract address
+    address public immutable rollupAddress;
+
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
 
@@ -18,12 +24,6 @@ contract PolygonZkEVMGlobalExitRoot is
 
     // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
-
-    // PolygonZkEVMBridge address
-    address public immutable bridgeAddress;
-
-    // Rollup contract address
-    address public immutable rollupAddress;
 
     /**
      * @dev Emitted when the the global exit root is updated

@@ -82,9 +82,8 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     }
 
     /**
-     * @notice Struct to call initialize, this basically saves gas because pack the parameters and avoid stack too deep errors.
+     * @notice Struct to call initialize, this saves gas because pack the parameters and avoid stack too deep errors.
      * @param admin Admin address
-     * @param chainID L2 chainID
      * @param trustedSequencer Trusted sequencer address
      * @param pendingStateTimeout Pending state timeout
      * @param trustedAggregator Trusted aggregator
@@ -92,7 +91,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     struct InitializePackedParameters {
         address admin;
-        uint64 chainID;
         address trustedSequencer;
         uint64 pendingStateTimeout;
         address trustedAggregator;
@@ -132,7 +130,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     uint16 public multiplierBatchFee;
 
     // MATIC token address
-    IERC20Upgradeable public matic;
+    IERC20Upgradeable public immutable matic;
 
     // Queue of forced batches with their associated data
     // ForceBatchNum --> hashedForcedBatchData
@@ -166,13 +164,13 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     address public trustedAggregator;
 
     // Rollup verifier interface
-    IVerifierRollup public rollupVerifier;
+    IVerifierRollup public immutable rollupVerifier;
 
     // Global Exit Root interface
-    IPolygonZkEVMGlobalExitRoot public globalExitRootManager;
+    IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
 
     // L2 chain identifier
-    uint64 public chainID;
+    uint64 public immutable chainID;
 
     // State root mapping
     // BatchNum --> state root
@@ -185,7 +183,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     string public networkName;
 
     // PolygonZkEVM Bridge Address
-    IPolygonZkEVMBridge public bridgeAddress;
+    IPolygonZkEVMBridge public immutable bridgeAddress;
 
     // Pending state mapping
     // pendingStateNumber --> PendingState
@@ -327,32 +325,40 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @param _matic MATIC token address
      * @param _rollupVerifier Rollup verifier address
      * @param _bridgeAddress Bridge address
+     * @param _chainID L2 chainID
+     */
+    constructor(
+        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IERC20Upgradeable _matic,
+        IVerifierRollup _rollupVerifier,
+        IPolygonZkEVMBridge _bridgeAddress,
+        uint64 _chainID
+    ) {
+        globalExitRootManager = _globalExitRootManager;
+        matic = _matic;
+        rollupVerifier = _rollupVerifier;
+        bridgeAddress = _bridgeAddress;
+        chainID =_chainID;
+    }
+
+    /**
      * @param initializePackedParameters Struct to save gas and avoid stack too deep errors
      * @param genesisRoot Rollup genesis root
      * @param _trustedSequencerURL Trusted sequencer URL
      * @param _networkName L2 network name
      */
     function initialize(
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        IERC20Upgradeable _matic,
-        IVerifierRollup _rollupVerifier,
-        IPolygonZkEVMBridge _bridgeAddress,
         InitializePackedParameters calldata initializePackedParameters,
         bytes32 genesisRoot,
         string memory _trustedSequencerURL,
         string memory _networkName
     ) external initializer {
-        globalExitRootManager = _globalExitRootManager;
-        matic = _matic;
-        rollupVerifier = _rollupVerifier;
-        bridgeAddress = _bridgeAddress;
+        
         admin = initializePackedParameters.admin;
         trustedSequencer = initializePackedParameters.trustedSequencer;
         trustedAggregator = initializePackedParameters.trustedAggregator;
         batchNumToStateRoot[0] = genesisRoot;
-   
-        chainID = initializePackedParameters.chainID;
-        trustedSequencerURL = _trustedSequencerURL;
+           trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
 
         // Check initialize parameters

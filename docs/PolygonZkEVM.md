@@ -7,13 +7,30 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 
 
 ## Functions
-### initialize
+### constructor
 ```solidity
-  function initialize(
+  function constructor(
     contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
     contract IERC20Upgradeable _matic,
     contract IVerifierRollup _rollupVerifier,
     contract IPolygonZkEVMBridge _bridgeAddress,
+    uint64 _chainID
+  ) public
+```
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | Global exit root manager address
+|`_matic` | contract IERC20Upgradeable | MATIC token address
+|`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
+|`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
+|`_chainID` | uint64 | L2 chainID
+
+### initialize
+```solidity
+  function initialize(
     struct PolygonZkEVM.InitializePackedParameters initializePackedParameters,
     bytes32 genesisRoot,
     string _trustedSequencerURL,
@@ -25,10 +42,6 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | Global exit root manager address
-|`_matic` | contract IERC20Upgradeable | MATIC token address
-|`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
-|`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
 |`initializePackedParameters` | struct PolygonZkEVM.InitializePackedParameters | Struct to save gas and avoid stack too deep errors
 |`genesisRoot` | bytes32 | Rollup genesis root
 |`_trustedSequencerURL` | string | Trusted sequencer URL
