@@ -219,12 +219,12 @@ describe('Polygon ZK-EVM', () => {
         ).to.emit(polygonZkEVMContract, 'SetMultiplierBatchFee').withArgs(newMultiplierBatchFee);
         expect(await polygonZkEVMContract.multiplierBatchFee()).to.be.equal(newMultiplierBatchFee);
 
-        // setVeryBatchTimeTarget
-        const newVeryBatchTimeTarget = 100;
+        // setVerifyBatchTimeTarget
+        const newVerifyBatchTimeTarget = 100;
         await expect(
-            polygonZkEVMContract.connect(admin).setVeryBatchTimeTarget(newVeryBatchTimeTarget),
-        ).to.emit(polygonZkEVMContract, 'SetVeryBatchTimeTarget').withArgs(newVeryBatchTimeTarget);
-        expect(await polygonZkEVMContract.veryBatchTimeTarget()).to.be.equal(newVeryBatchTimeTarget);
+            polygonZkEVMContract.connect(admin).setVerifyBatchTimeTarget(newVerifyBatchTimeTarget),
+        ).to.emit(polygonZkEVMContract, 'SetVerifyBatchTimeTarget').withArgs(newVerifyBatchTimeTarget);
+        expect(await polygonZkEVMContract.verifyBatchTimeTarget()).to.be.equal(newVerifyBatchTimeTarget);
 
         // Transfer admin role
 
@@ -1887,7 +1887,7 @@ describe('Polygon ZK-EVM', () => {
 
     it('Test batch fees properly', async () => {
         const accInputData = ethers.constants.HashZero;
-        const veryBatchTimeTarget = Number(await polygonZkEVMContract.veryBatchTimeTarget());
+        const verifyBatchTimeTarget = Number(await polygonZkEVMContract.verifyBatchTimeTarget());
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const multiplierFee = ethers.BigNumber.from(await polygonZkEVMContract.multiplierBatchFee()); // 1002
@@ -1897,14 +1897,14 @@ describe('Polygon ZK-EVM', () => {
         await polygonZkEVMContract.setSequencedBatches(
             50,
             accInputData,
-            currentTimestamp + veryBatchTimeTarget,
+            currentTimestamp + verifyBatchTimeTarget,
             0,
         ); // Edge case, will be below
 
         await polygonZkEVMContract.setSequencedBatches(
             100,
             accInputData,
-            currentTimestamp + veryBatchTimeTarget - 1,
+            currentTimestamp + verifyBatchTimeTarget - 1,
             50,
         ); // Edge case, will be above
 
@@ -1912,7 +1912,7 @@ describe('Polygon ZK-EVM', () => {
         let currentBatchFee = await polygonZkEVMContract.batchFee();
         expect(currentBatchFee).to.be.equal(ethers.utils.parseEther('1'));
 
-        await ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + veryBatchTimeTarget * 2]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + verifyBatchTimeTarget * 2]);
 
         await polygonZkEVMContract.updateBatchFee(100);
 
@@ -1929,7 +1929,7 @@ describe('Polygon ZK-EVM', () => {
         expect(currentBatchFee).to.be.equal(await polygonZkEVMContract.batchFee());
 
         // Check the fee is now below
-        await polygonZkEVMContract.setSequencedBatches(50, accInputData, currentTimestamp + veryBatchTimeTarget * 2, 0); // Below
+        await polygonZkEVMContract.setSequencedBatches(50, accInputData, currentTimestamp + verifyBatchTimeTarget * 2, 0); // Below
         currentBatchFee = currentBatchFee.mul(bingNumber1000.pow(MAX_BATCH_MULTIPLIER)).div(multiplierFee.pow(MAX_BATCH_MULTIPLIER));
     });
 });

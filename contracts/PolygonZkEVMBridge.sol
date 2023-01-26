@@ -35,13 +35,13 @@ contract PolygonZkEVMBridge is
     bytes4 private constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
 
     // Mainnet identifier
-    uint32 private constant MAINNET_NETWORK_ID = 0;
+    uint32 private constant _MAINNET_NETWORK_ID = 0;
 
     // Leaf type asset
-    uint8 private constant LEAF_TYPE_ASSET = 0;
+    uint8 private constant _LEAF_TYPE_ASSET = 0;
 
     // Leaf type message
-    uint8 private constant LEAF_TYPE_MESSAGE = 1;
+    uint8 private constant _LEAF_TYPE_MESSAGE = 1;
 
     // Network identifier
     uint32 public networkID;
@@ -154,7 +154,7 @@ contract PolygonZkEVMBridge is
             );
 
             // Ether is treated as ether from mainnet
-            originNetwork = MAINNET_NETWORK_ID;
+            originNetwork = _MAINNET_NETWORK_ID;
         } else {
             // Check msg.value is 0 if tokens are bridged
             require(msg.value == 0, "PolygonZkEVMBridge::bridgeAsset: Expected zero native asset value when bridging ERC20 tokens");
@@ -196,7 +196,7 @@ contract PolygonZkEVMBridge is
         }
 
         emit BridgeEvent(
-            LEAF_TYPE_ASSET,
+            _LEAF_TYPE_ASSET,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
@@ -208,7 +208,7 @@ contract PolygonZkEVMBridge is
 
         _deposit(
             getLeafValue(
-                LEAF_TYPE_ASSET,
+                _LEAF_TYPE_ASSET,
                 originNetwork,
                 originTokenAddress,
                 destinationNetwork,
@@ -239,7 +239,7 @@ contract PolygonZkEVMBridge is
         );
 
         emit BridgeEvent(
-            LEAF_TYPE_MESSAGE,
+            _LEAF_TYPE_MESSAGE,
             networkID,
             msg.sender,
             destinationNetwork,
@@ -251,7 +251,7 @@ contract PolygonZkEVMBridge is
 
         _deposit(
             getLeafValue(
-                LEAF_TYPE_MESSAGE,
+                _LEAF_TYPE_MESSAGE,
                 networkID,
                 msg.sender,
                 destinationNetwork,
@@ -302,7 +302,7 @@ contract PolygonZkEVMBridge is
             destinationAddress,
             amount,
             metadata,
-            LEAF_TYPE_ASSET
+            _LEAF_TYPE_ASSET
         );
 
         // Transfer funds
@@ -416,7 +416,7 @@ contract PolygonZkEVMBridge is
             destinationAddress,
             amount,
             metadata,
-            LEAF_TYPE_MESSAGE
+            _LEAF_TYPE_MESSAGE
         );
 
         // Execute message
@@ -558,7 +558,7 @@ contract PolygonZkEVMBridge is
         );
 
         bytes32 claimRoot;
-        if (networkID == MAINNET_NETWORK_ID) {
+        if (networkID == _MAINNET_NETWORK_ID) {
             // Verify merkle proof using rollup exit root
             claimRoot = rollupExitRoot;
         } else {

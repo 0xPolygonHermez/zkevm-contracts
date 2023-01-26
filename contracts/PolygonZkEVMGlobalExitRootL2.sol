@@ -22,7 +22,7 @@ contract PolygonZkEVMGlobalExitRootL2 {
     ///////////////////
 
     // PolygonZkEVM Bridge address
-    address public bridgeAddress;
+    address public immutable bridgeAddress;
 
     /**
      * @param _bridgeAddress PolygonZkEVMBridge contract address

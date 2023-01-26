@@ -320,19 +320,21 @@ Allow the admin to set a new multiplier batch fee
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newMultiplierBatchFee` | uint16 | multiplier batch fee
 
-### setVeryBatchTimeTarget
+### setVerifyBatchTimeTarget
 ```solidity
-  function setVeryBatchTimeTarget(
-    uint64 newVeryBatchTimeTarget
+  function setVerifyBatchTimeTarget(
+    uint64 newVerifyBatchTimeTarget
   ) external
 ```
 Allow the admin to set a new verify batch time target
+This value will only be relevant once the aggregation is descentralized, so
+the trustedAggregatorTimeout should be zero or very close to zero
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newVeryBatchTimeTarget` | uint64 | Verify batch time target
+|`newVerifyBatchTimeTarget` | uint64 | Verify batch time target
 
 ### transferAdminRole
 ```solidity
@@ -456,13 +458,13 @@ Internal function that prove a different state root given the same batches to ve
   ) external
 ```
 Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
-If not called by the owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
+If not called by the owner must be provided a batcnNum that does not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`sequencedBatchNum` | uint64 | Sequenced batch number that has not been aggreagated in HALT_AGGREGATION_TIMEOUT
+|`sequencedBatchNum` | uint64 | Sequenced batch number that has not been aggreagated in _HALT_AGGREGATION_TIMEOUT
 
 ### deactivateEmergencyState
 ```solidity
@@ -646,9 +648,9 @@ Emitted when the admin update the trusted aggregator address
 
 Emitted when the admin update the multiplier batch fee
 
-### SetVeryBatchTimeTarget
+### SetVerifyBatchTimeTarget
 ```solidity
-  event SetVeryBatchTimeTarget(
+  event SetVerifyBatchTimeTarget(
   )
 ```
 

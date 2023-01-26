@@ -111,24 +111,24 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Minimum Static keccaks batch = 2
     // Max bytes allowed = (2376 - 2) * 136 = 322864 bytes - 1 byte padding
     // Rounded to 300000 bytes
-    uint256 private constant MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
+    uint256 private constant _MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
 
     // Force batch timeout
-    uint64 private constant FORCE_BATCH_TIMEOUT = 5 days;
+    uint64 private constant _FORCE_BATCH_TIMEOUT = 5 days;
 
     // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
-    uint64 private constant HALT_AGGREGATION_TIMEOUT = 1 weeks;
+    uint64 private constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
     // Maximum batches that can be verified in one call. It depends on our current metrics
     // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
-    uint64 private constant MAX_VERIFY_BATCHES = 1000;
+    uint64 private constant _MAX_VERIFY_BATCHES = 1000;
 
     // Max batch multiplier per verification
-    uint256 private constant MAX_BATCH_MULTIPLIER = 12;
+    uint256 private constant _MAX_BATCH_MULTIPLIER = 12;
 
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
-    uint64 public veryBatchTimeTarget;
+    uint64 public verifyBatchTimeTarget;
 
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
     uint16 public multiplierBatchFee;
@@ -303,7 +303,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     /**
      * @dev Emitted when the admin update the verify batch timeout
      */
-    event SetVeryBatchTimeTarget(uint64 newVeryBatchTimeTarget);
+    event SetVerifyBatchTimeTarget(uint64 newVerifyBatchTimeTarget);
 
     /**
      * @dev Emitted when the admin starts the two-step transfer role setting a new pending admin
@@ -368,20 +368,20 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
         // Check initialize parameters
         require(
-            initializePackedParameters.pendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
+            initializePackedParameters.pendingStateTimeout <= _HALT_AGGREGATION_TIMEOUT,
             "PolygonZkEVM::initialize: Exceed halt aggregation timeout"
         );
         pendingStateTimeout = initializePackedParameters.pendingStateTimeout;
 
         require(
-            initializePackedParameters.trustedAggregatorTimeout <= HALT_AGGREGATION_TIMEOUT,
+            initializePackedParameters.trustedAggregatorTimeout <= _HALT_AGGREGATION_TIMEOUT,
             "PolygonZkEVM::initialize: Exceed halt aggregation timeout"
         );
         trustedAggregatorTimeout = initializePackedParameters.trustedAggregatorTimeout;
 
         // Constant variables
         batchFee = 10 ** 18; // 1 Matic
-        veryBatchTimeTarget = 30 minutes;
+        verifyBatchTimeTarget = 30 minutes;
         multiplierBatchFee = 1002;
 
         // Initialize OZ contracts
@@ -435,7 +435,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            batchesNum <= MAX_VERIFY_BATCHES,
+            batchesNum <= _MAX_VERIFY_BATCHES,
             "PolygonZkEVM::sequenceBatches: Cannot sequence that many batches"
         );
 
@@ -496,7 +496,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
                 require(
                     currentBatch.transactions.length <=
-                        MAX_TRANSACTIONS_BYTE_LENGTH,
+                        _MAX_TRANSACTIONS_BYTE_LENGTH,
                     "PolygonZkEVM::sequenceBatches: Transactions bytes overflow"
                 );
             }
@@ -591,7 +591,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            finalNewBatch - initNumBatch <= MAX_VERIFY_BATCHES,
+            finalNewBatch - initNumBatch <= _MAX_VERIFY_BATCHES,
             "PolygonZkEVM::verifyBatches: Cannot verify that many batches"
         );
 
@@ -883,7 +883,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
             if (
                 block.timestamp - currentSequencedBatchData.sequencedTimestamp >
-                veryBatchTimeTarget
+                verifyBatchTimeTarget
             ) {
                 totalBatchesAboveTarget +=
                     currentBatch -
@@ -899,16 +899,16 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
         // Assume that batch fee will be max 128 bits, therefore:
         // multiplierBatchFee --> (< 10 bits)
-        // MAX_BATCH_MULTIPLIER = 12
-        // multiplierBatchFee ** MAX_BATCH_MULTIPLIER --> (< 128 bits)
+        // _MAX_BATCH_MULTIPLIER = 12
+        // multiplierBatchFee ** _MAX_BATCH_MULTIPLIER --> (< 128 bits)
         // (< 128 bits) * (< 128 bits) = < 256 bits
         if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
             // There are more batches above target, fee is multiplied
             uint256 diffBatches = totalBatchesAboveTarget -
                 totalBatchesBelowTarget;
 
-            diffBatches = diffBatches > MAX_BATCH_MULTIPLIER
-                ? MAX_BATCH_MULTIPLIER
+            diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
+                ? _MAX_BATCH_MULTIPLIER
                 : diffBatches;
 
             // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
@@ -920,8 +920,8 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             uint256 diffBatches = totalBatchesBelowTarget -
                 totalBatchesAboveTarget;
 
-            diffBatches = diffBatches > MAX_BATCH_MULTIPLIER
-                ? MAX_BATCH_MULTIPLIER
+            diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
+                ? _MAX_BATCH_MULTIPLIER
                 : diffBatches;
 
             // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
@@ -962,7 +962,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            transactions.length <= MAX_TRANSACTIONS_BYTE_LENGTH,
+            transactions.length <= _MAX_TRANSACTIONS_BYTE_LENGTH,
             "PolygonZkEVM::forceBatch: Transactions bytes overflow"
         );
 
@@ -1012,7 +1012,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         );
 
         require(
-            batchesNum <= MAX_VERIFY_BATCHES,
+            batchesNum <= _MAX_VERIFY_BATCHES,
             "PolygonZkEVM::sequenceForceBatches: Cannot verify that many batches"
         );
 
@@ -1057,7 +1057,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             if (i == (batchesNum - 1)) {
                 // The last batch will have the most restrictive timestamp
                 require(
-                    currentBatch.minForcedTimestamp + FORCE_BATCH_TIMEOUT <=
+                    currentBatch.minForcedTimestamp + _FORCE_BATCH_TIMEOUT <=
                         block.timestamp,
                     "PolygonZkEVM::sequenceForceBatches: Forced batch is not in timeout period"
                 );
@@ -1147,7 +1147,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint64 newTrustedAggregatorTimeout
     ) external onlyAdmin {
         require(
-            newTrustedAggregatorTimeout <= HALT_AGGREGATION_TIMEOUT,
+            newTrustedAggregatorTimeout <= _HALT_AGGREGATION_TIMEOUT,
             "PolygonZkEVM::setTrustedAggregatorTimeout: Exceed max halt aggregation timeout"
         );
         if (!isEmergencyState) {
@@ -1170,7 +1170,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint64 newPendingStateTimeout
     ) external onlyAdmin {
         require(
-            newPendingStateTimeout <= HALT_AGGREGATION_TIMEOUT,
+            newPendingStateTimeout <= _HALT_AGGREGATION_TIMEOUT,
             "PolygonZkEVM::setPendingStateTimeout: Exceed max halt aggregation timeout"
         );
         if (!isEmergencyState) {
@@ -1202,13 +1202,19 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Allow the admin to set a new verify batch time target
-     * @param newVeryBatchTimeTarget Verify batch time target
+     * This value will only be relevant once the aggregation is descentralized, so
+     * the trustedAggregatorTimeout should be zero or very close to zero
+     * @param newVerifyBatchTimeTarget Verify batch time target
      */
-    function setVeryBatchTimeTarget(
-        uint64 newVeryBatchTimeTarget
+    function setVerifyBatchTimeTarget(
+        uint64 newVerifyBatchTimeTarget
     ) external onlyAdmin {
-        veryBatchTimeTarget = newVeryBatchTimeTarget;
-        emit SetVeryBatchTimeTarget(newVeryBatchTimeTarget);
+        require(
+            newVerifyBatchTimeTarget < 1 days,
+            "PolygonZkEVM::setVerifyBatchTimeTarget: setVerifyBatchTimeTarget incorrect range"
+        );
+        verifyBatchTimeTarget = newVerifyBatchTimeTarget;
+        emit SetVerifyBatchTimeTarget(newVerifyBatchTimeTarget);
     }
 
     /**
@@ -1285,7 +1291,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
         // Update trusted aggregator timeout to max
-        trustedAggregatorTimeout = HALT_AGGREGATION_TIMEOUT;
+        trustedAggregatorTimeout = _HALT_AGGREGATION_TIMEOUT;
 
         emit OverridePendingState(finalNewBatch, newStateRoot, msg.sender);
     }
@@ -1441,8 +1447,8 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
-     * If not called by the owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
-     * @param sequencedBatchNum Sequenced batch number that has not been aggreagated in HALT_AGGREGATION_TIMEOUT
+     * If not called by the owner must be provided a batcnNum that does not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
+     * @param sequencedBatchNum Sequenced batch number that has not been aggreagated in _HALT_AGGREGATION_TIMEOUT
      */
     function activateEmergencyState(uint64 sequencedBatchNum) external {
         if (msg.sender != owner()) {
@@ -1462,10 +1468,10 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                 "PolygonZkEVM::activateEmergencyState: Batch not sequenced or not end of sequence"
             );
 
-            // Check that has been passed HALT_AGGREGATION_TIMEOUT since it was sequenced
+            // Check that has been passed _HALT_AGGREGATION_TIMEOUT since it was sequenced
             require(
                 sequencedBatches[sequencedBatchNum].sequencedTimestamp +
-                    HALT_AGGREGATION_TIMEOUT <=
+                    _HALT_AGGREGATION_TIMEOUT <=
                     block.timestamp,
                 "PolygonZkEVM::activateEmergencyState: Aggregation halt timeout is not expired"
             );
