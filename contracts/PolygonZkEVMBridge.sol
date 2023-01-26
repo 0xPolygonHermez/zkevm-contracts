@@ -34,14 +34,14 @@ contract PolygonZkEVMBridge is
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)")));
     bytes4 private constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
 
-    // Mainnet indentifier
-    uint32 public constant MAINNET_NETWORK_ID = 0;
+    // Mainnet identifier
+    uint32 private constant MAINNET_NETWORK_ID = 0;
 
     // Leaf type asset
-    uint8 public constant LEAF_TYPE_ASSET = 0;
+    uint8 private constant LEAF_TYPE_ASSET = 0;
 
     // Leaf type message
-    uint8 public constant LEAF_TYPE_MESSAGE = 1;
+    uint8 private constant LEAF_TYPE_MESSAGE = 1;
 
     // Network identifier
     uint32 public networkID;
@@ -65,6 +65,8 @@ contract PolygonZkEVMBridge is
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
      * @param _polygonZkEVMaddress polygonZkEVM address
+     * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so 
+     * emergency state is not possible for the L2 deployment of the bridge, intentionally   
      */
     function initialize(
         uint32 _networkID,
@@ -142,6 +144,7 @@ contract PolygonZkEVMBridge is
         address originTokenAddress;
         uint32 originNetwork;
         bytes memory metadata;
+        uint256 leafAmount = amount;
 
         if (token == address(0)) {
             // Ether transfer
@@ -153,6 +156,9 @@ contract PolygonZkEVMBridge is
             // Ether is treated as ether from mainnet
             originNetwork = MAINNET_NETWORK_ID;
         } else {
+            // Check msg.value is 0 if tokens are bridged
+            require(msg.value == 0, "PolygonZkEVMBridge::bridgeAsset: Expected zero native asset value when bridging ERC20 tokens");
+
             TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[token];
 
             if (tokenInfo.originTokenAddress != address(0)) {
@@ -168,12 +174,14 @@ contract PolygonZkEVMBridge is
                 if (permitData.length != 0) {
                     _permit(token, amount, permitData);
                 }
-                // The token is from this network.
-                IERC20Upgradeable(token).safeTransferFrom(
-                    msg.sender,
-                    address(this),
-                    amount
-                );
+
+                // In order to support fee tokens check the amount received, not the transferred
+                uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(address(this));
+                IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
+                uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(address(this));
+                
+                // Override leafAmount with the received amount
+                leafAmount = balanceAfter - balanceBefore;
 
                 originTokenAddress = token;
                 originNetwork = networkID;
@@ -193,7 +201,7 @@ contract PolygonZkEVMBridge is
             originTokenAddress,
             destinationNetwork,
             destinationAddress,
-            amount,
+            leafAmount,
             metadata,
             uint32(depositCount)
         );
@@ -205,7 +213,7 @@ contract PolygonZkEVMBridge is
                 originTokenAddress,
                 destinationNetwork,
                 destinationAddress,
-                amount,
+                leafAmount,
                 keccak256(metadata)
             )
         );
@@ -215,7 +223,7 @@ contract PolygonZkEVMBridge is
     }
 
     /**
-     * @notice Bridge message
+     * @notice Bridge message and send ETH value
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param metadata Message metadata
@@ -598,7 +606,7 @@ contract PolygonZkEVMBridge is
     }
 
     /**
-     * @notice Function decode a index into a wordPos and bitPos
+     * @notice Function decode an index into a wordPos and bitPos
      * @param index Index
      */
     function _bitmapPositions(uint256 index) private pure returns (uint256 wordPos, uint256 bitPos) {

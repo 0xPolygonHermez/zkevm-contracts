@@ -121,7 +121,7 @@ async function main() {
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of polygonZkEVMGlobalExitRoot ', error.error.reason);
+            console.log('upgrades.deployProxy of polygonZkEVMGlobalExitRoot ', error.message);
         }
 
         // reach limits of attempts
@@ -148,7 +148,7 @@ async function main() {
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of polygonZkEVMBridgeContract ', error.error.reason);
+            console.log('upgrades.deployProxy of polygonZkEVMBridgeContract ', error.message);
         }
 
         // reach limits of attempts
@@ -169,7 +169,7 @@ async function main() {
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of polygonZkEVMContract ', error.error.reason);
+            console.log('upgrades.deployProxy of polygonZkEVMContract ', error.message);
         }
 
         // reach limits of attempts

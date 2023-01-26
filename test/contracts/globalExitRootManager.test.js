@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { ethers, upgrades } = require('hardhat');
+const { ethers } = require('hardhat');
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
@@ -17,10 +17,10 @@ describe('Global Exit Root', () => {
 
         // deploy global exit root manager
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
-        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(
-            PolygonZkEVMGlobalExitRootFactory,
-            [rollup.address,
-                PolygonZkEVMBridge.address],
+
+        polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
+            rollup.address,
+            PolygonZkEVMBridge.address,
         );
         await polygonZkEVMGlobalExitRoot.deployed();
     });

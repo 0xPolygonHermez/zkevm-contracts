@@ -32,8 +32,16 @@ describe('Polygon ZK-EVM', () => {
     const networkName = 'zkevm';
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeoutDefault = 10;
+    let firstDeployment = true;
+
+    // PolygonZkEVM Constants
+    const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
+    const MAX_BATCH_MULTIPLIER = 12;
+    const HALT_AGGREGATION_TIMEOUT = 60 * 60 * 24 * 7; // 7 days
 
     beforeEach('Deploy contract', async () => {
+        upgrades.silenceWarnings();
+
         // load signers
         [deployer, trustedAggregator, trustedSequencer, admin, aggregator1] = await ethers.getSigners();
 
@@ -53,9 +61,27 @@ describe('Polygon ZK-EVM', () => {
         );
         await maticTokenContract.deployed();
 
-        // deploy global exit root manager
+        /*
+         * deploy global exit root manager
+         * In order to not have trouble with nonce deploy first proxy admin
+         */
+        await upgrades.deployProxyAdmin();
+        if ((await upgrades.admin.getInstance()).address !== '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0') {
+            firstDeployment = false;
+        }
+        const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
+        const nonceProxyZkevm = nonceProxyBridge + (firstDeployment ? 2 : 1);
+
+        const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
+        const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        firstDeployment = false;
+
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
-        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], { initializer: false });
+        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+            initializer: false,
+            constructorArgs: [precalculateZkevmAddress, precalculateBridgeAddress],
+            unsafeAllow: ['constructor', 'state-variable-immutable'],
+        });
 
         // deploy PolygonZkEVMBridge
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
@@ -65,7 +91,9 @@ describe('Polygon ZK-EVM', () => {
         const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
         polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], { initializer: false });
 
-        await polygonZkEVMGlobalExitRoot.initialize(polygonZkEVMContract.address, polygonZkEVMBridgeContract.address);
+        expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
+        expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
+
         await polygonZkEVMBridgeContract.initialize(networkIDMainnet, polygonZkEVMGlobalExitRoot.address, polygonZkEVMContract.address);
         await polygonZkEVMContract.initialize(
             polygonZkEVMGlobalExitRoot.address,
@@ -198,12 +226,26 @@ describe('Polygon ZK-EVM', () => {
         ).to.emit(polygonZkEVMContract, 'SetVeryBatchTimeTarget').withArgs(newVeryBatchTimeTarget);
         expect(await polygonZkEVMContract.veryBatchTimeTarget()).to.be.equal(newVeryBatchTimeTarget);
 
-        // setAdmin
-        await expect(polygonZkEVMContract.setAdmin(deployer.address))
+        // Transfer admin role
+
+        // First set pending Admin
+        expect(await polygonZkEVMContract.pendingAdmin()).to.be.equal(ethers.constants.AddressZero);
+        await expect(polygonZkEVMContract.transferAdminRole(deployer.address))
             .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
+
         await expect(
-            polygonZkEVMContract.connect(admin).setAdmin(deployer.address),
-        ).to.emit(polygonZkEVMContract, 'SetAdmin').withArgs(deployer.address);
+            polygonZkEVMContract.connect(admin).transferAdminRole(deployer.address),
+        ).to.emit(polygonZkEVMContract, 'TransferAdminRole').withArgs(deployer.address);
+        expect(await polygonZkEVMContract.pendingAdmin()).to.be.equal(deployer.address);
+
+        // Accept transfer admin
+        expect(await polygonZkEVMContract.admin()).to.be.equal(admin.address);
+        await expect(polygonZkEVMContract.connect(admin).acceptAdminRole())
+            .to.be.revertedWith('PolygonZkEVM::acceptAdminRole: caller is not pendingAdmin');
+
+        await expect(
+            polygonZkEVMContract.connect(deployer).acceptAdminRole(),
+        ).to.emit(polygonZkEVMContract, 'AcceptAdminRole').withArgs(deployer.address);
         expect(await polygonZkEVMContract.admin()).to.be.equal(deployer.address);
     });
 
@@ -649,8 +691,7 @@ describe('Polygon ZK-EVM', () => {
             .to.be.revertedWith('PolygonZkEVM::sequenceForceBatches: Forced batch is not in timeout period');
 
         // Increment timestamp
-        const forceBatchTimeout = await polygonZkEVMContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + FORCE_BATCH_TIMEOUT]);
 
         // sequence force batch
         await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStruct]))
@@ -793,8 +834,7 @@ describe('Polygon ZK-EVM', () => {
 
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
         // Increment timestamp
-        const forceBatchTimeout = await polygonZkEVMContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + FORCE_BATCH_TIMEOUT]);
 
         const forceBatchStruct = {
             transactions: l2txData,
@@ -934,8 +974,7 @@ describe('Polygon ZK-EVM', () => {
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
 
         // Increment timestamp
-        const forceBatchTimeout = await polygonZkEVMContract.FORCE_BATCH_TIMEOUT();
-        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + forceBatchTimeout.toNumber()]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + FORCE_BATCH_TIMEOUT]);
 
         const forceBatchStruct = {
             transactions: l2txData,
@@ -1594,7 +1633,7 @@ describe('Polygon ZK-EVM', () => {
             .withArgs(lastBatchSequenced);
 
         const sequencedTimestmap = Number((await polygonZkEVMContract.sequencedBatches(1)).sequencedTimestamp);
-        const haltTimeout = Number(await polygonZkEVMContract.HALT_AGGREGATION_TIMEOUT());
+        const haltTimeout = HALT_AGGREGATION_TIMEOUT;
 
         // Try to activate the emergency state
 
@@ -1748,7 +1787,7 @@ describe('Polygon ZK-EVM', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal to currentLastVerifiedBatch');
 
         await expect(
             polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
@@ -1804,7 +1843,7 @@ describe('Polygon ZK-EVM', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal to currentLastVerifiedBatch');
 
         await expect(
             polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
@@ -1851,7 +1890,6 @@ describe('Polygon ZK-EVM', () => {
         const veryBatchTimeTarget = Number(await polygonZkEVMContract.veryBatchTimeTarget());
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
-        const MAX_BATCH_MULTIPLIER = ethers.BigNumber.from(await polygonZkEVMContract.MAX_BATCH_MULTIPLIER()); // 12
         const multiplierFee = ethers.BigNumber.from(await polygonZkEVMContract.multiplierBatchFee()); // 1002
         const bingNumber1000 = ethers.BigNumber.from(1000);
 

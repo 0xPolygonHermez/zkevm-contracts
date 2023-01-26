@@ -11,7 +11,8 @@ Contract responsible to manage the token interactions with other networks
     address _polygonZkEVMaddress
   ) external
 ```
-
+The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so 
+emergency state is not possible for the L2 deployment of the bridge, intentionally
 
 #### Parameters:
 | Name | Type | Description                                                          |
@@ -19,6 +20,7 @@ Contract responsible to manage the token interactions with other networks
 |`_networkID` | uint32 | networkID
 |`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | global exit root manager address
 |`_polygonZkEVMaddress` | address | polygonZkEVM address
+
 
 ### bridgeAsset
 ```solidity
@@ -50,7 +52,7 @@ Deposit add a new leaf to the merkle tree
     bytes metadata
   ) external
 ```
-Bridge message
+Bridge message and send ETH value
 
 
 #### Parameters:

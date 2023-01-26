@@ -47,10 +47,6 @@ describe('Emergency mode test', () => {
         );
         await maticTokenContract.deployed();
 
-        // deploy global exit root manager
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
-        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], { initializer: false });
-
         // deploy PolygonZkEVMBridge
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });
@@ -59,7 +55,13 @@ describe('Emergency mode test', () => {
         const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
         polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], { initializer: false });
 
-        await polygonZkEVMGlobalExitRoot.initialize(polygonZkEVMContract.address, polygonZkEVMBridgeContract.address);
+        // deploy global exit root manager
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
+        polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
+            polygonZkEVMContract.address,
+            polygonZkEVMBridgeContract.address,
+        );
+
         await polygonZkEVMBridgeContract.initialize(networkIDMainnet, polygonZkEVMGlobalExitRoot.address, polygonZkEVMContract.address);
         await polygonZkEVMContract.initialize(
             polygonZkEVMGlobalExitRoot.address,
@@ -126,6 +128,10 @@ describe('Emergency mode test', () => {
         // revert because emergency state
         await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
             .to.be.revertedWith('EmergencyManager::ifNotEmergencyState: only if not emergency state');
+
+        // revert because emergency state
+        await expect(polygonZkEVMContract.consolidatePendingState(0))
+            .to.be.revertedWith('PolygonZkEVM::consolidatePendingState: only if not emergency state');
 
         // trustedAggregator forge the batch
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
@@ -277,7 +283,7 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal to currentLastVerifiedBatch');
 
         await expect(
             polygonZkEVMContract.connect(trustedAggregator).proveNonDeterministicPendingState(
@@ -291,7 +297,7 @@ describe('Emergency mode test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal than currentLastVerifiedBatch');
+        ).to.be.revertedWith('PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal to currentLastVerifiedBatch');
 
         const newStateRootDistinct = '0x0000000000000000000000000000000000000000000000000000000000000002';
 
