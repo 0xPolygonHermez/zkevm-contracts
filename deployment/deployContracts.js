@@ -23,7 +23,6 @@ async function main() {
     const attemptsDeployProxy = 20;
 
     // Check deploy parameters
-    const forceBatchAllowed = Boolean(deployParameters.forceBatchAllowed);
     const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || 'http://zkevm-json-rpc:8123';
     const realVerifier = deployParameters.realVerifier || false;
@@ -221,7 +220,6 @@ async function main() {
     console.log('chainID:', chainID);
     console.log('trustedSequencer:', trustedSequencer);
     console.log('pendingStateTimeout:', pendingStateTimeout);
-    console.log('forceBatchAllowed:', forceBatchAllowed);
     console.log('trustedAggregator:', trustedAggregator);
     console.log('trustedAggregatorTimeout:', trustedAggregatorTimeout);
 
@@ -239,7 +237,6 @@ async function main() {
             chainID,
             trustedSequencer,
             pendingStateTimeout,
-            forceBatchAllowed,
             trustedAggregator,
             trustedAggregatorTimeout,
         },
@@ -262,7 +259,6 @@ async function main() {
     console.log('chainID:', await polygonZkEVMContract.chainID());
     console.log('trustedSequencer:', await polygonZkEVMContract.trustedSequencer());
     console.log('pendingStateTimeout:', await polygonZkEVMContract.pendingStateTimeout());
-    console.log('forceBatchAllowed:', await polygonZkEVMContract.forceBatchAllowed());
     console.log('trustedAggregator:', await polygonZkEVMContract.trustedAggregator());
     console.log('trustedAggregatorTimeout:', await polygonZkEVMContract.trustedAggregatorTimeout());
 
@@ -347,7 +343,6 @@ async function main() {
         deploymentBlockNumber,
         genesisRoot: genesisRootHex,
         trustedSequencer,
-        forceBatchAllowed,
         trustedSequencerURL,
         chainID,
         networkName,

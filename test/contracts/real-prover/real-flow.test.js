@@ -32,7 +32,7 @@ describe('Real flow test', () => {
     const genesisRoot = inputJson.oldStateRoot;
 
     const networkIDMainnet = 0;
-    const allowForcebatches = true;
+
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const { chainID } = inputJson;
     const networkName = 'zkevm';
@@ -99,7 +99,6 @@ describe('Real flow test', () => {
                 chainID,
                 trustedSequencer: trustedSequencer.address,
                 pendingStateTimeout: pendingStateTimeoutDefault,
-                forceBatchAllowed: allowForcebatches,
                 trustedAggregator: trustedAggregator.address,
                 trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
             },

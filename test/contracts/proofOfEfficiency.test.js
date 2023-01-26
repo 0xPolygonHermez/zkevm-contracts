@@ -26,7 +26,6 @@ describe('Polygon ZK-EVM', () => {
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
     const networkIDMainnet = 0;
-    const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const chainID = 1000;
     const networkName = 'zkevm';
@@ -105,7 +104,6 @@ describe('Polygon ZK-EVM', () => {
                 chainID,
                 trustedSequencer: trustedSequencer.address,
                 pendingStateTimeout: pendingStateTimeoutDefault,
-                forceBatchAllowed: allowForcebatches,
                 trustedAggregator: trustedAggregator.address,
                 trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
             },
@@ -129,7 +127,6 @@ describe('Polygon ZK-EVM', () => {
         expect(await polygonZkEVMContract.chainID()).to.be.equal(chainID);
         expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
         expect(await polygonZkEVMContract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
-        expect(await polygonZkEVMContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
         expect(await polygonZkEVMContract.trustedAggregator()).to.be.equal(trustedAggregator.address);
         expect(await polygonZkEVMContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeoutDefault);
 
@@ -142,7 +139,6 @@ describe('Polygon ZK-EVM', () => {
 
     it('should check setters of admin', async () => {
         expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
-        expect(await polygonZkEVMContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
         expect(await polygonZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
         expect(await polygonZkEVMContract.trustedAggregator()).to.be.equal(trustedAggregator.address);
         expect(await polygonZkEVMContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeoutDefault);
@@ -156,14 +152,6 @@ describe('Polygon ZK-EVM', () => {
             polygonZkEVMContract.connect(admin).setTrustedSequencer(deployer.address),
         ).to.emit(polygonZkEVMContract, 'SetTrustedSequencer').withArgs(deployer.address);
         expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(deployer.address);
-
-        // setForceBatchAllowed
-        await expect(polygonZkEVMContract.setForceBatchAllowed(!allowForcebatches))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
-        await expect(
-            polygonZkEVMContract.connect(admin).setForceBatchAllowed(!allowForcebatches),
-        ).to.emit(polygonZkEVMContract, 'SetForceBatchAllowed').withArgs(!allowForcebatches);
-        expect(await polygonZkEVMContract.forceBatchAllowed()).to.be.equal(!allowForcebatches);
 
         // setTrustedSequencerURL
         const url = 'https://test';

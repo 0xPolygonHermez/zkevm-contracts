@@ -87,7 +87,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @param chainID L2 chainID
      * @param trustedSequencer Trusted sequencer address
      * @param pendingStateTimeout Pending state timeout
-     * @param forceBatchAllowed Indicates whether the force batch functionality is available
      * @param trustedAggregator Trusted aggregator
      * @param trustedAggregatorTimeout Trusted aggregator timeout
      */
@@ -96,7 +95,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint64 chainID;
         address trustedSequencer;
         uint64 pendingStateTimeout;
-        bool forceBatchAllowed;
         address trustedAggregator;
         uint64 trustedAggregatorTimeout;
     }
@@ -172,9 +170,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     // Global Exit Root interface
     IPolygonZkEVMGlobalExitRoot public globalExitRootManager;
-
-    // Indicates whether the force batch functionality is available
-    bool public forceBatchAllowed;
 
     // L2 chain identifier
     uint64 public chainID;
@@ -271,11 +266,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     event SetTrustedSequencer(address newTrustedSequencer);
 
     /**
-     * @dev Emitted when the admin update the forcebatch boolean
-     */
-    event SetForceBatchAllowed(bool newForceBatchAllowed);
-
-    /**
      * @dev Emitted when the admin update the sequencer URL
      */
     event SetTrustedSequencerURL(string newTrustedSequencerURL);
@@ -362,7 +352,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         batchNumToStateRoot[0] = genesisRoot;
    
         chainID = initializePackedParameters.chainID;
-        forceBatchAllowed = initializePackedParameters.forceBatchAllowed;
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
 
@@ -405,14 +394,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         require(
             trustedAggregator == msg.sender,
             "PolygonZkEVM::onlyTrustedAggregator: Only trusted aggregator"
-        );
-        _;
-    }
-
-    modifier isForceBatchAllowed() {
-        require(
-            forceBatchAllowed == true,
-            "PolygonZkEVM::isForceBatchAllowed: Only if force batch is available"
         );
         _;
     }
@@ -952,7 +933,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     function forceBatch(
         bytes calldata transactions,
         uint256 maticAmount
-    ) external ifNotEmergencyState isForceBatchAllowed {
+    ) external ifNotEmergencyState {
         // Calculate matic collateral
         uint256 maticFee = getCurrentBatchFee();
 
@@ -1003,7 +984,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     function sequenceForceBatches(
         ForcedBatchData[] calldata batches
-    ) external ifNotEmergencyState isForceBatchAllowed {
+    ) external ifNotEmergencyState {
         uint256 batchesNum = batches.length;
 
         require(
@@ -1102,16 +1083,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         trustedSequencer = newTrustedSequencer;
 
         emit SetTrustedSequencer(newTrustedSequencer);
-    }
-
-    /**
-     * @notice Allow the admin to allow/disallow the forceBatch functionality
-     * @param newForceBatchAllowed Whether is allowed or not the forceBatch functionality
-     */
-    function setForceBatchAllowed(bool newForceBatchAllowed) external onlyAdmin {
-        forceBatchAllowed = newForceBatchAllowed;
-
-        emit SetForceBatchAllowed(newForceBatchAllowed);
     }
 
     /**

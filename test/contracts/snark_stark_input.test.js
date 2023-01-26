@@ -8,7 +8,6 @@ describe('Polygon ZK-EVM snark stark input test', () => {
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
     let randomSigner;
 
-    const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const chainID = 1000;
     const networkName = 'zkevm';
@@ -32,7 +31,6 @@ describe('Polygon ZK-EVM snark stark input test', () => {
                     chainID,
                     trustedSequencer: randomSigner.address,
                     pendingStateTimeout: 0,
-                    forceBatchAllowed: allowForcebatches,
                     trustedAggregator: randomSigner.address,
                     trustedAggregatorTimeout: 0,
                 },

@@ -234,20 +234,6 @@ Allow the admin to set a new trusted sequencer
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newTrustedSequencer` | address | Address of the new trusted sequencer
 
-### setForceBatchAllowed
-```solidity
-  function setForceBatchAllowed(
-    bool newForceBatchAllowed
-  ) external
-```
-Allow the admin to allow/disallow the forceBatch functionality
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newForceBatchAllowed` | bool | Whether is allowed or not the forceBatch functionality
-
 ### setTrustedSequencerURL
 ```solidity
   function setTrustedSequencerURL(
@@ -599,14 +585,6 @@ Emitted when pending state is consolidated
 ```
 
 Emitted when the admin update the trusted sequencer address
-
-### SetForceBatchAllowed
-```solidity
-  event SetForceBatchAllowed(
-  )
-```
-
-Emitted when the admin update the forcebatch boolean
 
 ### SetTrustedSequencerURL
 ```solidity
