@@ -964,11 +964,12 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             )
         );
 
-        // In order to avoid synch attacks, if the msg.sender is not the origin
-        // Add the transaction bytes in the event
         if (msg.sender == tx.origin) {
+            // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
             emit ForceBatch(lastForceBatch, lastGlobalExitRoot, msg.sender, "");
         } else {
+            // Getting internal transaction calldata is complicated (because it requires an archival node) 
+            // Therefore it's worth it to put the `transactions` in the event, which is easy to query
             emit ForceBatch(
                 lastForceBatch,
                 lastGlobalExitRoot,
