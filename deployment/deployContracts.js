@@ -1,6 +1,6 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
-
+const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
@@ -111,12 +111,27 @@ async function main() {
      *Deployment Global exit root manager
      */
 
-    // deploy global exit root manager
+    /*
+     * deploy global exit root manager
+     * transaction count + 1(proxyAdmin) + 1(impl globalExitRoot) + 1(proxy globalExitRoot) + 1(impl bridge) = +4
+     */
+    const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + 4;
+    // +1 (proxy bridge) + 1 (impl Zkevm)
+    const nonceProxyZkevm = nonceProxyBridge + 2;
+
+    const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
+    const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+    console.log(await ethers.provider.getTransactionCount(deployer.address));
+
     const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot', deployer);
     let polygonZkEVMGlobalExitRoot;
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
-            polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], { initializer: false });
+            polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+                initializer: false,
+                constructorArgs: [precalculateZkevmAddress, precalculateBridgeAddress],
+                unsafeAllow: ['constructor', 'state-variable-immutable'],
+            });
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
@@ -128,6 +143,7 @@ async function main() {
             throw new Error('polygonZkEVMGlobalExitRoot contract has not been deployed');
         }
     }
+    console.log(await ethers.provider.getTransactionCount(deployer.address));
 
     console.log('#######################\n');
     console.log('polygonZkEVMGlobalExitRoot deployed to:', polygonZkEVMGlobalExitRoot.address);
@@ -180,10 +196,8 @@ async function main() {
     console.log('#######################\n');
     console.log('Polygon ZK-EVM deployed to:', polygonZkEVMContract.address);
 
-    /*
-     * Initialize polygonZkEVMGlobalExitRoot
-     */
-    await polygonZkEVMGlobalExitRoot.initialize(polygonZkEVMContract.address, polygonZkEVMBridgeContract.address);
+    expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
+    expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
 
     /*
      * Initialize PolygonZkEVMBridge
