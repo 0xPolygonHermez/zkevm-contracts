@@ -1174,7 +1174,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     /**
      * @notice Allow the admin to set a new verify batch time target
-     * This value will only be relevant once the aggregation is descentralized, so
+     * This value will only be relevant once the aggregation is decentralized, so
      * the trustedAggregatorTimeout should be zero or very close to zero
      * @param newVerifyBatchTimeTarget Verify batch time target
      */
@@ -1519,6 +1519,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             lastForceBatchSequenced) + lastBatchSequenced) -
             getLastVerifiedBatch();
 
+        if (totalBatchesToVerify == 0) return 0;
         return currentBalance / totalBatchesToVerify;
     }
 
