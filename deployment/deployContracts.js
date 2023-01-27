@@ -121,7 +121,6 @@ async function main() {
 
     const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
     const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
-    console.log(await ethers.provider.getTransactionCount(deployer.address));
 
     const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot', deployer);
     let polygonZkEVMGlobalExitRoot;
@@ -159,7 +158,14 @@ async function main() {
     let polygonZkEVMBridgeContract;
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
-            polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });
+            polygonZkEVMBridgeContract = await upgrades.deployProxy(
+                polygonZkEVMBridgeFactory,
+                [
+                    networkIDMainnet,
+                    polygonZkEVMGlobalExitRoot.address,
+                    precalculateZkevmAddress,
+                ],
+            );
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
@@ -175,39 +181,6 @@ async function main() {
     console.log('#######################\n');
     console.log('PolygonZkEVMBridge deployed to:', polygonZkEVMBridgeContract.address);
 
-    // deploy PolygonZkEVMMock
-    const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock', deployer);
-    let polygonZkEVMContract;
-    for (let i = 0; i < attemptsDeployProxy; i++) {
-        try {
-            polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], { initializer: false });
-            break;
-        } catch (error) {
-            console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of polygonZkEVMContract ', error.message);
-        }
-
-        // reach limits of attempts
-        if (i + 1 === attemptsDeployProxy) {
-            throw new Error('PolygonZkEVM contract has not been deployed');
-        }
-    }
-
-    console.log('#######################\n');
-    console.log('Polygon ZK-EVM deployed to:', polygonZkEVMContract.address);
-
-    expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
-    expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
-
-    /*
-     * Initialize PolygonZkEVMBridge
-     */
-    await (await polygonZkEVMBridgeContract.initialize(
-        networkIDMainnet,
-        polygonZkEVMGlobalExitRoot.address,
-        polygonZkEVMContract.address,
-    )).wait();
-
     console.log('\n#######################');
     console.log('#####    Checks PolygonZkEVMBridge   #####');
     console.log('#######################');
@@ -215,10 +188,7 @@ async function main() {
     console.log('networkID:', await polygonZkEVMBridgeContract.networkID());
     console.log('zkEVMaddress:', await polygonZkEVMBridgeContract.polygonZkEVMaddress());
 
-    /*
-     * Initialize Polygon ZK-EVM
-     */
-    // Check genesis file
+    // deploy PolygonZkEVMMock
     const genesisRootHex = genesis.root;
 
     console.log('\n#######################');
@@ -241,26 +211,46 @@ async function main() {
     console.log('trustedSequencerURL:', trustedSequencerURL);
     console.log('networkName:', networkName);
 
-    await (await polygonZkEVMContract.initialize(
-        polygonZkEVMGlobalExitRoot.address,
-        maticTokenContract.address,
-        verifierContract.address,
-        polygonZkEVMBridgeContract.address,
-        {
-            admin,
-            chainID,
-            trustedSequencer,
-            pendingStateTimeout,
-            trustedAggregator,
-            trustedAggregatorTimeout,
-        },
-        genesisRootHex,
-        trustedSequencerURL,
-        networkName,
-    )).wait();
+    const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock', deployer);
+    let polygonZkEVMContract;
+    for (let i = 0; i < attemptsDeployProxy; i++) {
+        try {
+            polygonZkEVMContract = await upgrades.deployProxy(
+                PolygonZkEVMFactory,
+                [
+                    {
+                        admin,
+                        trustedSequencer,
+                        pendingStateTimeout,
+                        trustedAggregator,
+                        trustedAggregatorTimeout,
+                    },
+                    genesisRootHex,
+                    trustedSequencerURL,
+                    networkName,
+                ],
+                {
+                    constructorArgs: [
+                        polygonZkEVMGlobalExitRoot.address,
+                        maticTokenContract.address,
+                        verifierContract.address,
+                        polygonZkEVMBridgeContract.address,
+                        chainID,
+                    ],
+                    unsafeAllow: ['constructor', 'state-variable-immutable'],
+                },
+            );
+            break;
+        } catch (error) {
+            console.log(`attempt ${i}`);
+            console.log('upgrades.deployProxy of polygonZkEVMContract ', error.message);
+        }
 
-    const deploymentBlockNumber = (await polygonZkEVMContract.deployTransaction.wait()).blockNumber;
-
+        // reach limits of attempts
+        if (i + 1 === attemptsDeployProxy) {
+            throw new Error('PolygonZkEVM contract has not been deployed');
+        }
+    }
     console.log('\n#######################');
     console.log('#####    Checks  PolygonZkEVMMock  #####');
     console.log('#######################');
@@ -281,39 +271,15 @@ async function main() {
     console.log('networkName:', await polygonZkEVMContract.networkName());
     console.log('owner:', await polygonZkEVMContract.owner());
 
-    // fund sequencer account with tokens and ether if it have less than 0.1 ether.
-    const balanceEther = await ethers.provider.getBalance(trustedSequencer);
-    const minEtherBalance = ethers.utils.parseEther('0.1');
-    if (balanceEther < minEtherBalance) {
-        const params = {
-            to: trustedSequencer,
-            value: minEtherBalance,
-        };
-        await deployer.sendTransaction(params);
-    }
-    const tokensBalance = ethers.utils.parseEther('100000');
-    await (await maticTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
+    console.log('#######################\n');
+    console.log('Polygon ZK-EVM deployed to:', polygonZkEVMContract.address);
 
-    // fund aggregator account with ether if it have less than 0.1 ether.
-    const balanceEtherAggr = await ethers.provider.getBalance(trustedAggregator);
-    if (balanceEtherAggr < minEtherBalance) {
-        const params = {
-            to: trustedAggregator,
-            value: minEtherBalance,
-        };
-        await deployer.sendTransaction(params);
-    }
-
-    // approve tokens for trusted sequencer
-    if (deployParameters.trustedSequencerPvtKey) {
-        const trustedSequencerWallet = new ethers.Wallet(deployParameters.trustedSequencerPvtKey, currentProvider);
-        await maticTokenContract.connect(trustedSequencerWallet).approve(polygonZkEVMContract.address, ethers.constants.MaxUint256);
-    }
+    expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
+    expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
 
     /*
      *Deployment Time lock
      */
-
     console.log('\n#######################');
     console.log('##### Deployment TimelockContract  #####');
     console.log('#######################');
@@ -345,6 +311,37 @@ async function main() {
 
     // Transfer ownership of the proxyAdmin to timelock
     await upgrades.admin.transferProxyAdminOwnership(timelockContract.address);
+
+    const deploymentBlockNumber = (await polygonZkEVMContract.deployTransaction.wait()).blockNumber;
+
+    // fund sequencer account with tokens and ether if it have less than 0.1 ether.
+    const balanceEther = await ethers.provider.getBalance(trustedSequencer);
+    const minEtherBalance = ethers.utils.parseEther('0.1');
+    if (balanceEther < minEtherBalance) {
+        const params = {
+            to: trustedSequencer,
+            value: minEtherBalance,
+        };
+        await deployer.sendTransaction(params);
+    }
+    const tokensBalance = ethers.utils.parseEther('100000');
+    await (await maticTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
+
+    // fund aggregator account with ether if it have less than 0.1 ether.
+    const balanceEtherAggr = await ethers.provider.getBalance(trustedAggregator);
+    if (balanceEtherAggr < minEtherBalance) {
+        const params = {
+            to: trustedAggregator,
+            value: minEtherBalance,
+        };
+        await deployer.sendTransaction(params);
+    }
+
+    // approve tokens for trusted sequencer
+    if (deployParameters.trustedSequencerPvtKey) {
+        const trustedSequencerWallet = new ethers.Wallet(deployParameters.trustedSequencerPvtKey, currentProvider);
+        await maticTokenContract.connect(trustedSequencerWallet).approve(polygonZkEVMContract.address, ethers.constants.MaxUint256);
+    }
 
     const outputJson = {
         polygonZkEVMAddress: polygonZkEVMContract.address,
