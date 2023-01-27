@@ -43,8 +43,11 @@ contract PolygonZkEVMBridge is
     // Leaf type message
     uint8 private constant _LEAF_TYPE_MESSAGE = 1;
 
-    // Network identifier
+   // Network identifier
     uint32 public networkID;
+
+    // Global Exit Root address
+    IPolygonZkEVMGlobalExitRoot public globalExitRootManager;
 
     // Leaf index --> claimed bit map
     mapping(uint256 => uint256) public claimedBitMap;
@@ -55,8 +58,6 @@ contract PolygonZkEVMBridge is
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
-    // Global Exit Root address
-    IPolygonZkEVMGlobalExitRoot public globalExitRootManager;
 
     // PolygonZkEVM address
     address public polygonZkEVMaddress;
