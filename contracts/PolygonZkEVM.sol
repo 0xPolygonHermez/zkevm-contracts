@@ -122,6 +122,21 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Max batch multiplier per verification
     uint256 private constant _MAX_BATCH_MULTIPLIER = 12;
 
+    // MATIC token address
+    IERC20Upgradeable public immutable matic;
+
+    // Rollup verifier interface
+    IVerifierRollup public immutable rollupVerifier;
+
+    // Global Exit Root interface
+    IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
+
+    // PolygonZkEVM Bridge Address
+    IPolygonZkEVMBridge public immutable bridgeAddress;
+
+    // L2 chain identifier
+    uint64 public immutable chainID;
+
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
     uint64 public verifyBatchTimeTarget;
@@ -129,8 +144,11 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
     uint16 public multiplierBatchFee;
 
-    // MATIC token address
-    IERC20Upgradeable public immutable matic;
+    // Trusted sequencer address
+    address public trustedSequencer;
+
+    // Current matic fee per batch sequenced
+    uint256 public batchFee;
 
     // Queue of forced batches with their associated data
     // ForceBatchNum --> hashedForcedBatchData
@@ -157,20 +175,8 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Last batch verified by the aggregators
     uint64 public lastVerifiedBatch;
 
-    // Trusted sequencer address
-    address public trustedSequencer;
-
     // Trusted aggregator address
     address public trustedAggregator;
-
-    // Rollup verifier interface
-    IVerifierRollup public immutable rollupVerifier;
-
-    // Global Exit Root interface
-    IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
-
-    // L2 chain identifier
-    uint64 public immutable chainID;
 
     // State root mapping
     // BatchNum --> state root
@@ -181,9 +187,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     // L2 network name
     string public networkName;
-
-    // PolygonZkEVM Bridge Address
-    IPolygonZkEVMBridge public immutable bridgeAddress;
 
     // Pending state mapping
     // pendingStateNumber --> PendingState
@@ -207,9 +210,6 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     // This account will be able to accept the admin role
     address public pendingAdmin;
-
-    // Current matic fee per batch sequenced
-    uint256 public batchFee;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions

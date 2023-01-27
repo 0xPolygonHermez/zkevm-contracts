@@ -23,6 +23,12 @@ contract DepositContract is Initializable {
     uint256 public depositCount;
 
     /**
+    * @dev This empty reserved space is put in place to allow future versions to add new
+    * variables without shifting down storage in the inheritance chain.
+    */
+    uint256[10] private _gap;
+
+    /**
      * @notice Computes and returns the merkle root
      */
     function getDepositRoot() public view returns (bytes32) {
