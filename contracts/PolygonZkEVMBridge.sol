@@ -46,7 +46,7 @@ contract PolygonZkEVMBridge is
     // Leaf type message
     uint8 private constant _LEAF_TYPE_MESSAGE = 1;
 
-   // Network identifier
+    // Network identifier
     uint32 public networkID;
 
     // Global Exit Root address
@@ -60,7 +60,6 @@ contract PolygonZkEVMBridge is
 
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
-
 
     // PolygonZkEVM address
     address public polygonZkEVMaddress;
@@ -386,7 +385,7 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Verify merkle proof and execute message
-     * If the receiving address is not a EOA, the call will result as a success
+     * If the receiving address is an EOA, the call will result as a success
      * Which means that the amount of ether will be transferred correctly, but the message
      * will not trigger any execution
      * @param smtProof Smt proof
