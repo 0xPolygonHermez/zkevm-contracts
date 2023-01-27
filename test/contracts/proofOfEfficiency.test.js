@@ -1897,7 +1897,7 @@ describe('Polygon ZK-EVM', () => {
         await polygonZkEVMContract.setSequencedBatches(
             100,
             accInputData,
-            currentTimestamp + verifyBatchTimeTarget - 1,
+            currentTimestamp + verifyBatchTimeTarget + 1,
             50,
         ); // Edge case, will be above
 

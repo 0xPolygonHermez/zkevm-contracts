@@ -856,7 +856,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
         uint64 currentBatch = newLastVerifiedBatch;
 
-        uint256 totalBatchesAboveTarget;
+        uint256 totalBatchesBelowTarget;
         uint256 newBatchesVerified = newLastVerifiedBatch -
             currentLastVerifiedBatch;
 
@@ -869,21 +869,24 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                     currentBatch
                 ];
 
-            // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
+            // Check if timestamp is below the verifyBatchTimeTarget
             if (
-                targetTimestamp > currentSequencedBatchData.sequencedTimestamp 
+                targetTimestamp < currentSequencedBatchData.sequencedTimestamp 
             ) {
-                totalBatchesAboveTarget +=
+                totalBatchesBelowTarget +=
                     currentBatch -
                     currentSequencedBatchData.previousLastBatchSequenced;
-            }
 
-            // update currentBatch
-            currentBatch = currentSequencedBatchData.previousLastBatchSequenced;
+                // update currentBatch
+                currentBatch = currentSequencedBatchData.previousLastBatchSequenced;
+            } else {
+                 // Since the rest of batches will be above
+                break; 
+            }
         }
 
-        uint256 totalBatchesBelowTarget = newBatchesVerified -
-            totalBatchesAboveTarget;
+        uint256 totalBatchesAboveTarget = newBatchesVerified -
+            totalBatchesBelowTarget;
 
         // Assume that batch fee will be max 128 bits, therefore:
         // multiplierBatchFee --> (< 10 bits)
