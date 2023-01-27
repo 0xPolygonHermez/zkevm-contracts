@@ -10,6 +10,7 @@ import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IPolygonZkEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./lib/EmergencyManager.sol";
+import "./lib/GlobalExitRootLib.sol";
 
 /**
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
@@ -550,7 +551,7 @@ contract PolygonZkEVMBridge is
         // Check timestamp where the global exit root was set
         uint256 timestampGlobalExitRoot = globalExitRootManager
             .globalExitRootMap(
-                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
+                GlobalExitRootLib.calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot)
             );
 
         require(
