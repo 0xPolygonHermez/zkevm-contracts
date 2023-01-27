@@ -37,6 +37,9 @@ contract PolygonZkEVMBridge is
     // Mainnet identifier
     uint32 private constant _MAINNET_NETWORK_ID = 0;
 
+    // Number of networks supported by the bridge
+    uint32 private constant _CURRENT_SUPPORTED_NETWORKS = 2;
+
     // Leaf type asset
     uint8 private constant _LEAF_TYPE_ASSET = 0;
 
@@ -137,9 +140,10 @@ contract PolygonZkEVMBridge is
         uint256 amount,
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState {
+        
         require(
-            destinationNetwork != networkID,
-            "PolygonZkEVMBridge::bridgeAsset: Destination cannot be itself"
+            destinationNetwork != networkID && destinationNetwork < _CURRENT_SUPPORTED_NETWORKS,
+            "PolygonZkEVMBridge::bridgeAsset: Destination network invalid"
         );
 
         address originTokenAddress;
@@ -234,9 +238,9 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         bytes calldata metadata
     ) external payable ifNotEmergencyState {
-        require(
-            destinationNetwork != networkID,
-            "PolygonZkEVMBridge::bridgeMessage: Destination cannot be itself"
+          require(
+            destinationNetwork != networkID && destinationNetwork < _CURRENT_SUPPORTED_NETWORKS,
+            "PolygonZkEVMBridge::bridgeAsset: Destination network invalid"
         );
 
         emit BridgeEvent(

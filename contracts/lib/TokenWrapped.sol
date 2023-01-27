@@ -57,6 +57,7 @@ contract TokenWrapped is ERC20 {
         _mint(to, value);
     }
 
+    // Notice that is not require to approve wrapped tokens to use the bridge  
     function burn(address account, uint256 value) external onlyBridge {
         _burn(account, value);
     }
