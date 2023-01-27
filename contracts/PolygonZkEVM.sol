@@ -860,6 +860,8 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint256 newBatchesVerified = newLastVerifiedBatch -
             currentLastVerifiedBatch;
 
+        uint256 targetTimestamp = block.timestamp - verifyBatchTimeTarget;
+
         while (currentBatch != currentLastVerifiedBatch) {
             // Load sequenced batchdata
             SequencedBatchData
@@ -869,8 +871,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
             // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
             if (
-                block.timestamp - currentSequencedBatchData.sequencedTimestamp >
-                verifyBatchTimeTarget
+                targetTimestamp > currentSequencedBatchData.sequencedTimestamp 
             ) {
                 totalBatchesAboveTarget +=
                     currentBatch -
@@ -912,14 +913,14 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                 : diffBatches;
 
             // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-            uint256 accDivisor = (1 ether *
+            uint256 accDivisor = (uint256(1 ether) *
                 (uint256(multiplierBatchFee) ** diffBatches)) /
                  (10 ** (diffBatches * 3));
 
             // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
             // accDivisor = batchFee * multiplyFactor
             // batchFee * batchFee / accDivisor = batchFee / multiplyFactor
-            batchFee = (1 ether * batchFee) / accDivisor;
+            batchFee = (uint256(1 ether) * batchFee) / accDivisor;
         }
     }
 
