@@ -921,8 +921,8 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                  (10 ** (diffBatches * 3));
 
             // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
-            // accDivisor = batchFee * multiplyFactor
-            // batchFee * batchFee / accDivisor = batchFee / multiplyFactor
+            // accDivisor = 1E18 * multiplyFactor
+            // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
             batchFee = (uint256(1 ether) * batchFee) / accDivisor;
         }
     }
