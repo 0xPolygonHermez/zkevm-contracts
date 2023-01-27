@@ -912,14 +912,14 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                 : diffBatches;
 
             // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-            uint256 accDivisor = (batchFee *
+            uint256 accDivisor = (1 ether *
                 (uint256(multiplierBatchFee) ** diffBatches)) /
-                (10 ** (diffBatches * 3));
+                 (10 ** (diffBatches * 3));
 
             // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
             // accDivisor = batchFee * multiplyFactor
             // batchFee * batchFee / accDivisor = batchFee / multiplyFactor
-            batchFee = (batchFee * batchFee) / accDivisor;
+            batchFee = (1 ether * batchFee) / accDivisor;
         }
     }
 
