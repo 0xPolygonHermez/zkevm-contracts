@@ -110,6 +110,9 @@ Verify merkle proof and withdraw tokens/ether
   ) external
 ```
 Verify merkle proof and execute message
+If the receiving address is not a EOA, the call will result as a success
+Which means that the amount of ether will be transferred correctly, but the message
+will not trigger any execution
 
 
 #### Parameters:
