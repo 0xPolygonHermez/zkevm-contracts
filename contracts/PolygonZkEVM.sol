@@ -122,6 +122,12 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     // Max batch multiplier per verification
     uint256 private constant _MAX_BATCH_MULTIPLIER = 12;
 
+    // Max batch fee value
+    uint256 private constant _MAX_BATCH_FEE = 1000 ether;
+
+    // Min value batch fee
+    uint256 private constant _MIN_BATCH_FEE = 1 gwei;
+
     // MATIC token address
     IERC20Upgradeable public immutable matic;
 
@@ -925,6 +931,12 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
             batchFee = (uint256(1 ether) * batchFee) / accDivisor;
         }
+        
+        if(batchFee > _MAX_BATCH_FEE) {
+            batchFee = _MAX_BATCH_FEE;
+        } else if(batchFee < _MIN_BATCH_FEE) {
+            batchFee = _MIN_BATCH_FEE;
+        }
     }
 
     ////////////////////////////
@@ -978,7 +990,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
             emit ForceBatch(lastForceBatch, lastGlobalExitRoot, msg.sender, "");
         } else {
-            // Getting internal transaction calldata is complicated (because it requires an archival node) 
+            // Getting internal transaction calldata is complicated (because it requires an archive node) 
             // Therefore it's worth it to put the `transactions` in the event, which is easy to query
             emit ForceBatch(
                 lastForceBatch,

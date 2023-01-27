@@ -1,5 +1,5 @@
 
-A library that provides the necessary calculations get a global exit root
+A library that provides the necessary calculations to calculate the global exit root
 
 ## Functions
 ### calculateGlobalExitRoot
