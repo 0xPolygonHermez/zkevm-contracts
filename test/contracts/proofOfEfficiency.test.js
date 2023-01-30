@@ -26,7 +26,6 @@ describe('Polygon ZK-EVM', () => {
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
     const networkIDMainnet = 0;
-    const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const chainID = 1000;
     const networkName = 'zkevm';
@@ -70,7 +69,7 @@ describe('Polygon ZK-EVM', () => {
             firstDeployment = false;
         }
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
-        const nonceProxyZkevm = nonceProxyBridge + (firstDeployment ? 2 : 1);
+        const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
 
         const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
         const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
@@ -89,23 +88,27 @@ describe('Polygon ZK-EVM', () => {
 
         // deploy PolygonZkEVMMock
         const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
-        polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], { initializer: false });
+        polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
+            initializer: false,
+            constructorArgs: [
+                polygonZkEVMGlobalExitRoot.address,
+                maticTokenContract.address,
+                verifierContract.address,
+                polygonZkEVMBridgeContract.address,
+                chainID,
+            ],
+            unsafeAllow: ['constructor', 'state-variable-immutable'],
+        });
 
         expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
         expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
 
         await polygonZkEVMBridgeContract.initialize(networkIDMainnet, polygonZkEVMGlobalExitRoot.address, polygonZkEVMContract.address);
         await polygonZkEVMContract.initialize(
-            polygonZkEVMGlobalExitRoot.address,
-            maticTokenContract.address,
-            verifierContract.address,
-            polygonZkEVMBridgeContract.address,
             {
                 admin: admin.address,
-                chainID,
                 trustedSequencer: trustedSequencer.address,
                 pendingStateTimeout: pendingStateTimeoutDefault,
-                forceBatchAllowed: allowForcebatches,
                 trustedAggregator: trustedAggregator.address,
                 trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
             },
@@ -129,7 +132,6 @@ describe('Polygon ZK-EVM', () => {
         expect(await polygonZkEVMContract.chainID()).to.be.equal(chainID);
         expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
         expect(await polygonZkEVMContract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
-        expect(await polygonZkEVMContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
         expect(await polygonZkEVMContract.trustedAggregator()).to.be.equal(trustedAggregator.address);
         expect(await polygonZkEVMContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeoutDefault);
 
@@ -142,7 +144,6 @@ describe('Polygon ZK-EVM', () => {
 
     it('should check setters of admin', async () => {
         expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
-        expect(await polygonZkEVMContract.forceBatchAllowed()).to.be.equal(allowForcebatches);
         expect(await polygonZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
         expect(await polygonZkEVMContract.trustedAggregator()).to.be.equal(trustedAggregator.address);
         expect(await polygonZkEVMContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeoutDefault);
@@ -156,14 +157,6 @@ describe('Polygon ZK-EVM', () => {
             polygonZkEVMContract.connect(admin).setTrustedSequencer(deployer.address),
         ).to.emit(polygonZkEVMContract, 'SetTrustedSequencer').withArgs(deployer.address);
         expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(deployer.address);
-
-        // setForceBatchAllowed
-        await expect(polygonZkEVMContract.setForceBatchAllowed(!allowForcebatches))
-            .to.be.revertedWith('PolygonZkEVM::onlyAdmin: Only admin');
-        await expect(
-            polygonZkEVMContract.connect(admin).setForceBatchAllowed(!allowForcebatches),
-        ).to.emit(polygonZkEVMContract, 'SetForceBatchAllowed').withArgs(!allowForcebatches);
-        expect(await polygonZkEVMContract.forceBatchAllowed()).to.be.equal(!allowForcebatches);
 
         // setTrustedSequencerURL
         const url = 'https://test';
@@ -219,12 +212,12 @@ describe('Polygon ZK-EVM', () => {
         ).to.emit(polygonZkEVMContract, 'SetMultiplierBatchFee').withArgs(newMultiplierBatchFee);
         expect(await polygonZkEVMContract.multiplierBatchFee()).to.be.equal(newMultiplierBatchFee);
 
-        // setVeryBatchTimeTarget
-        const newVeryBatchTimeTarget = 100;
+        // setVerifyBatchTimeTarget
+        const newVerifyBatchTimeTarget = 100;
         await expect(
-            polygonZkEVMContract.connect(admin).setVeryBatchTimeTarget(newVeryBatchTimeTarget),
-        ).to.emit(polygonZkEVMContract, 'SetVeryBatchTimeTarget').withArgs(newVeryBatchTimeTarget);
-        expect(await polygonZkEVMContract.veryBatchTimeTarget()).to.be.equal(newVeryBatchTimeTarget);
+            polygonZkEVMContract.connect(admin).setVerifyBatchTimeTarget(newVerifyBatchTimeTarget),
+        ).to.emit(polygonZkEVMContract, 'SetVerifyBatchTimeTarget').withArgs(newVerifyBatchTimeTarget);
+        expect(await polygonZkEVMContract.verifyBatchTimeTarget()).to.be.equal(newVerifyBatchTimeTarget);
 
         // Transfer admin role
 
@@ -1887,7 +1880,7 @@ describe('Polygon ZK-EVM', () => {
 
     it('Test batch fees properly', async () => {
         const accInputData = ethers.constants.HashZero;
-        const veryBatchTimeTarget = Number(await polygonZkEVMContract.veryBatchTimeTarget());
+        const verifyBatchTimeTarget = Number(await polygonZkEVMContract.verifyBatchTimeTarget());
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const multiplierFee = ethers.BigNumber.from(await polygonZkEVMContract.multiplierBatchFee()); // 1002
@@ -1897,14 +1890,14 @@ describe('Polygon ZK-EVM', () => {
         await polygonZkEVMContract.setSequencedBatches(
             50,
             accInputData,
-            currentTimestamp + veryBatchTimeTarget,
+            currentTimestamp + verifyBatchTimeTarget,
             0,
         ); // Edge case, will be below
 
         await polygonZkEVMContract.setSequencedBatches(
             100,
             accInputData,
-            currentTimestamp + veryBatchTimeTarget - 1,
+            currentTimestamp + verifyBatchTimeTarget - 1,
             50,
         ); // Edge case, will be above
 
@@ -1912,7 +1905,7 @@ describe('Polygon ZK-EVM', () => {
         let currentBatchFee = await polygonZkEVMContract.batchFee();
         expect(currentBatchFee).to.be.equal(ethers.utils.parseEther('1'));
 
-        await ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + veryBatchTimeTarget * 2]);
+        await ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + verifyBatchTimeTarget * 2]);
 
         await polygonZkEVMContract.updateBatchFee(100);
 
@@ -1929,7 +1922,7 @@ describe('Polygon ZK-EVM', () => {
         expect(currentBatchFee).to.be.equal(await polygonZkEVMContract.batchFee());
 
         // Check the fee is now below
-        await polygonZkEVMContract.setSequencedBatches(50, accInputData, currentTimestamp + veryBatchTimeTarget * 2, 0); // Below
+        await polygonZkEVMContract.setSequencedBatches(50, accInputData, currentTimestamp + verifyBatchTimeTarget * 2, 0); // Below
         currentBatchFee = currentBatchFee.mul(bingNumber1000.pow(MAX_BATCH_MULTIPLIER)).div(multiplierFee.pow(MAX_BATCH_MULTIPLIER));
     });
 });

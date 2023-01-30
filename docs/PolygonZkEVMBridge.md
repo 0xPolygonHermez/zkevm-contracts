@@ -7,7 +7,7 @@ Contract responsible to manage the token interactions with other networks
 ```solidity
   function initialize(
     uint32 _networkID,
-    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+    contract IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
     address _polygonZkEVMaddress
   ) external
 ```
@@ -18,7 +18,7 @@ emergency state is not possible for the L2 deployment of the bridge, intentional
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkID` | uint32 | networkID
-|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | global exit root manager address
+|`_globalExitRootManager` | contract IBasePolygonZkEVMGlobalExitRoot | global exit root manager address
 |`_polygonZkEVMaddress` | address | polygonZkEVM address
 
 
@@ -110,6 +110,9 @@ Verify merkle proof and withdraw tokens/ether
   ) external
 ```
 Verify merkle proof and execute message
+If the receiving address is an EOA, the call will result as a success
+Which means that the amount of ether will be transferred correctly, but the message
+will not trigger any execution
 
 
 #### Parameters:

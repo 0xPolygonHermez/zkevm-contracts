@@ -12,7 +12,7 @@ Private keys and mnemonics contained in this repository are used for internal te
 
 ## Requirements
 
-- node version: 14.x
+- node version: 16.x
 - npm version: 7.x
 
 ## Repository structure

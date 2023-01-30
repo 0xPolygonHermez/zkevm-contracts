@@ -8,38 +8,41 @@ describe('Polygon ZK-EVM snark stark input test', () => {
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
     let randomSigner;
 
-    const allowForcebatches = true;
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const chainID = 1000;
     const networkName = 'zkevm';
 
     const batchL2Data = '0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b';
     beforeEach('Deploy contract', async () => {
+        upgrades.silenceWarnings();
         // load signers
         [randomSigner] = await ethers.getSigners();
 
-        // deploy Polygon ZK-EVM
+        // deploy PolygonZkEVMMock
         const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
-        polygonZkEVMContract = await upgrades.deployProxy(
-            PolygonZkEVMFactory,
-            [
+        polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
+            initializer: false,
+            constructorArgs: [
                 randomSigner.address,
                 randomSigner.address,
                 randomSigner.address,
                 randomSigner.address,
-                {
-                    admin: randomSigner.address,
-                    chainID,
-                    trustedSequencer: randomSigner.address,
-                    pendingStateTimeout: 0,
-                    forceBatchAllowed: allowForcebatches,
-                    trustedAggregator: randomSigner.address,
-                    trustedAggregatorTimeout: 0,
-                },
-                genesisRoot,
-                urlSequencer,
-                networkName,
+                chainID,
             ],
+            unsafeAllow: ['constructor', 'state-variable-immutable'],
+        });
+
+        await polygonZkEVMContract.initialize(
+            {
+                admin: randomSigner.address,
+                trustedSequencer: randomSigner.address,
+                pendingStateTimeout: 0,
+                trustedAggregator: randomSigner.address,
+                trustedAggregatorTimeout: 0,
+            },
+            genesisRoot,
+            urlSequencer,
+            networkName,
         );
 
         await polygonZkEVMContract.deployed();

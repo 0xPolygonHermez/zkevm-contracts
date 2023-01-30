@@ -3,13 +3,18 @@
 pragma solidity 0.8.15;
 
 import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "./lib/GlobalExitRootLib.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract PolygonZkEVMGlobalExitRoot is
-    IPolygonZkEVMGlobalExitRoot
-{
+contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot {
+    // PolygonZkEVMBridge address
+    address public immutable bridgeAddress;
+
+    // Rollup contract address
+    address public immutable rollupAddress;
+
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
 
@@ -18,12 +23,6 @@ contract PolygonZkEVMGlobalExitRoot is
 
     // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
-
-    // PolygonZkEVMBridge address
-    address public immutable bridgeAddress;
-
-    // Rollup contract address
-    address public immutable rollupAddress;
 
     /**
      * @dev Emitted when the the global exit root is updated
@@ -68,9 +67,7 @@ contract PolygonZkEVMGlobalExitRoot is
             cacheLastMainnetExitRoot = newRoot;
         }
 
-        bytes32 newGlobalExitRoot = keccak256(
-            abi.encodePacked(cacheLastMainnetExitRoot, cacheLastRollupExitRoot)
-        );
+        bytes32 newGlobalExitRoot = GlobalExitRootLib.calculateGlobalExitRoot(cacheLastMainnetExitRoot, cacheLastRollupExitRoot);
 
         // If it already exists, do not modify the timestamp
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
@@ -83,9 +80,6 @@ contract PolygonZkEVMGlobalExitRoot is
      * @notice Return last global exit root
      */
     function getLastGlobalExitRoot() public view returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(lastMainnetExitRoot, lastRollupExitRoot)
-            );
+        return GlobalExitRootLib.calculateGlobalExitRoot(lastMainnetExitRoot, lastRollupExitRoot);
     }
 }

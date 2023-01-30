@@ -40,7 +40,6 @@ A new folder will be created witth the following name `deployments/${network}_$(
 ## deploy-parameters.json
 
 - `trustedSequencerURL`: string, trustedSequencer URL
-- `forceBatchAllowed`: boolean, allow force batches
 - `trustedSequencerAddress`: address, trusted sequencer addresss
 - `realVerifier`: boolean, deploy or not a real verifier
 - `chainID`: uint64, chainID

@@ -67,7 +67,7 @@ describe('PolygonZkEVMBridge Contract', () => {
         expect(await polygonZkEVMBridgeContract.polygonZkEVMaddress()).to.be.equal(polygonZkEVMAddress);
     });
 
-    it('should PolygonZkEVMBridge asset and verify merkle proof', async () => {
+    it('should PolygonZkEVM bridge asset and verify merkle proof', async () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
         const tokenAddress = tokenContract.address;
@@ -102,6 +102,24 @@ describe('PolygonZkEVMBridge Contract', () => {
         );
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
+
+        // check requires
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(
+            tokenAddress,
+            2,
+            destinationAddress,
+            amount,
+            '0x',
+        )).to.be.revertedWith('PolygonZkEVMBridge::bridgeAsset: Destination network invalid');
+
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            '0x',
+            { value: 1 },
+        )).to.be.revertedWith('PolygonZkEVMBridge::bridgeAsset: Expected zero native asset value when bridging ERC20 tokens');
 
         await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
@@ -936,7 +954,7 @@ describe('PolygonZkEVMBridge Contract', () => {
             amount,
             '0x',
             { value: amount },
-        )).to.be.revertedWith('PolygonZkEVMBridge::bridgeAsset: Destination cannot be itself');
+        )).to.be.revertedWith('PolygonZkEVMBridge::bridgeAsset: Destination network invalid');
 
         // This is used just to pay ether to the PolygonZkEVMBridge smart contract and be able to claim it afterwards.
         expect(await polygonZkEVMBridgeContract.bridgeAsset(
@@ -1103,7 +1121,7 @@ describe('PolygonZkEVMBridge Contract', () => {
             amount,
             '0x',
             { value: amount },
-        )).to.be.revertedWith('PolygonZkEVMBridge::bridgeAsset: Destination cannot be itself');
+        )).to.be.revertedWith('PolygonZkEVMBridge::bridgeAsset: Destination network invalid');
 
         // This is used just to pay ether to the PolygonZkEVMBridge smart contract and be able to claim it afterwards.
         expect(await polygonZkEVMBridgeContract.bridgeAsset(

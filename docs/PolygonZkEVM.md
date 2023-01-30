@@ -7,13 +7,30 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 
 
 ## Functions
-### initialize
+### constructor
 ```solidity
-  function initialize(
+  function constructor(
     contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
     contract IERC20Upgradeable _matic,
     contract IVerifierRollup _rollupVerifier,
     contract IPolygonZkEVMBridge _bridgeAddress,
+    uint64 _chainID
+  ) public
+```
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | Global exit root manager address
+|`_matic` | contract IERC20Upgradeable | MATIC token address
+|`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
+|`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
+|`_chainID` | uint64 | L2 chainID
+
+### initialize
+```solidity
+  function initialize(
     struct PolygonZkEVM.InitializePackedParameters initializePackedParameters,
     bytes32 genesisRoot,
     string _trustedSequencerURL,
@@ -25,10 +42,6 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | Global exit root manager address
-|`_matic` | contract IERC20Upgradeable | MATIC token address
-|`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
-|`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
 |`initializePackedParameters` | struct PolygonZkEVM.InitializePackedParameters | Struct to save gas and avoid stack too deep errors
 |`genesisRoot` | bytes32 | Rollup genesis root
 |`_trustedSequencerURL` | string | Trusted sequencer URL
@@ -234,20 +247,6 @@ Allow the admin to set a new trusted sequencer
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newTrustedSequencer` | address | Address of the new trusted sequencer
 
-### setForceBatchAllowed
-```solidity
-  function setForceBatchAllowed(
-    bool newForceBatchAllowed
-  ) external
-```
-Allow the admin to allow/disallow the forceBatch functionality
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newForceBatchAllowed` | bool | Whether is allowed or not the forceBatch functionality
-
 ### setTrustedSequencerURL
 ```solidity
   function setTrustedSequencerURL(
@@ -320,19 +319,21 @@ Allow the admin to set a new multiplier batch fee
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newMultiplierBatchFee` | uint16 | multiplier batch fee
 
-### setVeryBatchTimeTarget
+### setVerifyBatchTimeTarget
 ```solidity
-  function setVeryBatchTimeTarget(
-    uint64 newVeryBatchTimeTarget
+  function setVerifyBatchTimeTarget(
+    uint64 newVerifyBatchTimeTarget
   ) external
 ```
 Allow the admin to set a new verify batch time target
+This value will only be relevant once the aggregation is decentralized, so
+the trustedAggregatorTimeout should be zero or very close to zero
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newVeryBatchTimeTarget` | uint64 | Verify batch time target
+|`newVerifyBatchTimeTarget` | uint64 | Verify batch time target
 
 ### transferAdminRole
 ```solidity
@@ -456,13 +457,13 @@ Internal function that prove a different state root given the same batches to ve
   ) external
 ```
 Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
-If not called by the owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
+If not called by the owner must be provided a batcnNum that does not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`sequencedBatchNum` | uint64 | Sequenced batch number that has not been aggreagated in HALT_AGGREGATION_TIMEOUT
+|`sequencedBatchNum` | uint64 | Sequenced batch number that has not been aggreagated in _HALT_AGGREGATION_TIMEOUT
 
 ### deactivateEmergencyState
 ```solidity
@@ -598,14 +599,6 @@ Emitted when pending state is consolidated
 
 Emitted when the admin update the trusted sequencer address
 
-### SetForceBatchAllowed
-```solidity
-  event SetForceBatchAllowed(
-  )
-```
-
-Emitted when the admin update the forcebatch boolean
-
 ### SetTrustedSequencerURL
 ```solidity
   event SetTrustedSequencerURL(
@@ -646,9 +639,9 @@ Emitted when the admin update the trusted aggregator address
 
 Emitted when the admin update the multiplier batch fee
 
-### SetVeryBatchTimeTarget
+### SetVerifyBatchTimeTarget
 ```solidity
-  event SetVeryBatchTimeTarget(
+  event SetVerifyBatchTimeTarget(
   )
 ```
 

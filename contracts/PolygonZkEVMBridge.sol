@@ -5,11 +5,12 @@ pragma solidity 0.8.15;
 import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./lib/TokenWrapped.sol";
-import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "./interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IPolygonZkEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./lib/EmergencyManager.sol";
+import "./lib/GlobalExitRootLib.sol";
 
 /**
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
@@ -35,16 +36,22 @@ contract PolygonZkEVMBridge is
     bytes4 private constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
 
     // Mainnet identifier
-    uint32 private constant MAINNET_NETWORK_ID = 0;
+    uint32 private constant _MAINNET_NETWORK_ID = 0;
+
+    // Number of networks supported by the bridge
+    uint32 private constant _CURRENT_SUPPORTED_NETWORKS = 2;
 
     // Leaf type asset
-    uint8 private constant LEAF_TYPE_ASSET = 0;
+    uint8 private constant _LEAF_TYPE_ASSET = 0;
 
     // Leaf type message
-    uint8 private constant LEAF_TYPE_MESSAGE = 1;
+    uint8 private constant _LEAF_TYPE_MESSAGE = 1;
 
     // Network identifier
     uint32 public networkID;
+
+    // Global Exit Root address
+    IBasePolygonZkEVMGlobalExitRoot public globalExitRootManager;
 
     // Leaf index --> claimed bit map
     mapping(uint256 => uint256) public claimedBitMap;
@@ -54,9 +61,6 @@ contract PolygonZkEVMBridge is
 
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
-
-    // Global Exit Root address
-    IPolygonZkEVMGlobalExitRoot public globalExitRootManager;
 
     // PolygonZkEVM address
     address public polygonZkEVMaddress;
@@ -70,7 +74,7 @@ contract PolygonZkEVMBridge is
      */
     function initialize(
         uint32 _networkID,
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress
     ) external virtual initializer {
         networkID = _networkID;
@@ -136,9 +140,10 @@ contract PolygonZkEVMBridge is
         uint256 amount,
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState {
+        
         require(
-            destinationNetwork != networkID,
-            "PolygonZkEVMBridge::bridgeAsset: Destination cannot be itself"
+            destinationNetwork != networkID && destinationNetwork < _CURRENT_SUPPORTED_NETWORKS,
+            "PolygonZkEVMBridge::bridgeAsset: Destination network invalid"
         );
 
         address originTokenAddress;
@@ -154,7 +159,7 @@ contract PolygonZkEVMBridge is
             );
 
             // Ether is treated as ether from mainnet
-            originNetwork = MAINNET_NETWORK_ID;
+            originNetwork = _MAINNET_NETWORK_ID;
         } else {
             // Check msg.value is 0 if tokens are bridged
             require(msg.value == 0, "PolygonZkEVMBridge::bridgeAsset: Expected zero native asset value when bridging ERC20 tokens");
@@ -196,7 +201,7 @@ contract PolygonZkEVMBridge is
         }
 
         emit BridgeEvent(
-            LEAF_TYPE_ASSET,
+            _LEAF_TYPE_ASSET,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
@@ -208,7 +213,7 @@ contract PolygonZkEVMBridge is
 
         _deposit(
             getLeafValue(
-                LEAF_TYPE_ASSET,
+                _LEAF_TYPE_ASSET,
                 originNetwork,
                 originTokenAddress,
                 destinationNetwork,
@@ -233,13 +238,13 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         bytes calldata metadata
     ) external payable ifNotEmergencyState {
-        require(
-            destinationNetwork != networkID,
-            "PolygonZkEVMBridge::bridgeMessage: Destination cannot be itself"
+          require(
+            destinationNetwork != networkID && destinationNetwork < _CURRENT_SUPPORTED_NETWORKS,
+            "PolygonZkEVMBridge::bridgeAsset: Destination network invalid"
         );
 
         emit BridgeEvent(
-            LEAF_TYPE_MESSAGE,
+            _LEAF_TYPE_MESSAGE,
             networkID,
             msg.sender,
             destinationNetwork,
@@ -251,7 +256,7 @@ contract PolygonZkEVMBridge is
 
         _deposit(
             getLeafValue(
-                LEAF_TYPE_MESSAGE,
+                _LEAF_TYPE_MESSAGE,
                 networkID,
                 msg.sender,
                 destinationNetwork,
@@ -302,7 +307,7 @@ contract PolygonZkEVMBridge is
             destinationAddress,
             amount,
             metadata,
-            LEAF_TYPE_ASSET
+            _LEAF_TYPE_ASSET
         );
 
         // Transfer funds
@@ -381,6 +386,9 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Verify merkle proof and execute message
+     * If the receiving address is an EOA, the call will result as a success
+     * Which means that the amount of ether will be transferred correctly, but the message
+     * will not trigger any execution
      * @param smtProof Smt proof
      * @param index Index of the leaf
      * @param mainnetExitRoot Mainnet exit root
@@ -416,7 +424,7 @@ contract PolygonZkEVMBridge is
             destinationAddress,
             amount,
             metadata,
-            LEAF_TYPE_MESSAGE
+            _LEAF_TYPE_MESSAGE
         );
 
         // Execute message
@@ -543,7 +551,7 @@ contract PolygonZkEVMBridge is
         // Check timestamp where the global exit root was set
         uint256 timestampGlobalExitRoot = globalExitRootManager
             .globalExitRootMap(
-                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
+                GlobalExitRootLib.calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot)
             );
 
         require(
@@ -558,7 +566,7 @@ contract PolygonZkEVMBridge is
         );
 
         bytes32 claimRoot;
-        if (networkID == MAINNET_NETWORK_ID) {
+        if (networkID == _MAINNET_NETWORK_ID) {
             // Verify merkle proof using rollup exit root
             claimRoot = rollupExitRoot;
         } else {

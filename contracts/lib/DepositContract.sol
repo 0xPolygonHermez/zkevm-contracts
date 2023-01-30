@@ -23,6 +23,12 @@ contract DepositContract is Initializable {
     uint256 public depositCount;
 
     /**
+    * @dev This empty reserved space is put in place to allow future versions to add new
+    * variables without shifting down storage in the inheritance chain.
+    */
+    uint256[10] private _gap;
+
+    /**
      * @notice Computes and returns the merkle root
      */
     function getDepositRoot() public view returns (bytes32) {
@@ -35,11 +41,11 @@ contract DepositContract is Initializable {
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
             height++
         ) {
-            if ((size & 1) == 1)
+            if (((size >> height) & 1) == 1)
                 node = keccak256(abi.encodePacked(_branch[height], node));
             else
                 node = keccak256(abi.encodePacked(node, currentZeroHashHeight));
-            size /= 2;
+
             currentZeroHashHeight = keccak256(
                 abi.encodePacked(currentZeroHashHeight, currentZeroHashHeight)
             );
@@ -67,12 +73,11 @@ contract DepositContract is Initializable {
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
             height++
         ) {
-            if ((size & 1) == 1) {
+            if (((size >> height) & 1) == 1) {
                 _branch[height] = node;
                 return;
             }
             node = keccak256(abi.encodePacked(_branch[height], node));
-            size /= 2;
         }
         // As the loop should always end prematurely with the `return` statement,
         // this code should be unreachable. We assert `false` just to be safe.
@@ -95,16 +100,14 @@ contract DepositContract is Initializable {
         bytes32 node = leafHash;
 
         // Check merkle proof
-        uint256 currrentIndex = index;
         for (
             uint256 height = 0;
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
             height++
         ) {
-            if ((currrentIndex & 1) == 1)
+            if (((index >> height) & 1) == 1)
                 node = keccak256(abi.encodePacked(smtProof[height], node));
             else node = keccak256(abi.encodePacked(node, smtProof[height]));
-            currrentIndex /= 2;
         }
 
         return node == root;
