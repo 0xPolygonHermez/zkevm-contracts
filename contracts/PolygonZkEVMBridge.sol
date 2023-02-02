@@ -782,13 +782,14 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Provides a safe ERC20.decimals version which returns '18' as fallback value.
+     * Note Tokens with (decimals > 255) are not supported
      * @param token The address of the ERC-20 token contract
      */
     function _safeDecimals(address token) internal view returns (uint8) {
         (bool success, bytes memory data) = address(token).staticcall(
             abi.encodeCall(IERC20MetadataUpgradeable.decimals, ())
         );
-        return success && data.length == 32 ? uint8(abi.decode(data, (uint256))) : 18;
+        return success && data.length == 32 ? abi.decode(data, (uint8)) : 18;
     }
 
     /**
@@ -811,7 +812,6 @@ contract PolygonZkEVMBridge is
             if (nonZeroBytes == 0) {
                 return "???";
             }
-
             // Create a byte array with nonZeroBytes length
             bytes memory bytesArray = new bytes(nonZeroBytes);
             for (uint256 i = 0; i < nonZeroBytes; i++) {

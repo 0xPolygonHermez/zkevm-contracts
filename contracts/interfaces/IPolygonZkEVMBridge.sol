@@ -29,7 +29,7 @@ interface IPolygonZkEVMBridge {
     error EtherTransferFailed();
 
     /**
-     * @dev Thrown when the message transactoin on claimMessage fail
+     * @dev Thrown when the message transaction on claimMessage fail
      */
     error MessageFailed();
 

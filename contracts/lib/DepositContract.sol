@@ -66,7 +66,7 @@ contract DepositContract is Initializable {
         bytes32 node = leafHash;
 
         // Avoid overflowing the Merkle tree (and prevent edge case in computing `_branch`)
-        if (depositCount > _MAX_DEPOSIT_COUNT) {
+        if (depositCount >= _MAX_DEPOSIT_COUNT) {
             revert MerkleTreeFull();
         }
 
