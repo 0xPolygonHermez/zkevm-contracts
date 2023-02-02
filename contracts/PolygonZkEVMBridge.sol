@@ -203,9 +203,9 @@ contract PolygonZkEVMBridge is
 
                 // Encode metadata
                 metadata = abi.encode(
-                    IERC20MetadataUpgradeable(token).name(),
-                    IERC20MetadataUpgradeable(token).symbol(),
-                    IERC20MetadataUpgradeable(token).decimals()
+                    _safeName(token),
+                    _safeSymbol(token),
+                    _safeDecimals(token)
                 );
             }
         }
@@ -754,6 +754,73 @@ contract PolygonZkEVMBridge is
                     s
                 )
             );
+        }
+    }
+
+    // Helpers to safely get the metadata from a token, inspired by https://github.com/traderjoe-xyz/joe-core/blob/main/contracts/MasterChefJoeV3.sol#L55-L95
+
+    /**
+     * @notice Provides a safe ERC20.symbol version which returns '???' as fallback string
+     * @param token The address of the ERC-20 token contract
+     */
+    function _safeSymbol(address token) internal view returns (string memory) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.symbol, ())
+        );
+        return success ? _returnDataToString(data) : "???";
+    }
+
+    /**
+     * @notice  Provides a safe ERC20.name version which returns '???' as fallback string.
+     * @param token The address of the ERC-20 token contract.
+     */
+    function _safeName(address token) internal view returns (string memory) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.name, ())
+        );
+        return success ? _returnDataToString(data) : "???";
+    }
+
+    /**
+     * @notice Provides a safe ERC20.decimals version which returns '18' as fallback value.
+     * @param token The address of the ERC-20 token contract
+     */
+    function _safeDecimals(address token) internal view returns (uint8) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.decimals, ())
+        );
+        return success && data.length == 32 ? abi.decode(data, (uint8)) : 18;
+    }
+
+    /**
+     * @notice Function to convert returned data to string
+     * @param data returned data
+     */
+    function _returnDataToString(
+        bytes memory data
+    ) internal pure returns (string memory) {
+        if (data.length >= 64) {
+            return abi.decode(data, (string));
+        } else if (data.length == 32) {
+            // Since the strings on bytes32 are encoded left-right, check the first zero in the data
+            uint256 nonZeroBytes;
+            while (nonZeroBytes < 32 && data[nonZeroBytes] != 0) {
+                nonZeroBytes++;
+            }
+
+            // If the first one is 0, we do not handle the enconding
+            if (nonZeroBytes == 0) {
+                return "???";
+            }
+
+            // Create a byte array with nonZeroBytes length
+            bytes memory bytesArray = new bytes(nonZeroBytes);
+            for (uint256 i = 0; i < nonZeroBytes; i++) {
+                bytesArray[i] = data[i];
+            }
+            return string(bytesArray);
+        } else {
+            return "???";
         }
     }
 }
