@@ -124,7 +124,7 @@ describe('Emergency mode test', () => {
             .to.be.revertedWith('BatchNotSequencedOrNotSequenceEnd');
 
         await expect(polygonZkEVMBridgeContract.connect(deployer).activateEmergencyState())
-            .to.be.revertedWith('PolygonZkEVM::onlyPolygonZkEVM: only PolygonZkEVM contract');
+            .to.be.revertedWith('OnlyPolygonZkEVM');
 
         await expect(polygonZkEVMContract.activateEmergencyState(0))
             .to.emit(polygonZkEVMContract, 'EmergencyStateActivated')
@@ -241,7 +241,7 @@ describe('Emergency mode test', () => {
             .to.be.revertedWith('OnlyNotEmergencyState');
 
         await expect(polygonZkEVMBridgeContract.connect(deployer).deactivateEmergencyState())
-            .to.be.revertedWith('PolygonZkEVM::onlyPolygonZkEVM: only PolygonZkEVM contract');
+            .to.be.revertedWith('OnlyPolygonZkEVM');
 
         await expect(polygonZkEVMContract.deactivateEmergencyState())
             .to.be.revertedWith('OnlyAdmin');

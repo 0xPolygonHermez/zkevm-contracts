@@ -83,10 +83,9 @@ contract PolygonZkEVMBridge is
     }
 
     modifier onlyPolygonZkEVM() {
-        require(
-            polygonZkEVMaddress == msg.sender,
-            "PolygonZkEVM::onlyPolygonZkEVM: only PolygonZkEVM contract"
-        );
+        if (polygonZkEVMaddress != msg.sender) {
+            revert OnlyPolygonZkEVM();
+        }
         _;
     }
 
@@ -808,7 +807,7 @@ contract PolygonZkEVMBridge is
                 nonZeroBytes++;
             }
 
-            // If the first one is 0, we do not handle the enconding
+            // If the first one is 0, we do not handle the encoding
             if (nonZeroBytes == 0) {
                 return "???";
             }

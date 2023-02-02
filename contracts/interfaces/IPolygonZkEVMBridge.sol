@@ -4,6 +4,11 @@ pragma solidity 0.8.15;
 
 interface IPolygonZkEVMBridge {
     /**
+     * @dev Thrown when sender is not PolygonZkEVM address
+     */
+    error OnlyPolygonZkEVM();
+
+    /**
      * @dev Thrown when destination network is invalid
      */
     error DestinationNetworkInvalid();
