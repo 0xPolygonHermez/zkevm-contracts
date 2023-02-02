@@ -69,8 +69,8 @@ contract PolygonZkEVMBridge is
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
      * @param _polygonZkEVMaddress polygonZkEVM address
-     * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so 
-     * emergency state is not possible for the L2 deployment of the bridge, intentionally   
+     * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
+     * emergency state is not possible for the L2 deployment of the bridge, intentionally
      */
     function initialize(
         uint32 _networkID,
@@ -140,11 +140,12 @@ contract PolygonZkEVMBridge is
         uint256 amount,
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState {
-        
-        require(
-            destinationNetwork != networkID && destinationNetwork < _CURRENT_SUPPORTED_NETWORKS,
-            "PolygonZkEVMBridge::bridgeAsset: Destination network invalid"
-        );
+        if (
+            destinationNetwork == networkID ||
+            destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS
+        ) {
+            revert DestinationNetworkInvalid();
+        }
 
         address originTokenAddress;
         uint32 originNetwork;
@@ -153,16 +154,17 @@ contract PolygonZkEVMBridge is
 
         if (token == address(0)) {
             // Ether transfer
-            require(
-                msg.value == amount,
-                "PolygonZkEVMBridge::bridgeAsset: Amount does not match message.value"
-            );
+            if (msg.value != amount) {
+                revert AmountDoesNotMatchMsgValue();
+            }
 
             // Ether is treated as ether from mainnet
             originNetwork = _MAINNET_NETWORK_ID;
         } else {
             // Check msg.value is 0 if tokens are bridged
-            require(msg.value == 0, "PolygonZkEVMBridge::bridgeAsset: Expected zero native asset value when bridging ERC20 tokens");
+            if (msg.value != 0) {
+                revert MsgValueNotZero();
+            }
 
             TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[token];
 
@@ -181,10 +183,18 @@ contract PolygonZkEVMBridge is
                 }
 
                 // In order to support fee tokens check the amount received, not the transferred
-                uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(address(this));
-                IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
-                uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(address(this));
-                
+                uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(
+                    address(this)
+                );
+                IERC20Upgradeable(token).safeTransferFrom(
+                    msg.sender,
+                    address(this),
+                    amount
+                );
+                uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(
+                    address(this)
+                );
+
                 // Override leafAmount with the received amount
                 leafAmount = balanceAfter - balanceBefore;
 
@@ -238,10 +248,12 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         bytes calldata metadata
     ) external payable ifNotEmergencyState {
-          require(
-            destinationNetwork != networkID && destinationNetwork < _CURRENT_SUPPORTED_NETWORKS,
-            "PolygonZkEVMBridge::bridgeAsset: Destination network invalid"
-        );
+        if (
+            destinationNetwork == networkID ||
+            destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS
+        ) {
+            revert DestinationNetworkInvalid();
+        }
 
         emit BridgeEvent(
             _LEAF_TYPE_MESSAGE,
@@ -317,10 +329,9 @@ contract PolygonZkEVMBridge is
             (bool success, ) = destinationAddress.call{value: amount}(
                 new bytes(0)
             );
-            require(
-                success,
-                "PolygonZkEVMBridge::claimAsset: Ether transfer failed"
-            );
+            if (!success) {
+                revert EtherTransferFailed();
+            }
         } else {
             // Transfer tokens
             if (originNetwork == networkID) {
@@ -436,7 +447,9 @@ contract PolygonZkEVMBridge is
                 (originAddress, originNetwork, metadata)
             )
         );
-        require(success, "PolygonZkEVMBridge::claimMessage: Message failed");
+        if (!success) {
+            revert MessageFailed();
+        }
 
         emit ClaimEvent(
             index,
@@ -546,24 +559,25 @@ contract PolygonZkEVMBridge is
         uint8 leafType
     ) internal {
         // Set and check nullifier
-       _setAndCheckClaimed(index);
+        _setAndCheckClaimed(index);
 
         // Check timestamp where the global exit root was set
         uint256 timestampGlobalExitRoot = globalExitRootManager
             .globalExitRootMap(
-                GlobalExitRootLib.calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot)
+                GlobalExitRootLib.calculateGlobalExitRoot(
+                    mainnetExitRoot,
+                    rollupExitRoot
+                )
             );
 
-        require(
-            timestampGlobalExitRoot != 0,
-            "PolygonZkEVMBridge::_verifyLeaf: GlobalExitRoot invalid"
-        );
+        if (timestampGlobalExitRoot == 0) {
+            revert GlobalExitRootInvalid();
+        }
 
         // Destination network must be networkID
-        require(
-            destinationNetwork == networkID,
-            "PolygonZkEVMBridge::_verifyLeaf: Destination network does not match"
-        );
+        if (destinationNetwork != networkID) {
+            revert DestinationNetworkInvalid();
+        }
 
         bytes32 claimRoot;
         if (networkID == _MAINNET_NETWORK_ID) {
@@ -573,8 +587,8 @@ contract PolygonZkEVMBridge is
             // Verify merkle proof using mainnet exit root
             claimRoot = mainnetExitRoot;
         }
-        require(
-            verifyMerkleProof(
+        if (
+            !verifyMerkleProof(
                 getLeafValue(
                     leafType,
                     originNetwork,
@@ -587,9 +601,10 @@ contract PolygonZkEVMBridge is
                 smtProof,
                 index,
                 claimRoot
-            ),
-            "PolygonZkEVMBridge::_verifyLeaf: Invalid smt proof"
-        );
+            )
+        ) {
+            revert InvalidSmtProof();
+        }
     }
 
     /**
@@ -610,14 +625,18 @@ contract PolygonZkEVMBridge is
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
         uint256 mask = 1 << bitPos;
         uint256 flipped = claimedBitMap[wordPos] ^= mask;
-        require (flipped & mask != 0,"PolygonZkEVMBridge::_setAndCheckClaimed: Already claimed");
+        if (flipped & mask == 0) {
+            revert AlreadyClaimed();
+        }
     }
 
     /**
      * @notice Function decode an index into a wordPos and bitPos
      * @param index Index
      */
-    function _bitmapPositions(uint256 index) private pure returns (uint256 wordPos, uint256 bitPos) {
+    function _bitmapPositions(
+        uint256 index
+    ) private pure returns (uint256 wordPos, uint256 bitPos) {
         wordPos = uint248(index >> 8);
         bitPos = uint8(index);
     }
@@ -655,18 +674,16 @@ contract PolygonZkEVMBridge is
                         bytes32
                     )
                 );
-            require(
-                owner == msg.sender,
-                "PolygonZkEVMBridge::_permit: Permit owner must be the sender"
-            );
-            require(
-                spender == address(this),
-                "PolygonZkEVMBridge::_permit: Spender must be 'this'"
-            );
-            require(
-                value == amount,
-                "PolygonZkEVMBridge::_permit: Permit amount does not match"
-            );
+            if (owner != msg.sender) {
+                revert NotValidOwner();
+            }
+            if (spender != address(this)) {
+                revert NotValidSpender();
+            }
+
+            if (value != amount) {
+                revert NotValidAmount();
+            }
 
             // we call without checking the result, in case it fails and he doesn't have enough balance
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
@@ -685,10 +702,9 @@ contract PolygonZkEVMBridge is
                 )
             );
         } else {
-            require(
-                sig == _PERMIT_SIGNATURE_DAI,
-                "PolygonZkEVMBridge::_permit: Not valid call"
-            );
+            if (sig != _PERMIT_SIGNATURE_DAI) {
+                revert NotValidSignature();
+            }
 
             (
                 address holder,
@@ -712,14 +728,14 @@ contract PolygonZkEVMBridge is
                         bytes32
                     )
                 );
-            require(
-                holder == msg.sender,
-                "PolygonZkEVMBridge::_permit: Permit owner must be the sender"
-            );
-            require(
-                spender == address(this),
-                "PolygonZkEVMBridge::_permit: Spender must be 'this'"
-            );
+
+            if (holder != msg.sender) {
+                revert NotValidOwner();
+            }
+
+            if (spender != address(this)) {
+                revert NotValidSpender();
+            }
 
             // we call without checking the result, in case it fails and he doesn't have enough balance
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature

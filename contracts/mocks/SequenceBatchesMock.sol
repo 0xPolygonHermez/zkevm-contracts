@@ -7,16 +7,12 @@ import "hardhat/console.sol";
  * This contract will be used as a helper for PolygonZkEVM tests
  */
 contract SendData {
-
     /**
      * @notice Send data to destination
      * @param destination Destination
      * @param data Data
      */
-    function sendData(
-        address destination,
-        bytes memory data
-    ) public {
-       destination.call(data);
+    function sendData(address destination, bytes memory data) public {
+        destination.call(data);
     }
 }

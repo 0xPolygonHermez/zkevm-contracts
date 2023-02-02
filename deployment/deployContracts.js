@@ -13,7 +13,7 @@ const genesis = require('./genesis.json');
 const pathOZUpgradability = path.join(__dirname, `../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 
 async function main() {
-    // Check that there0s no previous OZ deployment
+    // Check that there's no previous OZ deployment
     if (fs.existsSync(pathOZUpgradability)) {
         throw new Error(`There's upgradability information from previous deployments, it's mandatory to erase them before start a new one, path: ${pathOZUpgradability}`);
     }

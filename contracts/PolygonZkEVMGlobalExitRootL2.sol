@@ -37,10 +37,10 @@ contract PolygonZkEVMGlobalExitRootL2 is IBasePolygonZkEVMGlobalExitRoot {
      * @param newRoot new exit tree root
      */
     function updateExitRoot(bytes32 newRoot) external {
-        require(
-            msg.sender == bridgeAddress,
-            "PolygonZkEVMGlobalExitRootL2::updateExitRoot: Only PolygonZkEVMBridge"
-        );
+        if (msg.sender != bridgeAddress) {
+            revert OnlyAllowedContracts();
+        }
+
         lastRollupExitRoot = newRoot;
     }
 }

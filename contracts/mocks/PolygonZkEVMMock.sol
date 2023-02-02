@@ -10,7 +10,6 @@ import "../PolygonZkEVM.sol";
  * To enter and exit of the L2 network will be used a PolygonZkEVM Bridge smart contract
  */
 contract PolygonZkEVMMock is PolygonZkEVM {
-
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
@@ -24,9 +23,16 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
         uint64 _chainID
-    ) PolygonZkEVM(_globalExitRootManager, _matic, _rollupVerifier, _bridgeAddress,_chainID ){
-    }
-    
+    )
+        PolygonZkEVM(
+            _globalExitRootManager,
+            _matic,
+            _rollupVerifier,
+            _bridgeAddress,
+            _chainID
+        )
+    {}
+
     /**
      * @notice calculate accumulate input hash from parameters
      * @param currentAccInputHash Accumulate input hash
@@ -164,9 +170,8 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         networkName = _networkName;
     }
 
-
     /**
-     * @notice Update fee mock function 
+     * @notice Update fee mock function
      * @param newLastVerifiedBatch New last verified batch
      */
     function updateBatchFee(uint64 newLastVerifiedBatch) public onlyOwner {

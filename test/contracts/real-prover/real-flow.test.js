@@ -239,6 +239,19 @@ describe('Real flow test', () => {
         const { newNumBatch } = inputJson;
         const pendingStateNum = 0;
         // Verify batch
+
+        await expect(
+            polygonZkEVMContract.connect(aggregator).trustedVerifyBatches(
+                pendingStateNum,
+                oldNumBatch,
+                newNumBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                [0, 0],
+                proofB,
+                proofC,
+            ),
+        ).to.be.revertedWith('InvalidProof');
         await expect(
             polygonZkEVMContract.connect(aggregator).trustedVerifyBatches(
                 pendingStateNum,

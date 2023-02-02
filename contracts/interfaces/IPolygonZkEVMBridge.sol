@@ -3,6 +3,66 @@
 pragma solidity 0.8.15;
 
 interface IPolygonZkEVMBridge {
+    /**
+     * @dev Thrown when destination network is invalid
+     */
+    error DestinationNetworkInvalid();
+
+    /**
+     * @dev Thrown when amount does not match msg.value
+     */
+    error AmountDoesNotMatchMsgValue();
+
+    /**
+     * @dev Thrown when bridging tokens and also sending value
+     */
+    error MsgValueNotZero();
+
+    /**
+     * @dev Thrown when the ether transfer on claimAsset fail
+     */
+    error EtherTransferFailed();
+
+    /**
+     * @dev Thrown when the message transactoin on claimMessage fail
+     */
+    error MessageFailed();
+
+    /**
+     * @dev Thrown when the global exit root does not exist
+     */
+    error GlobalExitRootInvalid();
+
+    /**
+     * @dev Thrown when a the smt proof does not match
+     */
+    error InvalidSmtProof();
+
+    /**
+     * @dev Thrown when an index is already claimed
+     */
+    error AlreadyClaimed();
+
+    /**
+     * @dev Thrown when the owner of permit does not match the sender
+     */
+    error NotValidOwner();
+
+    /**
+     * @dev Thrown when the spender of permit does not this contract
+     */
+    error NotValidSpender();
+
+    /**
+     * @dev Thrown when the amount of the permit does not match
+     */
+    error NotValidAmount();
+
+    /**
+     * @dev Thrown when the permit data contains an invalid signature
+     */
+    error NotValidSignature();
+
     function bridgeAsset(
         address token,
         uint32 destinationNetwork,
