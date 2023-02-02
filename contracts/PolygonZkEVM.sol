@@ -905,44 +905,50 @@ contract PolygonZkEVM is
         uint256 totalBatchesAboveTarget = newBatchesVerified -
             totalBatchesBelowTarget;
 
-        // Assume that batch fee will be max 128 bits, therefore:
+        // _MAX_BATCH_FEE --> (< 70 bits)
         // multiplierBatchFee --> (< 10 bits)
         // _MAX_BATCH_MULTIPLIER = 12
         // multiplierBatchFee ** _MAX_BATCH_MULTIPLIER --> (< 128 bits)
-        // (< 128 bits) * (< 128 bits) = < 256 bits
-        if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
-            // There are more batches above target, fee is multiplied
-            uint256 diffBatches = totalBatchesAboveTarget -
-                totalBatchesBelowTarget;
+        // batchFee * (multiplierBatchFee ** _MAX_BATCH_MULTIPLIER)-->
+        // (< 70 bits) * (< 128 bits) = < 256 bits
 
-            diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
-                ? _MAX_BATCH_MULTIPLIER
-                : diffBatches;
+        // Since all the following operations cannot overflow, we can optimize this operations with unchecked
+        unchecked {
+            if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
+                // There are more batches above target, fee is multiplied
+                uint256 diffBatches = totalBatchesAboveTarget -
+                    totalBatchesBelowTarget;
 
-            // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-            batchFee =
-                (batchFee * (uint256(multiplierBatchFee) ** diffBatches)) /
-                (10 ** (diffBatches * 3));
-        } else {
-            // There are more batches below target, fee is divided
-            uint256 diffBatches = totalBatchesBelowTarget -
-                totalBatchesAboveTarget;
+                diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
+                    ? _MAX_BATCH_MULTIPLIER
+                    : diffBatches;
 
-            diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
-                ? _MAX_BATCH_MULTIPLIER
-                : diffBatches;
+                // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
+                batchFee =
+                    (batchFee * (uint256(multiplierBatchFee) ** diffBatches)) /
+                    (uint256(1000) ** diffBatches);
+            } else {
+                // There are more batches below target, fee is divided
+                uint256 diffBatches = totalBatchesBelowTarget -
+                    totalBatchesAboveTarget;
 
-            // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-            uint256 accDivisor = (uint256(1 ether) *
-                (uint256(multiplierBatchFee) ** diffBatches)) /
-                (10 ** (diffBatches * 3));
+                diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
+                    ? _MAX_BATCH_MULTIPLIER
+                    : diffBatches;
 
-            // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
-            // accDivisor = 1E18 * multiplyFactor
-            // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
-            batchFee = (uint256(1 ether) * batchFee) / accDivisor;
+                // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
+                uint256 accDivisor = (uint256(1 ether) *
+                    (uint256(multiplierBatchFee) ** diffBatches)) /
+                    (uint256(1000) ** diffBatches);
+
+                // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
+                // accDivisor = 1E18 * multiplyFactor
+                // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
+                batchFee = (uint256(1 ether) * batchFee) / accDivisor;
+            }
         }
 
+        // Batch fee must remain inside a range
         if (batchFee > _MAX_BATCH_FEE) {
             batchFee = _MAX_BATCH_FEE;
         } else if (batchFee < _MIN_BATCH_FEE) {
