@@ -788,7 +788,7 @@ contract PolygonZkEVMBridge is
         (bool success, bytes memory data) = address(token).staticcall(
             abi.encodeCall(IERC20MetadataUpgradeable.decimals, ())
         );
-        return success && data.length == 32 ? abi.decode(data, (uint8)) : 18;
+        return success && data.length == 32 ? uint8(abi.decode(data, (uint256))) : 18;
     }
 
     /**
