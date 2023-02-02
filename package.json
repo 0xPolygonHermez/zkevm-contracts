@@ -53,7 +53,7 @@
     "hardhat-gas-reporter": "^1.0.4",
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
-    "solc-0.8": "npm:solc@0.8.15",
+    "solc-0.8": "npm:solc@0.8.17",
     "solidity-coverage": "^0.7.17",
     "solidity-docgen": "^0.5.16"
   },
@@ -73,6 +73,6 @@
     "update:genesis": "node src/create-genesis.js --gen ../deployment/genesis-gen.json --out ../deployment/genesis.json && node src/create-genesis.js --gen ../docker/scripts/genesis_gen_docker.json --out ../docker/scripts/genesis_docker.json",
     "coverage":"npx hardhat coverage",
     "gas:report":"REPORT_GAS=true npx hardhat test",
-    "gas:report:file":"REPORT_GAS=true REPORT_GAS_FILE=true npx hardhat test"
+    "gas:report:file":"rm -f .openzeppelin/unknown-31337.json && REPORT_GAS=true REPORT_GAS_FILE=true npx hardhat test"
   }
 }

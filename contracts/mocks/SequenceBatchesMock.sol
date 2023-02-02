@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 import "../lib/DepositContract.sol";
 import "hardhat/console.sol";
 

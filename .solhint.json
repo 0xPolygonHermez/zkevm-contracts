@@ -3,7 +3,7 @@
   "rules": {
     "mark-callable-contracts": "off",
     "no-empty-blocks": "off",
-    "compiler-version": ["error", "0.8.15"],
+    "compiler-version": ["error", "0.8.17"],
     "private-vars-leading-underscore": "error",
     "bracket-align": "off",
     "reason-string": "off",

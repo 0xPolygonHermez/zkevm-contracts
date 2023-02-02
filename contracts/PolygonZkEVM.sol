@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./interfaces/IVerifierRollup.sol";
@@ -944,6 +944,7 @@ contract PolygonZkEVM is
                 // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
                 // accDivisor = 1E18 * multiplyFactor
                 // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
+                // < 60 bits * < 70 bits / ~60 bits --> overflow not possible
                 batchFee = (uint256(1 ether) * batchFee) / accDivisor;
             }
         }
