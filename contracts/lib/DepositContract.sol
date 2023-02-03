@@ -9,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  */
 contract DepositContract is Initializable {
     /**
-     * @dev Thrown when the merle tree is full
+     * @dev Thrown when the merkle tree is full
      */
     error MerkleTreeFull();
 

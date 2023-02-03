@@ -4,7 +4,7 @@
 pragma solidity ^0.8.0;
 
 /**
- * @dev Implementation of the ERC20 with werid metadata.
+ * @dev Implementation of the ERC20 with weird metadata.
  */
 contract ERC20WeirdMetadata {
      event Transfer(address indexed from, address indexed to, uint256 value);

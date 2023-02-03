@@ -29,12 +29,12 @@ interface IPolygonZkEVMErrors {
     error OnlyTrustedAggregator();
 
     /**
-     * @dev Thrown when try to sequence 0 batches
+     * @dev Thrown when attempting to sequence 0 batches
      */
     error SequenceZeroBatches();
 
     /**
-     * @dev Thrown when an try to sequence or verify more batches than _MAX_VERIFY_BATCHES
+     * @dev Thrown when attempting to sequence or verify more batches than _MAX_VERIFY_BATCHES
      */
     error ExceedMaxVerifyBatches();
 
@@ -64,17 +64,17 @@ interface IPolygonZkEVMErrors {
     error SequencedTimestampInvalid();
 
     /**
-     * @dev Thrown when are sequenced more force batches than actually were submitted, should be unreachable
+     * @dev Thrown when there are more sequenced force batches than were actually submitted, should be unreachable
      */
     error ForceBatchesOverflow();
 
     /**
-     * @dev Thrown when are sequenced more force batches than actually were submitted
+     * @dev Thrown when there are more sequenced force batches than were actually submitted
      */
     error TrustedAggregatorTimeoutNotExpired();
 
     /**
-     * @dev Thrown when try to access a pending that does not exist
+     * @dev Thrown when attempting to access a pending state that does not exist
      */
     error PendingStateDoesNotExist();
 
@@ -84,7 +84,7 @@ interface IPolygonZkEVMErrors {
     error InitNumBatchDoesNotMatchPendingState();
 
     /**
-     * @dev Thrown when the old state root of certain batch does not exist
+     * @dev Thrown when the old state root of a certain batch does not exist
      */
     error OldStateRootDoesNotExist();
 
@@ -104,12 +104,12 @@ interface IPolygonZkEVMErrors {
     error InvalidProof();
 
     /**
-     * @dev Thrown when try to consolidate a pending state not yet consolidable
+     * @dev Thrown when attempting to consolidate a pending state not yet consolidable
      */
     error PendingStateNotConsolidable();
 
     /**
-     * @dev Thrown when try to consolidate a pending state that is already consolidated or does not exist
+     * @dev Thrown when attempting to consolidate a pending state that is already consolidated or does not exist
      */
     error PendingStateInvalid();
 
@@ -119,38 +119,38 @@ interface IPolygonZkEVMErrors {
     error NotEnoughMaticAmount();
 
     /**
-     * @dev Thrown when try to sequence a force batch using sequenceForceBatches and the
-     * force timeout do not expired
+     * @dev Thrown when attempting to sequence a force batch using sequenceForceBatches and the
+     * force timeout did not expire
      */
     error ForceBatchTimeoutNotExpired();
 
     /**
-     * @dev Thrown when try to set a new trusted aggregator timeout equal or bigger than current one
+     * @dev Thrown when attempting to set a new trusted aggregator timeout equal or bigger than current one
      */
     error NewTrustedAggregatorTimeoutMustBeLower();
 
     /**
-     * @dev Thrown when try to set a new pending state timeout equal or bigger than current one
+     * @dev Thrown when attempting to set a new pending state timeout equal or bigger than current one
      */
     error NewPendingStateTimeoutMustBeLower();
 
     /**
-     * @dev Thrown when try to set a new multiplier batch fee in a invalid range of values
+     * @dev Thrown when attempting to set a new multiplier batch fee in a invalid range of values
      */
     error InvalidRangeMultiplierBatchFee();
 
     /**
-     * @dev Thrown when try to set a batch time target in a invalid range of values
+     * @dev Thrown when attempting to set a batch time target in an invalid range of values
      */
     error InvalidRangeBatchTimeTarget();
 
     /**
-     * @dev Thrown when try to set a batch time target in a invalid range of values
+     * @dev Thrown when the caller is not the pending admin
      */
     error OnlyPendingAdmin();
 
     /**
-     * @dev Thrown when final pending state num is not in a valid range
+     * @dev Thrown when the final pending state num is not in a valid range
      */
     error FinalPendingStateNumInvalid();
 
@@ -165,17 +165,17 @@ interface IPolygonZkEVMErrors {
     error StoredRootMustBeDifferentThanNewRoot();
 
     /**
-     * @dev Thrown when the batch is already verified when trying to activate the emergency state
+     * @dev Thrown when the batch is already verified when attempting to activate the emergency state
      */
     error BatchAlreadyVerified();
 
     /**
-     * @dev Thrown when the batch is not sequenced or not the end of a sequence when trying to activate the emergency state
+     * @dev Thrown when the batch is not sequenced or not at the end of a sequence when attempting to activate the emergency state
      */
     error BatchNotSequencedOrNotSequenceEnd();
 
     /**
-     * @dev Thrown when the halt timeout is not expired when trying to activate the emergency state
+     * @dev Thrown when the halt timeout is not expired when attempting to activate the emergency state
      */
     error HaltTimeoutNotExpired();
 

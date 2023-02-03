@@ -4,32 +4,32 @@ pragma solidity 0.8.15;
 
 interface IPolygonZkEVMBridge {
     /**
-     * @dev Thrown when sender is not PolygonZkEVM address
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
     error OnlyPolygonZkEVM();
 
     /**
-     * @dev Thrown when destination network is invalid
+     * @dev Thrown when the destination network is invalid
      */
     error DestinationNetworkInvalid();
 
     /**
-     * @dev Thrown when amount does not match msg.value
+     * @dev Thrown when the amount does not match msg.value
      */
     error AmountDoesNotMatchMsgValue();
 
     /**
-     * @dev Thrown when bridging tokens and also sending value
+     * @dev Thrown when user is bridging tokens and is also sending a value
      */
     error MsgValueNotZero();
 
     /**
-     * @dev Thrown when the ether transfer on claimAsset fail
+     * @dev Thrown when the Ether transfer on claimAsset fails
      */
     error EtherTransferFailed();
 
     /**
-     * @dev Thrown when the message transaction on claimMessage fail
+     * @dev Thrown when the message transaction on claimMessage fails
      */
     error MessageFailed();
 
@@ -39,7 +39,7 @@ interface IPolygonZkEVMBridge {
     error GlobalExitRootInvalid();
 
     /**
-     * @dev Thrown when a the smt proof does not match
+     * @dev Thrown when the smt proof does not match
      */
     error InvalidSmtProof();
 
@@ -54,7 +54,7 @@ interface IPolygonZkEVMBridge {
     error NotValidOwner();
 
     /**
-     * @dev Thrown when the spender of permit does not this contract
+     * @dev Thrown when the spender of the permit does not match this contract address
      */
     error NotValidSpender();
 

@@ -135,11 +135,14 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
+        // Since cannot decode decimals
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x')).to.be.reverted;
+
         // toogle revert
         await weirdTokenContract.toggleIsRevert();
-        // Since symbol will revert, the default string will be "???"
-        const nameRevert = '???';
-        const symbolRevert = '???';
+        // Use revert strings
+        const nameRevert = 'NO_NAME';
+        const symbolRevert = 'NO_SYMBOL';
         const decimalsTooRevert = 18;
         const metadata = ethers.utils.defaultAbiCoder.encode(
             ['string', 'string', 'uint8'],
@@ -178,7 +181,7 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
 
         const nameWeirdBytes32 = ethers.utils.formatBytes32String(nameWeird);
         const symbolWeirdBytes = ethers.utils.toUtf8Bytes(symbolWeird);
-        const decimalsWeird = ethers.constants.MaxUint256;
+        const decimalsWeird = 255;
 
         const weirdTokenContract = await weirdErc20Metadata.deploy(
             nameWeirdBytes32, // bytes32
@@ -198,13 +201,13 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
-        // Since decimals will be decoded to a uint8, will be 255 ( max value)
-        const nameEmpty = '???'; // bytes32 empty
+        // Empty bytes32 is a not valid encoding
+        const nameEmpty = 'NOT_VALID_ENCODING'; // bytes32 empty
         const symbolEmpty = '';
-        const decimalsTooBig = 255;
+
         const metadata = ethers.utils.defaultAbiCoder.encode(
             ['string', 'string', 'uint8'],
-            [nameEmpty, symbolEmpty, decimalsTooBig],
+            [nameEmpty, symbolEmpty, decimalsWeird],
         );
 
         const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);

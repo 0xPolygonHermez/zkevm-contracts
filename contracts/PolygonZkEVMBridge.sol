@@ -759,25 +759,25 @@ contract PolygonZkEVMBridge is
     // Helpers to safely get the metadata from a token, inspired by https://github.com/traderjoe-xyz/joe-core/blob/main/contracts/MasterChefJoeV3.sol#L55-L95
 
     /**
-     * @notice Provides a safe ERC20.symbol version which returns '???' as fallback string
+     * @notice Provides a safe ERC20.symbol version which returns 'NO_SYMBOL' as fallback string
      * @param token The address of the ERC-20 token contract
      */
     function _safeSymbol(address token) internal view returns (string memory) {
         (bool success, bytes memory data) = address(token).staticcall(
             abi.encodeCall(IERC20MetadataUpgradeable.symbol, ())
         );
-        return success ? _returnDataToString(data) : "???";
+        return success ? _returnDataToString(data) : "NO_SYMBOL";
     }
 
     /**
-     * @notice  Provides a safe ERC20.name version which returns '???' as fallback string.
+     * @notice  Provides a safe ERC20.name version which returns 'NO_NAME' as fallback string.
      * @param token The address of the ERC-20 token contract.
      */
     function _safeName(address token) internal view returns (string memory) {
         (bool success, bytes memory data) = address(token).staticcall(
             abi.encodeCall(IERC20MetadataUpgradeable.name, ())
         );
-        return success ? _returnDataToString(data) : "???";
+        return success ? _returnDataToString(data) : "NO_NAME";
     }
 
     /**
@@ -794,6 +794,7 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Function to convert returned data to string
+     * returns 'NOT_VALID_ENCODING' as fallback value.
      * @param data returned data
      */
     function _returnDataToString(
@@ -810,7 +811,7 @@ contract PolygonZkEVMBridge is
 
             // If the first one is 0, we do not handle the encoding
             if (nonZeroBytes == 0) {
-                return "???";
+                return "NOT_VALID_ENCODING";
             }
             // Create a byte array with nonZeroBytes length
             bytes memory bytesArray = new bytes(nonZeroBytes);
@@ -819,7 +820,7 @@ contract PolygonZkEVMBridge is
             }
             return string(bytesArray);
         } else {
-            return "???";
+            return "NOT_VALID_ENCODING";
         }
     }
 }
