@@ -28,6 +28,8 @@ async function main() {
     const realVerifier = deployParameters.realVerifier || false;
     const { chainID, networkName } = deployParameters;
     const minDelayTimelock = deployParameters.minDelayTimelock || 10; // Should put some default parameter
+    const forkID = 0;
+    const version = '0.0.1';
 
     const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1);
     const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1);
@@ -142,7 +144,6 @@ async function main() {
             throw new Error('polygonZkEVMGlobalExitRoot contract has not been deployed');
         }
     }
-    console.log(await ethers.provider.getTransactionCount(deployer.address));
 
     console.log('#######################\n');
     console.log('polygonZkEVMGlobalExitRoot deployed to:', polygonZkEVMGlobalExitRoot.address);
@@ -228,6 +229,7 @@ async function main() {
                     genesisRootHex,
                     trustedSequencerURL,
                     networkName,
+                    version,
                 ],
                 {
                     constructorArgs: [
@@ -236,6 +238,7 @@ async function main() {
                         verifierContract.address,
                         polygonZkEVMBridgeContract.address,
                         chainID,
+                        forkID,
                     ],
                     unsafeAllow: ['constructor', 'state-variable-immutable'],
                 },

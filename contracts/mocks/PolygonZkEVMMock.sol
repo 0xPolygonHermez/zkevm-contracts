@@ -22,14 +22,16 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID
+        uint64 _chainID,
+        uint64 _forkID
     )
         PolygonZkEVM(
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
             _bridgeAddress,
-            _chainID
+            _chainID,
+            _forkID
         )
     {}
 

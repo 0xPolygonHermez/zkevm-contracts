@@ -29,6 +29,8 @@ describe('Polygon ZK-EVM', () => {
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const chainID = 1000;
     const networkName = 'zkevm';
+    const version = '0.0.1';
+    const forkID = 0;
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
@@ -96,6 +98,7 @@ describe('Polygon ZK-EVM', () => {
                 verifierContract.address,
                 polygonZkEVMBridgeContract.address,
                 chainID,
+                forkID,
             ],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
@@ -115,6 +118,7 @@ describe('Polygon ZK-EVM', () => {
             genesisRoot,
             urlSequencer,
             networkName,
+            version,
         );
 
         // fund sequencer address with Matic tokens
@@ -152,6 +156,7 @@ describe('Polygon ZK-EVM', () => {
                 verifierContract.address,
                 polygonZkEVMBridgeContract.address,
                 chainID,
+                forkID,
             ],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
@@ -167,6 +172,7 @@ describe('Polygon ZK-EVM', () => {
             genesisRoot,
             urlSequencer,
             networkName,
+            version,
         )).to.be.revertedWith('PendingStateTimeoutExceedHaltAggregationTimeout');
 
         await expect(polygonZkEVMContractInitialize.initialize(
@@ -180,7 +186,24 @@ describe('Polygon ZK-EVM', () => {
             genesisRoot,
             urlSequencer,
             networkName,
+            version,
         )).to.be.revertedWith('TrustedAggregatorTimeoutExceedHaltAggregationTimeout');
+
+        await expect(
+            polygonZkEVMContractInitialize.initialize(
+                {
+                    admin: admin.address,
+                    trustedSequencer: trustedSequencer.address,
+                    pendingStateTimeout: pendingStateTimeoutDefault,
+                    trustedAggregator: trustedAggregator.address,
+                    trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
+                },
+                genesisRoot,
+                urlSequencer,
+                networkName,
+                version,
+            ),
+        ).to.emit(polygonZkEVMContractInitialize, 'UpdateZkEVMVersion').withArgs(0, forkID, version);
     });
 
     it('should check setters of admin', async () => {
@@ -1020,6 +1043,7 @@ describe('Polygon ZK-EVM', () => {
             numBatch,
             chainID,
             deployer.address,
+            forkID,
         );
 
         // Compute Js input
@@ -1095,6 +1119,7 @@ describe('Polygon ZK-EVM', () => {
             numBatch,
             chainID,
             deployer.address,
+            forkID,
         );
 
         // Compute Js input

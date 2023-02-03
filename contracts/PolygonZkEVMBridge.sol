@@ -81,7 +81,7 @@ contract PolygonZkEVMBridge is
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
 
-        // initialize OZ libraries
+        // Initialize OZ contracts
         __ReentrancyGuard_init();
     }
 

@@ -36,6 +36,8 @@ describe('Real flow test', () => {
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const { chainID } = inputJson;
     const networkName = 'zkevm';
+    const version = '0.0.1';
+    const forkID = 0;
     const pendingStateTimeoutDefault = 10;
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
@@ -108,6 +110,7 @@ describe('Real flow test', () => {
                 verifierContract.address,
                 polygonZkEVMBridgeContract.address,
                 chainID,
+                0,
             ],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
@@ -127,6 +130,7 @@ describe('Real flow test', () => {
             genesisRoot,
             urlSequencer,
             networkName,
+            version,
         );
 
         // fund sequencer address with Matic tokens
@@ -228,6 +232,7 @@ describe('Real flow test', () => {
             inputJson.newNumBatch,
             inputJson.chainID,
             inputJson.aggregatorAddress,
+            forkID,
         );
 
         expect(circuitInputStarkJS).to.be.eq(Scalar.e(input[0]));

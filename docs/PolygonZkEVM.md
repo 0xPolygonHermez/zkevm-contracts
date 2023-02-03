@@ -14,7 +14,8 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
     contract IERC20Upgradeable _matic,
     contract IVerifierRollup _rollupVerifier,
     contract IPolygonZkEVMBridge _bridgeAddress,
-    uint64 _chainID
+    uint64 _chainID,
+    uint64 _forkID
   ) public
 ```
 
@@ -27,6 +28,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 |`_rollupVerifier` | contract IVerifierRollup | Rollup verifier address
 |`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
 |`_chainID` | uint64 | L2 chainID
+|`_forkID` | uint64 | Fork Id
 
 ### initialize
 ```solidity
@@ -680,4 +682,13 @@ Emitted when is proved a different state given the same batches
 ```
 
 Emitted when the trusted aggregator overrides pending state
+
+### UpdateZkEVMVersion
+```solidity
+  event UpdateZkEVMVersion(
+  )
+```
+
+Emitted everytime the forkID is updated, this includes the first initialization of the contract
+This event is inteded to be emitted for every upgrade of the contract with relevant changes for the nodes
 

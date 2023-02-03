@@ -146,6 +146,9 @@ contract PolygonZkEVM is
     // L2 chain identifier
     uint64 public immutable chainID;
 
+    // L2 chain identifier
+    uint64 public immutable forkID;
+
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
     uint64 public verifyBatchTimeTarget;
@@ -330,24 +333,37 @@ contract PolygonZkEVM is
     );
 
     /**
+     * @dev Emitted everytime the forkID is updated, this includes the first initialization of the contract
+     * This event is inteded to be emitted for every upgrade of the contract with relevant changes for the nodes
+     */
+    event UpdateZkEVMVersion(
+        uint64 numBatch,
+        uint64 forkID,
+        string version
+    );
+
+    /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier Rollup verifier address
      * @param _bridgeAddress Bridge address
      * @param _chainID L2 chainID
+     * @param _forkID Fork Id
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID
+        uint64 _chainID,
+        uint64 _forkID
     ) {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
         bridgeAddress = _bridgeAddress;
         chainID = _chainID;
+        forkID = _forkID;
     }
 
     /**
@@ -360,7 +376,8 @@ contract PolygonZkEVM is
         InitializePackedParameters calldata initializePackedParameters,
         bytes32 genesisRoot,
         string memory _trustedSequencerURL,
-        string memory _networkName
+        string memory _networkName,
+        string calldata _version
     ) external initializer {
         admin = initializePackedParameters.admin;
         trustedSequencer = initializePackedParameters.trustedSequencer;
@@ -395,6 +412,9 @@ contract PolygonZkEVM is
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
+
+        // emit version event
+        emit UpdateZkEVMVersion(0, forkID, _version);
     }
 
     modifier onlyAdmin() {
@@ -1600,6 +1620,7 @@ contract PolygonZkEVM is
                 oldAccInputHash,
                 initNumBatch,
                 chainID,
+                forkID,
                 newStateRoot,
                 newAccInputHash,
                 newLocalExitRoot,
