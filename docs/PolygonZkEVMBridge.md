@@ -11,7 +11,7 @@ Contract responsible to manage the token interactions with other networks
     address _polygonZkEVMaddress
   ) external
 ```
-The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so 
+The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
 emergency state is not possible for the L2 deployment of the bridge, intentionally
 
 #### Parameters:
@@ -254,6 +254,62 @@ Function to call token permit method of extended ERC20
 | :--- | :--- | :------------------------------------------------------------------- |
 |`amount` | address | Quantity that is expected to be allowed
 |`permitData` | uint256 | Raw data of the call `permit` of the token
+
+### _safeSymbol
+```solidity
+  function _safeSymbol(
+    address token
+  ) internal returns (string)
+```
+Provides a safe ERC20.symbol version which returns '???' as fallback string
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`token` | address | The address of the ERC-20 token contract
+
+### _safeName
+```solidity
+  function _safeName(
+    address token
+  ) internal returns (string)
+```
+ Provides a safe ERC20.name version which returns '???' as fallback string.
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`token` | address | The address of the ERC-20 token contract.
+
+### _safeDecimals
+```solidity
+  function _safeDecimals(
+    address token
+  ) internal returns (uint8)
+```
+Provides a safe ERC20.decimals version which returns '18' as fallback value.
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`token` | address | The address of the ERC-20 token contract
+
+### _returnDataToString
+```solidity
+  function _returnDataToString(
+    bytes data
+  ) internal returns (string)
+```
+Function to convert returned data to string
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`data` | bytes | returned data
 
 ## Events
 ### BridgeEvent

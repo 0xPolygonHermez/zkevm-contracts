@@ -5,17 +5,19 @@ import "./interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 
 /**
  * Contract responsible for managing the exit roots for the L2 and global exit roots
- * The special circuit variables will be accessed and updated directly by the circuit
+ * The special zkRom variables will be accessed and updated directly by the zkRom
  */
 contract PolygonZkEVMGlobalExitRootL2 is IBasePolygonZkEVMGlobalExitRoot {
     /////////////////////////////
-    // Special circuit variables
+    // Special zkRom variables
     ////////////////////////////
 
     // Store every global exit root: Root --> timestamp
+    // Note this variable is updated only by the zkRom
     mapping(bytes32 => uint256) public globalExitRootMap;
 
     // Rollup exit root will be updated for every PolygonZkEVMBridge call
+    // Note this variable will be readed by the zkRom
     bytes32 public lastRollupExitRoot;
 
     ////////////////////
@@ -37,10 +39,10 @@ contract PolygonZkEVMGlobalExitRootL2 is IBasePolygonZkEVMGlobalExitRoot {
      * @param newRoot new exit tree root
      */
     function updateExitRoot(bytes32 newRoot) external {
-        require(
-            msg.sender == bridgeAddress,
-            "PolygonZkEVMGlobalExitRootL2::updateExitRoot: Only PolygonZkEVMBridge"
-        );
+        if (msg.sender != bridgeAddress) {
+            revert OnlyAllowedContracts();
+        }
+
         lastRollupExitRoot = newRoot;
     }
 }

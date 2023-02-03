@@ -36,7 +36,7 @@ describe('Global Exit Root', () => {
         const newRootRollup = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
         await expect(polygonZkEVMGlobalExitRoot.updateExitRoot(newRootRollup))
-            .to.be.revertedWith('PolygonZkEVMGlobalExitRoot::updateExitRoot: Only allowed contracts');
+            .to.be.revertedWith('OnlyAllowedContracts');
 
         // Update root from the rollup
         await expect(polygonZkEVMGlobalExitRoot.connect(rollup).updateExitRoot(newRootRollup))

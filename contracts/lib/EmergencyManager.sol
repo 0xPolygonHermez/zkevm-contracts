@@ -7,9 +7,19 @@ pragma solidity 0.8.15;
  */
 contract EmergencyManager {
     /**
-    * @dev This empty reserved space is put in place to allow future versions to add new
-    * variables without shifting down storage in the inheritance chain.
-    */
+     * @dev Thrown when emergency state is active, and the function requires otherwise
+     */
+    error OnlyNotEmergencyState();
+
+    /**
+     * @dev Thrown when emergency state is not active, and the function requires otherwise
+     */
+    error OnlyEmergencyState();
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
     uint256[10] private _gap;
 
     // Indicates whether the emergency state is active or not
@@ -29,10 +39,9 @@ contract EmergencyManager {
      * @notice Only allows a function to be callable if emergency state is unactive
      */
     modifier ifNotEmergencyState() {
-        require(
-            !isEmergencyState,
-            "EmergencyManager::ifNotEmergencyState: only if not emergency state"
-        );
+        if (isEmergencyState) {
+            revert OnlyNotEmergencyState();
+        }
         _;
     }
 
@@ -40,10 +49,9 @@ contract EmergencyManager {
      * @notice Only allows a function to be callable if emergency state is active
      */
     modifier ifEmergencyState() {
-        require(
-            isEmergencyState,
-            "EmergencyManager::ifEmergencyState: only if emergency state"
-        );
+        if (!isEmergencyState) {
+            revert OnlyEmergencyState();
+        }
         _;
     }
 

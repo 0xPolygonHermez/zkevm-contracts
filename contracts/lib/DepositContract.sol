@@ -8,6 +8,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
  */
 contract DepositContract is Initializable {
+    /**
+     * @dev Thrown when the merkle tree is full
+     */
+    error MerkleTreeFull();
+
     // Merkle tree levels
     uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
@@ -23,9 +28,9 @@ contract DepositContract is Initializable {
     uint256 public depositCount;
 
     /**
-    * @dev This empty reserved space is put in place to allow future versions to add new
-    * variables without shifting down storage in the inheritance chain.
-    */
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
     uint256[10] private _gap;
 
     /**
@@ -61,10 +66,9 @@ contract DepositContract is Initializable {
         bytes32 node = leafHash;
 
         // Avoid overflowing the Merkle tree (and prevent edge case in computing `_branch`)
-        require(
-            depositCount < _MAX_DEPOSIT_COUNT,
-            "DepositContract:_deposit: Merkle tree full"
-        );
+        if (depositCount >= _MAX_DEPOSIT_COUNT) {
+            revert MerkleTreeFull();
+        }
 
         // Add deposit data root to Merkle tree (update a single `_branch` node)
         uint256 size = ++depositCount;

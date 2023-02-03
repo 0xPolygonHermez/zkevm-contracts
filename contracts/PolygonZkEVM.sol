@@ -2,13 +2,12 @@
 pragma solidity 0.8.15;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/IPolygonZkEVMBridge.sol";
 import "./lib/EmergencyManager.sol";
+import "./interfaces/IPolygonZkEVMErrors.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -18,7 +17,11 @@ import "./lib/EmergencyManager.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
+contract PolygonZkEVM is
+    OwnableUpgradeable,
+    EmergencyManager,
+    IPolygonZkEVMErrors
+{
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -121,6 +124,12 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
 
     // Max batch multiplier per verification
     uint256 private constant _MAX_BATCH_MULTIPLIER = 12;
+
+    // Max batch fee value
+    uint256 private constant _MAX_BATCH_FEE = 1000 ether;
+
+    // Min value batch fee
+    uint256 private constant _MIN_BATCH_FEE = 1 gwei;
 
     // MATIC token address
     IERC20Upgradeable public immutable matic;
@@ -298,7 +307,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      */
     event TransferAdminRole(address newPendingAdmin);
 
-   /**
+    /**
      * @dev Emitted when the pending admin accepts the admin role
      */
     event AcceptAdminRole(address newAdmin);
@@ -338,7 +347,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         matic = _matic;
         rollupVerifier = _rollupVerifier;
         bridgeAddress = _bridgeAddress;
-        chainID =_chainID;
+        chainID = _chainID;
     }
 
     /**
@@ -353,26 +362,31 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         string memory _trustedSequencerURL,
         string memory _networkName
     ) external initializer {
-        
         admin = initializePackedParameters.admin;
         trustedSequencer = initializePackedParameters.trustedSequencer;
         trustedAggregator = initializePackedParameters.trustedAggregator;
         batchNumToStateRoot[0] = genesisRoot;
-           trustedSequencerURL = _trustedSequencerURL;
+        trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
 
         // Check initialize parameters
-        require(
-            initializePackedParameters.pendingStateTimeout <= _HALT_AGGREGATION_TIMEOUT,
-            "PolygonZkEVM::initialize: Exceed halt aggregation timeout"
-        );
+        if (
+            initializePackedParameters.pendingStateTimeout >
+            _HALT_AGGREGATION_TIMEOUT
+        ) {
+            revert PendingStateTimeoutExceedHaltAggregationTimeout();
+        }
         pendingStateTimeout = initializePackedParameters.pendingStateTimeout;
 
-        require(
-            initializePackedParameters.trustedAggregatorTimeout <= _HALT_AGGREGATION_TIMEOUT,
-            "PolygonZkEVM::initialize: Exceed halt aggregation timeout"
-        );
-        trustedAggregatorTimeout = initializePackedParameters.trustedAggregatorTimeout;
+        if (
+            initializePackedParameters.trustedAggregatorTimeout >
+            _HALT_AGGREGATION_TIMEOUT
+        ) {
+            revert TrustedAggregatorTimeoutExceedHaltAggregationTimeout();
+        }
+
+        trustedAggregatorTimeout = initializePackedParameters
+            .trustedAggregatorTimeout;
 
         // Constant variables
         batchFee = 10 ** 18; // 1 Matic
@@ -384,23 +398,23 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     }
 
     modifier onlyAdmin() {
-        require(admin == msg.sender, "PolygonZkEVM::onlyAdmin: Only admin");
+        if (admin != msg.sender) {
+            revert OnlyAdmin();
+        }
         _;
     }
 
     modifier onlyTrustedSequencer() {
-        require(
-            trustedSequencer == msg.sender,
-            "PolygonZkEVM::onlyTrustedSequencer: Only trusted sequencer"
-        );
+        if (trustedSequencer != msg.sender) {
+            revert OnlyTrustedSequencer();
+        }
         _;
     }
 
     modifier onlyTrustedAggregator() {
-        require(
-            trustedAggregator == msg.sender,
-            "PolygonZkEVM::onlyTrustedAggregator: Only trusted aggregator"
-        );
+        if (trustedAggregator != msg.sender) {
+            revert OnlyTrustedAggregator();
+        }
         _;
     }
 
@@ -416,15 +430,13 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         BatchData[] calldata batches
     ) external ifNotEmergencyState onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
-        require(
-            batchesNum > 0,
-            "PolygonZkEVM::sequenceBatches: At least must sequence 1 batch"
-        );
+        if (batchesNum == 0) {
+            revert SequenceZeroBatches();
+        }
 
-        require(
-            batchesNum <= _MAX_VERIFY_BATCHES,
-            "PolygonZkEVM::sequenceBatches: Cannot sequence that many batches"
-        );
+        if (batchesNum > _MAX_VERIFY_BATCHES) {
+            revert ExceedMaxVerifyBatches();
+        }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentTimestamp = lastTimestamp;
@@ -441,7 +453,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             BatchData memory currentBatch = batches[i];
 
             // Store the current transactions hash since can be used more than once for gas saving
-            bytes32 currentTransactionsHash = keccak256(currentBatch.transactions);
+            bytes32 currentTransactionsHash = keccak256(
+                currentBatch.transactions
+            );
 
             // Check if it's a forced batch
             if (currentBatch.minForcedTimestamp > 0) {
@@ -456,44 +470,48 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                     )
                 );
 
-                require(
-                    hashedForcedBatchData ==
-                        forcedBatches[currentLastForceBatchSequenced],
-                    "PolygonZkEVM::sequenceBatches: Forced batches data must match"
-                );
+                if (
+                    hashedForcedBatchData !=
+                    forcedBatches[currentLastForceBatchSequenced]
+                ) {
+                    revert ForcedDataDoesNotMatch();
+                }
 
                 // Delete forceBatch data since won't be used anymore
                 delete forcedBatches[currentLastForceBatchSequenced];
 
                 // Check timestamp is bigger than min timestamp
-                require(
-                    currentBatch.timestamp >= currentBatch.minForcedTimestamp,
-                    "PolygonZkEVM::sequenceBatches: Forced batches timestamp must be bigger or equal than min"
-                );
+                if (currentBatch.timestamp < currentBatch.minForcedTimestamp) {
+                    revert SequencedTimestampBelowForcedTimestamp();
+                }
             } else {
                 // Check global exit root exists with proper batch length. These checks are already done in the forceBatches call
-                require(
-                    currentBatch.globalExitRoot == bytes32(0) ||
-                        globalExitRootManager.globalExitRootMap(
-                            currentBatch.globalExitRoot
-                        ) !=
-                        0,
-                    "PolygonZkEVM::sequenceBatches: Global exit root must exist"
-                );
+                // Note that the sequencer can skip setting a global exit root putting zeros
+                if (
+                    currentBatch.globalExitRoot != bytes32(0) &&
+                    globalExitRootManager.globalExitRootMap(
+                        currentBatch.globalExitRoot
+                    ) ==
+                    0
+                ) {
+                    revert GlobalExitRootNotExist();
+                }
 
-                require(
-                    currentBatch.transactions.length <=
-                        _MAX_TRANSACTIONS_BYTE_LENGTH,
-                    "PolygonZkEVM::sequenceBatches: Transactions bytes overflow"
-                );
+                if (
+                    currentBatch.transactions.length >
+                    _MAX_TRANSACTIONS_BYTE_LENGTH
+                ) {
+                    revert TransactionsLengthAboveMax();
+                }
             }
 
             // Check Batch timestamps are correct
-            require(
-                currentBatch.timestamp >= currentTimestamp &&
-                    currentBatch.timestamp <= block.timestamp,
-                "PolygonZkEVM::sequenceBatches: Timestamp must be inside range"
-            );
+            if (
+                currentBatch.timestamp < currentTimestamp ||
+                currentBatch.timestamp > block.timestamp
+            ) {
+                revert SequencedTimestampInvalid();
+            }
 
             // Calculate next accumulated input hash
             currentAccInputHash = keccak256(
@@ -513,12 +531,12 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         currentBatchSequenced += uint64(batchesNum);
 
         // Sanity check, should be unreachable
-        require(
-            currentLastForceBatchSequenced <= lastForceBatch,
-            "PolygonZkEVM::sequenceBatches: Force batches overflow"
-        );
+        if (currentLastForceBatchSequenced > lastForceBatch) {
+            revert ForceBatchesOverflow();
+        }
 
-        uint256 nonForcedBatchesSequenced = batchesNum - (currentLastForceBatchSequenced - initLastForceBatchSequenced);
+        uint256 nonForcedBatchesSequenced = batchesNum -
+            (currentLastForceBatchSequenced - initLastForceBatchSequenced);
 
         // Update sequencedBatches mapping
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
@@ -531,7 +549,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         lastTimestamp = currentTimestamp;
         lastBatchSequenced = currentBatchSequenced;
 
-        if (currentLastForceBatchSequenced != initLastForceBatchSequenced)  
+        if (currentLastForceBatchSequenced != initLastForceBatchSequenced)
             lastForceBatchSequenced = currentLastForceBatchSequenced;
 
         // Pay collateral for every non-forced batch submitted
@@ -570,17 +588,17 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     ) external ifNotEmergencyState {
         // Check if the trusted aggregator timeout expired,
         // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
-        require(
+        if (
             sequencedBatches[finalNewBatch].sequencedTimestamp +
-                trustedAggregatorTimeout <=
-                block.timestamp,
-            "PolygonZkEVM::verifyBatches: Trusted aggregator timeout not expired"
-        );
+                trustedAggregatorTimeout >
+            block.timestamp
+        ) {
+            revert TrustedAggregatorTimeoutNotExpired();
+        }
 
-        require(
-            finalNewBatch - initNumBatch <= _MAX_VERIFY_BATCHES,
-            "PolygonZkEVM::verifyBatches: Cannot verify that many batches"
-        );
+        if (finalNewBatch - initNumBatch > _MAX_VERIFY_BATCHES) {
+            revert ExceedMaxVerifyBatches();
+        }
 
         _verifyAndRewardBatches(
             pendingStateNum,
@@ -702,10 +720,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         if (pendingStateNum != 0) {
             // Check that pending state exist
             // Already consolidated pending states can be used aswell
-            require(
-                pendingStateNum <= lastPendingState,
-                "PolygonZkEVM::_verifyBatches: pendingStateNum must be less or equal than lastPendingState"
-            );
+            if (pendingStateNum > lastPendingState) {
+                revert PendingStateDoesNotExist();
+            }
 
             // Check choosen pending state
             PendingState storage currentPendingState = pendingStateTransitions[
@@ -716,30 +733,27 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             oldStateRoot = currentPendingState.stateRoot;
 
             // Check initNumBatch matches the pending state
-            require(
-                initNumBatch == currentPendingState.lastVerifiedBatch,
-                "PolygonZkEVM::_verifyBatches: initNumBatch must match the pending state batch"
-            );
+            if (initNumBatch != currentPendingState.lastVerifiedBatch) {
+                revert InitNumBatchDoesNotMatchPendingState();
+            }
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
-            require(
-                oldStateRoot != bytes32(0),
-                "PolygonZkEVM::_verifyBatches: initNumBatch state root does not exist"
-            );
+
+            if (oldStateRoot == bytes32(0)) {
+                revert OldStateRootDoesNotExist();
+            }
 
             // Check initNumBatch is inside the range, sanity check
-            require(
-                initNumBatch <= currentLastVerifiedBatch,
-                "PolygonZkEVM::_verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
-            );
+            if (initNumBatch > currentLastVerifiedBatch) {
+                revert InitNumBatchAboveLastVerifiedBatch();
+            }
         }
 
         // Check final batch
-        require(
-            finalNewBatch > currentLastVerifiedBatch,
-            "PolygonZkEVM::_verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
-        );
+        if (finalNewBatch <= currentLastVerifiedBatch) {
+            revert FinalNumBatchBelowLastVerifiedBatch();
+        }
 
         // Get snark bytes
         bytes memory snarkHashBytes = getInputSnarkBytes(
@@ -754,10 +768,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
-        require(
-            rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "PolygonZkEVM::_verifyBatches: Invalid proof"
-        );
+        if (!rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark])) {
+            revert InvalidProof();
+        }
 
         // Get MATIC reward
         matic.safeTransfer(
@@ -801,11 +814,13 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         // Check if pending state can be consolidated
         // If trusted aggregator is the sender, do not check the timeout or the emergency state
         if (msg.sender != trustedAggregator) {
-            require(!isEmergencyState,"PolygonZkEVM::consolidatePendingState: only if not emergency state");
-            require(
-                isPendingStateConsolidable(pendingStateNum),
-                "PolygonZkEVM::consolidatePendingState: Pending state is not ready to be consolidated"
-            );
+            if (isEmergencyState) {
+                revert OnlyNotEmergencyState();
+            }
+
+            if (!isPendingStateConsolidable(pendingStateNum)) {
+                revert PendingStateNotConsolidable();
+            }
         }
         _consolidatePendingState(pendingStateNum);
     }
@@ -818,11 +833,12 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         // Check if pendingStateNum is in correct range
         // - not consolidated (implicity checks that is not 0)
         // - exist ( has been added)
-        require(
-                pendingStateNum > lastPendingStateConsolidated &&
-                pendingStateNum <= lastPendingState,
-            "PolygonZkEVM::_consolidatePendingState: pendingStateNum invalid"
-        );
+        if (
+            pendingStateNum <= lastPendingStateConsolidated ||
+            pendingStateNum > lastPendingState
+        ) {
+            revert PendingStateInvalid();
+        }
 
         PendingState storage currentPendingState = pendingStateTransitions[
             pendingStateNum
@@ -856,9 +872,11 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
         uint64 currentBatch = newLastVerifiedBatch;
 
-        uint256 totalBatchesAboveTarget;
+        uint256 totalBatchesBelowTarget;
         uint256 newBatchesVerified = newLastVerifiedBatch -
             currentLastVerifiedBatch;
+
+        uint256 targetTimestamp = block.timestamp - verifyBatchTimeTarget;
 
         while (currentBatch != currentLastVerifiedBatch) {
             // Load sequenced batchdata
@@ -867,59 +885,74 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                     currentBatch
                 ];
 
-            // Check if timestamp is above or below the VERIFY_BATCH_TIME_TARGET
+            // Check if timestamp is below the verifyBatchTimeTarget
             if (
-                block.timestamp - currentSequencedBatchData.sequencedTimestamp >
-                verifyBatchTimeTarget
+                targetTimestamp < currentSequencedBatchData.sequencedTimestamp
             ) {
-                totalBatchesAboveTarget +=
+                totalBatchesBelowTarget +=
                     currentBatch -
                     currentSequencedBatchData.previousLastBatchSequenced;
-            }
 
-            // update currentBatch
-            currentBatch = currentSequencedBatchData.previousLastBatchSequenced;
+                // update currentBatch
+                currentBatch = currentSequencedBatchData
+                    .previousLastBatchSequenced;
+            } else {
+                // Since the rest of batches will be above
+                break;
+            }
         }
 
-        uint256 totalBatchesBelowTarget = newBatchesVerified -
-            totalBatchesAboveTarget;
+        uint256 totalBatchesAboveTarget = newBatchesVerified -
+            totalBatchesBelowTarget;
 
-        // Assume that batch fee will be max 128 bits, therefore:
+        // _MAX_BATCH_FEE --> (< 70 bits)
         // multiplierBatchFee --> (< 10 bits)
         // _MAX_BATCH_MULTIPLIER = 12
         // multiplierBatchFee ** _MAX_BATCH_MULTIPLIER --> (< 128 bits)
-        // (< 128 bits) * (< 128 bits) = < 256 bits
-        if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
-            // There are more batches above target, fee is multiplied
-            uint256 diffBatches = totalBatchesAboveTarget -
-                totalBatchesBelowTarget;
+        // batchFee * (multiplierBatchFee ** _MAX_BATCH_MULTIPLIER)-->
+        // (< 70 bits) * (< 128 bits) = < 256 bits
 
-            diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
-                ? _MAX_BATCH_MULTIPLIER
-                : diffBatches;
+        // Since all the following operations cannot overflow, we can optimize this operations with unchecked
+        unchecked {
+            if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
+                // There are more batches above target, fee is multiplied
+                uint256 diffBatches = totalBatchesAboveTarget -
+                    totalBatchesBelowTarget;
 
-            // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-            batchFee =
-                (batchFee * (uint256(multiplierBatchFee) ** diffBatches)) /
-                (10 ** (diffBatches * 3));
-        } else {
-            // There are more batches below target, fee is divided
-            uint256 diffBatches = totalBatchesBelowTarget -
-                totalBatchesAboveTarget;
+                diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
+                    ? _MAX_BATCH_MULTIPLIER
+                    : diffBatches;
 
-            diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
-                ? _MAX_BATCH_MULTIPLIER
-                : diffBatches;
+                // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
+                batchFee =
+                    (batchFee * (uint256(multiplierBatchFee) ** diffBatches)) /
+                    (uint256(1000) ** diffBatches);
+            } else {
+                // There are more batches below target, fee is divided
+                uint256 diffBatches = totalBatchesBelowTarget -
+                    totalBatchesAboveTarget;
 
-            // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-            uint256 accDivisor = (batchFee *
-                (uint256(multiplierBatchFee) ** diffBatches)) /
-                (10 ** (diffBatches * 3));
+                diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
+                    ? _MAX_BATCH_MULTIPLIER
+                    : diffBatches;
 
-            // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
-            // accDivisor = batchFee * multiplyFactor
-            // batchFee * batchFee / accDivisor = batchFee / multiplyFactor
-            batchFee = (batchFee * batchFee) / accDivisor;
+                // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
+                uint256 accDivisor = (uint256(1 ether) *
+                    (uint256(multiplierBatchFee) ** diffBatches)) /
+                    (uint256(1000) ** diffBatches);
+
+                // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
+                // accDivisor = 1E18 * multiplyFactor
+                // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
+                batchFee = (uint256(1 ether) * batchFee) / accDivisor;
+            }
+        }
+
+        // Batch fee must remain inside a range
+        if (batchFee > _MAX_BATCH_FEE) {
+            batchFee = _MAX_BATCH_FEE;
+        } else if (batchFee < _MIN_BATCH_FEE) {
+            batchFee = _MIN_BATCH_FEE;
         }
     }
 
@@ -943,15 +976,13 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         // Calculate matic collateral
         uint256 maticFee = getCurrentBatchFee();
 
-        require(
-            maticFee <= maticAmount,
-            "PolygonZkEVM::forceBatch: Not enough matic"
-        );
+        if (maticFee > maticAmount) {
+            revert NotEnoughMaticAmount();
+        }
 
-        require(
-            transactions.length <= _MAX_TRANSACTIONS_BYTE_LENGTH,
-            "PolygonZkEVM::forceBatch: Transactions bytes overflow"
-        );
+        if (transactions.length > _MAX_TRANSACTIONS_BYTE_LENGTH) {
+            revert TransactionsLengthAboveMax();
+        }
 
         matic.safeTransferFrom(msg.sender, address(this), maticFee);
 
@@ -974,7 +1005,7 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
             emit ForceBatch(lastForceBatch, lastGlobalExitRoot, msg.sender, "");
         } else {
-            // Getting internal transaction calldata is complicated (because it requires an archival node) 
+            // Getting internal transaction calldata is complicated (because it requires an archive node)
             // Therefore it's worth it to put the `transactions` in the event, which is easy to query
             emit ForceBatch(
                 lastForceBatch,
@@ -994,20 +1025,20 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     ) external ifNotEmergencyState {
         uint256 batchesNum = batches.length;
 
-        require(
-            batchesNum > 0,
-            "PolygonZkEVM::sequenceForceBatches: Must force at least 1 batch"
-        );
+        if (batchesNum == 0) {
+            revert SequenceZeroBatches();
+        }
 
-        require(
-            batchesNum <= _MAX_VERIFY_BATCHES,
-            "PolygonZkEVM::sequenceForceBatches: Cannot verify that many batches"
-        );
+        if (batchesNum > _MAX_VERIFY_BATCHES) {
+            revert ExceedMaxVerifyBatches();
+        }
 
-        require(
-            uint256(lastForceBatchSequenced) + batchesNum <= uint256(lastForceBatch),
-            "PolygonZkEVM::sequenceForceBatches: Force batch invalid"
-        );
+        if (
+            uint256(lastForceBatchSequenced) + batchesNum >
+            uint256(lastForceBatch)
+        ) {
+            revert ForceBatchesOverflow();
+        }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentBatchSequenced = lastBatchSequenced;
@@ -1022,7 +1053,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             currentLastForceBatchSequenced++;
 
             // Store the current transactions hash since it's used more than once for gas saving
-            bytes32 currentTransactionsHash = keccak256(currentBatch.transactions);
+            bytes32 currentTransactionsHash = keccak256(
+                currentBatch.transactions
+            );
 
             // Check forced data matches
             bytes32 hashedForcedBatchData = keccak256(
@@ -1033,22 +1066,24 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
                 )
             );
 
-            require(
-                hashedForcedBatchData ==
-                    forcedBatches[currentLastForceBatchSequenced],
-                "PolygonZkEVM::sequenceForceBatches: Forced batches data must match"
-            );
+            if (
+                hashedForcedBatchData !=
+                forcedBatches[currentLastForceBatchSequenced]
+            ) {
+                revert ForcedDataDoesNotMatch();
+            }
 
             // Delete forceBatch data since won't be used anymore
             delete forcedBatches[currentLastForceBatchSequenced];
 
             if (i == (batchesNum - 1)) {
                 // The last batch will have the most restrictive timestamp
-                require(
-                    currentBatch.minForcedTimestamp + _FORCE_BATCH_TIMEOUT <=
-                        block.timestamp,
-                    "PolygonZkEVM::sequenceForceBatches: Forced batch is not in timeout period"
-                );
+                if (
+                    currentBatch.minForcedTimestamp + _FORCE_BATCH_TIMEOUT >
+                    block.timestamp
+                ) {
+                    revert ForceBatchTimeoutNotExpired();
+                }
             }
             // Calculate next acc input hash
             currentAccInputHash = keccak256(
@@ -1086,7 +1121,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
      * @notice Allow the admin to set a new trusted sequencer
      * @param newTrustedSequencer Address of the new trusted sequencer
      */
-    function setTrustedSequencer(address newTrustedSequencer) external onlyAdmin {
+    function setTrustedSequencer(
+        address newTrustedSequencer
+    ) external onlyAdmin {
         trustedSequencer = newTrustedSequencer;
 
         emit SetTrustedSequencer(newTrustedSequencer);
@@ -1124,15 +1161,14 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     function setTrustedAggregatorTimeout(
         uint64 newTrustedAggregatorTimeout
     ) external onlyAdmin {
-        require(
-            newTrustedAggregatorTimeout <= _HALT_AGGREGATION_TIMEOUT,
-            "PolygonZkEVM::setTrustedAggregatorTimeout: Exceed max halt aggregation timeout"
-        );
+        if (newTrustedAggregatorTimeout > _HALT_AGGREGATION_TIMEOUT) {
+            revert TrustedAggregatorTimeoutExceedHaltAggregationTimeout();
+        }
+
         if (!isEmergencyState) {
-            require(
-                newTrustedAggregatorTimeout < trustedAggregatorTimeout,
-                "PolygonZkEVM::setTrustedAggregatorTimeout: New timeout must be lower"
-            );
+            if (newTrustedAggregatorTimeout >= trustedAggregatorTimeout) {
+                revert NewTrustedAggregatorTimeoutMustBeLower();
+            }
         }
 
         trustedAggregatorTimeout = newTrustedAggregatorTimeout;
@@ -1147,15 +1183,14 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     function setPendingStateTimeout(
         uint64 newPendingStateTimeout
     ) external onlyAdmin {
-        require(
-            newPendingStateTimeout <= _HALT_AGGREGATION_TIMEOUT,
-            "PolygonZkEVM::setPendingStateTimeout: Exceed max halt aggregation timeout"
-        );
+        if (newPendingStateTimeout > _HALT_AGGREGATION_TIMEOUT) {
+            revert PendingStateTimeoutExceedHaltAggregationTimeout();
+        }
+
         if (!isEmergencyState) {
-            require(
-                newPendingStateTimeout < pendingStateTimeout,
-                "PolygonZkEVM::setPendingStateTimeout: New timeout must be lower"
-            );
+            if (newPendingStateTimeout >= pendingStateTimeout) {
+                revert NewPendingStateTimeoutMustBeLower();
+            }
         }
 
         pendingStateTimeout = newPendingStateTimeout;
@@ -1169,10 +1204,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     function setMultiplierBatchFee(
         uint16 newMultiplierBatchFee
     ) external onlyAdmin {
-        require(
-            newMultiplierBatchFee >= 1000 && newMultiplierBatchFee < 1024,
-            "PolygonZkEVM::setMultiplierBatchFee: newMultiplierBatchFee incorrect range"
-        );
+        if (newMultiplierBatchFee < 1000 || newMultiplierBatchFee > 1023) {
+            revert InvalidRangeMultiplierBatchFee();
+        }
 
         multiplierBatchFee = newMultiplierBatchFee;
         emit SetMultiplierBatchFee(newMultiplierBatchFee);
@@ -1187,10 +1221,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
     function setVerifyBatchTimeTarget(
         uint64 newVerifyBatchTimeTarget
     ) external onlyAdmin {
-        require(
-            newVerifyBatchTimeTarget < 1 days,
-            "PolygonZkEVM::setVerifyBatchTimeTarget: setVerifyBatchTimeTarget incorrect range"
-        );
+        if (newVerifyBatchTimeTarget > 1 days) {
+            revert InvalidRangeBatchTimeTarget();
+        }
         verifyBatchTimeTarget = newVerifyBatchTimeTarget;
         emit SetVerifyBatchTimeTarget(newVerifyBatchTimeTarget);
     }
@@ -1205,12 +1238,14 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         emit TransferAdminRole(newPendingAdmin);
     }
 
-
     /**
      * @notice Allow the current pending admin to accept the admin role
      */
     function acceptAdminRole() external {
-        require(pendingAdmin == msg.sender, "PolygonZkEVM::acceptAdminRole: caller is not pendingAdmin");
+        if (pendingAdmin != msg.sender) {
+            revert OnlyPendingAdmin();
+        }
+
         admin = pendingAdmin;
         emit AcceptAdminRole(pendingAdmin);
     }
@@ -1347,10 +1382,9 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         if (initPendingStateNum != 0) {
             // Check that pending state exist
             // Already consolidated pending states can be used aswell
-            require(
-                initPendingStateNum <= lastPendingState,
-                "PolygonZkEVM::_proveDistinctPendingState: pendingStateNum must be less or equal than lastPendingState"
-            );
+            if (initPendingStateNum > lastPendingState) {
+                revert PendingStateDoesNotExist();
+            }
 
             // Check choosen pending state
             PendingState storage initPendingState = pendingStateTransitions[
@@ -1361,42 +1395,41 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             oldStateRoot = initPendingState.stateRoot;
 
             // Check initNumBatch matches the init pending state
-            require(
-                initNumBatch == initPendingState.lastVerifiedBatch,
-                "PolygonZkEVM::_proveDistinctPendingState: initNumBatch must match the pending state batch"
-            );
+            if (initNumBatch != initPendingState.lastVerifiedBatch) {
+                revert InitNumBatchDoesNotMatchPendingState();
+            }
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
-            require(
-                oldStateRoot != bytes32(0),
-                "PolygonZkEVM::_proveDistinctPendingState: initNumBatch state root does not exist"
-            );
+            if (oldStateRoot == bytes32(0)) {
+                revert OldStateRootDoesNotExist();
+            }
 
             // Check initNumBatch is inside the range, sanity check
-            require(
-                initNumBatch <= lastVerifiedBatch,
-                "PolygonZkEVM::_proveDistinctPendingState: initNumBatch must be less or equal than lastVerifiedBatch"
-            );
+            if (initNumBatch > lastVerifiedBatch) {
+                revert InitNumBatchAboveLastVerifiedBatch();
+            }
         }
 
         // Assert final pending state num is in correct range
         // - exist ( has been added)
         // - bigger than the initPendingstate
         // - not consolidated
-        require(
-            finalPendingStateNum <= lastPendingState &&
-                finalPendingStateNum > initPendingStateNum &&
-                finalPendingStateNum > lastPendingStateConsolidated,
-            "PolygonZkEVM::_proveDistinctPendingState: finalPendingStateNum incorrect"
-        );
+        if (
+            finalPendingStateNum > lastPendingState ||
+            finalPendingStateNum <= initPendingStateNum ||
+            finalPendingStateNum <= lastPendingStateConsolidated
+        ) {
+            revert FinalPendingStateNumInvalid();
+        }
 
         // Check final num batch
-        require(
-            finalNewBatch ==
-                pendingStateTransitions[finalPendingStateNum].lastVerifiedBatch,
-            "PolygonZkEVM::_proveDistinctPendingState: finalNewBatch must be equal to currentLastVerifiedBatch"
-        );
+        if (
+            finalNewBatch !=
+            pendingStateTransitions[finalPendingStateNum].lastVerifiedBatch
+        ) {
+            revert FinalNumBatchDoesNotMatchPendingState();
+        }
 
         // Get snark bytes
         bytes memory snarkHashBytes = getInputSnarkBytes(
@@ -1411,16 +1444,16 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
-        require(
-            rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-            "PolygonZkEVM::_proveDistinctPendingState: Invalid proof"
-        );
+        if (!rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark])) {
+            revert InvalidProof();
+        }
 
-        require(
-            pendingStateTransitions[finalPendingStateNum].stateRoot !=
-                newStateRoot,
-            "PolygonZkEVM::_proveDistinctPendingState: Stored root must be different than new state root"
-        );
+        if (
+            pendingStateTransitions[finalPendingStateNum].stateRoot ==
+            newStateRoot
+        ) {
+            revert StoredRootMustBeDifferentThanNewRoot();
+        }
     }
 
     /**
@@ -1434,25 +1467,26 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
             uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
 
             // Check that the batch has not been verified
-            require(
-                sequencedBatchNum > currentLastVerifiedBatch,
-                "PolygonZkEVM::activateEmergencyState: Batch already verified"
-            );
+            if (sequencedBatchNum <= currentLastVerifiedBatch) {
+                revert BatchAlreadyVerified();
+            }
 
             // Check that the batch has been sequenced and this was the end of a sequence
-            require(
-                sequencedBatchNum <= lastBatchSequenced &&
-                    sequencedBatches[sequencedBatchNum].sequencedTimestamp != 0,
-                "PolygonZkEVM::activateEmergencyState: Batch not sequenced or not end of sequence"
-            );
+            if (
+                sequencedBatchNum > lastBatchSequenced ||
+                sequencedBatches[sequencedBatchNum].sequencedTimestamp == 0
+            ) {
+                revert BatchNotSequencedOrNotSequenceEnd();
+            }
 
             // Check that has been passed _HALT_AGGREGATION_TIMEOUT since it was sequenced
-            require(
+            if (
                 sequencedBatches[sequencedBatchNum].sequencedTimestamp +
-                    _HALT_AGGREGATION_TIMEOUT <=
-                    block.timestamp,
-                "PolygonZkEVM::activateEmergencyState: Aggregation halt timeout is not expired"
-            );
+                    _HALT_AGGREGATION_TIMEOUT >
+                block.timestamp
+            ) {
+                revert HaltTimeoutNotExpired();
+            }
         }
         _activateEmergencyState();
     }
@@ -1548,15 +1582,13 @@ contract PolygonZkEVM is OwnableUpgradeable, EmergencyManager {
         bytes32 oldAccInputHash = sequencedBatches[initNumBatch].accInputHash;
         bytes32 newAccInputHash = sequencedBatches[finalNewBatch].accInputHash;
 
-        require(
-            initNumBatch == 0 || oldAccInputHash != bytes32(0),
-            "PolygonZkEVM::getInputSnarkBytes: oldAccInputHash does not exist"
-        );
+        if (initNumBatch != 0 && oldAccInputHash == bytes32(0)) {
+            revert OldAccInputHashDoesNotExist();
+        }
 
-        require(
-            newAccInputHash != bytes32(0),
-            "PolygonZkEVM::getInputSnarkBytes: newAccInputHash does not exist"
-        );
+        if (newAccInputHash == bytes32(0)) {
+            revert NewAccInputHashDoesNotExist();
+        }
 
         return
             abi.encodePacked(

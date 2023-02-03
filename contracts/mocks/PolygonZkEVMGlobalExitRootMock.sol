@@ -12,7 +12,10 @@ contract PolygonZkEVMGlobalExitRootMock is PolygonZkEVMGlobalExitRoot {
      * @param _rollupAddress Rollup contract address
      * @param _bridgeAddress PolygonZkEVM Bridge contract address
      */
-    constructor(address _rollupAddress, address _bridgeAddress) PolygonZkEVMGlobalExitRoot(_rollupAddress, _bridgeAddress) {}
+    constructor(
+        address _rollupAddress,
+        address _bridgeAddress
+    ) PolygonZkEVMGlobalExitRoot(_rollupAddress, _bridgeAddress) {}
 
     /**
      * @notice Set last global exit root
