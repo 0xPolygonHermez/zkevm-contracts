@@ -261,7 +261,7 @@ Function to call token permit method of extended ERC20
     address token
   ) internal returns (string)
 ```
-Provides a safe ERC20.symbol version which returns '???' as fallback string
+Provides a safe ERC20.symbol version which returns 'NO_SYMBOL' as fallback string
 
 
 #### Parameters:
@@ -275,7 +275,7 @@ Provides a safe ERC20.symbol version which returns '???' as fallback string
     address token
   ) internal returns (string)
 ```
- Provides a safe ERC20.name version which returns '???' as fallback string.
+ Provides a safe ERC20.name version which returns 'NO_NAME' as fallback string.
 
 
 #### Parameters:
@@ -290,6 +290,7 @@ Provides a safe ERC20.symbol version which returns '???' as fallback string
   ) internal returns (uint8)
 ```
 Provides a safe ERC20.decimals version which returns '18' as fallback value.
+Note Tokens with (decimals > 255) are not supported
 
 
 #### Parameters:
@@ -304,6 +305,7 @@ Provides a safe ERC20.decimals version which returns '18' as fallback value.
   ) internal returns (string)
 ```
 Function to convert returned data to string
+returns 'NOT_VALID_ENCODING' as fallback value.
 
 
 #### Parameters:

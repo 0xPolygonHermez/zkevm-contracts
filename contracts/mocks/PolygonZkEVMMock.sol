@@ -300,6 +300,6 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit TrustedVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+        emit VerifyBatchesTrusted(finalNewBatch, newStateRoot, msg.sender);
     }
 }

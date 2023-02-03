@@ -1,5 +1,5 @@
 Contract responsible for managing the exit roots for the L2 and global exit roots
-The special circuit variables will be accessed and updated directly by the circuit
+The special zkRom variables will be accessed and updated directly by the zkRom
 
 
 ## Functions

@@ -193,7 +193,7 @@ describe('Real flow test', () => {
             }
 
             // Sequence Batches
-            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([currentSequence]))
+            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([currentSequence], trustedSequencer.address))
                 .to.emit(polygonZkEVMContract, 'SequenceBatches')
                 .withArgs(Number(lastBatchSequenced) + 1);
         }
@@ -241,7 +241,7 @@ describe('Real flow test', () => {
         // Verify batch
 
         await expect(
-            polygonZkEVMContract.connect(aggregator).trustedVerifyBatches(
+            polygonZkEVMContract.connect(aggregator).verifyBatchesTrusted(
                 pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
@@ -253,7 +253,7 @@ describe('Real flow test', () => {
             ),
         ).to.be.revertedWith('InvalidProof');
         await expect(
-            polygonZkEVMContract.connect(aggregator).trustedVerifyBatches(
+            polygonZkEVMContract.connect(aggregator).verifyBatchesTrusted(
                 pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
@@ -263,7 +263,7 @@ describe('Real flow test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(polygonZkEVMContract, 'TrustedVerifyBatches')
+        ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrusted')
             .withArgs(newNumBatch, newStateRoot, aggregator.address);
     });
 });

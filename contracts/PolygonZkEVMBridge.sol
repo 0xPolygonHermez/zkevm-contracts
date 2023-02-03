@@ -80,6 +80,9 @@ contract PolygonZkEVMBridge is
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
+
+        // initialize OZ libraries
+        __ReentrancyGuard_init();
     }
 
     modifier onlyPolygonZkEVM() {
@@ -138,7 +141,7 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         uint256 amount,
         bytes calldata permitData
-    ) public payable virtual ifNotEmergencyState {
+    ) public payable virtual ifNotEmergencyState nonReentrant {
         if (
             destinationNetwork == networkID ||
             destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS

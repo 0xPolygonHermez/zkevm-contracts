@@ -252,7 +252,7 @@ contract PolygonZkEVM is
     /**
      * @dev Emitted when the trusted aggregator verifies batches
      */
-    event TrustedVerifyBatches(
+    event VerifyBatchesTrusted(
         uint64 indexed numBatch,
         bytes32 stateRoot,
         address indexed aggregator
@@ -425,9 +425,11 @@ contract PolygonZkEVM is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param feeRecipient Address that will receive the fees from L2
      */
     function sequenceBatches(
-        BatchData[] calldata batches
+        BatchData[] calldata batches,
+        address feeRecipient
     ) external ifNotEmergencyState onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
@@ -520,7 +522,7 @@ contract PolygonZkEVM is
                     currentTransactionsHash,
                     currentBatch.globalExitRoot,
                     currentBatch.timestamp,
-                    msg.sender
+                    feeRecipient
                 )
             );
 
@@ -655,7 +657,7 @@ contract PolygonZkEVM is
      * @param proofB zk-snark input
      * @param proofC zk-snark input
      */
-    function trustedVerifyBatches(
+    function verifyBatchesTrusted(
         uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
@@ -689,7 +691,7 @@ contract PolygonZkEVM is
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit TrustedVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+        emit VerifyBatchesTrusted(finalNewBatch, newStateRoot, msg.sender);
     }
 
     /**

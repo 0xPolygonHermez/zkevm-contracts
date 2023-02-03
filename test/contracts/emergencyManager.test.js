@@ -146,7 +146,7 @@ describe('Emergency mode test', () => {
         };
 
         // revert because emergency state
-        await expect(polygonZkEVMContract.sequenceBatches([sequence]))
+        await expect(polygonZkEVMContract.sequenceBatches([sequence], deployer.address))
             .to.be.revertedWith('OnlyNotEmergencyState');
 
         // revert because emergency state
@@ -264,7 +264,7 @@ describe('Emergency mode test', () => {
 
         const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
         // Sequence Batches
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence]))
+        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
             .to.emit(polygonZkEVMContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
