@@ -246,7 +246,7 @@ describe('Real flow test', () => {
         // Verify batch
 
         await expect(
-            polygonZkEVMContract.connect(aggregator).verifyBatchesTrusted(
+            polygonZkEVMContract.connect(aggregator).verifyBatchesTrustedAggregator(
                 pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
@@ -258,7 +258,7 @@ describe('Real flow test', () => {
             ),
         ).to.be.revertedWith('InvalidProof');
         await expect(
-            polygonZkEVMContract.connect(aggregator).verifyBatchesTrusted(
+            polygonZkEVMContract.connect(aggregator).verifyBatchesTrustedAggregator(
                 pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
@@ -268,7 +268,7 @@ describe('Real flow test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrusted')
+        ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrustedAggregator')
             .withArgs(newNumBatch, newStateRoot, aggregator.address);
     });
 });

@@ -93,9 +93,9 @@ Allows an aggregator to verify multiple batches
 |`proofB` | uint256[2][2] | zk-snark input
 |`proofC` | uint256[2] | zk-snark input
 
-### verifyBatchesTrusted
+### verifyBatchesTrustedAggregator
 ```solidity
-  function verifyBatchesTrusted(
+  function verifyBatchesTrustedAggregator(
     uint64 pendingStateNum,
     uint64 initNumBatch,
     uint64 finalNewBatch,
@@ -579,9 +579,9 @@ Emitted when forced batches are sequenced by not the trusted sequencer
 
 Emitted when a aggregator verifies batches
 
-### VerifyBatchesTrusted
+### VerifyBatchesTrustedAggregator
 ```solidity
-  event VerifyBatchesTrusted(
+  event VerifyBatchesTrustedAggregator(
   )
 ```
 
@@ -690,5 +690,5 @@ Emitted when the trusted aggregator overrides pending state
 ```
 
 Emitted everytime the forkID is updated, this includes the first initialization of the contract
-This event is inteded to be emitted for every upgrade of the contract with relevant changes for the nodes
+This event is intended to be emitted for every upgrade of the contract with relevant changes for the nodes
 

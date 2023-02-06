@@ -255,7 +255,7 @@ contract PolygonZkEVM is
     /**
      * @dev Emitted when the trusted aggregator verifies batches
      */
-    event VerifyBatchesTrusted(
+    event VerifyBatchesTrustedAggregator(
         uint64 indexed numBatch,
         bytes32 stateRoot,
         address indexed aggregator
@@ -334,13 +334,9 @@ contract PolygonZkEVM is
 
     /**
      * @dev Emitted everytime the forkID is updated, this includes the first initialization of the contract
-     * This event is inteded to be emitted for every upgrade of the contract with relevant changes for the nodes
+     * This event is intended to be emitted for every upgrade of the contract with relevant changes for the nodes
      */
-    event UpdateZkEVMVersion(
-        uint64 numBatch,
-        uint64 forkID,
-        string version
-    );
+    event UpdateZkEVMVersion(uint64 numBatch, uint64 forkID, string version);
 
     /**
      * @param _globalExitRootManager Global exit root manager address
@@ -677,7 +673,7 @@ contract PolygonZkEVM is
      * @param proofB zk-snark input
      * @param proofC zk-snark input
      */
-    function verifyBatchesTrusted(
+    function verifyBatchesTrustedAggregator(
         uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
@@ -711,7 +707,11 @@ contract PolygonZkEVM is
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit VerifyBatchesTrusted(finalNewBatch, newStateRoot, msg.sender);
+        emit VerifyBatchesTrustedAggregator(
+            finalNewBatch,
+            newStateRoot,
+            msg.sender
+        );
     }
 
     /**

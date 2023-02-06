@@ -86,7 +86,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
         const oldNumBatch = 0;
         const newNumBatch = 1;
         const aggregatorAddress = '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266';
-        const expectedSnarkInputHash = '15588448576060468525242870965361192827910782996030023758348255084502752104347';
+        const expectedSnarkInputHash = '14018390222040434090025131340942647213193155362626068451264286945439322107665';
 
         const lastPendingStateConsolidated = 0;
         const sequencedTimestamp = 999;
