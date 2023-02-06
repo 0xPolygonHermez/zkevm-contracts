@@ -28,7 +28,7 @@ async function main() {
     const realVerifier = deployParameters.realVerifier || false;
     const { chainID, networkName } = deployParameters;
     const minDelayTimelock = deployParameters.minDelayTimelock || 10; // Should put some default parameter
-    const forkID = 0;
+    const forkID = deployParameters.forkID || 0;
     const version = '0.0.1';
 
     const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1);
