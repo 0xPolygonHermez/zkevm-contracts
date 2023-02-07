@@ -110,26 +110,26 @@ contract PolygonZkEVM is
     // Minimum Static keccaks batch = 2
     // Max bytes allowed = (2376 - 2) * 136 = 322864 bytes - 1 byte padding
     // Rounded to 300000 bytes
-    uint256 private constant _MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
+    uint256 internal constant _MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
 
     // Force batch timeout
-    uint64 private constant _FORCE_BATCH_TIMEOUT = 5 days;
+    uint64 internal constant _FORCE_BATCH_TIMEOUT = 5 days;
 
     // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
-    uint64 private constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
+    uint64 internal constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
     // Maximum batches that can be verified in one call. It depends on our current metrics
     // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
-    uint64 private constant _MAX_VERIFY_BATCHES = 1000;
+    uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
 
     // Max batch multiplier per verification
-    uint256 private constant _MAX_BATCH_MULTIPLIER = 12;
+    uint256 internal constant _MAX_BATCH_MULTIPLIER = 12;
 
     // Max batch fee value
-    uint256 private constant _MAX_BATCH_FEE = 1000 ether;
+    uint256 internal constant _MAX_BATCH_FEE = 1000 ether;
 
     // Min value batch fee
-    uint256 private constant _MIN_BATCH_FEE = 1 gwei;
+    uint256 internal constant _MIN_BATCH_FEE = 1 gwei;
 
     // MATIC token address
     IERC20Upgradeable public immutable matic;
@@ -995,7 +995,7 @@ contract PolygonZkEVM is
     function forceBatch(
         bytes calldata transactions,
         uint256 maticAmount
-    ) external ifNotEmergencyState {
+    ) public virtual ifNotEmergencyState {
         // Calculate matic collateral
         uint256 maticFee = getCurrentBatchFee();
 
@@ -1045,7 +1045,7 @@ contract PolygonZkEVM is
      */
     function sequenceForceBatches(
         ForcedBatchData[] calldata batches
-    ) external ifNotEmergencyState {
+    ) external virtual ifNotEmergencyState {
         uint256 batchesNum = batches.length;
 
         if (batchesNum == 0) {

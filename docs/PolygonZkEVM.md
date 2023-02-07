@@ -208,7 +208,7 @@ The batch fee will not be updated when the trusted aggregator verify batches
   function forceBatch(
     bytes transactions,
     uint256 maticAmount
-  ) external
+  ) public
 ```
 Allows a sequencer/user to force a batch of L2 transactions.
 This should be used only in extreme cases where the trusted sequencer does not work as expected

@@ -2,7 +2,7 @@
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 
-describe('Polygon ZK-EVM', () => {
+describe('Polygon ZK-EVM Deployer', () => {
     let deployer; let
         owner;
     let polgonZKEVMDeployerContract;
