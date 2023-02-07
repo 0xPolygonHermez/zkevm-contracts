@@ -19,26 +19,25 @@ contract PolygonZkEVMDeployer is Ownable {
     /**
      * @dev Emitted when a contract is deployed
      */
-    event NewDeployment(address newContractAddress);
+    event NewDeterministicDeployment(address newContractAddress);
 
     /**
      * @dev Emitted when a contract is called
      */
-    event Call();
+    event FunctionCall();
 
     /**
      * @param amount Amount of contract deploy
      * @param salt salt used in create2
      * @param initBytecode init bytecode that will be use din create2
      */
-    function deploy(
+    function deployDeterministic(
         uint256 amount,
         bytes32 salt,
         bytes memory initBytecode
-    ) public onlyOwner {
+    ) public payable onlyOwner {
         address newContractAddress = Create2.deploy(amount, salt, initBytecode);
-
-        emit NewDeployment(newContractAddress);
+        emit NewDeterministicDeployment(newContractAddress);
     }
 
     /**
@@ -47,28 +46,41 @@ contract PolygonZkEVMDeployer is Ownable {
      * @param initBytecode init bytecode that will be use din create2
      * @param dataCall data used in the call after deploying the smart contract
      */
-    function deployAndCall(
+    function deployDeterministicAndCall(
         uint256 amount,
         bytes32 salt,
         bytes memory initBytecode,
         bytes memory dataCall
-    ) public onlyOwner {
+    ) public payable onlyOwner {
         address newContractAddress = Create2.deploy(amount, salt, initBytecode);
         Address.functionCall(newContractAddress, dataCall);
 
-        emit NewDeployment(newContractAddress);
+        emit NewDeterministicDeployment(newContractAddress);
     }
 
     /**
      * @param targetAddress Amount of contract deploy
      * @param dataCall Data used to call the target smart contract
+     * @param amount Data used to call the target smart contract
      */
-    function call(
+    function functionCall(
         address targetAddress,
-        bytes memory dataCall
-    ) public onlyOwner {
-        Address.functionCall(targetAddress, dataCall);
+        bytes memory dataCall,
+        uint256 amount
+    ) public payable onlyOwner {
+        Address.functionCallWithValue(targetAddress, dataCall, amount);
 
-        emit Call();
+        emit FunctionCall();
+    }
+
+    /**
+     * @param salt salt used in create2
+     * @param bytecodeHash init bytecode | constructor hashed
+     */
+    function predictDeterministicAddress(
+        bytes32 salt,
+        bytes32 bytecodeHash
+    ) public view returns (address) {
+        return Create2.computeAddress(salt, bytecodeHash);
     }
 }

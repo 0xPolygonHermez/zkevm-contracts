@@ -15,9 +15,9 @@ Contract responsible for deploying deterministic address contracts related with 
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_owner` | address | Owner
 
-### deploy
+### deployDeterministic
 ```solidity
-  function deploy(
+  function deployDeterministic(
     uint256 amount,
     bytes32 salt,
     bytes initBytecode
@@ -32,9 +32,9 @@ Contract responsible for deploying deterministic address contracts related with 
 |`salt` | bytes32 | salt used in create2
 |`initBytecode` | bytes | init bytecode that will be use din create2
 
-### deployAndCall
+### deployDeterministicAndCall
 ```solidity
-  function deployAndCall(
+  function deployDeterministicAndCall(
     uint256 amount,
     bytes32 salt,
     bytes initBytecode,
@@ -51,11 +51,12 @@ Contract responsible for deploying deterministic address contracts related with 
 |`initBytecode` | bytes | init bytecode that will be use din create2
 |`dataCall` | bytes | data used in the call after deploying the smart contract
 
-### call
+### functionCall
 ```solidity
-  function call(
+  function functionCall(
     address targetAddress,
-    bytes dataCall
+    bytes dataCall,
+    uint256 amount
   ) public
 ```
 
@@ -65,19 +66,35 @@ Contract responsible for deploying deterministic address contracts related with 
 | :--- | :--- | :------------------------------------------------------------------- |
 |`targetAddress` | address | Amount of contract deploy
 |`dataCall` | bytes | Data used to call the target smart contract
+|`amount` | uint256 | Data used to call the target smart contract
+
+### predictDeterministicAddress
+```solidity
+  function predictDeterministicAddress(
+    bytes32 salt,
+    bytes32 bytecodeHash
+  ) public returns (address)
+```
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`salt` | bytes32 | salt used in create2
+|`bytecodeHash` | bytes32 | init bytecode | constructor hashed
 
 ## Events
-### NewDeployment
+### NewDeterministicDeployment
 ```solidity
-  event NewDeployment(
+  event NewDeterministicDeployment(
   )
 ```
 
 Emitted when a contract is deployed
 
-### Call
+### FunctionCall
 ```solidity
-  event Call(
+  event FunctionCall(
   )
 ```
 
