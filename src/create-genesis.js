@@ -75,6 +75,8 @@ async function main() {
     for (let j = 0; j < txs.length; j++) {
         const currentTx = txs[j];
 
+        // if (currentTx.contractName.PolygonZkEVMDeployer) {
+        // }
         const tx = {
             to: currentTx.to || '0x',
             nonce: currentTx.nonce,

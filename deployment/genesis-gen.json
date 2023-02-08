@@ -18,6 +18,10 @@
   ],
   "txs": [
     {
+      "contractName": "PolygonZkEVMDeployer",
+      "comment": "This will deploy the keyless deployment of PolygonZkEVMDeployer"
+    },
+    {
       "from": "0xC949254d682D8c9ad5682521675b8F43b102aec4",
       "nonce": 0,
       "value": "0",

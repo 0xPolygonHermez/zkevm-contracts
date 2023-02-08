@@ -53,7 +53,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 ```solidity
   function sequenceBatches(
     struct PolygonZkEVM.BatchData[] batches,
-    address feeRecipient
+    address l2Coinbase
   ) external
 ```
 Allows a sequencer to send multiple batches
@@ -63,7 +63,7 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonZkEVM.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
-|`feeRecipient` | address | Address that will receive the fees from L2
+|`l2Coinbase` | address | Address that will receive the fees from L2
 
 ### verifyBatches
 ```solidity

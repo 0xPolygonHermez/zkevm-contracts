@@ -441,11 +441,11 @@ contract PolygonZkEVM is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param feeRecipient Address that will receive the fees from L2
+     * @param l2Coinbase Address that will receive the fees from L2
      */
     function sequenceBatches(
         BatchData[] calldata batches,
-        address feeRecipient
+        address l2Coinbase
     ) external ifNotEmergencyState onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
@@ -538,7 +538,7 @@ contract PolygonZkEVM is
                     currentTransactionsHash,
                     currentBatch.globalExitRoot,
                     currentBatch.timestamp,
-                    feeRecipient
+                    l2Coinbase
                 )
             );
 
