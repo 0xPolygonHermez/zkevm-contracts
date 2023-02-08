@@ -312,6 +312,10 @@ async function main() {
 
     expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
     expect(precalculateGLobalExitRootAddress).to.be.equal(polygonZkEVMGlobalExitRoot.address);
+    // Assert admin address
+    expect(await upgrades.erc1967.getAdminAddress(precalculateZkevmAddress)).to.be.equal(proxyAdminAddress);
+    expect(await upgrades.erc1967.getAdminAddress(precalculateGLobalExitRootAddress)).to.be.equal(proxyAdminAddress);
+    expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
     /*
      *Deployment Time lock
@@ -385,6 +389,7 @@ async function main() {
         polygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot.address,
         maticTokenAddress: maticTokenContract.address,
         verifierAddress: verifierContract.address,
+        zkEVMDeployerContract: zkEVMDeployerContract.address,
         deployerAddress: deployer.address,
         timelockContractAddress: timelockContract.address,
         deploymentBlockNumber,

@@ -23,14 +23,15 @@ Contract responsible for deploying deterministic address contracts related with 
     bytes initBytecode
   ) public
 ```
+Allows to deploy a contract using create2
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`amount` | uint256 | Amount of contract deploy
+|`amount` | uint256 | amount used in create2
 |`salt` | bytes32 | salt used in create2
-|`initBytecode` | bytes | init bytecode that will be use din create2
+|`initBytecode` | bytes | init bytecode that will be use in create2
 
 ### deployDeterministicAndCall
 ```solidity
@@ -41,14 +42,15 @@ Contract responsible for deploying deterministic address contracts related with 
     bytes dataCall
   ) public
 ```
+Allows to deploy a contract using create2 and call it afterwards
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`amount` | uint256 | Amount of contract deploy
+|`amount` | uint256 | amount used in create2
 |`salt` | bytes32 | salt used in create2
-|`initBytecode` | bytes | init bytecode that will be use din create2
+|`initBytecode` | bytes | init bytecode that will be use in create2
 |`dataCall` | bytes | data used in the call after deploying the smart contract
 
 ### functionCall
@@ -81,7 +83,7 @@ Contract responsible for deploying deterministic address contracts related with 
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`salt` | bytes32 | salt used in create2
-|`bytecodeHash` | bytes32 | init bytecode | constructor hashed
+|`bytecodeHash` | bytes32 | init bytecode hashed, it contains the constructor parameters
 
 ## Events
 ### NewDeterministicDeployment
