@@ -45,6 +45,7 @@ describe('Polygon ZK-EVM', () => {
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const chainID = 1000;
     const networkName = 'zkevm';
+    const version = '0.0.1';
     const pendingStateTimeoutDefault = 10;
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
@@ -109,6 +110,7 @@ describe('Polygon ZK-EVM', () => {
                 verifierContract.address,
                 polygonZkEVMBridgeContract.address,
                 chainID,
+                0,
             ],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
@@ -128,6 +130,7 @@ describe('Polygon ZK-EVM', () => {
             genesisRoot,
             urlSequencer,
             networkName,
+            version,
         );
 
         // fund sequencer address with Matic tokens

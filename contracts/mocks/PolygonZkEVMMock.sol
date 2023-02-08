@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "../PolygonZkEVM.sol";
 
@@ -22,14 +22,16 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID
+        uint64 _chainID,
+        uint64 _forkID
     )
         PolygonZkEVM(
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
             _bridgeAddress,
-            _chainID
+            _chainID,
+            _forkID
         )
     {}
 
@@ -300,6 +302,10 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit TrustedVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+        emit VerifyBatchesTrustedAggregator(
+            finalNewBatch,
+            newStateRoot,
+            msg.sender
+        );
     }
 }

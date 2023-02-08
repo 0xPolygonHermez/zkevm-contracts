@@ -36,6 +36,8 @@ describe('Real flow test', () => {
     const urlSequencer = 'http://zkevm-json-rpc:8123';
     const { chainID } = inputJson;
     const networkName = 'zkevm';
+    const version = '0.0.1';
+    const forkID = 0;
     const pendingStateTimeoutDefault = 10;
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
@@ -108,6 +110,7 @@ describe('Real flow test', () => {
                 verifierContract.address,
                 polygonZkEVMBridgeContract.address,
                 chainID,
+                0,
             ],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
@@ -127,6 +130,7 @@ describe('Real flow test', () => {
             genesisRoot,
             urlSequencer,
             networkName,
+            version,
         );
 
         // fund sequencer address with Matic tokens
@@ -193,7 +197,7 @@ describe('Real flow test', () => {
             }
 
             // Sequence Batches
-            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([currentSequence]))
+            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([currentSequence], trustedSequencer.address))
                 .to.emit(polygonZkEVMContract, 'SequenceBatches')
                 .withArgs(Number(lastBatchSequenced) + 1);
         }
@@ -228,6 +232,7 @@ describe('Real flow test', () => {
             inputJson.newNumBatch,
             inputJson.chainID,
             inputJson.aggregatorAddress,
+            forkID,
         );
 
         expect(circuitInputStarkJS).to.be.eq(Scalar.e(input[0]));
@@ -241,7 +246,7 @@ describe('Real flow test', () => {
         // Verify batch
 
         await expect(
-            polygonZkEVMContract.connect(aggregator).trustedVerifyBatches(
+            polygonZkEVMContract.connect(aggregator).verifyBatchesTrustedAggregator(
                 pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
@@ -253,7 +258,7 @@ describe('Real flow test', () => {
             ),
         ).to.be.revertedWith('InvalidProof');
         await expect(
-            polygonZkEVMContract.connect(aggregator).trustedVerifyBatches(
+            polygonZkEVMContract.connect(aggregator).verifyBatchesTrustedAggregator(
                 pendingStateNum,
                 oldNumBatch,
                 newNumBatch,
@@ -263,7 +268,7 @@ describe('Real flow test', () => {
                 proofB,
                 proofC,
             ),
-        ).to.emit(polygonZkEVMContract, 'TrustedVerifyBatches')
+        ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrustedAggregator')
             .withArgs(newNumBatch, newStateRoot, aggregator.address);
     });
 });

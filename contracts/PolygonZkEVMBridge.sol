@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -80,6 +80,9 @@ contract PolygonZkEVMBridge is
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
+
+        // Initialize OZ contracts
+        __ReentrancyGuard_init();
     }
 
     modifier onlyPolygonZkEVM() {
@@ -138,7 +141,7 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         uint256 amount,
         bytes calldata permitData
-    ) public payable virtual ifNotEmergencyState {
+    ) public payable virtual ifNotEmergencyState nonReentrant {
         if (
             destinationNetwork == networkID ||
             destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS

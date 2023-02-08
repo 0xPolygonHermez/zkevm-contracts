@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./interfaces/IVerifierRollup.sol";
@@ -146,6 +146,9 @@ contract PolygonZkEVM is
     // L2 chain identifier
     uint64 public immutable chainID;
 
+    // L2 chain identifier
+    uint64 public immutable forkID;
+
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
     uint64 public verifyBatchTimeTarget;
@@ -252,7 +255,7 @@ contract PolygonZkEVM is
     /**
      * @dev Emitted when the trusted aggregator verifies batches
      */
-    event TrustedVerifyBatches(
+    event VerifyBatchesTrustedAggregator(
         uint64 indexed numBatch,
         bytes32 stateRoot,
         address indexed aggregator
@@ -330,24 +333,33 @@ contract PolygonZkEVM is
     );
 
     /**
+     * @dev Emitted everytime the forkID is updated, this includes the first initialization of the contract
+     * This event is intended to be emitted for every upgrade of the contract with relevant changes for the nodes
+     */
+    event UpdateZkEVMVersion(uint64 numBatch, uint64 forkID, string version);
+
+    /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier Rollup verifier address
      * @param _bridgeAddress Bridge address
      * @param _chainID L2 chainID
+     * @param _forkID Fork Id
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID
+        uint64 _chainID,
+        uint64 _forkID
     ) {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
         bridgeAddress = _bridgeAddress;
         chainID = _chainID;
+        forkID = _forkID;
     }
 
     /**
@@ -360,7 +372,8 @@ contract PolygonZkEVM is
         InitializePackedParameters calldata initializePackedParameters,
         bytes32 genesisRoot,
         string memory _trustedSequencerURL,
-        string memory _networkName
+        string memory _networkName,
+        string calldata _version
     ) external initializer {
         admin = initializePackedParameters.admin;
         trustedSequencer = initializePackedParameters.trustedSequencer;
@@ -395,6 +408,9 @@ contract PolygonZkEVM is
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
+
+        // emit version event
+        emit UpdateZkEVMVersion(0, forkID, _version);
     }
 
     modifier onlyAdmin() {
@@ -425,9 +441,11 @@ contract PolygonZkEVM is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param feeRecipient Address that will receive the fees from L2
      */
     function sequenceBatches(
-        BatchData[] calldata batches
+        BatchData[] calldata batches,
+        address feeRecipient
     ) external ifNotEmergencyState onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
@@ -520,7 +538,7 @@ contract PolygonZkEVM is
                     currentTransactionsHash,
                     currentBatch.globalExitRoot,
                     currentBatch.timestamp,
-                    msg.sender
+                    feeRecipient
                 )
             );
 
@@ -655,7 +673,7 @@ contract PolygonZkEVM is
      * @param proofB zk-snark input
      * @param proofC zk-snark input
      */
-    function trustedVerifyBatches(
+    function verifyBatchesTrustedAggregator(
         uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
@@ -689,7 +707,11 @@ contract PolygonZkEVM is
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit TrustedVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+        emit VerifyBatchesTrustedAggregator(
+            finalNewBatch,
+            newStateRoot,
+            msg.sender
+        );
     }
 
     /**
@@ -944,6 +966,7 @@ contract PolygonZkEVM is
                 // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
                 // accDivisor = 1E18 * multiplyFactor
                 // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
+                // < 60 bits * < 70 bits / ~60 bits --> overflow not possible
                 batchFee = (uint256(1 ether) * batchFee) / accDivisor;
             }
         }
@@ -1597,6 +1620,7 @@ contract PolygonZkEVM is
                 oldAccInputHash,
                 initNumBatch,
                 chainID,
+                forkID,
                 newStateRoot,
                 newAccInputHash,
                 newLocalExitRoot,
