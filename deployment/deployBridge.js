@@ -63,34 +63,44 @@ async function main() {
     // Deploy PolygonZkEVMDeployer if is not deployed already
     const zkEVMDeployerContract = await deployPolygonZkEVMDeployer(deployer);
 
-    // Deploy admin --> implementation --> proxy
-
-    // Deploy proxy admin:
-    const proxyAdminFactory = await ethers.getContractFactory('ProxyAdmin', deployer);
-    const deployTransactionAdmin = (proxyAdminFactory.getDeployTransaction()).data;
-    const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
-    const proxyAdminAddress = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin);
-
-    // Deploy implementation
-
-    // deploy PolygonZkEVMBridge
+    // Precalcualte bridge address
     let polygonZkEVMBridgeFactory;
     if (deployParameters.polygonZkEVMBridgeMock) {
         polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeMock', deployer);
     } else {
         polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     }
-    const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
+    const proxyAdminFactory = await ethers.getContractFactory('ProxyAdmin', deployer);
+    const transparentProxyFactory = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
 
+
+    const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
+    const precalculateBridgeImplementation = await getCreate2Address(zkEVMDeployerContract, salt, deployTransactionBridge);
+
+    const deployTransactionAdmin = (proxyAdminFactory.getDeployTransaction()).data;
+    const precalculateProxyAdmin = await getCreate2Address(zkEVMDeployerContract, salt, deployTransactionAdmin);
+
+    const initializeEmptyDataProxy = '0x';
+    const deployTransactionProxy = (transparentProxyFactory.getDeployTransaction(precalculateBridgeImplementation, precalculateProxyAdmin, initializeEmptyDataProxy)).data;
+    const precalculateProxy = await getCreate2Address(zkEVMDeployerContract, salt, deployTransactionProxy);
+
+    // Deploy admin --> implementation --> proxy
+
+    // Deploy proxy admin:
+    const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
+    const proxyAdminAddress = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin);
+    expect(proxyAdminAddress).to.be.equal(precalculateProxyAdmin);
+
+    // Deploy implementation
+
+    // deploy PolygonZkEVMBridge
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(6000000); // ; // Should be more than enough with 5M
     const bridgeImplementationAddress = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionBridge, null, deployer, overrideGasLimit);
+    expect(bridgeImplementationAddress).to.be.equal(precalculateBridgeImplementation);
 
     // deploy proxy
-    const transparentProxyFactory = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
     // Do not initialize the proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
-    const initializeDataProxy = '0x';
-    const deployTransactionProxy = (transparentProxyFactory.getDeployTransaction(bridgeImplementationAddress, proxyAdminAddress, initializeDataProxy)).data;
 
     const precalculateZkevmAddress = ethers.constants.AddressZero;
     const polygonZkEVMGlobalExitRootAddress = ethers.constants.AddressZero;
@@ -103,6 +113,7 @@ async function main() {
         ],
     );
     const proxyAddress = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy);
+    expect(precalculateProxy).to.be.equal(proxyAddress)
 
     const polygonZkEVMBridgeContract = polygonZkEVMBridgeFactory.attach(proxyAddress);
 
@@ -212,5 +223,11 @@ async function create2Deployment(polgonZKEVMDeployerContract, salt, deployTransa
             await (await polgonZKEVMDeployerContract.deployDeterministic(amount, salt, deployTransaction)).wait();
         }
     }
+    return precalculatedAddressDeployed;
+}
+
+async function getCreate2Address(polgonZKEVMDeployerContract, salt, deployTransaction) {
+    const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransaction]);
+    const precalculatedAddressDeployed = ethers.utils.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
     return precalculatedAddressDeployed;
 }
