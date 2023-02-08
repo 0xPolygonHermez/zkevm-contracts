@@ -2,7 +2,7 @@
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 
-describe('Polygon ZK-EVM Mock', () => {
+describe('Polygon ZK-EVM Testnet', () => {
     let deployer;
     let trustedAggregator;
     let trustedSequencer;
@@ -80,8 +80,8 @@ describe('Polygon ZK-EVM Mock', () => {
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });
 
-        // deploy PolygonZkEVMMock
-        const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
+        // deploy PolygonZkEVMTestnet
+        const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMTestnet');
         polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
             initializer: false,
             constructorArgs: [

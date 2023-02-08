@@ -244,7 +244,7 @@ async function main() {
     console.log('networkName:', networkName);
     console.log('networkName:', forkID);
 
-    const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock', deployer);
+    const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMTestnet', deployer);
     let polygonZkEVMContract;
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
@@ -316,6 +316,9 @@ async function main() {
     expect(await upgrades.erc1967.getAdminAddress(precalculateZkevmAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(precalculateGLobalExitRootAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
+
+    // Unactivate the forced Batches
+    await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
 
     /*
      *Deployment Time lock
