@@ -129,7 +129,7 @@ describe('Polygon ZK-EVM Deployer', () => {
 
         const dataCallFail = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.utils.parseEther('20000001')]);
 
-        // Cannot create 2 times the same contract
+        // Cannot fails internal call, contract not deployed
         await expect(polgonZKEVMDeployerContract.connect(owner).deployDeterministicAndCall(
             amount,
             salt,
@@ -155,5 +155,80 @@ describe('Polygon ZK-EVM Deployer', () => {
             deployTransactionERC20,
             dataCall,
         )).to.be.revertedWith('Create2: Failed on deploy');
+    });
+
+    it('Test keyless deployment', async () => {
+        const PolgonZKEVMDeployerFactory = await ethers.getContractFactory(
+            'PolygonZkEVMDeployer',
+        );
+
+        const deployTxZKEVMDeployer = (PolgonZKEVMDeployerFactory.getDeployTransaction(
+            owner.address,
+        )).data;
+
+        const gasLimit = ethers.BigNumber.from(1000000); // Put 1 Million, aprox 650k are necessary
+        const gasPrice = ethers.BigNumber.from(ethers.utils.parseUnits('100', 'gwei')); // just in case to be able to use always the transaction
+        const to = '0x'; // deployment transaction, to is 0
+        const tx = {
+            to,
+            nonce: 0,
+            value: 0,
+            gasLimit: gasLimit.toHexString(),
+            gasPrice: gasPrice.toHexString(),
+            data: deployTxZKEVMDeployer,
+        };
+
+        const signature = {
+            v: 27,
+            r: '0x247000', // Equals 0x0000000000000000000000000000000000000000000000000000000000247000
+            s: '0x2470', // Equals 0x0000000000000000000000000000000000000000000000000000000000002470
+        };
+        const serializedTransaction = ethers.utils.serializeTransaction(tx, signature);
+        const resultTransaction = ethers.utils.parseTransaction(serializedTransaction);
+        const totalEther = gasLimit.mul(gasPrice); // 0.1 ether
+
+        // Fund keyless deployment
+        const params = {
+            to: resultTransaction.from,
+            value: totalEther.toHexString(),
+        };
+        const zkEVMDeployerAddress = ethers.utils.getContractAddress(resultTransaction);
+
+        await deployer.sendTransaction(params);
+        await ethers.provider.sendTransaction(serializedTransaction);
+
+        const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress);
+        expect(await zkEVMDeployerContract.owner()).to.be.equal(owner.address);
+    });
+    it('Test Bridge deployment', async () => {
+        const bridgeFactory = await ethers.getContractFactory(
+            'PolygonZkEVMBridge',
+        );
+
+        const salt = ethers.constants.HashZero;
+
+        // Encode deploy transaction
+        const deployTransactionBridge = (bridgeFactory.getDeployTransaction()).data;
+        const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransactionBridge]);
+
+        // Precalculate create2 address
+        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
+        expect(await polgonZKEVMDeployerContract.predictDeterministicAddress(
+            salt,
+            hashInitCode,
+        )).to.be.equal(precalculateTokenDeployed);
+
+        const amount = 0;
+
+        // Deploy using create2
+        const populatedTransaction = await polgonZKEVMDeployerContract.connect(owner).populateTransaction.deployDeterministic(
+            amount,
+            salt,
+            deployTransactionBridge,
+        );
+
+        populatedTransaction.gasLimit = ethers.BigNumber.from(6000000); // Should be more than enough with 5M
+        await expect(owner.sendTransaction(populatedTransaction))
+            .to.emit(polgonZKEVMDeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
     });
 });

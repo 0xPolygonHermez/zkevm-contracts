@@ -31,8 +31,8 @@ async function main() {
     const forkID = deployParameters.forkID || 0;
     const version = '0.0.1';
 
-    const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1);
-    const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1);
+    const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1); // 1 week minus 1
+    const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1); // 1 week minus 1
 
     // Load provider
     let currentProvider = ethers.provider;
@@ -69,6 +69,7 @@ async function main() {
     } else {
         [deployer] = (await ethers.getSigners());
     }
+
     // Check trusted address from deploy parameters
     const admin = deployParameters.admin || deployer.address;
     const trustedAggregator = deployParameters.trustedAggregator || deployer.address;
@@ -211,6 +212,7 @@ async function main() {
     console.log('genesisRoot:', genesisRootHex);
     console.log('trustedSequencerURL:', trustedSequencerURL);
     console.log('networkName:', networkName);
+    console.log('networkName:', forkID);
 
     const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock', deployer);
     let polygonZkEVMContract;
@@ -273,6 +275,7 @@ async function main() {
     console.log('trustedSequencerURL:', await polygonZkEVMContract.trustedSequencerURL());
     console.log('networkName:', await polygonZkEVMContract.networkName());
     console.log('owner:', await polygonZkEVMContract.owner());
+    console.log('owner:', await polygonZkEVMContract.forkID());
 
     console.log('#######################\n');
     console.log('Polygon ZK-EVM deployed to:', polygonZkEVMContract.address);

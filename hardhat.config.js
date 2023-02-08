@@ -19,7 +19,9 @@ const DEFAULT_MNEMONIC = 'test test test test test test test test test test test
 module.exports = {
   dependencyCompiler: {
     paths: [
-      '@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol'
+      '@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol',
+      '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol',
+      '@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol'
     ],
   },
   solidity: {
