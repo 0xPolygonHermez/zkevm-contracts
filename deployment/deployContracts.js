@@ -300,7 +300,7 @@ async function main() {
     console.log('trustedSequencerURL:', await polygonZkEVMContract.trustedSequencerURL());
     console.log('networkName:', await polygonZkEVMContract.networkName());
     console.log('owner:', await polygonZkEVMContract.owner());
-    console.log('owner:', await polygonZkEVMContract.forkID());
+    console.log('forkID:', await polygonZkEVMContract.forkID());
 
     console.log('#######################\n');
     console.log('Polygon ZK-EVM deployed to:', polygonZkEVMContract.address);
@@ -312,8 +312,10 @@ async function main() {
     expect(await upgrades.erc1967.getAdminAddress(precalculateGLobalExitRootAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
-    // Unactivate the forced Batches
-    await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
+    // Unactivate the forced Batches checking flag
+    if (!deployParameters.forceBatchAllowed) {
+        await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
+    }
 
     /*
      *Deployment Time lock
