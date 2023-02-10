@@ -151,7 +151,7 @@ async function main() {
     genesis.push({
         contractName: 'PolygonZkEVMDeployer',
         balance: '0',
-        nonce: zkEVMDeployerInfo.nonce,
+        nonce: zkEVMDeployerInfo.nonce.toString(),
         address: zkEVMDeployerContract.address,
         bytecode: zkEVMDeployerInfo.bytecode,
         storage: zkEVMDeployerInfo.storage,
@@ -162,7 +162,7 @@ async function main() {
     genesis.push({
         contractName: 'ProxyAdmin',
         balance: '0',
-        nonce: proxyAdminInfo.nonce,
+        nonce: proxyAdminInfo.nonce.toString(),
         address: proxyAdminAddress,
         bytecode: proxyAdminInfo.bytecode,
         storage: proxyAdminInfo.storage,
@@ -173,7 +173,7 @@ async function main() {
     genesis.push({
         contractName: 'PolygonZkEVMBridge implementation',
         balance: '0',
-        nonce: bridgeImplementationInfo.nonce,
+        nonce: bridgeImplementationInfo.nonce.toString(),
         address: bridgeImplementationAddress,
         bytecode: bridgeImplementationInfo.bytecode,
         // storage: bridgeImplementationInfo.storage, implementation do not have storage
@@ -185,7 +185,7 @@ async function main() {
     genesis.push({
         contractName: 'PolygonZkEVMBridge proxy',
         balance: '200000000000000000000000000',
-        nonce: bridgeProxyInfo.nonce,
+        nonce: bridgeProxyInfo.nonce.toString(),
         address: proxyBridgeAddress,
         bytecode: bridgeProxyInfo.bytecode,
         storage: bridgeProxyInfo.storage,
@@ -197,7 +197,7 @@ async function main() {
     genesis.push({
         contractName: 'PolygonZkEVMGlobalExitRootL2 implementation',
         balance: '0',
-        nonce: implGlobalExitRootL2Info.nonce,
+        nonce: implGlobalExitRootL2Info.nonce.toString(),
         address: implGlobalExitRootL2,
         bytecode: implGlobalExitRootL2Info.bytecode,
         // storage: implGlobalExitRootL2Info.storage, , implementation do not have storage
@@ -208,7 +208,7 @@ async function main() {
     genesis.push({
         contractName: 'PolygonZkEVMGlobalExitRootL2 proxy',
         balance: '0',
-        nonce: proxyGlobalExitRootL2Info.nonce,
+        nonce: proxyGlobalExitRootL2Info.nonce.toString(),
         address: globalExitRootL2Address, // Override address!
         bytecode: proxyGlobalExitRootL2Info.bytecode,
         storage: proxyGlobalExitRootL2Info.storage,
@@ -254,7 +254,7 @@ async function main() {
     genesis.push({
         contractName: 'PolygonZkEVMTimelock',
         balance: '0',
-        nonce: timelockInfo.nonce,
+        nonce: timelockInfo.nonce.toString(),
         address: timelockContract.address,
         bytecode: timelockInfo.bytecode,
         storage: timelockInfo.storage,
@@ -266,7 +266,7 @@ async function main() {
     genesis.push({
         accountName: 'keyless Deployer',
         balance: '0',
-        nonce: 1,
+        nonce: '1',
         address: keylessDeployer,
     });
 
@@ -275,7 +275,7 @@ async function main() {
     genesis.push({
         accountName: 'deployer',
         balance: '0',
-        nonce: deployerInfo.nonce,
+        nonce: deployerInfo.nonce.toString(),
         address: deployer.address,
     });
 
@@ -284,7 +284,7 @@ async function main() {
      * genesis.push({
      *     accountName: 'test account',
      *     balance: '100000000000000000000000',
-     *     nonce: 0,
+     *     nonce: '0',
      *     address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
      * });
      */
