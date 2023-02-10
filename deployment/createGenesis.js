@@ -150,69 +150,69 @@ async function main() {
     // ZKEVMDeployer
     const zkEVMDeployerInfo = await getAddressInfo(zkEVMDeployerContract.address);
     genesis.push({
+        contractName: 'PolygonZkEVMDeployer',
         balance: '0',
         nonce: zkEVMDeployerInfo.nonce,
         address: zkEVMDeployerContract.address,
         bytecode: zkEVMDeployerInfo.bytecode,
         storage: zkEVMDeployerInfo.storage,
-        contractName: 'zkEVMDeployerContract',
     });
 
     // Proxy Admin
     const proxyAdminInfo = await getAddressInfo(proxyAdminAddress);
     genesis.push({
+        contractName: 'ProxyAdmin',
         balance: '0',
         nonce: proxyAdminInfo.nonce,
         address: proxyAdminAddress,
         bytecode: proxyAdminInfo.bytecode,
         storage: proxyAdminInfo.storage,
-        contractName: 'proxyAdmin',
     });
 
     // Bridge implementation
     const bridgeImplementationInfo = await getAddressInfo(bridgeImplementationAddress);
     genesis.push({
+        contractName: 'PolygonZkEVMBridge implementation',
         balance: '0',
         nonce: bridgeImplementationInfo.nonce,
         address: bridgeImplementationAddress,
         bytecode: bridgeImplementationInfo.bytecode,
         // storage: bridgeImplementationInfo.storage, implementation do not have storage
-        contractName: 'bridge implementation',
     });
 
     // Bridge proxy
     const bridgeProxyInfo = await getAddressInfo(proxyBridgeAddress);
 
     genesis.push({
+        contractName: 'PolygonZkEVMBridge proxy',
         balance: '200000000000000000000000000',
         nonce: bridgeProxyInfo.nonce,
         address: proxyBridgeAddress,
         bytecode: bridgeProxyInfo.bytecode,
         storage: bridgeProxyInfo.storage,
-        contractName: 'bridge proxy',
     });
 
     // polygonZkEVMGlobalExitRootL2 implementation
     const implGlobalExitRootL2 = await upgrades.erc1967.getImplementationAddress(polygonZkEVMGlobalExitRootL2.address);
     const implGlobalExitRootL2Info = await getAddressInfo(implGlobalExitRootL2);
     genesis.push({
+        contractName: 'PolygonZkEVMGlobalExitRootL2 implementation',
         balance: '0',
         nonce: implGlobalExitRootL2Info.nonce,
         address: implGlobalExitRootL2,
         bytecode: implGlobalExitRootL2Info.bytecode,
         // storage: implGlobalExitRootL2Info.storage, , implementation do not have storage
-        contractName: 'implementation polygonZkEVMGlobalExitRootL2',
     });
 
     // polygonZkEVMGlobalExitRootL2 proxy
     const proxyGlobalExitRootL2Info = await getAddressInfo(polygonZkEVMGlobalExitRootL2.address);
     genesis.push({
+        contractName: 'PolygonZkEVMGlobalExitRootL2 proxy',
         balance: '0',
         nonce: proxyGlobalExitRootL2Info.nonce,
         address: globalExitRootL2Address, // Override address!
         bytecode: proxyGlobalExitRootL2Info.bytecode,
         storage: proxyGlobalExitRootL2Info.storage,
-        contractName: 'proxy polygonZkEVMGlobalExitRootL2',
     });
 
     // Timelock
@@ -232,7 +232,6 @@ async function main() {
         ethers.utils.id('CANCELLER_ROLE'),
     ];
 
-    console.log(await timelockContract.TIMELOCK_ADMIN_ROLE());
     for (let i = 0; i < timelockRolesHash.length; i++) {
         const rolesMappingStoragePositionStruct = 0;
         const storagePosition = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [timelockRolesHash[i], rolesMappingStoragePositionStruct]);
@@ -254,31 +253,31 @@ async function main() {
     }
 
     genesis.push({
+        contractName: 'PolygonZkEVMTimelock',
         balance: '0',
         nonce: timelockInfo.nonce,
         address: timelockContract.address,
         bytecode: timelockInfo.bytecode,
         storage: timelockInfo.storage,
-        contractName: 'timelock',
     });
 
     // Put nonces on deployers
 
     // Keyless deployer
     genesis.push({
+        accountName: 'keyless Deployer',
         balance: '0',
         nonce: 1,
         address: keylessDeployer,
-        accountName: 'keyless Deployer',
     });
 
     // deployer
     const deployerInfo = await getAddressInfo(deployer.address);
     genesis.push({
+        accountName: 'deployer',
         balance: '0',
         nonce: deployerInfo.nonce,
         address: deployer.address,
-        accountName: 'deployer',
     });
 
     // calculate root
