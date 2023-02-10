@@ -107,7 +107,6 @@ async function main() {
      * deploy proxy
      * Do not initialize the proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
      */
-
     const precalculateZkevmAddress = ethers.constants.AddressZero;
     const polygonZkEVMGlobalExitRootAddress = ethers.constants.AddressZero;
     const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData(

@@ -404,7 +404,7 @@ async function getAddressInfo(address) {
     const bytecode = await ethers.provider.getCode(address);
 
     const storage = {};
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 120; i++) {
         const storageValue = await ethers.provider.getStorageAt(address, i);
         if (storageValue !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
             storage[ethers.utils.hexZeroPad(ethers.utils.hexlify(i), 32)] = storageValue;
