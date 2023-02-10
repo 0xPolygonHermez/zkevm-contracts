@@ -400,6 +400,7 @@ async function main() {
         networkName,
         admin,
         trustedAggregator,
+        proxyAdminAddress,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }

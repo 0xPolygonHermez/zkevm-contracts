@@ -80,20 +80,63 @@ async function main() {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
-    // verify proxies
-    const contractNames = ['polygonZkEVMAddress', 'polygonZkEVMBridgeAddress', 'polygonZkEVMGlobalExitRootAddress'];
+    // verify proxy admin
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: deployOutputParameters.proxyAdminAddress,
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
+    }
 
-    for (let i = 0; i < contractNames.length; i++) {
-        try {
-            await hre.run(
-                'verify:verify',
-                {
-                    address: deployOutputParameters[contractNames[i]],
-                },
-            );
-        } catch (error) {
-            expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
-        }
+    // verify zkEVM address
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: deployOutputParameters.polygonZkEVMAddress,
+                constructorArguments: [
+                    deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
+                    deployOutputParameters.maticTokenAddress,
+                    deployOutputParameters.verifierAddress,
+                    deployOutputParameters.polygonZkEVMBridgeAddress,
+                    deployOutputParameters.chainID,
+                    deployOutputParameters.forkID || 0,
+                ],
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+    }
+
+    // verify global exit root address
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
+                constructorArguments: [
+                    deployOutputParameters.polygonZkEVMAddress,
+                    deployOutputParameters.polygonZkEVMBridgeAddress,
+                ],
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+    }
+
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: deployOutputParameters.polygonZkEVMBridgeAddress,
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 }
 
