@@ -61,12 +61,7 @@ async function main() {
     const zkEVMDeployerContract = await deployPolygonZkEVMDeployer(deployer);
 
     // Precalcualte bridge address
-    let polygonZkEVMBridgeFactory;
-    if (deployParameters.polygonZkEVMBridgeMock) {
-        polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeMock', deployer);
-    } else {
-        polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
-    }
+    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const proxyAdminFactory = await ethers.getContractFactory('ProxyAdmin', deployer);
     const transparentProxyFactory = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
 
@@ -97,7 +92,7 @@ async function main() {
      * deploy PolygonZkEVMBridge
      * Mandatory to override the gasLimit since the estimation with create are mess up D:
      */
-    const overrideGasLimit = ethers.BigNumber.from(6000000); // ; // Should be more than enough with 5M
+    const overrideGasLimit = ethers.BigNumber.from(6000000); // Should be more than enough with 5M
     const bridgeImplementationAddress = await create2Deployment(
         zkEVMDeployerContract,
         salt,

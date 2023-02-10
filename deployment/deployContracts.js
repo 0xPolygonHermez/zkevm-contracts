@@ -129,12 +129,7 @@ async function main() {
     const proxyAdminAddress = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin);
 
     // Deploy implementation PolygonZkEVMBridg
-    let polygonZkEVMBridgeFactory;
-    if (deployParameters.polygonZkEVMBridgeMock) {
-        polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeMock', deployer);
-    } else {
-        polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
-    }
+    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(6000000); // ; // Should be more than enough with 5M
@@ -190,7 +185,7 @@ async function main() {
     console.log('networkID:', await polygonZkEVMBridgeContract.networkID());
     console.log('zkEVMaddress:', await polygonZkEVMBridgeContract.polygonZkEVMaddress());
 
-    // Import OZ manifest the deployed contracts, its enpought o import just the proyx, the rest are imported automatically
+    // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
     await upgrades.forceImport(proxyBridgeAddress, polygonZkEVMBridgeFactory, 'transparent');
 
     /*
