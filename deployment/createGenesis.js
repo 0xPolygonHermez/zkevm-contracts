@@ -23,7 +23,6 @@ const _IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a9
 
 async function main() {
     // Constant variables
-
     const attemptsDeployProxy = 20;
     const networkIDL2 = 1;
     const globalExitRootL2Address = '0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa';
@@ -279,6 +278,16 @@ async function main() {
         nonce: deployerInfo.nonce,
         address: deployer.address,
     });
+
+    /*
+     * Add test account
+     * genesis.push({
+     *     accountName: 'test account',
+     *     balance: '100000000000000000000000',
+     *     nonce: 0,
+     *     address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+     * });
+     */
 
     // calculate root
     const poseidon = await getPoseidon();
