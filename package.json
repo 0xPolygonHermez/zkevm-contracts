@@ -59,7 +59,7 @@
     "solidity-docgen": "^0.5.16"
   },
   "scripts": {
-    "saveDeployment:goerli": "mkdir -p deployments/goerli_$(date +%s) && cp -r deployment/deploy_*.json deployments/goerli_$(date +%s) && cp .openzeppelin/goerli.json deployments/goerli_$(date +%s) && cp genesis.json deployments/goerli_$(date +%s)",
+    "saveDeployment:goerli": "mkdir -p deployments/goerli_$(date +%s) && cp -r deployment/deploy_*.json deployments/goerli_$(date +%s) && cp .openzeppelin/goerli.json deployments/goerli_$(date +%s) && cp deployment/genesis.json deployments/goerli_$(date +%s)",
     "test": "npx hardhat test test/contracts/**.test.js",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates -e ./contracts/verifiers,./contracts/mocks",
     "deploy:ZkEVM:hardhat": "node deployment/createGenesis.js && npx hardhat run deployment/deployContracts.js --network hardhat",
