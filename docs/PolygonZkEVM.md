@@ -46,7 +46,7 @@ Allows a sequencer to send multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonZkEVM.BatchData[] | Struct array which the necessary data to append new batces ot the sequence
+|`batches` | struct PolygonZkEVM.BatchData[] | Struct array which the necessary data to append new batches to the sequence
 
 ### verifyBatches
 ```solidity
@@ -134,7 +134,7 @@ Verify batches internal function
   ) internal
 ```
 Internal function to consolidate the state automatically once sequence or verify batches are called
-It trys to consolidate the first and the middle pending state
+It tries to consolidate the first and the middle pending state
 
 
 
@@ -173,8 +173,8 @@ Internal function to consolidate any pending state that has already exceed the p
     uint64 newLastVerifiedBatch
   ) internal
 ```
-Function to update the batch fee based on the new verfied batches
-The batch fee will not be updated when the trusted aggregator verify batches
+Function to update the batch fee based on the new verified batches
+The batch fee will not be updated when the trusted aggregator verifies batches
 
 
 #### Parameters:
@@ -211,7 +211,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer do not have do
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonZkEVM.ForcedBatchData[] | Struct array which the necessary data to append new batces ot the sequence
+|`batches` | struct PolygonZkEVM.ForcedBatchData[] | Struct array which the necessary data to append new batches to the sequence
 
 ### setTrustedSequencer
 ```solidity
@@ -225,7 +225,7 @@ Allow the admin to set a new trusted sequencer
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newTrustedSequencer` | address | Address of the new trusted sequuencer
+|`newTrustedSequencer` | address | Address of the new trusted sequencer
 
 ### setForceBatchAllowed
 ```solidity
@@ -283,7 +283,7 @@ The timeout can only be lowered, except if emergency state is active
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newTrustedAggregatorTimeout` | uint64 | Trusted aggreagator timeout
+|`newTrustedAggregatorTimeout` | uint64 | Trusted aggregator timeout
 
 ### setPendingStateTimeout
 ```solidity
@@ -298,7 +298,7 @@ The timeout can only be lowered, except if emergency state is active
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newPendingStateTimeout` | uint64 | Trusted aggreagator timeout
+|`newPendingStateTimeout` | uint64 | Trusted aggregator timeout
 
 ### setMultiplierBatchFee
 ```solidity
@@ -312,7 +312,7 @@ Allow the admin to set a new multiplier batch fee
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newMultiplierBatchFee` | uint16 | multiplier bathc fee
+|`newMultiplierBatchFee` | uint16 | multiplier batch fee
 
 ### setVeryBatchTimeTarget
 ```solidity
@@ -356,7 +356,7 @@ Allow the current admin to set a new admin address
     uint256[2] proofC
   ) public
 ```
-Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
+Allows to halt the PolygonZkEVM if it's possible to prove a different state root given the same batches
 
 
 #### Parameters:
@@ -386,7 +386,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
     uint256[2] proofC
   ) public
 ```
-Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
+Allows to halt the PolygonZkEVM if it's possible to prove a different state root given the same batches
 
 
 #### Parameters:
@@ -416,7 +416,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
     uint256[2] proofC
   ) internal
 ```
-Internal functoin that prove a different state root given the same batches to verify
+Internal function that proves a different state root given the same batches to verify
 
 
 #### Parameters:
@@ -438,21 +438,21 @@ Internal functoin that prove a different state root given the same batches to ve
     uint64 sequencedBatchNum
   ) external
 ```
-Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contrats
+Function to activate emergency state, which also enables the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
 If not called by the owner owner must be provided a batcnNum that does not have been aggregated in a HALT_AGGREGATION_TIMEOUT period
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`sequencedBatchNum` | uint64 | Sequenced batch number that has not been aggreagated in HALT_AGGREGATION_TIMEOUT
+|`sequencedBatchNum` | uint64 | Sequenced batch number that has not been aggregated in HALT_AGGREGATION_TIMEOUT
 
 ### deactivateEmergencyState
 ```solidity
   function deactivateEmergencyState(
   ) external
 ```
-Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
+Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
 
 
 
@@ -461,7 +461,7 @@ Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBrid
   function _activateEmergencyState(
   ) internal
 ```
-Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contrats
+Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
 
 
 
@@ -489,7 +489,7 @@ Get the last verified batch
   ) public returns (bool)
 ```
 Returns a boolean that indicates if the pendingStateNum is or not consolidable
-Note that his function do not check if the pending state currently exist, or if it's consolidated already
+Note that his function does not check if the pending state currently exists, or if it's consolidated already
 
 
 
@@ -518,7 +518,7 @@ Function to calculate the input snark bytes
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`initNumBatch` | uint64 | Batch which the aggregator starts teh verification
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
 |`oldStateRoot` | bytes32 | State root before batch is processed
@@ -555,7 +555,7 @@ Emitted when forced batches are sequenced by not the trusted sequencer
   )
 ```
 
-Emitted when a aggregator verifies batches
+Emitted when an aggregator verifies batches
 
 ### TrustedVerifyBatches
 ```solidity
@@ -579,7 +579,7 @@ Emitted when pending state is consolidated
   )
 ```
 
-Emitted when the admin update the trusted sequencer address
+Emitted when the admin updates the trusted sequencer address
 
 ### SetForceBatchAllowed
 ```solidity
@@ -587,7 +587,7 @@ Emitted when the admin update the trusted sequencer address
   )
 ```
 
-Emitted when the admin update the forcebatch boolean
+Emitted when the admin updates the forcebatch boolean
 
 ### SetTrustedSequencerURL
 ```solidity
@@ -595,7 +595,7 @@ Emitted when the admin update the forcebatch boolean
   )
 ```
 
-Emitted when the admin update the seequencer URL
+Emitted when the admin updates the sequencer URL
 
 ### SetTrustedAggregatorTimeout
 ```solidity
@@ -603,7 +603,7 @@ Emitted when the admin update the seequencer URL
   )
 ```
 
-Emitted when the admin update the trusted aggregator timeout
+Emitted when the admin updates the trusted aggregator timeout
 
 ### SetPendingStateTimeout
 ```solidity
@@ -611,7 +611,7 @@ Emitted when the admin update the trusted aggregator timeout
   )
 ```
 
-Emitted when the admin update the pending state timeout
+Emitted when the admin updates the pending state timeout
 
 ### SetTrustedAggregator
 ```solidity
@@ -619,7 +619,7 @@ Emitted when the admin update the pending state timeout
   )
 ```
 
-Emitted when the admin update the trusted aggregator address
+Emitted when the admin updates the trusted aggregator address
 
 ### SetMultiplierBatchFee
 ```solidity
@@ -627,7 +627,7 @@ Emitted when the admin update the trusted aggregator address
   )
 ```
 
-Emitted when the admin update the multiplier batch fee
+Emitted when the admin updates the multiplier batch fee
 
 ### SetVeryBatchTimeTarget
 ```solidity
@@ -635,7 +635,7 @@ Emitted when the admin update the multiplier batch fee
   )
 ```
 
-Emitted when the admin update the verify batch timeout
+Emitted when the admin updates the verify batch timeout
 
 ### SetAdmin
 ```solidity
@@ -643,7 +643,7 @@ Emitted when the admin update the verify batch timeout
   )
 ```
 
-Emitted when a admin update his address
+Emitted when an admin updates his address
 
 ### ProveNonDeterministicPendingState
 ```solidity
