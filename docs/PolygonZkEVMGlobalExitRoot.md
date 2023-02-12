@@ -47,5 +47,5 @@ Return last global exit root
   )
 ```
 
-Emitted when the the global exit root is updated
+Emitted when the global exit root is updated
 
