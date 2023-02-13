@@ -77,6 +77,7 @@ async function main() {
     const admin = deployParameters.admin || deployer.address;
     const trustedAggregator = deployParameters.trustedAggregator || deployer.address;
     const timelockAddress = deployParameters.timelockAddress || deployer.address;
+    const zkEVMOwner = deployParameters.zkEVMOwner || deployer.address;
 
     /*
      *Deployment MATIC
@@ -316,7 +317,9 @@ async function main() {
     if (!deployParameters.forceBatchAllowed) {
         await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
     }
-
+    if (zkEVMOwner !== deployer.address) {
+        await (await polygonZkEVMContract.transferOwnership(zkEVMOwner)).wait();
+    }
     /*
      *Deployment Time lock
      */
