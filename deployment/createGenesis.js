@@ -1,18 +1,24 @@
-/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if */
+/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if, import/no-dynamic-require */
 /* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
 const { expect } = require('chai');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const { argv } = require('yargs');
 
+const DEFAULT_MNEMONIC = 'test test test test test test test test test test test junk';
 process.env.HARDHAT_NETWORK = 'hardhat';
+process.env.MNEMONIC = argv.test ? DEFAULT_MNEMONIC : process.env.MNEMONIC;
 const { ethers, upgrades } = require('hardhat');
 const {
     MemDB, ZkEVMDB, getPoseidon, smtUtils,
 } = require('@0xpolygonhermez/zkevm-commonjs');
-const deployParameters = require('./deploy_parameters.json');
 
-const pathOutputJson = path.join(__dirname, './genesis.json');
+const deployParametersPath = argv.input ? argv.input : './deploy_parameters.json';
+const deployParameters = require(deployParametersPath);
+
+const outPath = argv.out ? argv.out : './genesis.json';
+const pathOutputJson = path.join(__dirname, outPath);
 
 /*
  * bytes32 internal constant _ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
@@ -279,15 +285,10 @@ async function main() {
         address: deployer.address,
     });
 
-    /*
-     * Add test account
-     * genesis.push({
-     *     accountName: 'test account',
-     *     balance: '100000000000000000000000',
-     *     nonce: '0',
-     *     address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-     * });
-     */
+    if (argv.test) {
+        // Add ether to the deployer
+        genesis[genesis.length - 1].balance = '100000000000000000000000';
+    }
 
     // calculate root
     const poseidon = await getPoseidon();
