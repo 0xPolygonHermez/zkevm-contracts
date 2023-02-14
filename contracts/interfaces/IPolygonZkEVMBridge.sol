@@ -108,6 +108,8 @@ interface IPolygonZkEVMBridge {
         bytes calldata metadata
     ) external;
 
+    function updateGlobalExitRoot() external;
+
     function activateEmergencyState() external;
 
     function deactivateEmergencyState() external;

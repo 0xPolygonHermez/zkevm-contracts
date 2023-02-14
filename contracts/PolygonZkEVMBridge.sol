@@ -53,6 +53,9 @@ contract PolygonZkEVMBridge is
     // Global Exit Root address
     IBasePolygonZkEVMGlobalExitRoot public globalExitRootManager;
 
+    // Last updated deposit count to the global exit root manager
+    uint32 public lastUpdatedDepositCount;
+
     // Leaf index --> claimed bit map
     mapping(uint256 => uint256) public claimedBitMap;
 
@@ -133,6 +136,7 @@ contract PolygonZkEVMBridge is
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
+     * @param forceUpdateGlobalExitRoot Indicates if the new root is updated or not
      * @param permitData Raw data of the call `permit` of the token
      */
     function bridgeAsset(
@@ -140,6 +144,7 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
+        bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState nonReentrant {
         if (
@@ -234,20 +239,23 @@ contract PolygonZkEVMBridge is
                 keccak256(metadata)
             )
         );
-
-        // Update the new exit root to the exit root manager
-        globalExitRootManager.updateExitRoot(getDepositRoot());
+        // Update the new root to the global exit root manager if set by the user
+        if (forceUpdateGlobalExitRoot) {
+            _updateGlobalExitRoot();
+        }
     }
 
     /**
      * @notice Bridge message and send ETH value
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
+     * @param forceUpdateGlobalExitRoot Indicates if the new root is updated or not
      * @param metadata Message metadata
      */
     function bridgeMessage(
         uint32 destinationNetwork,
         address destinationAddress,
+        bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) external payable ifNotEmergencyState {
         if (
@@ -280,7 +288,11 @@ contract PolygonZkEVMBridge is
             )
         );
 
-        // Update the new exit root to the exit root manager
+        // Update the new root to the global exit root manager if set by the user
+        if (forceUpdateGlobalExitRoot) {
+            _updateGlobalExitRoot();
+        }
+
         globalExitRootManager.updateExitRoot(getDepositRoot());
     }
 
@@ -630,6 +642,23 @@ contract PolygonZkEVMBridge is
         if (flipped & mask == 0) {
             revert AlreadyClaimed();
         }
+    }
+
+    /**
+     * @notice Function to update the globalExitRoot if the last deposit is not submitted
+     */
+    function updateGlobalExitRoot() public {
+        if (lastUpdatedDepositCount < depositCount) {
+            _updateGlobalExitRoot();
+        }
+    }
+
+    /**
+     * @notice Function to update the globalExitRoot
+     */
+    function _updateGlobalExitRoot() internal {
+        lastUpdatedDepositCount = uint32(depositCount);
+        globalExitRootManager.updateExitRoot(getDepositRoot());
     }
 
     /**
