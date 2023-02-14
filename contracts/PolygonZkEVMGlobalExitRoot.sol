@@ -25,7 +25,7 @@ contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot {
     mapping(bytes32 => uint256) public globalExitRootMap;
 
     /**
-     * @dev Emitted when the the global exit root is updated
+     * @dev Emitted when the global exit root is updated
      */
     event UpdateGlobalExitRoot(
         bytes32 indexed mainnetExitRoot,
