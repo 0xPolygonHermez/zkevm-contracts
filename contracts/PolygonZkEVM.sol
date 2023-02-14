@@ -280,37 +280,37 @@ contract PolygonZkEVM is
     );
 
     /**
-     * @dev Emitted when the admin update the trusted sequencer address
+     * @dev Emitted when the admin updates the trusted sequencer address
      */
     event SetTrustedSequencer(address newTrustedSequencer);
 
     /**
-     * @dev Emitted when the admin update the sequencer URL
+     * @dev Emitted when the admin updates the sequencer URL
      */
     event SetTrustedSequencerURL(string newTrustedSequencerURL);
 
     /**
-     * @dev Emitted when the admin update the trusted aggregator timeout
+     * @dev Emitted when the admin updates the trusted aggregator timeout
      */
     event SetTrustedAggregatorTimeout(uint64 newTrustedAggregatorTimeout);
 
     /**
-     * @dev Emitted when the admin update the pending state timeout
+     * @dev Emitted when the admin updates the pending state timeout
      */
     event SetPendingStateTimeout(uint64 newPendingStateTimeout);
 
     /**
-     * @dev Emitted when the admin update the trusted aggregator address
+     * @dev Emitted when the admin updates the trusted aggregator address
      */
     event SetTrustedAggregator(address newTrustedAggregator);
 
     /**
-     * @dev Emitted when the admin update the multiplier batch fee
+     * @dev Emitted when the admin updates the multiplier batch fee
      */
     event SetMultiplierBatchFee(uint16 newMultiplierBatchFee);
 
     /**
-     * @dev Emitted when the admin update the verify batch timeout
+     * @dev Emitted when the admin updates the verify batch timeout
      */
     event SetVerifyBatchTimeTarget(uint64 newVerifyBatchTimeTarget);
 
@@ -900,8 +900,8 @@ contract PolygonZkEVM is
     }
 
     /**
-     * @notice Function to update the batch fee based on the new verfied batches
-     * The batch fee will not be updated when the trusted aggregator verify batches
+     * @notice Function to update the batch fee based on the new verified batches
+     * The batch fee will not be updated when the trusted aggregator verifies batches
      * @param newLastVerifiedBatch New last verified batch
      */
     function _updateBatchFee(uint64 newLastVerifiedBatch) internal {
@@ -1326,7 +1326,7 @@ contract PolygonZkEVM is
 
     /**
      * @notice Allows the trusted aggregator to override the pending state
-     * if its possible to prove a different state root given the same batches
+     * if it's possible to prove a different state root given the same batches
      * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -1412,7 +1412,7 @@ contract PolygonZkEVM is
     }
 
     /**
-     * @notice Internal function that prove a different state root given the same batches to verify
+     * @notice Internal function that proves a different state root given the same batches to verify
      * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -1511,7 +1511,7 @@ contract PolygonZkEVM is
     }
 
     /**
-     * @notice Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
+     * @notice Function to activate emergency state, which also enables the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
      * If not called by the owner must be provided a batcnNum that does not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
      * @param sequencedBatchNum Sequenced batch number that has not been aggreagated in _HALT_AGGREGATION_TIMEOUT
      */
@@ -1591,7 +1591,7 @@ contract PolygonZkEVM is
 
     /**
      * @notice Returns a boolean that indicates if the pendingStateNum is or not consolidable
-     * Note that his function do not check if the pending state currently exist, or if it's consolidated already
+     * Note that his function does not check if the pending state currently exists, or if it's consolidated already
      */
     function isPendingStateConsolidable(
         uint64 pendingStateNum
@@ -1619,7 +1619,7 @@ contract PolygonZkEVM is
 
     /**
      * @notice Function to calculate the input snark bytes
-     * @param initNumBatch Batch which the aggregator starts teh verification
+     * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot New local exit root once the batch is processed
      * @param oldStateRoot State root before batch is processed
