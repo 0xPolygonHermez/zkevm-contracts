@@ -36,6 +36,7 @@ async function main() {
 
     // deploy parameters
     const minDelayTimelock = deployParameters.minDelayTimelock || 10; // Should put some default parameter
+    const salt = deployParameters.salt || ethers.constants.HashZero;
 
     // Load provider
     const currentProvider = ethers.provider;
@@ -49,8 +50,6 @@ async function main() {
     } else {
         [deployer] = (await ethers.getSigners());
     }
-
-    const salt = deployParameters.salt || ethers.constants.HashZero;
 
     // Check address from deploy parameters
     const timelockAddress = deployParameters.timelockAddress || deployer.address;

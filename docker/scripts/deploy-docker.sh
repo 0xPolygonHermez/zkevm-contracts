@@ -5,7 +5,8 @@ sleep 5
 node docker/scripts/fund-accounts.js
 cp docker/scripts/deploy_parameters_docker.json deployment/deploy_parameters.json
 cp docker/scripts/genesis_docker.json deployment/genesis.json
-npx hardhat run deployment/deployTestnet.js --network localhost
+npx hardhat run deployment/testnet/prepareTestnet.js --network localhost
+npx hardhat run deployment/deployContracts.js --network localhost
 mkdir docker/deploymentOutput
 mv deployment/deploy_output.json docker/deploymentOutput
 docker-compose -f docker/docker-compose.geth.yml down

@@ -23,17 +23,15 @@ async function main() {
     const attemptsDeployProxy = 20;
 
     // Check deploy parameters
-    const trustedSequencer = deployParameters.trustedSequencerAddress;
     const trustedSequencerURL = deployParameters.trustedSequencerURL || 'http://zkevm-json-rpc:8123';
     const realVerifier = deployParameters.realVerifier || false;
-    const { chainID, networkName } = deployParameters;
     const minDelayTimelock = deployParameters.minDelayTimelock || 10; // Should put some default parameter
     const forkID = deployParameters.forkID || 0;
-    const version = '0.0.1';
-
+    const version = deployParameters.version || '0.0.1';
     const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1); // 1 week minus 1
     const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1); // 1 week minus 1
-
+    const { chainID, networkName, maticTokenAddress } = deployParameters;
+    const isTestnet = deployParameters.testnet || false;
     // Salt used for create2 deployment
     const salt = deployParameters.salt || ethers.constants.HashZero;
 
@@ -74,29 +72,11 @@ async function main() {
     }
 
     // Check trusted address from deploy parameters
+    const trustedSequencer = deployParameters.trustedSequencerAddress;
+    const { trustedAggregator } = deployParameters;
     const admin = deployParameters.admin || deployer.address;
-    const trustedAggregator = deployParameters.trustedAggregator || deployer.address;
     const timelockAddress = deployParameters.timelockAddress || deployer.address;
     const zkEVMOwner = deployParameters.zkEVMOwner || deployer.address;
-
-    /*
-     *Deployment MATIC
-     */
-    const maticTokenName = 'Matic Token';
-    const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
-
-    const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock', deployer);
-    const maticTokenContract = await maticTokenFactory.deploy(
-        maticTokenName,
-        maticTokenSymbol,
-        deployer.address,
-        maticTokenInitialBalance,
-    );
-    await maticTokenContract.deployed();
-
-    console.log('#######################\n');
-    console.log('Matic deployed to:', maticTokenContract.address);
 
     /*
      *Deployment verifier
@@ -133,7 +113,7 @@ async function main() {
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
-    const overrideGasLimit = ethers.BigNumber.from(6000000); // ; // Should be more than enough with 5M
+    const overrideGasLimit = ethers.BigNumber.from(5000000); // Should be more than enough with 5M
     const bridgeImplementationAddress = await create2Deployment(
         zkEVMDeployerContract,
         salt,
@@ -145,7 +125,7 @@ async function main() {
 
     /*
      * deploy proxy
-     * Do not initialize directlythe proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
+     * Do not initialize directly the proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
      */
     const transparentProxyFactory = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
     const initializeEmptyDataProxy = '0x';
@@ -224,7 +204,7 @@ async function main() {
     console.log('#######################');
     console.log('deployer:', deployer.address);
     console.log('PolygonZkEVMGlobalExitRootAddress:', polygonZkEVMGlobalExitRoot.address);
-    console.log('maticTokenAddress:', maticTokenContract.address);
+    console.log('maticTokenAddress:', maticTokenAddress);
     console.log('verifierAddress:', verifierContract.address);
     console.log('polygonZkEVMBridgeContract:', polygonZkEVMBridgeContract.address);
 
@@ -240,7 +220,13 @@ async function main() {
     console.log('networkName:', networkName);
     console.log('networkName:', forkID);
 
-    const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMTestnet', deployer);
+    let PolygonZkEVMFactory;
+    if (isTestnet) {
+        PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMTestnet', deployer);
+    } else {
+        PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVM', deployer);
+    }
+
     let polygonZkEVMContract;
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
@@ -262,7 +248,7 @@ async function main() {
                 {
                     constructorArgs: [
                         polygonZkEVMGlobalExitRoot.address,
-                        maticTokenContract.address,
+                        maticTokenAddress,
                         verifierContract.address,
                         polygonZkEVMBridgeContract.address,
                         chainID,
@@ -314,9 +300,11 @@ async function main() {
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
     // Unactivate the forced Batches checking flag
-    if (!deployParameters.forceBatchAllowed) {
+    if (isTestnet && deployParameters.disallowForceBatches) {
         await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
     }
+
+    // Transfer ownership of polygonZkEVMContract
     if (zkEVMOwner !== deployer.address) {
         await (await polygonZkEVMContract.transferOwnership(zkEVMOwner)).wait();
     }
@@ -357,40 +345,11 @@ async function main() {
 
     const deploymentBlockNumber = (await polygonZkEVMContract.deployTransaction.wait()).blockNumber;
 
-    // fund sequencer account with tokens and ether if it have less than 0.1 ether.
-    const balanceEther = await ethers.provider.getBalance(trustedSequencer);
-    const minEtherBalance = ethers.utils.parseEther('0.1');
-    if (balanceEther < minEtherBalance) {
-        const params = {
-            to: trustedSequencer,
-            value: minEtherBalance,
-        };
-        await deployer.sendTransaction(params);
-    }
-    const tokensBalance = ethers.utils.parseEther('100000');
-    await (await maticTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
-
-    // fund aggregator account with ether if it have less than 0.1 ether.
-    const balanceEtherAggr = await ethers.provider.getBalance(trustedAggregator);
-    if (balanceEtherAggr < minEtherBalance) {
-        const params = {
-            to: trustedAggregator,
-            value: minEtherBalance,
-        };
-        await deployer.sendTransaction(params);
-    }
-
-    // approve tokens for trusted sequencer
-    if (deployParameters.trustedSequencerPvtKey) {
-        const trustedSequencerWallet = new ethers.Wallet(deployParameters.trustedSequencerPvtKey, currentProvider);
-        await maticTokenContract.connect(trustedSequencerWallet).approve(polygonZkEVMContract.address, ethers.constants.MaxUint256);
-    }
-
     const outputJson = {
         polygonZkEVMAddress: polygonZkEVMContract.address,
         polygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.address,
         polygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot.address,
-        maticTokenAddress: maticTokenContract.address,
+        maticTokenAddress,
         verifierAddress: verifierContract.address,
         zkEVMDeployerContract: zkEVMDeployerContract.address,
         deployerAddress: deployer.address,
