@@ -109,6 +109,9 @@ async function main() {
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
     const proxyAdminAddress = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin);
 
+    console.log('#######################\n');
+    console.log('Proxy admin deployed to:', proxyAdminAddress);
+
     // Deploy implementation PolygonZkEVMBridg
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
@@ -122,6 +125,9 @@ async function main() {
         deployer,
         overrideGasLimit,
     );
+
+    console.log('#######################\n');
+    console.log('bridge impl deployed to:', bridgeImplementationAddress);
 
     /*
      * deploy proxy
@@ -430,6 +436,10 @@ async function create2Deployment(polgonZKEVMDeployerContract, salt, deployTransa
     // Precalculate create2 address
     const precalculatedAddressDeployed = ethers.utils.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
     const amount = 0;
+
+    if (await ethers.provider.getCode(precalculatedAddressDeployed) !== '0x') {
+        return precalculatedAddressDeployed;
+    }
 
     if (dataCall) {
         // Deploy using create2 and call
