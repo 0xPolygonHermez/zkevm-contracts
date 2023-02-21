@@ -140,7 +140,7 @@ contract PlonkVerifier {
     
     uint16 constant lastMem = 1920;
 
-    function verifyProof(bytes memory proof, uint[1] memory pubSignals) public view returns (bool) {
+    function verifyProof(bytes memory proof, uint[1] calldata pubSignals) public view returns (bool) {
         assembly {
             // Computes the inverse of an array of values
             // See https://vitalik.ca/general/2018/07/21/starks_part_3.html in section where explain fields operations
@@ -227,7 +227,7 @@ contract PlonkVerifier {
             function computeChallenges(pProof, pMem, pPublic) {
                 // Compute challenge.beta & challenge.gamma
                 
-                mstore( add(pMem, 1920 ), mload( pPublic))
+                mstore( add(pMem, 1920 ), calldataload( pPublic))
                 
                 mstore( add(pMem, 1952 ),  mload( add( pProof, pC1)))
                 mstore( add(pMem, 1984 ),  mload( add( pProof, add(pC1, 32))))
@@ -445,7 +445,7 @@ contract PlonkVerifier {
                 let pi := 0
 
                 
-                pi := mod(add(sub(pi, mulmod(mload(add(pMem, pEval_l1)),mload(pPub), q)), q), q)
+                pi := mod(add(sub(pi, mulmod(mload(add(pMem, pEval_l1)), calldataload(pPub), q)), q), q)
                 
 
                 mstore(add(pMem, pPi), pi)
@@ -763,7 +763,6 @@ contract PlonkVerifier {
             // Validate all evaluations
             let isValid := checkPairing(proof, pMem)
 
-            mstore(0x40, sub(pMem, lastMem))
             mstore(0, isValid)
             return(0,0x20)
         }

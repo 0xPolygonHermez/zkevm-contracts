@@ -83,7 +83,7 @@ async function main() {
      */
     let verifierContract;
     if (realVerifier === true) {
-        const VerifierRollup = await ethers.getContractFactory('Verifier', deployer);
+        const VerifierRollup = await ethers.getContractFactory('PlonkVerifier', deployer);
         verifierContract = await VerifierRollup.deploy();
         await verifierContract.deployed();
     } else {
@@ -113,7 +113,7 @@ async function main() {
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
-    const overrideGasLimit = ethers.BigNumber.from(5000000); // Should be more than enough with 5M
+    const overrideGasLimit = ethers.BigNumber.from(5500000); // Should be more than enough with 5M
     const bridgeImplementationAddress = await create2Deployment(
         zkEVMDeployerContract,
         salt,
