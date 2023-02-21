@@ -136,7 +136,7 @@ contract PolygonZkEVMBridge is
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
      * @param token Token address, 0 address is reserved for ether
-     * @param forceUpdateGlobalExitRoot Indicates if the new root is updated or not
+     * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
      * @param permitData Raw data of the call `permit` of the token
      */
     function bridgeAsset(
@@ -249,7 +249,7 @@ contract PolygonZkEVMBridge is
      * @notice Bridge message and send ETH value
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
-     * @param forceUpdateGlobalExitRoot Indicates if the new root is updated or not
+     * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
      * @param metadata Message metadata
      */
     function bridgeMessage(

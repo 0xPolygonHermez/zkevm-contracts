@@ -43,7 +43,7 @@ Deposit add a new leaf to the merkle tree
 |`destinationAddress` | address | Address destination
 |`amount` | uint256 | Amount of tokens
 |`token` | address | Token address, 0 address is reserved for ether
-|`forceUpdateGlobalExitRoot` | bool | Indicates if the new root is updated or not
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
 |`permitData` | bytes | Raw data of the call `permit` of the token
 
 ### bridgeMessage
@@ -63,7 +63,7 @@ Bridge message and send ETH value
 | :--- | :--- | :------------------------------------------------------------------- |
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
-|`forceUpdateGlobalExitRoot` | bool | Indicates if the new root is updated or not
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
 |`metadata` | bytes | Message metadata
 
 ### claimAsset

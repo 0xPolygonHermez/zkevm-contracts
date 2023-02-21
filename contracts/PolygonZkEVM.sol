@@ -580,7 +580,7 @@ contract PolygonZkEVM is
         // Consolidate pending state if possible
         _tryConsolidatePendingState();
 
-        // Update global exit root if there's new deposits
+        // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
 
         emit SequenceBatches(currentBatchSequenced);
