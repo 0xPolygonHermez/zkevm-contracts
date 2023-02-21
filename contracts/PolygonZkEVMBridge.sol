@@ -132,18 +132,18 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
-     * @param token Token address, 0 address is reserved for ether
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
+     * @param token Token address, 0 address is reserved for ether
      * @param forceUpdateGlobalExitRoot Indicates if the new root is updated or not
      * @param permitData Raw data of the call `permit` of the token
      */
     function bridgeAsset(
-        address token,
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
+        address token,
         bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState nonReentrant {
@@ -292,8 +292,6 @@ contract PolygonZkEVMBridge is
         if (forceUpdateGlobalExitRoot) {
             _updateGlobalExitRoot();
         }
-
-        globalExitRootManager.updateExitRoot(getDepositRoot());
     }
 
     /**
@@ -647,7 +645,7 @@ contract PolygonZkEVMBridge is
     /**
      * @notice Function to update the globalExitRoot if the last deposit is not submitted
      */
-    function updateGlobalExitRoot() public {
+    function updateGlobalExitRoot() external {
         if (lastUpdatedDepositCount < depositCount) {
             _updateGlobalExitRoot();
         }

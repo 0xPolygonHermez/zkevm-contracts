@@ -98,7 +98,7 @@ describe('PolygonZkEVMBridge Contract Permit tests', () => {
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 
-        await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(destinationNetwork, destinationAddress, amount, tokenAddress, true, '0x'))
             .to.be.revertedWith('ERC20: insufficient allowance');
 
         // user permit
@@ -126,7 +126,7 @@ describe('PolygonZkEVMBridge Contract Permit tests', () => {
             s,
         ]);
 
-        await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, dataPermit))
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(destinationNetwork, destinationAddress, amount, tokenAddress, true, dataPermit))
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(polygonZkEVMGlobalExitRoot, 'UpdateGlobalExitRoot')
@@ -198,7 +198,7 @@ describe('PolygonZkEVMBridge Contract Permit tests', () => {
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 
-        await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(destinationNetwork, destinationAddress, amount, tokenAddress, true, '0x'))
             .to.be.revertedWith('Dai/insufficient-allowance');
 
         // user permit
@@ -224,7 +224,7 @@ describe('PolygonZkEVMBridge Contract Permit tests', () => {
             s,
         ]);
 
-        await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, dataPermit))
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(destinationNetwork, destinationAddress, amount, tokenAddress, true, dataPermit))
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(polygonZkEVMGlobalExitRoot, 'UpdateGlobalExitRoot')
@@ -297,7 +297,7 @@ describe('PolygonZkEVMBridge Contract Permit tests', () => {
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 
-        await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(destinationNetwork, destinationAddress, amount, tokenAddress, true, '0x'))
             .to.be.revertedWith('Uni::transferFrom: transfer amount exceeds spender allowance');
 
         // user permit
@@ -324,7 +324,7 @@ describe('PolygonZkEVMBridge Contract Permit tests', () => {
             s,
         ]);
 
-        await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, dataPermit))
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(destinationNetwork, destinationAddress, amount, tokenAddress, true, dataPermit))
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(polygonZkEVMGlobalExitRoot, 'UpdateGlobalExitRoot')

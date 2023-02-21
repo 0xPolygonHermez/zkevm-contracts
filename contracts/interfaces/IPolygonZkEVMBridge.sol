@@ -69,16 +69,18 @@ interface IPolygonZkEVMBridge {
     error NotValidSignature();
 
     function bridgeAsset(
-        address token,
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
+        address token,
+        bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
     ) external payable;
 
     function bridgeMessage(
         uint32 destinationNetwork,
         address destinationAddress,
+        bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) external payable;
 
