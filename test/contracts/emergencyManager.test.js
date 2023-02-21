@@ -168,12 +168,7 @@ describe('Emergency mode test', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()).toNumber() + 1;
-        const proofA = ['0', '0'];
-        const proofB = [
-            ['0', '0'],
-            ['0', '0'],
-        ];
-        const proofC = ['0', '0'];
+        const zkProofFFlonk = '0x';
         const pendingStateNum = 0;
 
         await expect(
@@ -183,9 +178,7 @@ describe('Emergency mode test', () => {
                 numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('OnlyNotEmergencyState');
 
@@ -285,9 +278,7 @@ describe('Emergency mode test', () => {
                 numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(numBatch, newStateRoot, trustedAggregator.address);
@@ -310,9 +301,7 @@ describe('Emergency mode test', () => {
                 numBatch - 1,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalNumBatchDoesNotMatchPendingState');
 
@@ -324,9 +313,7 @@ describe('Emergency mode test', () => {
                 numBatch + 1,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalNumBatchDoesNotMatchPendingState');
 
@@ -340,9 +327,7 @@ describe('Emergency mode test', () => {
                 numBatch,
                 newLocalExitRoot,
                 newStateRootDistinct,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'ProveNonDeterministicPendingState').withArgs(newStateRoot, newStateRootDistinct)
             .to.emit(polygonZkEVMContract, 'EmergencyStateActivated')

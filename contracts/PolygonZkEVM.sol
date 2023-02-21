@@ -590,9 +590,7 @@ contract PolygonZkEVM is
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param proofA zk-snark input
-     * @param proofB zk-snark input
-     * @param proofC zk-snark input
+     * @param proof fflonk proof
      */
     function verifyBatches(
         uint64 pendingStateNum,
@@ -600,9 +598,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
+        bytes calldata proof
     ) external ifNotEmergencyState {
         // Check if the trusted aggregator timeout expired,
         // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
@@ -624,9 +620,7 @@ contract PolygonZkEVM is
             finalNewBatch,
             newLocalExitRoot,
             newStateRoot,
-            proofA,
-            proofB,
-            proofC
+            proof
         );
 
         // Update batch fees
@@ -669,9 +663,7 @@ contract PolygonZkEVM is
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param proofA zk-snark input
-     * @param proofB zk-snark input
-     * @param proofC zk-snark input
+     * @param proof fflonk proof
      */
     function verifyBatchesTrustedAggregator(
         uint64 pendingStateNum,
@@ -679,9 +671,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
+        bytes calldata proof
     ) external onlyTrustedAggregator {
         _verifyAndRewardBatches(
             pendingStateNum,
@@ -689,9 +679,7 @@ contract PolygonZkEVM is
             finalNewBatch,
             newLocalExitRoot,
             newStateRoot,
-            proofA,
-            proofB,
-            proofC
+            proof
         );
 
         // Consolidate state
@@ -721,9 +709,7 @@ contract PolygonZkEVM is
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param proofA zk-snark input
-     * @param proofB zk-snark input
-     * @param proofC zk-snark input
+     * @param proof fflonk proof
      */
     function _verifyAndRewardBatches(
         uint64 pendingStateNum,
@@ -731,9 +717,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
+        bytes calldata proof
     ) internal {
         bytes32 oldStateRoot;
         uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
@@ -788,9 +772,8 @@ contract PolygonZkEVM is
 
         // Calulate the snark input
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
-
         // Verify proof
-        if (!rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark])) {
+        if (!rollupVerifier.verifyProof(proof, [inputSnark])) {
             revert InvalidProof();
         }
 
@@ -1286,9 +1269,7 @@ contract PolygonZkEVM is
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param proofA zk-snark input
-     * @param proofB zk-snark input
-     * @param proofC zk-snark input
+     * @param proof fflonk proof
      */
     function overridePendingState(
         uint64 initPendingStateNum,
@@ -1297,9 +1278,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
+        bytes calldata proof
     ) external onlyTrustedAggregator {
         _proveDistinctPendingState(
             initPendingStateNum,
@@ -1308,9 +1287,7 @@ contract PolygonZkEVM is
             finalNewBatch,
             newLocalExitRoot,
             newStateRoot,
-            proofA,
-            proofB,
-            proofC
+            proof
         );
 
         // Consolidate state state
@@ -1340,9 +1317,7 @@ contract PolygonZkEVM is
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param proofA zk-snark input
-     * @param proofB zk-snark input
-     * @param proofC zk-snark input
+     * @param proof fflonk proof
      */
     function proveNonDeterministicPendingState(
         uint64 initPendingStateNum,
@@ -1351,9 +1326,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
+        bytes calldata proof
     ) external ifNotEmergencyState {
         _proveDistinctPendingState(
             initPendingStateNum,
@@ -1362,9 +1335,7 @@ contract PolygonZkEVM is
             finalNewBatch,
             newLocalExitRoot,
             newStateRoot,
-            proofA,
-            proofB,
-            proofC
+            proof
         );
 
         emit ProveNonDeterministicPendingState(
@@ -1384,9 +1355,7 @@ contract PolygonZkEVM is
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param proofA zk-snark input
-     * @param proofB zk-snark input
-     * @param proofC zk-snark input
+     * @param proof fflonk proof
      */
     function _proveDistinctPendingState(
         uint64 initPendingStateNum,
@@ -1395,9 +1364,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
+        bytes calldata proof
     ) internal view {
         bytes32 oldStateRoot;
 
@@ -1467,7 +1434,7 @@ contract PolygonZkEVM is
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
-        if (!rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark])) {
+        if (!rollupVerifier.verifyProof(proof, [inputSnark])) {
             revert InvalidProof();
         }
 

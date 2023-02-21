@@ -20,9 +20,7 @@ describe('Real prover inputs test', () => {
     });
 
     it('Test real prover', async () => {
-        const {
-            proof
-        } = generateSolidityInputs(proofJson);
+        const proof = generateSolidityInputs(proofJson);
 
         expect(await verifierContract.verifyProof(
             proof,

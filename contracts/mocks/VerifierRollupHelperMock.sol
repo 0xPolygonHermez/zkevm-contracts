@@ -6,10 +6,8 @@ import "../interfaces/IVerifierRollup.sol";
 
 contract VerifierRollupHelperMock is IVerifierRollup {
     function verifyProof(
-        uint256[2] calldata a,
-        uint256[2][2] calldata b,
-        uint256[2] calldata c,
-        uint256[1] calldata input
+        bytes memory proof, 
+        uint256[1] memory pubSignals
     ) public view override returns (bool) {
         return true;
     }
