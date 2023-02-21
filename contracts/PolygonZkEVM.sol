@@ -580,6 +580,9 @@ contract PolygonZkEVM is
         // Consolidate pending state if possible
         _tryConsolidatePendingState();
 
+        // Update global exit root if there are new deposits
+        bridgeAddress.updateGlobalExitRoot();
+
         emit SequenceBatches(currentBatchSequenced);
     }
 
@@ -877,7 +880,7 @@ contract PolygonZkEVM is
         uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
         uint64 currentBatch = newLastVerifiedBatch;
 
-        uint256 totalBatchesBelowTarget;
+        uint256 totalBatchesAboveTarget;
         uint256 newBatchesVerified = newLastVerifiedBatch -
             currentLastVerifiedBatch;
 
@@ -894,21 +897,20 @@ contract PolygonZkEVM is
             if (
                 targetTimestamp < currentSequencedBatchData.sequencedTimestamp
             ) {
-                totalBatchesBelowTarget +=
-                    currentBatch -
-                    currentSequencedBatchData.previousLastBatchSequenced;
-
                 // update currentBatch
                 currentBatch = currentSequencedBatchData
                     .previousLastBatchSequenced;
             } else {
-                // Since the rest of batches will be above
+                // The rest of batches will be above
+                totalBatchesAboveTarget =
+                    currentBatch -
+                    currentLastVerifiedBatch;
                 break;
             }
         }
 
-        uint256 totalBatchesAboveTarget = newBatchesVerified -
-            totalBatchesBelowTarget;
+        uint256 totalBatchesBelowTarget = newBatchesVerified -
+            totalBatchesAboveTarget;
 
         // _MAX_BATCH_FEE --> (< 70 bits)
         // multiplierBatchFee --> (< 10 bits)

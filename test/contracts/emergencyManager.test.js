@@ -189,16 +189,18 @@ describe('Emergency mode test', () => {
         const destinationAddress = deployer.address;
 
         await expect(polygonZkEVMBridgeContract.bridgeAsset(
-            tokenAddress,
             destinationNetwork,
             destinationAddress,
             amount,
+            tokenAddress,
+            true,
             '0x',
         )).to.be.revertedWith('OnlyNotEmergencyState');
 
         await expect(polygonZkEVMBridgeContract.bridgeMessage(
             destinationNetwork,
             destinationAddress,
+            true,
             '0x',
         )).to.be.revertedWith('OnlyNotEmergencyState');
 

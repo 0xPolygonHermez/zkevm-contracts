@@ -25,10 +25,11 @@ emergency state is not possible for the L2 deployment of the bridge, intentional
 ### bridgeAsset
 ```solidity
   function bridgeAsset(
-    address token,
     uint32 destinationNetwork,
     address destinationAddress,
     uint256 amount,
+    address token,
+    bool forceUpdateGlobalExitRoot,
     bytes permitData
   ) public
 ```
@@ -38,10 +39,11 @@ Deposit add a new leaf to the merkle tree
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | address | Token address, 0 address is reserved for ether
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
 |`amount` | uint256 | Amount of tokens
+|`token` | address | Token address, 0 address is reserved for ether
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
 |`permitData` | bytes | Raw data of the call `permit` of the token
 
 ### bridgeMessage
@@ -49,6 +51,7 @@ Deposit add a new leaf to the merkle tree
   function bridgeMessage(
     uint32 destinationNetwork,
     address destinationAddress,
+    bool forceUpdateGlobalExitRoot,
     bytes metadata
   ) external
 ```
@@ -60,6 +63,7 @@ Bridge message and send ETH value
 | :--- | :--- | :------------------------------------------------------------------- |
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
 |`metadata` | bytes | Message metadata
 
 ### claimAsset
@@ -237,6 +241,24 @@ Function to check if an index is claimed or not
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`index` | uint256 | Index
+
+### updateGlobalExitRoot
+```solidity
+  function updateGlobalExitRoot(
+  ) external
+```
+Function to update the globalExitRoot if the last deposit is not submitted
+
+
+
+### _updateGlobalExitRoot
+```solidity
+  function _updateGlobalExitRoot(
+  ) internal
+```
+Function to update the globalExitRoot
+
+
 
 ### _permit
 ```solidity
