@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0
 /*
     Copyright 2021 0KIMS association.
-
     This file is generated with [snarkJS](https://github.com/iden3/snarkjs).
-
     snarkJS is a free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-
     snarkJS is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
     or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
     License for more details.
-
     You should have received a copy of the GNU General Public License
     along with snarkJS. If not, see <https://www.gnu.org/licenses/>.
 */
@@ -44,8 +40,8 @@ contract PlonkVerifier {
     uint256 constant w8_6 = 4407920970296243842541313971887945403937097133418418784715;
     uint256 constant w8_7 = 8613538655231327379234925296132678673308827349856085326283699237864372525723;
     uint256 constant wr   = 18200100796661656210024324131237448517259556535315737226009542456080026430510;
-    uint256 constant C0x  = 13789879569041115743246705324428015295223196736775065351975656039292208401413;
-    uint256 constant C0y  = 2400450833441888847783208584184906040116252366800089544669128443775730873353;
+    uint256 constant C0x  = 5227931756009316946900638112732583511636875699168893266940590627831668998461;
+    uint256 constant C0y  = 7783297736993118909236799158880233923464754710776773647620237759645227949962;
     uint256 constant X2x1 = 21831381940315734285607113342023901060522397560371972897001948545212302161822;
     uint256 constant X2x2 = 17231025384763736816414546592865244497437017442647097510447326538965263639101;
     uint256 constant X2y1 = 2388026358213174446665280700919698872609886601280537296205114254867301080648;
@@ -140,7 +136,7 @@ contract PlonkVerifier {
     
     uint16 constant lastMem = 1920;
 
-    function verifyProof(bytes memory proof, uint[1] calldata pubSignals) public view returns (bool) {
+    function verifyProof(bytes memory proof, uint256[1] calldata pubSignals) public view returns (bool) {
         assembly {
             // Computes the inverse of an array of values
             // See https://vitalik.ca/general/2018/07/21/starks_part_3.html in section where explain fields operations
@@ -226,8 +222,7 @@ contract PlonkVerifier {
 
             function computeChallenges(pProof, pMem, pPublic) {
                 // Compute challenge.beta & challenge.gamma
-                
-                mstore( add(pMem, 1920 ), calldataload( pPublic))
+                mstore( add(pMem, 1920), calldataload(pPublic))
                 
                 mstore( add(pMem, 1952 ),  mload( add( pProof, pC1)))
                 mstore( add(pMem, 1984 ),  mload( add( pProof, add(pC1, 32))))
@@ -373,21 +368,21 @@ contract PlonkVerifier {
 
                 // Denominator needed in the verifier when computing L_i^{S1}(X)
                 
-                    mstore(add(pMem, add(pLiS0Inv, 0)), calcLagrangeItem(pMem, 0, 7, add(pH0w8_0, 0), pH0w8_0))
+                mstore(add(pMem, add(pLiS0Inv, 0)), calcLagrangeItem(pMem, 0, 7, add(pH0w8_0, 0), pH0w8_0))
                 
-                    mstore(add(pMem, add(pLiS0Inv, 32)), calcLagrangeItem(pMem, 1, 7, add(pH0w8_0, 32), pH0w8_0))
+                mstore(add(pMem, add(pLiS0Inv, 32)), calcLagrangeItem(pMem, 1, 7, add(pH0w8_0, 32), pH0w8_0))
                 
-                    mstore(add(pMem, add(pLiS0Inv, 64)), calcLagrangeItem(pMem, 2, 7, add(pH0w8_0, 64), pH0w8_0))
+                mstore(add(pMem, add(pLiS0Inv, 64)), calcLagrangeItem(pMem, 2, 7, add(pH0w8_0, 64), pH0w8_0))
                 
-                    mstore(add(pMem, add(pLiS0Inv, 96)), calcLagrangeItem(pMem, 3, 7, add(pH0w8_0, 96), pH0w8_0))
+                mstore(add(pMem, add(pLiS0Inv, 96)), calcLagrangeItem(pMem, 3, 7, add(pH0w8_0, 96), pH0w8_0))
                 
-                    mstore(add(pMem, add(pLiS0Inv, 128)), calcLagrangeItem(pMem, 4, 7, add(pH0w8_0, 128), pH0w8_0))
+                mstore(add(pMem, add(pLiS0Inv, 128)), calcLagrangeItem(pMem, 4, 7, add(pH0w8_0, 128), pH0w8_0))
                 
-                    mstore(add(pMem, add(pLiS0Inv, 160)), calcLagrangeItem(pMem, 5, 7, add(pH0w8_0, 160), pH0w8_0))
+                mstore(add(pMem, add(pLiS0Inv, 160)), calcLagrangeItem(pMem, 5, 7, add(pH0w8_0, 160), pH0w8_0))
                 
-                    mstore(add(pMem, add(pLiS0Inv, 192)), calcLagrangeItem(pMem, 6, 7, add(pH0w8_0, 192), pH0w8_0))
+                mstore(add(pMem, add(pLiS0Inv, 192)), calcLagrangeItem(pMem, 6, 7, add(pH0w8_0, 192), pH0w8_0))
                 
-                    mstore(add(pMem, add(pLiS0Inv, 224)), calcLagrangeItem(pMem, 7, 7, add(pH0w8_0, 224), pH0w8_0))
+                mstore(add(pMem, add(pLiS0Inv, 224)), calcLagrangeItem(pMem, 7, 7, add(pH0w8_0, 224), pH0w8_0))
                 
 
                 // Denominator needed in the verifier when computing L_i^{S1}(X)
@@ -443,8 +438,6 @@ contract PlonkVerifier {
             // Compute public input polynomial evaluation PI(xi)
             function computePi(pMem, pPub) {
                 let pi := 0
-
-                
                 pi := mod(add(sub(pi, mulmod(mload(add(pMem, pEval_l1)), calldataload(pPub), q)), q), q)
                 
 
