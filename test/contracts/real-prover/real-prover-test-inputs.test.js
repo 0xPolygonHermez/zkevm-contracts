@@ -14,7 +14,7 @@ describe('Real prover inputs test', () => {
     beforeEach('Deploy contract', async () => {
         // deploy mock verifier
         const VerifierFactory = await ethers.getContractFactory(
-            'PlonkVerifier',
+            'FflonkVerifier',
         );
         verifierContract = await VerifierFactory.deploy();
     });

@@ -83,7 +83,7 @@ async function main() {
      */
     let verifierContract;
     if (realVerifier === true) {
-        const VerifierRollup = await ethers.getContractFactory('PlonkVerifier', deployer);
+        const VerifierRollup = await ethers.getContractFactory('FflonkVerifier', deployer);
         verifierContract = await VerifierRollup.deploy();
         await verifierContract.deployed();
     } else {
@@ -369,6 +369,8 @@ async function main() {
         admin,
         trustedAggregator,
         proxyAdminAddress,
+        forkID,
+        salt,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }

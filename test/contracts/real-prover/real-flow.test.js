@@ -59,7 +59,7 @@ describe('Real flow test', () => {
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
-            'PlonkVerifier',
+            'FflonkVerifier',
         );
         verifierContract = await VerifierRollupHelperFactory.deploy();
 
