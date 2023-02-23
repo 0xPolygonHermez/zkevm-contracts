@@ -1,7 +1,7 @@
 {
   "name": "@0xpolygonhermez/zkevm-contracts",
   "description": "Core contracts for the Polygon Hermez zkEVM",
-  "version": "0.6.0.0",
+  "version": "0.8.0.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPolygonHermez/contracts-zkEVM.git"
@@ -70,7 +70,7 @@
     "deploy:testnet:ZkEVM:goerli": "npm run prepare:testnet:ZkEVM:goerli && npm run deploy:ZkEVM:goerli",
     "upgrade:timelock:goerli": "npx hardhat run upgrade/timeLockUpgrade.js --network goerli",
     "verify:ZkEVM:goerli": "npx hardhat run deployment/verifyContracts.js --network goerli",
-    "lint": "npx eslint ./test && npx eslint ./docker/scripts && npx eslint ./deployment && npx eslint ./src",
+    "lint": "npx eslint ./test && npx eslint ./docker/scripts && npx eslint ./deployment && npx eslint ./src && npx eslint index.js",
     "lint:fix": "npx eslint ./test --fix && npx eslint ./docker/scripts --fix && npx eslint ./deployment --fix && npx eslint ./src --fix",
     "compile": "npx hardhat compile",
     "docker:contracts": "./docker/scripts/deploy-docker.sh",
