@@ -57,7 +57,7 @@ async function main() {
     const timelockAddress = deployParameters.timelockAddress || deployer.address;
 
     // Deploy PolygonZkEVMDeployer if is not deployed already
-    const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(deployer);
+    const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(deployer.address, deployer);
 
     /*
      * Deploy Bridge
@@ -68,14 +68,14 @@ async function main() {
     const proxyAdminFactory = await ethers.getContractFactory('ProxyAdmin', deployer);
     const deployTransactionAdmin = (proxyAdminFactory.getDeployTransaction()).data;
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
-    const proxyAdminAddress = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
+    const [proxyAdminAddress,] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
 
     // Deploy implementation PolygonZkEVMBridg
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(5500000);
-    const bridgeImplementationAddress = await create2Deployment(
+    const [bridgeImplementationAddress,] = await create2Deployment(
         zkEVMDeployerContract,
         salt,
         deployTransactionBridge,
@@ -104,7 +104,7 @@ async function main() {
             zkevmAddressL2,
         ],
     );
-    const proxyBridgeAddress = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
+    const [proxyBridgeAddress,] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
 
     // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
     await upgrades.forceImport(proxyBridgeAddress, polygonZkEVMBridgeFactory, 'transparent');

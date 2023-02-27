@@ -3,15 +3,15 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-async function deployPolygonZkEVMDeployer(deployer) {
-    const PolgonZKEVMDeployerFactory = await ethers.getContractFactory('PolygonZkEVMDeployer', deployer);
+async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
+    const PolgonZKEVMDeployerFactory = await ethers.getContractFactory('PolygonZkEVMDeployer', signer);
 
     const deployTxZKEVMDeployer = (PolgonZKEVMDeployerFactory.getDeployTransaction(
-        deployer.address,
+        deployerAddress,
     )).data;
 
     const gasLimit = ethers.BigNumber.from(1000000); // Put 1 Million, aprox 650k are necessary
-    const gasPrice = ethers.BigNumber.from(ethers.utils.parseUnits('100', 'gwei')); // just in case , seems pretty standard
+    const gasPrice = ethers.BigNumber.from(ethers.utils.parseUnits('100', 'gwei')); // just in case, seems pretty standard
     const to = '0x'; // bc deployment transaction, "to" is "0x"
     const tx = {
         to,
@@ -33,10 +33,10 @@ async function deployPolygonZkEVMDeployer(deployer) {
 
     // Check if it's already deployed
     const zkEVMDeployerAddress = ethers.utils.getContractAddress(resultTransaction);
-    if (await deployer.provider.getCode(zkEVMDeployerAddress) !== '0x') {
+    if (await signer.provider.getCode(zkEVMDeployerAddress) !== '0x') {
         const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress);
         expect(await zkEVMDeployerContract.owner()).to.be.equal(deployer.address);
-        return zkEVMDeployerContract;
+        return [zkEVMDeployerContract, ethers.constants.AddressZero];
     }
 
     // Fund keyless deployment
@@ -44,13 +44,13 @@ async function deployPolygonZkEVMDeployer(deployer) {
         to: resultTransaction.from,
         value: totalEther.toHexString(),
     };
-    await (await deployer.sendTransaction(params)).wait();
+    await (await signer.sendTransaction(params)).wait();
 
     // Deploy zkEVMDeployer
-    await (await deployer.provider.sendTransaction(serializedTransaction)).wait();
+    await (await signer.provider.sendTransaction(serializedTransaction)).wait();
 
     const zkEVMDeployerContract = await PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress);
-    expect(await zkEVMDeployerContract.owner()).to.be.equal(deployer.address);
+    expect(await zkEVMDeployerContract.owner()).to.be.equal(deployerAddress);
     return [zkEVMDeployerContract, resultTransaction.from];
 }
 
@@ -63,7 +63,7 @@ async function create2Deployment(polgonZKEVMDeployerContract, salt, deployTransa
     const amount = 0;
 
     if (await deployer.provider.getCode(precalculatedAddressDeployed) !== '0x') {
-        return precalculatedAddressDeployed;
+        return [precalculatedAddressDeployed, false];
     }
 
     if (dataCall) {
@@ -94,7 +94,7 @@ async function create2Deployment(polgonZKEVMDeployerContract, salt, deployTransa
             await (await polgonZKEVMDeployerContract.deployDeterministic(amount, salt, deployTransaction)).wait();
         }
     }
-    return precalculatedAddressDeployed;
+    return [precalculatedAddressDeployed, true];
 }
 
 module.exports = {
