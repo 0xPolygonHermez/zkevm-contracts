@@ -24,8 +24,8 @@ async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
 
     const signature = {
         v: 27,
-        r: '0x5ca1ab1e0', // Equals 0x0000000000000000000000000000000000000000000000000000005ca1ab1e0 TODO
-        s: '0x5ca1ab1e', // Equals 0x000000000000000000000000000000000000000000000000000000005ca1ab1e TODO
+        r: '0x5ca1ab1e0', // Equals 0x00000000000000000000000000000000000000000000000000000005ca1ab1e0
+        s: '0x5ca1ab1e', // Equals 0x000000000000000000000000000000000000000000000000000000005ca1ab1e
     };
     const serializedTransaction = ethers.utils.serializeTransaction(tx, signature);
     const resultTransaction = ethers.utils.parseTransaction(serializedTransaction);
