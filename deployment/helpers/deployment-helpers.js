@@ -24,8 +24,8 @@ async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
 
     const signature = {
         v: 27,
-        r: '0x247000', // Equals 0x0000000000000000000000000000000000000000000000000000000000247000 TODO
-        s: '0x2470', // Equals 0x0000000000000000000000000000000000000000000000000000000000002470 TODO
+        r: '0x5ca1ab1e0', // Equals 0x0000000000000000000000000000000000000000000000000000005ca1ab1e0 TODO
+        s: '0x5ca1ab1e', // Equals 0x000000000000000000000000000000000000000000000000000000005ca1ab1e TODO
     };
     const serializedTransaction = ethers.utils.serializeTransaction(tx, signature);
     const resultTransaction = ethers.utils.parseTransaction(serializedTransaction);
@@ -35,7 +35,7 @@ async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
     const zkEVMDeployerAddress = ethers.utils.getContractAddress(resultTransaction);
     if (await signer.provider.getCode(zkEVMDeployerAddress) !== '0x') {
         const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress);
-        expect(await zkEVMDeployerContract.owner()).to.be.equal(deployer.address);
+        expect(await zkEVMDeployerContract.owner()).to.be.equal(signer.address);
         return [zkEVMDeployerContract, ethers.constants.AddressZero];
     }
 

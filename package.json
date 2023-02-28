@@ -67,6 +67,8 @@
     "deploy:testnet:ZkEVM:localhost": "npm run prepare:testnet:ZkEVM:localhost && npm run deploy:ZkEVM:localhost",
     "prepare:testnet:ZkEVM:goerli": "npx hardhat run deployment/testnet/prepareTestnet.js --network goerli",
     "deploy:ZkEVM:goerli": "node deployment/1_createGenesis.js && npx hardhat run deployment/3_deployContracts.js --network goerli && npm run saveDeployment:goerli",
+    "deploy:deployer:ZkEVM:goerli": "npx hardhat run deployment/2_deployPolygonZKEVMDeployer.js --network goerli",
+    "verify:deployer:ZkEVM:goerli": "npx hardhat run deployment/testnet/verifyzkEVMDeployer.js --network goerli",
     "deploy:testnet:ZkEVM:goerli": "npm run prepare:testnet:ZkEVM:goerli && npm run deploy:ZkEVM:goerli",
     "upgrade:timelock:goerli": "npx hardhat run upgrade/timeLockUpgrade.js --network goerli",
     "verify:ZkEVM:goerli": "npx hardhat run deployment/verifyContracts.js --network goerli",

@@ -53,7 +53,7 @@ async function main() {
     } = deployParameters;
 
     if (initialZkEVMDeployerOwner === undefined || initialZkEVMDeployerOwner === '') {
-        throw new Error(`Missing parameter: ${initialZkEVMDeployerOwner}`);
+        throw new Error('Missing parameter: initialZkEVMDeployerOwner');
     }
 
     // Deploy PolygonZkEVMDeployer if is not deployed already using keyless deployment
