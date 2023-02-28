@@ -50,18 +50,8 @@ async function main() {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
-    // verify timeLock
-    let deployer;
-    if (deployParameters.deployerPvtKey) {
-        deployer = new ethers.Wallet(deployParameters.deployerPvtKey);
-    } else if (process.env.MNEMONIC) {
-        deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0');
-    } else {
-        [deployer] = (await ethers.getSigners());
-    }
-
-    const minDelayTimelock = deployParameters.minDelayTimelock || 10;
-    const timelockAddress = deployParameters.timelockAddress || deployer.address;
+    const { minDelayTimelock } = deployParameters;
+    const { timelockAddress } = deployParameters;
     try {
         await hre.run(
             'verify:verify',
@@ -104,7 +94,7 @@ async function main() {
                     deployOutputParameters.verifierAddress,
                     deployOutputParameters.polygonZkEVMBridgeAddress,
                     deployOutputParameters.chainID,
-                    deployOutputParameters.forkID || 0,
+                    deployOutputParameters.forkID,
                 ],
             },
         );

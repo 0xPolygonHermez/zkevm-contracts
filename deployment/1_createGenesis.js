@@ -294,12 +294,7 @@ async function main() {
 
     if (argv.test) {
         // Add tester account with ether
-        genesis.push({
-            accountName: 'tester',
-            balance: '100000000000000000000000',
-            nonce: '0',
-            address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-        });
+        genesis[genesis.length - 1].balance = '100000000000000000000000';
     }
 
     // calculate root
