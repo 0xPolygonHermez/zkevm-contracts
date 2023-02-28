@@ -1,5 +1,5 @@
 /* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if, import/no-dynamic-require */
-/* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
+/* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved, no-restricted-syntax */
 const { expect } = require('chai');
 const path = require('path');
 const fs = require('fs');
@@ -37,27 +37,33 @@ async function main() {
     const zkevmAddressL2 = ethers.constants.AddressZero;
 
     // deploy parameters
-    const minDelayTimelock = deployParameters.minDelayTimelock || 10; // Should put some default parameter
-    const salt = deployParameters.salt || ethers.constants.HashZero;
+    const mandatoryDeploymentParameters = [
+        'timelockAddress',
+        'minDelayTimelock',
+        'salt',
+        'initialZkEVMDeployerOwner',
+    ];
 
-    // Load provider
-    const currentProvider = ethers.provider;
-
-    // Load deployer
-    let deployer;
-    if (deployParameters.deployerPvtKey) {
-        deployer = new ethers.Wallet(deployParameters.deployerPvtKey, currentProvider);
-    } else if (process.env.MNEMONIC) {
-        deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0').connect(currentProvider);
-    } else {
-        [deployer] = (await ethers.getSigners());
+    for (const parameterName of mandatoryDeploymentParameters) {
+        if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === '') {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
     }
 
-    // Check address from deploy parameters
-    const timelockAddress = deployParameters.timelockAddress || deployer.address;
+    const {
+        timelockAddress,
+        minDelayTimelock,
+        salt,
+        initialZkEVMDeployerOwner,
+    } = deployParameters;
+
+    // Load deployer
+    await ethers.provider.send('hardhat_impersonateAccount', [initialZkEVMDeployerOwner]);
+    await ethers.provider.send('hardhat_setBalance', [initialZkEVMDeployerOwner, '0xffffffffffffffff']); // 18 ethers aprox
+    const deployer = await ethers.getSigner(initialZkEVMDeployerOwner);
 
     // Deploy PolygonZkEVMDeployer if is not deployed already
-    const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(deployer.address, deployer);
+    const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(initialZkEVMDeployerOwner, deployer);
 
     /*
      * Deploy Bridge
@@ -68,14 +74,14 @@ async function main() {
     const proxyAdminFactory = await ethers.getContractFactory('ProxyAdmin', deployer);
     const deployTransactionAdmin = (proxyAdminFactory.getDeployTransaction()).data;
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
-    const [proxyAdminAddress,] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
+    const [proxyAdminAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
 
     // Deploy implementation PolygonZkEVMBridg
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(5500000);
-    const [bridgeImplementationAddress,] = await create2Deployment(
+    const [bridgeImplementationAddress] = await create2Deployment(
         zkEVMDeployerContract,
         salt,
         deployTransactionBridge,
@@ -104,7 +110,7 @@ async function main() {
             zkevmAddressL2,
         ],
     );
-    const [proxyBridgeAddress,] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
+    const [proxyBridgeAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
 
     // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
     await upgrades.forceImport(proxyBridgeAddress, polygonZkEVMBridgeFactory, 'transparent');
@@ -287,8 +293,13 @@ async function main() {
     });
 
     if (argv.test) {
-        // Add ether to the deployer
-        genesis[genesis.length - 1].balance = '100000000000000000000000';
+        // Add tester account with ether
+        genesis.push({
+            accountName: 'tester',
+            balance: '100000000000000000000000',
+            nonce: '0',
+            address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        });
     }
 
     // calculate root

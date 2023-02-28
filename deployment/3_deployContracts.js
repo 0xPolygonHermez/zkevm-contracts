@@ -1,12 +1,12 @@
-/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if import/no-dynamic-require global-require */
-/* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
+/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if, import/no-dynamic-require, global-require */
+/* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved, no-restricted-syntax */
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-const { deployPolygonZkEVMDeployer, create2Deployment } = require('./helpers/deployment-helpers');
+const { create2Deployment } = require('./helpers/deployment-helpers');
 
 const pathOutputJson = path.join(__dirname, './deploy_output.json');
 const pathOngoingDeploymentJson = path.join(__dirname, './deploy_ongoing.json');
@@ -32,25 +32,59 @@ async function main() {
     const networkIDMainnet = 0;
     const attemptsDeployProxy = 20;
 
-    // Check deploy parameters
-    // remove all defauts, and check that deployParameters eveyr parameter is fullfilled
-    console.log("HIIIIIIIIIIIIIIIII")
-    checkParameter("trustedSequencerURL");
-    const trustedSequencerURL = deployParameters.trustedSequencerURL;
-    const realVerifier = deployParameters.realVerifier || false;
-    checkParameter("minDelayTimelock");
-    const minDelayTimelock = deployParameters.minDelayTimelock || 10; // Should put some default parameter
-    const forkID = deployParameters.forkID || 0;
-    const version = deployParameters.version || '0.0.1';
+    /*
+     * Check deploy parameters
+     * Check that every necessary parameter is fullfilled
+     */
+    const mandatoryDeploymentParameters = [
+        'realVerifier',
+        'trustedSequencerURL',
+        'networkName',
+        'version',
+        'trustedSequencer',
+        'chainID',
+        'admin',
+        'trustedAggregator',
+        'trustedAggregatorTimeout',
+        'pendingStateTimeout',
+        'forkID',
+        'zkEVMOwner',
+        'timelockAddress',
+        'minDelayTimelock',
+        'salt',
+        'zkEVMDeployerAddress',
+        'maticTokenAddress',
+        'disallowForceBatches',
+        'isTestnet',
+    ];
 
-    //const pendingStateTimeout = deployParameters.pendingStateTimeout || (60 * 60 * 24 * 7 - 1); // 1 week minus 1
-    const trustedAggregatorTimeout = deployParameters.trustedAggregatorTimeout || (60 * 60 * 24 * 7 - 1); // 1 week minus 1
-    const { chainID, networkName, maticTokenAddress, pendingStateTimeout } = deployParameters;
-    console.log(pendingStateTimeout)
-    const salt = deployParameters.salt || ethers.constants.HashZero;
-    // is testnet
-    const isTestnet = deployParameters.testnet || false;
-    const zkEVMDeployerAddress = deployParameters.zkEVMDeployerAddress;
+    for (const parameterName of mandatoryDeploymentParameters) {
+        if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === '') {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
+    }
+
+    const {
+        realVerifier,
+        trustedSequencerURL,
+        networkName,
+        version,
+        trustedSequencer,
+        chainID,
+        admin,
+        trustedAggregator,
+        trustedAggregatorTimeout,
+        pendingStateTimeout,
+        forkID,
+        zkEVMOwner,
+        timelockAddress,
+        minDelayTimelock,
+        salt,
+        zkEVMDeployerAddress,
+        maticTokenAddress,
+        disallowForceBatches,
+        isTestnet,
+    } = deployParameters;
 
     // Load provider
     let currentProvider = ethers.provider;
@@ -69,8 +103,8 @@ async function main() {
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
                     return {
-                        maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas), // add 3 decimals
-                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas),// add 3 decimals
+                        maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas).div(1000), // add 3 decimals
+                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas).div(1000), // add 3 decimals
                     };
                 }
                 currentProvider.getFeeData = overrideFeeData;
@@ -82,8 +116,10 @@ async function main() {
     let deployer;
     if (deployParameters.deployerPvtKey) {
         deployer = new ethers.Wallet(deployParameters.deployerPvtKey, currentProvider);
+        console.log('Using pvtKey deployer with address: ', deployer.address);
     } else if (process.env.MNEMONIC) {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0').connect(currentProvider);
+        console.log('Using MNEMONIC deployer with address: ', deployer.address);
     } else {
         [deployer] = (await ethers.getSigners());
     }
@@ -92,13 +128,11 @@ async function main() {
     const PolgonZKEVMDeployerFactory = await ethers.getContractFactory('PolygonZkEVMDeployer', deployer);
     const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress);
 
-    // Check trusted address from deploy parameters
-    // check parameters, move up
-    const trustedSequencer = deployParameters.trustedSequencerAddress;
-    const { trustedAggregator } = deployParameters;
-    const admin = deployParameters.admin || deployer.address;
-    const timelockAddress = deployParameters.timelockAddress || deployer.address;
-    const zkEVMOwner = deployParameters.zkEVMOwner || deployer.address;
+    // check deployer is the owner of the deployer
+    if (await deployer.provider.getCode(zkEVMDeployerContract.address) === '0x') {
+        throw new Error('zkEVM deployer contract is not deployed');
+    }
+    expect(deployer.address).to.be.equal(await zkEVMDeployerContract.owner());
 
     let verifierContract;
     if (!ongoingDeployment.verifierContract) {
@@ -118,7 +152,7 @@ async function main() {
         ongoingDeployment.verifierContract = verifierContract.address;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
     } else {
-        console.log("Verifier already deployed on: ", ongoingDeployment.verifierContract)
+        console.log('Verifier already deployed on: ', ongoingDeployment.verifierContract);
         const VerifierRollupFactory = await ethers.getContractFactory('FflonkVerifier', deployer);
         verifierContract = VerifierRollupFactory.attach(ongoingDeployment.verifierContract);
     }
@@ -132,7 +166,13 @@ async function main() {
     const proxyAdminFactory = await ethers.getContractFactory('ProxyAdmin', deployer);
     const deployTransactionAdmin = (proxyAdminFactory.getDeployTransaction()).data;
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
-    const [proxyAdminAddress, isProxyAdminDeployed] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
+    const [proxyAdminAddress, isProxyAdminDeployed] = await create2Deployment(
+        zkEVMDeployerContract,
+        salt,
+        deployTransactionAdmin,
+        dataCallAdmin,
+        deployer,
+    );
 
     if (isProxyAdminDeployed) {
         console.log('#######################\n');
@@ -142,17 +182,17 @@ async function main() {
         console.log('Proxy admin was already deployed to:', proxyAdminAddress);
     }
 
-
     // Deploy implementation PolygonZkEVMBridge
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
+    const dataCallNull = null;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(5500000);
     const [bridgeImplementationAddress, isBridgeImplDeployed] = await create2Deployment(
         zkEVMDeployerContract,
         salt,
         deployTransactionBridge,
-        null,
+        dataCallNull,
         deployer,
         overrideGasLimit,
     );
@@ -177,15 +217,28 @@ async function main() {
         initializeEmptyDataProxy,
     )).data;
 
-    /*
-     * Nonce globalExitRoot: 1 (deploy bridge proxy) + 1(impl globalExitRoot) = +2
-     */
+    // Nonce globalExitRoot: currentNonce + 1 (deploy bridge proxy) + 1(impl globalExitRoot) = +2
     const nonceProxyGlobalExitRoot = Number((await ethers.provider.getTransactionCount(deployer.address))) + 2;
     // nonceProxyZkevm :Nonce globalExitRoot + 1 (proxy globalExitRoot) + 1 (impl Zkevm) = +2
     const nonceProxyZkevm = nonceProxyGlobalExitRoot + 2;
 
-    const precalculateGLobalExitRootAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyGlobalExitRoot });
-    const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+    let precalculateGLobalExitRootAddress; let
+        precalculateZkevmAddress;
+
+    // Check if the contract is already deployed
+    if (ongoingDeployment.polygonZkEVMGlobalExitRoot && ongoingDeployment.polygonZkEVMContract) {
+        precalculateGLobalExitRootAddress = ongoingDeployment.polygonZkEVMGlobalExitRoot;
+        precalculateZkevmAddress = ongoingDeployment.polygonZkEVMContract;
+    } else {
+        // If both are not deployed, it's better to deploy them both again
+        delete ongoingDeployment.polygonZkEVMGlobalExitRoot;
+        delete ongoingDeployment.polygonZkEVMContract;
+        fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
+
+        // Contracts are not deployed, normal deployment
+        precalculateGLobalExitRootAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyGlobalExitRoot });
+        precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+    }
 
     const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData(
         'initialize',
@@ -195,7 +248,13 @@ async function main() {
             precalculateZkevmAddress,
         ],
     );
-    const [proxyBridgeAddress, isBridgeProxyDeployed] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
+    const [proxyBridgeAddress, isBridgeProxyDeployed] = await create2Deployment(
+        zkEVMDeployerContract,
+        salt,
+        deployTransactionProxy,
+        dataCallProxy,
+        deployer,
+    );
     const polygonZkEVMBridgeContract = polygonZkEVMBridgeFactory.attach(proxyBridgeAddress);
 
     if (isBridgeProxyDeployed) {
@@ -206,8 +265,6 @@ async function main() {
         console.log('PolygonZkEVMBridge was already deployed to:', polygonZkEVMBridgeContract.address);
 
         // If it was already deployed, check that the initialized calldata matches the actual deployment
-
-        // or check against ongoing deployment
         expect(precalculateGLobalExitRootAddress).to.be.equal(await polygonZkEVMBridgeContract.globalExitRootManager());
         expect(precalculateZkevmAddress).to.be.equal(await polygonZkEVMBridgeContract.polygonZkEVMaddress());
     }
@@ -247,6 +304,8 @@ async function main() {
             }
         }
 
+        expect(precalculateGLobalExitRootAddress).to.be.equal(polygonZkEVMGlobalExitRoot.address);
+
         console.log('#######################\n');
         console.log('polygonZkEVMGlobalExitRoot deployed to:', polygonZkEVMGlobalExitRoot.address);
 
@@ -254,14 +313,20 @@ async function main() {
         ongoingDeployment.polygonZkEVMGlobalExitRoot = polygonZkEVMGlobalExitRoot.address;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
     } else {
+        // sanity check
+        expect(precalculateGLobalExitRootAddress).to.be.equal(polygonZkEVMGlobalExitRoot.address);
         // Expect the precalculate address matches de onogin deployment
         polygonZkEVMGlobalExitRoot = PolygonZkEVMGlobalExitRootFactory.attach(ongoingDeployment.polygonZkEVMGlobalExitRoot);
 
         console.log('#######################\n');
-        console.log("polygonZkEVMGlobalExitRoot already deployed on: ", ongoingDeployment.polygonZkEVMGlobalExitRoot)
+        console.log('polygonZkEVMGlobalExitRoot already deployed on: ', ongoingDeployment.polygonZkEVMGlobalExitRoot);
 
         // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically (admin/impl)
         await upgrades.forceImport(ongoingDeployment.polygonZkEVMGlobalExitRoot, PolygonZkEVMGlobalExitRootFactory, 'transparent');
+
+        // Check against current deployment
+        expect(polygonZkEVMBridgeContract.address).to.be.equal(await polygonZkEVMBridgeContract.bridgeAddress());
+        expect(precalculateZkevmAddress).to.be.equal(await polygonZkEVMBridgeContract.rollupAddress());
     }
 
     // deploy PolygonZkEVMM
@@ -338,6 +403,9 @@ async function main() {
                 throw new Error('PolygonZkEVM contract has not been deployed');
             }
         }
+
+        expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
+
         console.log('#######################\n');
         console.log('polygonZkEVMContract deployed to:', polygonZkEVMContract.address);
 
@@ -346,7 +414,7 @@ async function main() {
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
 
         // Unactivate the forced Batches checking flag
-        if (isTestnet && deployParameters.disallowForceBatches) {
+        if (isTestnet && disallowForceBatches) {
             await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
         }
 
@@ -357,20 +425,20 @@ async function main() {
 
         deploymentBlockNumber = (await polygonZkEVMContract.deployTransaction.wait()).blockNumber;
     } else {
-        // Expect the precalculate address matches de onogin deployment
-        expect(precalculateZkevmAddress).to.be.equal(ongoingDeployment.polygonZkEVMContract); // TODO
+        // Expect the precalculate address matches de onogin deployment, sanity check
+        expect(precalculateZkevmAddress).to.be.equal(ongoingDeployment.polygonZkEVMContract);
         polygonZkEVMContract = PolygonZkEVMFactory.attach(ongoingDeployment.polygonZkEVMContract);
 
         console.log('#######################\n');
-        console.log("polygonZkEVMContract already deployed on: ", ongoingDeployment.polygonZkEVMContract)
+        console.log('polygonZkEVMContract already deployed on: ', ongoingDeployment.polygonZkEVMContract);
 
         // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
         await upgrades.forceImport(ongoingDeployment.polygonZkEVMContract, PolygonZkEVMFactory, 'transparent');
 
         const zkEVMOwnerContract = await polygonZkEVMContract.owner();
-        if (zkEVMOwnerContract == deployer.address) {
+        if (zkEVMOwnerContract === deployer.address) {
             // Unactivate the forced Batches checking flag
-            if (isTestnet && deployParameters.disallowForceBatches) {
+            if (isTestnet && disallowForceBatches) {
                 await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
             }
 
@@ -383,7 +451,6 @@ async function main() {
         }
         deploymentBlockNumber = 0;
     }
-
 
     console.log('\n#######################');
     console.log('#####    Checks  PolygonZkEVMMock  #####');
@@ -406,27 +473,26 @@ async function main() {
     console.log('owner:', await polygonZkEVMContract.owner());
     console.log('forkID:', await polygonZkEVMContract.forkID());
 
-    expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
-    expect(precalculateGLobalExitRootAddress).to.be.equal(polygonZkEVMGlobalExitRoot.address);
-
     // Assert admin address
     expect(await upgrades.erc1967.getAdminAddress(precalculateZkevmAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(precalculateGLobalExitRootAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
-
     const proxyAdminInstance = proxyAdminFactory.attach(proxyAdminAddress);
     const proxyAdminOwner = await proxyAdminInstance.owner();
     const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock', deployer);
 
+    // TODO test stop here
+
     let timelockContract;
     if (proxyAdminOwner !== deployer.address) {
-        // Check if there's a timelock deployed there that match the current deploymetn
+        // Check if there's a timelock deployed there that match the current deployment
         timelockContract = timelockContractFactory.attach(proxyAdminOwner);
         expect(precalculateZkevmAddress).to.be.equal(await timelockContract.polygonZkEVM());
 
         console.log('#######################\n');
-        console.log('Polygon timelockContract already deployed to:',
+        console.log(
+            'Polygon timelockContract already deployed to:',
             timelockContract.address,
         );
     } else {
@@ -446,7 +512,8 @@ async function main() {
         );
         await timelockContract.deployed();
         console.log('#######################\n');
-        console.log('Polygon timelockContract deployed to:',
+        console.log(
+            'Polygon timelockContract deployed to:',
             timelockContract.address,
         );
 
@@ -480,7 +547,7 @@ async function main() {
         proxyAdminAddress,
         forkID,
         salt,
-        version
+        version,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 
@@ -492,10 +559,3 @@ main().catch((e) => {
     console.error(e);
     process.exit(1);
 });
-
-function checkParameter(parameterName) {
-    console.log(deployParameters[parameterName])
-    if (deployParameters[parameterName] === undefined) {
-        throw new Error(`Missing parameter: ${parameterName}`);
-    }
-}

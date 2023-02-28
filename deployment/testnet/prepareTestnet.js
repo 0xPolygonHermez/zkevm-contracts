@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if */
+/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if, no-restricted-syntax */
 /* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
 const { ethers } = require('hardhat');
 const path = require('path');
@@ -39,15 +39,30 @@ async function main() {
     let deployer;
     if (deployParameters.deployerPvtKey) {
         deployer = new ethers.Wallet(deployParameters.deployerPvtKey, currentProvider);
+        console.log('Using pvtKey deployer with address: ', deployer.address);
     } else if (process.env.MNEMONIC) {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0').connect(currentProvider);
+        console.log('Using MNEMONIC deployer with address: ', deployer.address);
     } else {
         [deployer] = (await ethers.getSigners());
     }
 
     // Check trusted address from deploy parameters
-    const { trustedAggregator } = deployParameters;
-    const trustedSequencer = deployParameters.trustedSequencerAddress;
+    const mandatoryDeploymentParameters = [
+        'trustedAggregator',
+        'trustedSequencer',
+    ];
+
+    for (const parameterName of mandatoryDeploymentParameters) {
+        if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === '') {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
+    }
+
+    const {
+        trustedAggregator,
+        trustedSequencer,
+    } = deployParameters;
 
     /*
      *Deployment MATIC

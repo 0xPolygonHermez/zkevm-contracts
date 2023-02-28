@@ -1,10 +1,22 @@
 {
-    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
-    "trustedSequencerAddress":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-    "trustedSequencerPvtKey":"0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-    "trustedAggregator":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
     "realVerifier": false,
-    "chainID": 1001,
+    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
     "networkName": "zkevm",
-    "testnet": true
+    "version":"0.0.1",
+    "trustedSequencer":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "chainID": 1001,
+    "trustedAggregator":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "trustedAggregatorTimeout": 604799,
+    "pendingStateTimeout": 604799,
+    "forkID": 1,
+    "admin":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "zkEVMOwner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "timelockAddress": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "minDelayTimelock": 10,
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "zkEVMDeployerAddress":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "initialZkEVMDeployerOwner" :"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "maticTokenAddress":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "disallowForceBatches": false,
+    "isTestnet":true
 }

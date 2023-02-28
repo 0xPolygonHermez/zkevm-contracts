@@ -1,23 +1,16 @@
-/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if import/no-dynamic-require global-require */
+/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if */
 /* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
-const { expect } = require('chai');
-const { ethers, upgrades } = require('hardhat');
+const { ethers } = require('hardhat');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { deployPolygonZkEVMDeployer } = require('./helpers/deployment-helpers');
 
-const pathOutputJson = path.join(__dirname, './deploy_output.json');
-const pathOngoingDeploymentJson = path.join(__dirname, './deploy_ongoing.json');
-
+const pathDeployParameters = path.join(__dirname, './deploy_parameters.json');
 const deployParameters = require('./deploy_parameters.json');
-const genesis = require('./genesis.json');
-
-const pathOZUpgradability = path.join(__dirname, `../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 
 async function main() {
-
     // Load provider
     let currentProvider = ethers.provider;
     if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
@@ -36,7 +29,7 @@ async function main() {
                     const feedata = await ethers.provider.getFeeData();
                     return {
                         maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas), // add 3 decimals
-                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas),// add 3 decimals
+                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas), // add 3 decimals
                     };
                 }
                 currentProvider.getFeeData = overrideFeeData;
@@ -54,52 +47,30 @@ async function main() {
         [deployer] = (await ethers.getSigners());
     }
 
-    // Deploy PolygonZkEVMDeployer if is not deployed already using keyless deployment
-    const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(deployer)
-    if (keylessDeployer === ethers.constants.AddressZero) {
-        console.log('#######################\n');
-        console.log("polygonZkEVMDeployer already deployed on: ", zkEVMDeployerContract.address);
-    } else {
-        console.log('#######################\n');
-        console.log("polygonZkEVMDeployer deployed on: ", zkEVMDeployerContract.address);
+    // Load initialZkEVMDeployerOwner
+    const {
+        initialZkEVMDeployerOwner,
+    } = deployParameters;
+
+    if (initialZkEVMDeployerOwner === undefined || initialZkEVMDeployerOwner === '') {
+        throw new Error(`Missing parameter: ${initialZkEVMDeployerOwner}`);
     }
 
-    const outputJson = {
-        polygonZkEVMAddress: polygonZkEVMContract.address,
-        polygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.address,
-        polygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot.address,
-        maticTokenAddress,
-        verifierAddress: verifierContract.address,
-        zkEVMDeployerContract: zkEVMDeployerContract.address,
-        deployerAddress: deployer.address,
-        timelockContractAddress: timelockContract.address,
-        deploymentBlockNumber,
-        genesisRoot: genesisRootHex,
-        trustedSequencer,
-        trustedSequencerURL,
-        chainID,
-        networkName,
-        admin,
-        trustedAggregator,
-        proxyAdminAddress,
-        forkID,
-        salt,
-        version
-    };
-    fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
+    // Deploy PolygonZkEVMDeployer if is not deployed already using keyless deployment
+    const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(initialZkEVMDeployerOwner, deployer);
+    if (keylessDeployer === ethers.constants.AddressZero) {
+        console.log('#######################\n');
+        console.log('polygonZkEVMDeployer already deployed on: ', zkEVMDeployerContract.address);
+    } else {
+        console.log('#######################\n');
+        console.log('polygonZkEVMDeployer deployed on: ', zkEVMDeployerContract.address);
+    }
 
-    // Remove ongoing deployment
-    fs.unlinkSync(pathOngoingDeploymentJson);
+    deployParameters.zkEVMDeployerAddress = zkEVMDeployerContract.address;
+    fs.writeFileSync(pathDeployParameters, JSON.stringify(deployParameters, null, 1));
 }
 
 main().catch((e) => {
     console.error(e);
     process.exit(1);
 });
-
-function checkParameter(parameterName) {
-    console.log(deployParameters[parameterName])
-    if (deployParameters[parameterName] == undefined) {
-        throw new Error(`Missing parameter${parameterName}`);
-    }
-}
