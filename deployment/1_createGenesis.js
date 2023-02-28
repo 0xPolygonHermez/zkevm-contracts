@@ -154,7 +154,8 @@ async function main() {
     await timelockContract.deployed();
 
     // Transfer ownership of the proxyAdmin to timelock
-    await upgrades.admin.transferProxyAdminOwnership(timelockContract.address);
+    const proxyAdminInstance = proxyAdminFactory.attach(proxyAdminAddress);
+    await (await proxyAdminInstance.connect(deployer).transferOwnership(timelockContract.address)).wait();
 
     // Recreate genesis with the current information:
     const genesis = [];
