@@ -2,12 +2,16 @@
     "timelockMinDelay":10,
     "upgrades": [
         {
-            "address": "0x6958d5f1AFa6f668c7D7F37a444d09E2330eB104",
-            "contractName": "PolygonZkEVM"
-        },
-        {
-            "address": "0x5cA95a1629e7dDD51b66Bf1505560cd7edA91d83",
-            "contractName": "PolygonZkEVMBridgeMock"
+            "address": "0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A",
+            "contractName": "PolygonZkEVMTestnetV2",
+            "constructorArgs": [
+                "0x4d9427DCA0406358445bC0a8F88C26b704004f74",
+                "0x1319D23c2F7034F52Eb07399702B040bA278Ca49",
+                "0x74c7b1b437ad898B8b5B33d6AB87EA244a4f2268",
+                "0xF6BEEeBB578e214CA9E23B0e9683454Ff88Ed2A7",
+                1442,
+                1
+            ]
         }
     ],
     "multiplierGas": 0,
