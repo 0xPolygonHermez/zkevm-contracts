@@ -11,7 +11,7 @@ const { generateSolidityInputs } = contractUtils;
 const { calculateSnarkInput, calculateBatchHashData, calculateAccInputHash } = contractUtils;
 
 const proofJson = require('./test-inputs/proof.json');
-const publicJson = require('./test-inputs/public.json');
+const input = require('./test-inputs/public.json');
 const inputJson = require('./test-inputs/input.json');
 
 describe('Real flow test', () => {
@@ -59,7 +59,7 @@ describe('Real flow test', () => {
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
-            'Verifier',
+            'FflonkVerifier',
         );
         verifierContract = await VerifierRollupHelperFactory.deploy();
 
@@ -217,9 +217,7 @@ describe('Real flow test', () => {
         const batchAccInputHash = (await polygonZkEVMContract.sequencedBatches(inputJson.newNumBatch)).accInputHash;
         expect(batchAccInputHash).to.be.equal(inputJson.newAccInputHash);
 
-        const {
-            proofA, proofB, proofC, input,
-        } = generateSolidityInputs(proofJson, publicJson);
+        const proof = generateSolidityInputs(proofJson);
 
         // Verify snark input
         const circuitInputStarkJS = await calculateSnarkInput(
@@ -252,9 +250,7 @@ describe('Real flow test', () => {
                 newNumBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                [0, 0],
-                proofB,
-                proofC,
+                '0x',
             ),
         ).to.be.revertedWith('InvalidProof');
         await expect(
@@ -264,9 +260,7 @@ describe('Real flow test', () => {
                 newNumBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                proof,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrustedAggregator')
             .withArgs(newNumBatch, newStateRoot, aggregator.address);

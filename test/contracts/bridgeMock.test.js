@@ -100,7 +100,7 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
 
-        await expect(polygonZkEVMBridgeContract.bridgeAsset(tokenAddress, destinationNetwork, destinationAddress, amount, '0x'))
+        await expect(polygonZkEVMBridgeContract.bridgeAsset(destinationNetwork, destinationAddress, amount, tokenAddress, true, '0x'))
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
             .withArgs(originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount)
             .to.emit(polygonZkEVMGlobalExitRoot, 'UpdateGlobalExitRoot')
@@ -138,19 +138,21 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
         const destinationAddress = deployer.address;
 
         await expect(polygonZkEVMBridgeContract.bridgeAsset(
-            tokenAddress,
             destinationNetwork,
             destinationAddress,
             amount,
-            ethers.utils.parseEther('10'),
+            tokenAddress,
+            true,
+            '0x',
             { value: ethers.utils.parseEther('10') },
         )).to.be.revertedWith('PolygonZkEVMBridge::bridgeAsset: Cannot bridge more than maxEtherBridge');
 
         await polygonZkEVMBridgeContract.bridgeAsset(
-            tokenAddress,
             destinationNetwork,
             destinationAddress,
             ethers.utils.parseEther('0.25'),
+            tokenAddress,
+            true,
             '0x',
             { value: ethers.utils.parseEther('0.25') },
         );

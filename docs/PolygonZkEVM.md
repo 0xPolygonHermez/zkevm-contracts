@@ -53,7 +53,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 ```solidity
   function sequenceBatches(
     struct PolygonZkEVM.BatchData[] batches,
-    address feeRecipient
+    address l2Coinbase
   ) external
 ```
 Allows a sequencer to send multiple batches
@@ -63,7 +63,7 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonZkEVM.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
-|`feeRecipient` | address | Address that will receive the fees from L2
+|`l2Coinbase` | address | Address that will receive the fees from L2
 
 ### verifyBatches
 ```solidity
@@ -73,9 +73,7 @@ Allows a sequencer to send multiple batches
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint256[2] proofA,
-    uint256[2][2] proofB,
-    uint256[2] proofC
+    bytes proof
   ) external
 ```
 Allows an aggregator to verify multiple batches
@@ -89,9 +87,7 @@ Allows an aggregator to verify multiple batches
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | uint256[2] | zk-snark input
-|`proofB` | uint256[2][2] | zk-snark input
-|`proofC` | uint256[2] | zk-snark input
+|`proof` | bytes | fflonk proof
 
 ### verifyBatchesTrustedAggregator
 ```solidity
@@ -101,9 +97,7 @@ Allows an aggregator to verify multiple batches
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint256[2] proofA,
-    uint256[2][2] proofB,
-    uint256[2] proofC
+    bytes proof
   ) external
 ```
 Allows an aggregator to verify multiple batches
@@ -117,9 +111,7 @@ Allows an aggregator to verify multiple batches
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | uint256[2] | zk-snark input
-|`proofB` | uint256[2][2] | zk-snark input
-|`proofC` | uint256[2] | zk-snark input
+|`proof` | bytes | fflonk proof
 
 ### _verifyAndRewardBatches
 ```solidity
@@ -129,9 +121,7 @@ Allows an aggregator to verify multiple batches
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint256[2] proofA,
-    uint256[2][2] proofB,
-    uint256[2] proofC
+    bytes proof
   ) internal
 ```
 Verify and reward batches internal function
@@ -145,9 +135,7 @@ Verify and reward batches internal function
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | uint256[2] | zk-snark input
-|`proofB` | uint256[2][2] | zk-snark input
-|`proofC` | uint256[2] | zk-snark input
+|`proof` | bytes | fflonk proof
 
 ### _tryConsolidatePendingState
 ```solidity
@@ -208,7 +196,7 @@ The batch fee will not be updated when the trusted aggregator verify batches
   function forceBatch(
     bytes transactions,
     uint256 maticAmount
-  ) external
+  ) public
 ```
 Allows a sequencer/user to force a batch of L2 transactions.
 This should be used only in extreme cases where the trusted sequencer does not work as expected
@@ -372,9 +360,7 @@ Allow the current pending admin to accept the admin role
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint256[2] proofA,
-    uint256[2][2] proofB,
-    uint256[2] proofC
+    bytes proof
   ) external
 ```
 Allows the trusted aggregator to override the pending state
@@ -390,9 +376,7 @@ if its possible to prove a different state root given the same batches
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | uint256[2] | zk-snark input
-|`proofB` | uint256[2][2] | zk-snark input
-|`proofC` | uint256[2] | zk-snark input
+|`proof` | bytes | fflonk proof
 
 ### proveNonDeterministicPendingState
 ```solidity
@@ -403,9 +387,7 @@ if its possible to prove a different state root given the same batches
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint256[2] proofA,
-    uint256[2][2] proofB,
-    uint256[2] proofC
+    bytes proof
   ) external
 ```
 Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
@@ -420,9 +402,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | uint256[2] | zk-snark input
-|`proofB` | uint256[2][2] | zk-snark input
-|`proofC` | uint256[2] | zk-snark input
+|`proof` | bytes | fflonk proof
 
 ### _proveDistinctPendingState
 ```solidity
@@ -433,9 +413,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    uint256[2] proofA,
-    uint256[2][2] proofB,
-    uint256[2] proofC
+    bytes proof
   ) internal
 ```
 Internal function that prove a different state root given the same batches to verify
@@ -450,9 +428,7 @@ Internal function that prove a different state root given the same batches to ve
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proofA` | uint256[2] | zk-snark input
-|`proofB` | uint256[2][2] | zk-snark input
-|`proofC` | uint256[2] | zk-snark input
+|`proof` | bytes | fflonk proof
 
 ### activateEmergencyState
 ```solidity

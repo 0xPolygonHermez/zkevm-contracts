@@ -4,6 +4,7 @@ require('hardhat-gas-reporter');
 require('solidity-coverage');
 require('@nomiclabs/hardhat-etherscan');
 require('@openzeppelin/hardhat-upgrades');
+require('hardhat-dependency-compiler');
 
 const DEFAULT_MNEMONIC = 'test test test test test test test test test test test junk';
 
@@ -16,6 +17,13 @@ const DEFAULT_MNEMONIC = 'test test test test test test test test test test test
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
+  dependencyCompiler: {
+    paths: [
+      '@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol',
+      '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol',
+      '@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol'
+    ],
+  },
   solidity: {
     compilers: [
       {
@@ -23,7 +31,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 100
+            runs: 999999
           }
         }
       },

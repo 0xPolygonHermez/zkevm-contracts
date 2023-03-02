@@ -44,7 +44,8 @@ Otherwise, in case of timelock use `timeLockUpgrade.js`
 - `timelockMinDelay`: number, timelock delay between the schedule and execution, must be bigger than current min delay
 - `upgrades`: Object, Indicates which address and to which implementation must upgrade
   - address: address of the current proxy
-  - contractName: string, contract name that the proxy will be updated to.s
+  - contractName: string, contract name that the proxy will be updated to
+  - constructorArgs: Array, optional, constructor arguments of the new implementation deployed
 
 ### Optional Parameters
 

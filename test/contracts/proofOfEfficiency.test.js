@@ -846,12 +846,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const proofA = ['0', '0'];
-        const proofB = [
-            ['0', '0'],
-            ['0', '0'],
-        ];
-        const proofC = ['0', '0'];
+        const zkProofFFlonk = '0x';
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -864,9 +859,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch - 1,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('OnlyTrustedAggregator');
 
@@ -877,9 +870,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch - 1,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalNumBatchBelowLastVerifiedBatch');
 
@@ -890,9 +881,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch + 1,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('NewAccInputHashDoesNotExist');
 
@@ -904,9 +893,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrustedAggregator')
             .withArgs(numBatch, newStateRoot, trustedAggregator.address);
@@ -953,12 +940,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const proofA = ['0', '0'];
-        const proofB = [
-            ['0', '0'],
-            ['0', '0'],
-        ];
-        const proofC = ['0', '0'];
+        const zkProofFFlonk = '0x';
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -972,9 +954,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatch')
             .withArgs(numBatch, trustedAggregator.address)
@@ -1163,12 +1143,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const proofA = ['0', '0'];
-        const proofB = [
-            ['0', '0'],
-            ['0', '0'],
-        ];
-        const proofC = ['0', '0'];
+        const zkProofFFlonk = '0x';
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             aggregator1.address,
@@ -1185,9 +1160,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('TrustedAggregatorTimeoutNotExpired');
 
@@ -1200,9 +1173,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('TrustedAggregatorTimeoutNotExpired');
 
@@ -1213,9 +1184,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch + 1,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('NewAccInputHashDoesNotExist');
 
@@ -1226,9 +1195,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch + _MAX_VERIFY_BATCHES,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('ExceedMaxVerifyBatches');
         // Verify batch
@@ -1239,9 +1206,7 @@ describe('Polygon ZK-EVM', () => {
                 numBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(numBatch, newStateRoot, aggregator1.address);
@@ -1338,12 +1303,7 @@ describe('Polygon ZK-EVM', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const proofA = ['0', '0'];
-        const proofB = [
-            ['0', '0'],
-            ['0', '0'],
-        ];
-        const proofC = ['0', '0'];
+        const zkProofFFlonk = '0x';
 
         let currentPendingState = 0;
         let currentNumBatch = 0;
@@ -1357,9 +1317,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
@@ -1384,9 +1342,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalNumBatchBelowLastVerifiedBatch');
 
@@ -1397,9 +1353,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('PendingStateDoesNotExist');
 
@@ -1410,9 +1364,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('InitNumBatchDoesNotMatchPendingState');
 
@@ -1426,9 +1378,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrustedAggregator')
             .withArgs(newBatch, newStateRoot, trustedAggregator.address);
@@ -1450,9 +1400,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('PendingStateDoesNotExist');
 
@@ -1465,9 +1413,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('OldStateRootDoesNotExist');
 
@@ -1478,9 +1424,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalNumBatchBelowLastVerifiedBatch');
 
@@ -1494,9 +1438,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
@@ -1523,9 +1465,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('OldStateRootDoesNotExist');
 
@@ -1536,9 +1476,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
@@ -1566,9 +1504,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('OldStateRootDoesNotExist');
 
@@ -1579,9 +1515,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
@@ -1611,9 +1545,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address)
@@ -1664,9 +1596,7 @@ describe('Polygon ZK-EVM', () => {
                     newBatch,
                     newLocalExitRoot,
                     newStateRoot,
-                    proofA,
-                    proofB,
-                    proofC,
+                    zkProofFFlonk,
                 ),
             ).to.emit(polygonZkEVMContract, 'VerifyBatches')
                 .withArgs(newBatch, newStateRoot, aggregator1.address);
@@ -1707,9 +1637,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
@@ -1802,12 +1730,7 @@ describe('Polygon ZK-EVM', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const proofA = ['0', '0'];
-        const proofB = [
-            ['0', '0'],
-            ['0', '0'],
-        ];
-        const proofC = ['0', '0'];
+        const zkProofFFlonk = '0x';
 
         let currentPendingState = 0;
         let currentNumBatch = 0;
@@ -1821,9 +1744,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
@@ -1839,9 +1760,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
@@ -1856,9 +1775,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('OnlyTrustedAggregator');
 
@@ -1870,9 +1787,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('PendingStateDoesNotExist');
 
@@ -1884,9 +1799,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('InitNumBatchDoesNotMatchPendingState');
 
@@ -1898,9 +1811,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch + 1,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalNumBatchDoesNotMatchPendingState');
 
@@ -1912,9 +1823,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('OldStateRootDoesNotExist');
 
@@ -1926,9 +1835,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalPendingStateNumInvalid');
 
@@ -1940,9 +1847,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalPendingStateNumInvalid');
 
@@ -1954,9 +1859,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch + 1,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('FinalNumBatchDoesNotMatchPendingState');
 
@@ -1968,9 +1871,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.be.revertedWith('StoredRootMustBeDifferentThanNewRoot');
 
@@ -1983,9 +1884,7 @@ describe('Polygon ZK-EVM', () => {
                 newBatch,
                 newLocalExitRoot,
                 newStateRoot2,
-                proofA,
-                proofB,
-                proofC,
+                zkProofFFlonk,
             ),
         ).to.emit(polygonZkEVMContract, 'OverridePendingState').withArgs(newBatch, newStateRoot2, trustedAggregator.address);
 

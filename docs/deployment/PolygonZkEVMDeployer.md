@@ -15,47 +15,50 @@ Contract responsible for deploying deterministic address contracts related with 
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_owner` | address | Owner
 
-### deploy
+### deployDeterministic
 ```solidity
-  function deploy(
+  function deployDeterministic(
     uint256 amount,
     bytes32 salt,
     bytes initBytecode
   ) public
 ```
+Allows to deploy a contract using create2
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`amount` | uint256 | Amount of contract deploy
+|`amount` | uint256 | amount used in create2
 |`salt` | bytes32 | salt used in create2
-|`initBytecode` | bytes | init bytecode that will be use din create2
+|`initBytecode` | bytes | init bytecode that will be use in create2
 
-### deployAndCall
+### deployDeterministicAndCall
 ```solidity
-  function deployAndCall(
+  function deployDeterministicAndCall(
     uint256 amount,
     bytes32 salt,
     bytes initBytecode,
     bytes dataCall
   ) public
 ```
+Allows to deploy a contract using create2 and call it afterwards
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`amount` | uint256 | Amount of contract deploy
+|`amount` | uint256 | amount used in create2
 |`salt` | bytes32 | salt used in create2
-|`initBytecode` | bytes | init bytecode that will be use din create2
+|`initBytecode` | bytes | init bytecode that will be use in create2
 |`dataCall` | bytes | data used in the call after deploying the smart contract
 
-### call
+### functionCall
 ```solidity
-  function call(
+  function functionCall(
     address targetAddress,
-    bytes dataCall
+    bytes dataCall,
+    uint256 amount
   ) public
 ```
 
@@ -65,19 +68,35 @@ Contract responsible for deploying deterministic address contracts related with 
 | :--- | :--- | :------------------------------------------------------------------- |
 |`targetAddress` | address | Amount of contract deploy
 |`dataCall` | bytes | Data used to call the target smart contract
+|`amount` | uint256 | Data used to call the target smart contract
+
+### predictDeterministicAddress
+```solidity
+  function predictDeterministicAddress(
+    bytes32 salt,
+    bytes32 bytecodeHash
+  ) public returns (address)
+```
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`salt` | bytes32 | salt used in create2
+|`bytecodeHash` | bytes32 | init bytecode hashed, it contains the constructor parameters
 
 ## Events
-### NewDeployment
+### NewDeterministicDeployment
 ```solidity
-  event NewDeployment(
+  event NewDeterministicDeployment(
   )
 ```
 
 Emitted when a contract is deployed
 
-### Call
+### FunctionCall
 ```solidity
-  event Call(
+  event FunctionCall(
   )
 ```
 
