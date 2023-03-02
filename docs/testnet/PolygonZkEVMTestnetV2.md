@@ -94,3 +94,17 @@ Set network name
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkName` | string | New verifier
 
+### updateVersion
+```solidity
+  function updateVersion(
+    string _versionString
+  ) public
+```
+Update version of the zkEVM
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`_versionString` | string | New version string
+

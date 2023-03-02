@@ -16,6 +16,9 @@ contract PolygonZkEVMTestnetV2 is PolygonZkEVM {
     // Defined as a uint256 because it will be easy to updgrade afterwards
     uint256 public forceBatchTimeout;
 
+    // Indicates the current version
+    uint256 public version;
+
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
@@ -45,6 +48,11 @@ contract PolygonZkEVMTestnetV2 is PolygonZkEVM {
      * @dev Thrown when force batch is not allowed
      */
     error ForceBatchNowAllowed();
+
+    /**
+     * @dev Thrown when try to update version when it's already updated
+     */
+    error VersionAlreadyUpdated();
 
     modifier isForceBatchAllowed() {
         if (forcedBatchesAllowed != 0) {
@@ -184,12 +192,24 @@ contract PolygonZkEVMTestnetV2 is PolygonZkEVM {
     }
 
     // V2 testnet functions
-    
     /**
      * @notice Set network name
      * @param _networkName New verifier
      */
     function setNetworkName(string memory _networkName) public onlyOwner {
         networkName = _networkName;
+    }
+
+    /**
+     * @notice Update version of the zkEVM
+     * @param _versionString New version string
+     */
+    function updateVersion(string memory _versionString) public {
+        if (version != 0) {
+            revert VersionAlreadyUpdated();
+        }
+        version++;
+
+        emit UpdateZkEVMVersion(lastVerifiedBatch, forkID, _versionString);
     }
 }
