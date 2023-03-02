@@ -57,14 +57,12 @@ contract FflonkVerifier {
     uint256 constant X2y1 = 2388026358213174446665280700919698872609886601280537296205114254867301080648;
     uint256 constant X2y2 = 11507326595632554467052522095592665270651932854513688777769618397986436103170;
 
-    // Scalar field size
     uint256 constant q    = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
-    // Base field size
     uint256 constant qf   = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
-    // [1]_1
+
+
     uint256 constant G1x  = 1;
     uint256 constant G1y  = 2;
-    // [1]_2
     uint256 constant G2x1 = 10857046999023057135944570762232829481370756359578518086990519993285655852781;
     uint256 constant G2x2 = 11559732032986387107991004021392285783925812861821192530917403151452391805634;
     uint256 constant G2y1 = 8495653923123431417604973247489272438418190587263600148770280649306958101930;
@@ -241,16 +239,12 @@ contract FflonkVerifier {
 
             function computeChallenges(pProof, pMem, pPublic) {
                 // Compute challenge.beta & challenge.gamma
-                mstore(add(pMem, 1920 ), C0x)
-                mstore(add(pMem, 1952 ), C0y)
-
-                mstore(add(pMem, 1984), calldataload(pPublic))
+                mstore(add(pMem, 1920), calldataload(pPublic))
                 
+                mstore(add(pMem, 1952 ),  mload(add(pProof, pC1)))
+                mstore(add(pMem, 1984 ),  mload(add(pProof, add(pC1, 32))))
 
-                mstore(add(pMem, 2016 ),  mload(add(pProof, pC1)))
-                mstore(add(pMem, 2048 ),  mload(add(pProof, add(pC1, 32))))
-
-                mstore(add(pMem, pBeta),  mod(keccak256(add(pMem, lastMem), 160), q))
+                mstore(add(pMem, pBeta), mod(keccak256(add(pMem, lastMem), 96), q))
                 mstore(add(pMem, pGamma), mod(keccak256(add(pMem, pBeta), 32), q))
 
                 // Get xiSeed & xiSeed2
