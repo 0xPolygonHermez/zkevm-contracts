@@ -21,19 +21,24 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 contract FflonkVerifier {
-    uint32 constant n         = 16777216;
-    uint16 constant nPublic   = 1;
-    uint16 constant nLagrange = 1;
+    uint32 constant n     = 16777216; // Domain size
 
     // Verification Key data
-    uint256 constant k1   = 2;
-    uint256 constant k2   = 3;
+    uint256 constant k1   = 2;   // Plonk k1 multiplicative factor to force distinct cosets of H
+    uint256 constant k2   = 3;   // Plonk k2 multiplicative factor to force distinct cosets of H
+
+    // OMEGAS
+    // Omega, Omega^{1/3}
     uint256 constant w1   = 5709868443893258075976348696661355716898495876243883251619397131511003808859;
+    uint256 constant wr   = 18200100796661656210024324131237448517259556535315737226009542456080026430510;
+    // Omega_3, Omega_3^2
     uint256 constant w3   = 21888242871839275217838484774961031246154997185409878258781734729429964517155;
     uint256 constant w3_2 = 4407920970296243842393367215006156084916469457145843978461;
+    // Omega_4, Omega_4^2, Omega_4^3
     uint256 constant w4   = 21888242871839275217838484774961031246007050428528088939761107053157389710902;
     uint256 constant w4_2 = 21888242871839275222246405745257275088548364400416034343698204186575808495616;
     uint256 constant w4_3 = 4407920970296243842541313971887945403937097133418418784715;
+    // Omega_8, Omega_8^2, Omega_8^3, Omega_8^4, Omega_8^5, Omega_8^6, Omega_8^7
     uint256 constant w8_1 = 19540430494807482326159819597004422086093766032135589407132600596362845576832;
     uint256 constant w8_2 = 21888242871839275217838484774961031246007050428528088939761107053157389710902;
     uint256 constant w8_3 = 13274704216607947843011480449124596415239537050559949017414504948711435969894;
@@ -41,19 +46,25 @@ contract FflonkVerifier {
     uint256 constant w8_5 = 2347812377031792896086586148252853002454598368280444936565603590212962918785;
     uint256 constant w8_6 = 4407920970296243842541313971887945403937097133418418784715;
     uint256 constant w8_7 = 8613538655231327379234925296132678673308827349856085326283699237864372525723;
-    uint256 constant wr   = 18200100796661656210024324131237448517259556535315737226009542456080026430510;
-    uint256 constant C0x  = 5227931756009316946900638112732583511636875699168893266940590627831668998461;
-    uint256 constant C0y  = 7783297736993118909236799158880233923464754710776773647620237759645227949962;
+
+    // Verifier preprocessed input C_0(x)·[1]_1
+    uint256 constant C0x  = 8505017132698430876370809396719569010047605466841665042051419680948629728424;
+    uint256 constant C0y  = 6257709157861912487345626440543870054772058797760420770783004901932300278589;
+
+    // Verifier preprocessed input x·[1]_2
     uint256 constant X2x1 = 21831381940315734285607113342023901060522397560371972897001948545212302161822;
     uint256 constant X2x2 = 17231025384763736816414546592865244497437017442647097510447326538965263639101;
     uint256 constant X2y1 = 2388026358213174446665280700919698872609886601280537296205114254867301080648;
     uint256 constant X2y2 = 11507326595632554467052522095592665270651932854513688777769618397986436103170;
 
+    // Scalar field size
     uint256 constant q    = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
+    // Base field size
     uint256 constant qf   = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
-
+    // [1]_1
     uint256 constant G1x  = 1;
     uint256 constant G1y  = 2;
+    // [1]_2
     uint256 constant G2x1 = 10857046999023057135944570762232829481370756359578518086990519993285655852781;
     uint256 constant G2x2 = 11559732032986387107991004021392285783925812861821192530917403151452391805634;
     uint256 constant G2y1 = 8495653923123431417604973247489272438418190587263600148770280649306958101930;
@@ -61,38 +72,43 @@ contract FflonkVerifier {
 
     // Proof data
     // Byte offset of every parameter in `bytes memory proof`
-    uint16 constant pC1 = 32;
-    uint16 constant pC2 = 96;
-    uint16 constant pW1 = 160;
-    uint16 constant pW2 = 224;
-    uint16 constant pEval_ql  = 288;
-    uint16 constant pEval_qr  = 320;
-    uint16 constant pEval_qm  = 352;
-    uint16 constant pEval_qo  = 384;
-    uint16 constant pEval_qc  = 416;
-    uint16 constant pEval_s1  = 448;
-    uint16 constant pEval_s2  = 480;
-    uint16 constant pEval_s3  = 512;
-    uint16 constant pEval_a   = 544;
-    uint16 constant pEval_b   = 576;
-    uint16 constant pEval_c   = 608;
-    uint16 constant pEval_z   = 640;
-    uint16 constant pEval_zw  = 672;
-    uint16 constant pEval_t1w = 704;
-    uint16 constant pEval_t2w = 736;
-    uint16 constant pEval_inv = 768;
+    // Polynomial commitments
+    uint16 constant pC1       = 32;  // [C1]_1
+    uint16 constant pC2       = 96;  // [C2]_1
+    uint16 constant pW1       = 160; // [W]_1
+    uint16 constant pW2       = 224; // [W']_1
+    // Opening evaluations
+    uint16 constant pEval_ql  = 288; // q_L(xi)
+    uint16 constant pEval_qr  = 320; // q_R(xi)
+    uint16 constant pEval_qm  = 352; // q_M(xi)
+    uint16 constant pEval_qo  = 384; // q_O(xi)
+    uint16 constant pEval_qc  = 416; // q_C(xi)
+    uint16 constant pEval_s1  = 448; // S_{sigma_1}(xi)
+    uint16 constant pEval_s2  = 480; // S_{sigma_2}(xi)
+    uint16 constant pEval_s3  = 512; // S_{sigma_3}(xi)
+    uint16 constant pEval_a   = 544; // a(xi)
+    uint16 constant pEval_b   = 576; // b(xi)
+    uint16 constant pEval_c   = 608; // c(xi)
+    uint16 constant pEval_z   = 640; // z(xi)
+    uint16 constant pEval_zw  = 672; // z_omega(xi)
+    uint16 constant pEval_t1w = 704; // T_1(xi omega)
+    uint16 constant pEval_t2w = 736; // T_2(xi omega)
+    uint16 constant pEval_inv = 768; // inv(batch) sent by the prover to avoid any inverse calculation to save gas,
+                                     // we check the correctness of the inv(batch) by computing batch
+                                     // and checking inv(batch) * batch == 1
 
     // Memory data
     // Challenges
-    uint16 constant pAlpha   = 0;
-    uint16 constant pBeta    = 32;
-    uint16 constant pGamma   = 64;
-    uint16 constant pY       = 96;
-    uint16 constant pXiSeed  = 128;
-    uint16 constant pXiSeed2 = 160;
-    uint16 constant pXi      = 192;
+    uint16 constant pAlpha   = 0;   // alpha challenge
+    uint16 constant pBeta    = 32;  // beta challenge
+    uint16 constant pGamma   = 64;  // gamma challenge
+    uint16 constant pY       = 96;  // y challenge
+    uint16 constant pXiSeed  = 128; // xi seed, from this value we compute xi = xiSeed^24
+    uint16 constant pXiSeed2 = 160; // (xi seed)^2
+    uint16 constant pXi      = 192; // xi challenge
 
     // Roots
+    // S_0 = roots_8(xi) = { h_0, h_0w_8, h_0w_8^2, h_0w_8^3, h_0w_8^4, h_0w_8^5, h_0w_8^6, h_0w_8^7 }
     uint16 constant pH0w8_0 = 224;
     uint16 constant pH0w8_1 = 256;
     uint16 constant pH0w8_2 = 288;
@@ -102,37 +118,40 @@ contract FflonkVerifier {
     uint16 constant pH0w8_6 = 416;
     uint16 constant pH0w8_7 = 448;
 
+    // S_1 = roots_4(xi) = { h_1, h_1w_4, h_1w_4^2, h_1w_4^3 }
     uint16 constant pH1w4_0 = 480;
     uint16 constant pH1w4_1 = 512;
     uint16 constant pH1w4_2 = 544;
     uint16 constant pH1w4_3 = 576;
 
+    // S_2 = roots_3(xi) U roots_3(xi omega)
+    // roots_3(xi) = { h_2, h_2w_3, h_2w_3^2 }
     uint16 constant pH2w3_0 = 608;
     uint16 constant pH2w3_1 = 640;
     uint16 constant pH2w3_2 = 672;
-
+    // roots_3(xi omega) = { h_3, h_3w_3, h_3w_3^2 }
     uint16 constant pH3w3_0 = 704;
     uint16 constant pH3w3_1 = 736;
     uint16 constant pH3w3_2 = 768;
 
-    uint16 constant pPi     = 800;
-    uint16 constant pR0     = 832;
-    uint16 constant pR1     = 864;
-    uint16 constant pR2     = 896;
+    uint16 constant pPi     = 800; // PI(xi)
+    uint16 constant pR0     = 832; // r0(y)
+    uint16 constant pR1     = 864; // r1(y)
+    uint16 constant pR2     = 896; // r2(y)
 
-    uint16 constant pF      = 928;  // 64 bytes
-    uint16 constant pE      = 992;  // 64 bytes
-    uint16 constant pJ      = 1056; // 64 bytes
-    uint16 constant pA      = 1120; // 64 bytes
+    uint16 constant pF      = 928;  // [F]_1, 64 bytes
+    uint16 constant pE      = 992;  // [E]_1, 64 bytes
+    uint16 constant pJ      = 1056; // [J]_1, 64 bytes
 
-    uint16 constant pZh     = 1184;
-    // From this point we write all the variables that must compute the inverse using the Montgomery batch inversion
-    uint16 constant pZhInv  = 1216;
-    uint16 constant pDenH1  = 1248;
-    uint16 constant pDenH2  = 1280;
-    uint16 constant pLiS0Inv = 1312; // Reserve 8 * 32 bytes to compute R1 and R2 inversions
-    uint16 constant pLiS1Inv = 1568; // Reserve 4 * 32 bytes to compute R1 and R2 inversions
-    uint16 constant pLiS2Inv = 1696; // Reserve 6 * 32 bytes to compute R1 and R2 inversions
+    uint16 constant pZh     = 1184; // Z_H(xi)
+    // From this point we write all the variables that must be computed using the Montgomery batch inversion
+    uint16 constant pZhInv  = 1216; // 1/Z_H(xi)
+    uint16 constant pDenH1  = 1248; // 1/( (y-h_1w_4) (y-h_1w_4^2) (y-h_1w_4^3) (y-h_1w_4^4) )
+    uint16 constant pDenH2  = 1280; // 1/( (y-h_2w_3) (y-h_2w_3^2) (y-h_2w_3^3) (y-h_3w_3) (y-h_3w_3^2) (y-h_3w_3^3) )
+    uint16 constant pLiS0Inv = 1312; // Reserve 8 * 32 bytes to compute r_0(X)
+    uint16 constant pLiS1Inv = 1568; // Reserve 4 * 32 bytes to compute r_1(X)
+    uint16 constant pLiS2Inv = 1696; // Reserve 6 * 32 bytes to compute r_2(X)
+    // Lagrange evaluations
     uint16 constant pEval_l1 = 1888;
      
     uint16 constant lastMem = 1920;
@@ -222,18 +241,23 @@ contract FflonkVerifier {
 
             function computeChallenges(pProof, pMem, pPublic) {
                 // Compute challenge.beta & challenge.gamma
-                mstore(add(pMem, 1920), calldataload(pPublic))
-                
-                mstore(add(pMem, 1952 ),  mload(add(pProof, pC1)))
-                mstore(add(pMem, 1984 ),  mload(add(pProof, add(pC1, 32))))
+                mstore(add(pMem, 1920 ), C0x)
+                mstore(add(pMem, 1952 ), C0y)
 
-                mstore(add(pMem, pBeta), mod(keccak256(add(pMem, lastMem), 96), q))
+                mstore(add(pMem, 1984), calldataload(pPublic))
+                
+
+                mstore(add(pMem, 2016 ),  mload(add(pProof, pC1)))
+                mstore(add(pMem, 2048 ),  mload(add(pProof, add(pC1, 32))))
+
+                mstore(add(pMem, pBeta),  mod(keccak256(add(pMem, lastMem), 160), q))
                 mstore(add(pMem, pGamma), mod(keccak256(add(pMem, pBeta), 32), q))
 
                 // Get xiSeed & xiSeed2
-                mstore(add(pMem, lastMem), mload(add(pProof, pC2)))
-                mstore(add(pMem, 1952), mload(add(pProof, add(pC2, 32))))
-                let xiSeed := mod(keccak256(add(pMem, lastMem), 64), q)
+                mstore(add(pMem, lastMem), mload(add(pMem, pGamma)))
+                mstore(add(pMem, 1952), mload(add(pProof, pC2)))
+                mstore(add(pMem, 1984), mload(add(pProof, add(pC2, 32))))
+                let xiSeed := mod(keccak256(add(pMem, lastMem), 96), q)
 
                 mstore(add(pMem, pXiSeed), xiSeed)
                 mstore(add(pMem, pXiSeed2), mulmod(xiSeed, xiSeed, q))
@@ -267,66 +291,60 @@ contract FflonkVerifier {
                 let xin := mulmod(mulmod(mload(add(pMem, pH2w3_0)), mload(add(pMem, pH2w3_0)), q), mload(add(pMem, pH2w3_0)), q)
                 mstore(add(pMem, pXi), xin)
 
-                  // Compute xi^n
-                
+                // Compute xi^n
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
+                xin:= mulmod(xin, xin, q)
                 xin:= mulmod(xin, xin, q)
                 
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-                xin:= mulmod(xin, xin, q)
-                
-
                 xin:= mod(add(sub(xin, 1), q), q)
                 mstore(add(pMem, pZh), xin)
                 mstore(add(pMem, pZhInv), xin)  // We will invert later together with lagrange pols
 
                 // Compute challenge.alpha
-                mstore(add(pMem, pAlpha), mod(keccak256(add(pProof, pEval_ql), 480), q))
+                mstore(add(pMem, lastMem), xiSeed)
+                mstore(add(pMem, 1952), mload(add(pProof, pEval_ql)))
+                mstore(add(pMem, 1984), mload(add(pProof, pEval_qr)))
+                mstore(add(pMem, 2016), mload(add(pProof, pEval_qm)))
+                mstore(add(pMem, 2048), mload(add(pProof, pEval_qo)))
+                mstore(add(pMem, 2080), mload(add(pProof, pEval_qc)))
+                mstore(add(pMem, 2112), mload(add(pProof, pEval_s1)))
+                mstore(add(pMem, 2144), mload(add(pProof, pEval_s2)))
+                mstore(add(pMem, 2176), mload(add(pProof, pEval_s3)))
+                mstore(add(pMem, 2208), mload(add(pProof, pEval_a)))
+                mstore(add(pMem, 2240), mload(add(pProof, pEval_b)))
+                mstore(add(pMem, 2272), mload(add(pProof, pEval_c)))
+                mstore(add(pMem, 2304), mload(add(pProof, pEval_z)))
+                mstore(add(pMem, 2336), mload(add(pProof, pEval_zw)))
+                mstore(add(pMem, 2368), mload(add(pProof, pEval_t1w)))
+                mstore(add(pMem, 2400), mload(add(pProof, pEval_t2w)))
+                mstore(add(pMem, pAlpha), mod(keccak256(add(pMem, lastMem), 512), q))
 
                 // Compute challenge.y
-                mstore(add(pMem, pY), mod(keccak256(add(pProof, pW1), 64), q))
+                mstore(add(pMem, lastMem), mload(add(pMem, pAlpha)))
+                mstore(add(pMem, 1952 ),  mload(add(pProof, pW1)))
+                mstore(add(pMem, 1984 ),  mload(add(pProof, add(pW1, 32))))
+                mstore(add(pMem, pY), mod(keccak256(add(pMem, lastMem), 96), q))
             }
 
             // This function computes allows as to compute (X-X1)·(X-X2)·...·(X-Xn) used in Lagrange interpolation
@@ -375,14 +393,12 @@ contract FflonkVerifier {
                 mstore(add(pMem, add(pLiS0Inv, 192)), calcLagrangeItem(pMem, 6, 7, add(pH0w8_0, 192), pH0w8_0))
                 mstore(add(pMem, add(pLiS0Inv, 224)), calcLagrangeItem(pMem, 7, 7, add(pH0w8_0, 224), pH0w8_0))
                 
-
                 // Denominator needed in the verifier when computing L_i^{S1}(X)
                 mstore(add(pMem, add(pLiS1Inv, 0)), calcLagrangeItem(pMem, 0, 3, add(pH1w4_0, 0), pH1w4_0))
                 mstore(add(pMem, add(pLiS1Inv, 32)), calcLagrangeItem(pMem, 1, 3, add(pH1w4_0, 32), pH1w4_0))
                 mstore(add(pMem, add(pLiS1Inv, 64)), calcLagrangeItem(pMem, 2, 3, add(pH1w4_0, 64), pH1w4_0))
                 mstore(add(pMem, add(pLiS1Inv, 96)), calcLagrangeItem(pMem, 3, 3, add(pH1w4_0, 96), pH1w4_0))
                 
-
                 // Denominator needed in the verifier when computing L_i^{S2}(X)
                 mstore(add(pMem, add(pLiS2Inv, 0)), calcLagrangeItem(pMem, 0, 5, add(pH2w3_0, 0), pH2w3_0))
                 mstore(add(pMem, add(pLiS2Inv, 32)), calcLagrangeItem(pMem, 1, 5, add(pH2w3_0, 32), pH2w3_0))
@@ -391,7 +407,6 @@ contract FflonkVerifier {
                 mstore(add(pMem, add(pLiS2Inv, 128)), calcLagrangeItem(pMem, 4, 5, add(pH2w3_0, 128), pH2w3_0))
                 mstore(add(pMem, add(pLiS2Inv, 160)), calcLagrangeItem(pMem, 5, 5, add(pH2w3_0, 160), pH2w3_0))
                 
-
                 // L_i where i from 1 to num public inputs, needed in step 6 and 7 of the verifier to compute L_1(xi) and PI(xi)
                 w := 1
                 let xi := mload(add(pMem, pXi))
@@ -659,14 +674,13 @@ contract FflonkVerifier {
                 mstore(add(add(pMem, pE), 32), mod(sub(qf, mload(add(add(pMem, pE), 32))), qf))
                 // Compute -J
                 mstore(add(add(pMem, pJ), 32), mod(sub(qf, mload(add(add(pMem, pJ), 32))), qf))
-                // A = F - E - J + y·W2
-                g1_acc(add(pMem, pA), add(pMem, pF))
-                g1_acc(add(pMem, pA), add(pMem, pE))
-                g1_acc(add(pMem, pA), add(pMem, pJ))
-                g1_mulAcc(add(pMem, pA), add(pProof, pW2), mload(add(pMem, pY)))
+                // F = F - E - J + y·W2
+                g1_acc(add(pMem, pF), add(pMem, pE))
+                g1_acc(add(pMem, pF), add(pMem, pJ))
+                g1_mulAcc(add(pMem, pF), add(pProof, pW2), mload(add(pMem, pY)))
 
-                mstore(mIn, mload(add(pMem, pA)))
-                mstore(add(mIn, 32), mload(add(add(pMem, pA), 32)))
+                mstore(mIn, mload(add(pMem, pF)))
+                mstore(add(mIn, 32), mload(add(add(pMem, pF), 32)))
 
                 // Second pairing value
                 mstore(add(mIn, 64), G2x2)
