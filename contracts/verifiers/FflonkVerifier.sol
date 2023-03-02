@@ -254,10 +254,9 @@ contract FflonkVerifier {
                 mstore(add(pMem, pGamma), mod(keccak256(add(pMem, pBeta), 32), q))
 
                 // Get xiSeed & xiSeed2
-                mstore(add(pMem, lastMem), mload(add(pMem, pGamma)))
-                mstore(add(pMem, 1952), mload(add(pProof, pC2)))
-                mstore(add(pMem, 1984), mload(add(pProof, add(pC2, 32))))
-                let xiSeed := mod(keccak256(add(pMem, lastMem), 96), q)
+                mstore(add(pMem, lastMem), mload(add(pProof, pC2)))
+                mstore(add(pMem, 1952), mload(add(pProof, add(pC2, 32))))
+                let xiSeed := mod(keccak256(add(pMem, lastMem), 64), q)
 
                 mstore(add(pMem, pXiSeed), xiSeed)
                 mstore(add(pMem, pXiSeed2), mulmod(xiSeed, xiSeed, q))
@@ -322,29 +321,10 @@ contract FflonkVerifier {
                 mstore(add(pMem, pZhInv), xin)  // We will invert later together with lagrange pols
 
                 // Compute challenge.alpha
-                mstore(add(pMem, lastMem), xiSeed)
-                mstore(add(pMem, 1952), mload(add(pProof, pEval_ql)))
-                mstore(add(pMem, 1984), mload(add(pProof, pEval_qr)))
-                mstore(add(pMem, 2016), mload(add(pProof, pEval_qm)))
-                mstore(add(pMem, 2048), mload(add(pProof, pEval_qo)))
-                mstore(add(pMem, 2080), mload(add(pProof, pEval_qc)))
-                mstore(add(pMem, 2112), mload(add(pProof, pEval_s1)))
-                mstore(add(pMem, 2144), mload(add(pProof, pEval_s2)))
-                mstore(add(pMem, 2176), mload(add(pProof, pEval_s3)))
-                mstore(add(pMem, 2208), mload(add(pProof, pEval_a)))
-                mstore(add(pMem, 2240), mload(add(pProof, pEval_b)))
-                mstore(add(pMem, 2272), mload(add(pProof, pEval_c)))
-                mstore(add(pMem, 2304), mload(add(pProof, pEval_z)))
-                mstore(add(pMem, 2336), mload(add(pProof, pEval_zw)))
-                mstore(add(pMem, 2368), mload(add(pProof, pEval_t1w)))
-                mstore(add(pMem, 2400), mload(add(pProof, pEval_t2w)))
-                mstore(add(pMem, pAlpha), mod(keccak256(add(pMem, lastMem), 512), q))
+                mstore(add(pMem, pAlpha), mod(keccak256(add(pProof, pEval_ql), 480), q))
 
                 // Compute challenge.y
-                mstore(add(pMem, lastMem), mload(add(pMem, pAlpha)))
-                mstore(add(pMem, 1952 ),  mload(add(pProof, pW1)))
-                mstore(add(pMem, 1984 ),  mload(add(pProof, add(pW1, 32))))
-                mstore(add(pMem, pY), mod(keccak256(add(pMem, lastMem), 96), q))
+                mstore(add(pMem, pY), mod(keccak256(add(pProof, pW1), 64), q))
             }
 
             // This function computes allows as to compute (X-X1)·(X-X2)·...·(X-Xn) used in Lagrange interpolation
