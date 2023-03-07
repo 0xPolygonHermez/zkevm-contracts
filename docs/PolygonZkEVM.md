@@ -522,6 +522,15 @@ Function to calculate the input snark bytes
 |`oldStateRoot` | bytes32 | State root before batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 
+### checkStateRootInsidePrime
+```solidity
+  function checkStateRootInsidePrime(
+  ) public returns (bool)
+```
+
+
+
+
 ## Events
 ### SequenceBatches
 ```solidity

@@ -131,6 +131,12 @@ contract PolygonZkEVM is
     // Min value batch fee
     uint256 internal constant _MIN_BATCH_FEE = 1 gwei;
 
+    // Goldilocks prime field
+    uint256 internal constant _GOLDILOCKS_PRIME_FIELD = 0xFFFFFFFF00000001; // 2 ** 64 - 2 ** 32 + 1
+
+    // Max uint64
+    uint256 internal constant _MAX_UINT_64 = type(uint64).max; // 0xFFFFFFFFFFFFFFFF
+
     // MATIC token address
     IERC20Upgradeable public immutable matic;
 
@@ -1582,6 +1588,11 @@ contract PolygonZkEVM is
             revert NewAccInputHashDoesNotExist();
         }
 
+        // Check that new state root is inside goldilocks field
+        if (!checkStateRootInsidePrime(uint256(newStateRoot))) {
+            revert NewStateRootNotInsidePrime();
+        }
+
         return
             abi.encodePacked(
                 msg.sender,
@@ -1595,5 +1606,21 @@ contract PolygonZkEVM is
                 newLocalExitRoot,
                 finalNewBatch
             );
+    }
+
+    function checkStateRootInsidePrime(
+        uint256 newStateRoot
+    ) public pure returns (bool) {
+        if (
+            ((newStateRoot & _MAX_UINT_64) < _GOLDILOCKS_PRIME_FIELD) &&
+            (((newStateRoot >> 64) & _MAX_UINT_64) < _GOLDILOCKS_PRIME_FIELD) &&
+            (((newStateRoot >> 128) & _MAX_UINT_64) <
+                _GOLDILOCKS_PRIME_FIELD) &&
+            ((newStateRoot >> 192) < _GOLDILOCKS_PRIME_FIELD)
+        ) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }

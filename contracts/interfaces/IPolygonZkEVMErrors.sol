@@ -188,4 +188,9 @@ interface IPolygonZkEVMErrors {
      * @dev Thrown when the new accumulate input hash does not exist
      */
     error NewAccInputHashDoesNotExist();
+
+    /**
+     * @dev Thrown when the new state root is not inside prime
+     */
+    error NewStateRootNotInsidePrime();
 }
