@@ -21,15 +21,22 @@ cp deploy_parameters.json.example deploy_parameters.json
 
 Fill created `deploy_parameters.json` with appropiate parameters.
 
-To deploy contracts run `npm run deploy:ZkEVM:${network}`, for example:
-
-> set `runs` parameter from the compiler settings in `hardhat.config.js` (i.e. `runs: 100`)
+To deploy contracts first deploy and verify the `PolygonZkEVMDeployer`
 
 ```
-npm run deploy:ZkEVM:goerli
+npm run deploy:deployer:ZkEVM:goerli
+npm run verify:deployer:ZkEVM:goerli
 ```
 
-To verify contracts run `npm run verify:ZkEVM:${network}`, for example:
+Then deploy the contracts, if we are on testnet use `deploy:testnet:ZkEVM:${network}`, in other cases use `deploy:ZkEVM:${network}` and
+set in deploy_parameters the `maticTokenAddress`:
+
+```
+npm run deploy:testnet:ZkEVM:goerli
+
+```
+
+To verify contracts use `npm run verify:ZkEVM:${network}`
 
 ```
 npm run verify:ZkEVM:goerli
