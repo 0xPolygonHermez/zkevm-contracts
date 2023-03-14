@@ -112,6 +112,11 @@ describe('Emergency mode test', () => {
 
         // fund sequencer address with Matic tokens
         await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('1000'));
+
+        // Activate force batches
+        await expect(
+            polygonZkEVMContract.connect(admin).activateForceBatches(),
+        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
     });
 
     it('should activate emergency mode', async () => {

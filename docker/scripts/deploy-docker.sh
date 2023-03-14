@@ -6,7 +6,7 @@ node docker/scripts/fund-accounts.js
 cp docker/scripts/deploy_parameters_docker.json deployment/deploy_parameters.json
 cp docker/scripts/genesis_docker.json deployment/genesis.json
 npx hardhat run deployment/testnet/prepareTestnet.js --network localhost
-npx hardhat run deployment/testnet/2_deployPolygonZKEVMDeployer.js --network localhost
+npx hardhat run deployment/2_deployPolygonZKEVMDeployer.js --network localhost
 npx hardhat run deployment/3_deployContracts.js --network localhost
 mkdir docker/deploymentOutput
 mv deployment/deploy_output.json docker/deploymentOutput

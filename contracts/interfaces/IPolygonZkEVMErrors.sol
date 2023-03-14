@@ -145,6 +145,11 @@ interface IPolygonZkEVMErrors {
     error InvalidRangeBatchTimeTarget();
 
     /**
+     * @dev Thrown when attempting to set a force batch timeout in an invalid range of values
+     */
+    error InvalidRangeForceBatchTimeout();
+
+    /**
      * @dev Thrown when the caller is not the pending admin
      */
     error OnlyPendingAdmin();
@@ -193,4 +198,14 @@ interface IPolygonZkEVMErrors {
      * @dev Thrown when the new state root is not inside prime
      */
     error NewStateRootNotInsidePrime();
+
+    /**
+     * @dev Thrown when force batch is not allowed
+     */
+    error ForceBatchNotAllowed();
+
+    /**
+     * @dev Thrown when try to activate force batches when they are already active
+     */
+    error ForceBatchesAlreadyActive();
 }

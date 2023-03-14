@@ -2,7 +2,7 @@
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 
-describe('Polygon ZK-EVM Testnet', () => {
+describe('Polygon ZK-EVM TestnetV2', () => {
     let deployer;
     let trustedAggregator;
     let trustedSequencer;
@@ -30,8 +30,6 @@ describe('Polygon ZK-EVM Testnet', () => {
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
 
-    // PolygonZkEVM Constants
-    const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
 
@@ -81,7 +79,7 @@ describe('Polygon ZK-EVM Testnet', () => {
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });
 
         // deploy PolygonZkEVMTestnet
-        const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMTestnet');
+        const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMTestnetV2');
         polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
             initializer: false,
             constructorArgs: [
@@ -118,28 +116,19 @@ describe('Polygon ZK-EVM Testnet', () => {
     });
 
     it('should check the constructor parameters', async () => {
-        expect(await polygonZkEVMContract.forcedBatchesAllowed()).to.be.equal(0);
-        expect(await polygonZkEVMContract.forceBatchTimeout()).to.be.equal(0);
+        expect(await polygonZkEVMContract.version()).to.be.equal(0);
     });
 
-    it('should check forcedBatchesAllowed', async () => {
-        await expect(polygonZkEVMContract.connect(admin).setForcedBatchesAllowed(1))
-            .to.be.revertedWith('Ownable:');
-        await polygonZkEVMContract.connect(deployer).setForcedBatchesAllowed(1);
+    it('should check updateVersion', async () => {
+        const lastVerifiedBatch = 0;
+        const newVersionString = '0.0.2';
 
-        const l2txDataForceBatch = '0x123456';
-        const maticAmount = await polygonZkEVMContract.getCurrentBatchFee();
+        await expect(polygonZkEVMContract.updateVersion(newVersionString))
+            .to.emit(polygonZkEVMContract, 'UpdateZkEVMVersion').withArgs(lastVerifiedBatch, forkID, newVersionString);
 
-        await expect(polygonZkEVMContract.forceBatch(l2txDataForceBatch, maticAmount))
-            .to.be.revertedWith('ForceBatchNowAllowed');
-        await expect(polygonZkEVMContract.sequenceForceBatches([]))
-            .to.be.revertedWith('ForceBatchNowAllowed');
+        await expect(polygonZkEVMContract.updateVersion(newVersionString))
+            .to.be.revertedWith('VersionAlreadyUpdated');
 
-        expect(await polygonZkEVMContract.getForceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
-
-        await expect(polygonZkEVMContract.connect(admin).setForceBatchTimeout(1))
-            .to.be.revertedWith('Ownable:');
-        await polygonZkEVMContract.connect(deployer).setForceBatchTimeout(1);
-        expect(await polygonZkEVMContract.getForceBatchTimeout()).to.be.equal(1);
+        expect(await polygonZkEVMContract.version()).to.be.equal(1);
     });
 });

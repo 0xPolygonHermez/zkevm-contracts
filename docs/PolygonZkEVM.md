@@ -327,6 +327,31 @@ the trustedAggregatorTimeout should be zero or very close to zero
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newVerifyBatchTimeTarget` | uint64 | Verify batch time target
 
+### setForceBatchTimeout
+```solidity
+  function setForceBatchTimeout(
+    uint64 newforceBatchTimeout
+  ) external
+```
+Allow the admin to set the forcedBatchTimeout
+The new value can only be lower, except if emergency state is active
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newforceBatchTimeout` | uint64 | New force batch timeout
+
+### activateForceBatches
+```solidity
+  function activateForceBatches(
+  ) external
+```
+Allow the admin to turn on the force batches
+This action is not reversible
+
+
+
 ### transferAdminRole
 ```solidity
   function transferAdminRole(
@@ -635,6 +660,22 @@ Emitted when the admin update the multiplier batch fee
 ```
 
 Emitted when the admin update the verify batch timeout
+
+### SetForceBatchTimeout
+```solidity
+  event SetForceBatchTimeout(
+  )
+```
+
+Emitted when the admin update the force batch timeout
+
+### ActivateForceBatches
+```solidity
+  event ActivateForceBatches(
+  )
+```
+
+Emitted when activate force batches
 
 ### TransferAdminRole
 ```solidity
