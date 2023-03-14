@@ -24,73 +24,17 @@ This contract will NOT BE USED IN PRODUCTION, will be used only in testnet envir
 |`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
 |`_chainID` | uint64 | L2 chainID
 
-### forceBatch
+### updateVersion
 ```solidity
-  function forceBatch(
+  function updateVersion(
+    string _versionString
   ) public
 ```
-
-
-
-
-### sequenceForceBatches
-```solidity
-  function sequenceForceBatches(
-  ) external
-```
-
-
-
-
-### getForceBatchTimeout
-```solidity
-  function getForceBatchTimeout(
-  ) public returns (uint64)
-```
-
-
-
-
-### setForceBatchTimeout
-```solidity
-  function setForceBatchTimeout(
-    uint64 newforceBatchTimeout
-  ) public
-```
-Set new forcedBatchTimeout
+Update version of the zkEVM
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newforceBatchTimeout` | uint64 | new forced batches timeout
-
-### setForcedBatchesAllowed
-```solidity
-  function setForcedBatchesAllowed(
-    uint256 newForcedBatchesAllowed
-  ) public
-```
-Set new forced batches allowed
-Defined as a uint256 because it will be easy to updgrade afterwards
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newForcedBatchesAllowed` | uint256 | new forced batches allowed
-
-### setNetworkName
-```solidity
-  function setNetworkName(
-    string _networkName
-  ) public
-```
-Set network name
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`_networkName` | string | New verifier
+|`_versionString` | string | New version string
 

@@ -74,17 +74,41 @@ async function main() {
 
         // Use timelock
         const salt = upgradeParameters.timelockSalt || ethers.constants.HashZero;
-        const operation = genOperation(
-            proxyAdmin.address,
-            0, // value
-            proxyAdmin.interface.encodeFunctionData(
-                'upgrade',
-                [proxyPolygonAddress,
-                    newImplPolygonAddress],
-            ),
-            ethers.constants.HashZero, // predecesoor
-            salt, // salt
-        );
+
+        let operation;
+        if (upgrade.callAfterUpgrade) {
+            operation = genOperation(
+                proxyAdmin.address,
+                0, // value
+                proxyAdmin.interface.encodeFunctionData(
+                    'upgradeAndCall',
+                    [
+                        proxyPolygonAddress,
+                        newImplPolygonAddress,
+                        polygonZkEVMFactory.interface.encodeFunctionData(
+                            upgrade.callAfterUpgrade.functionName,
+                            upgrade.callAfterUpgrade.arguments,
+                        )
+                    ],
+                ),
+                ethers.constants.HashZero, // predecesoor
+                salt, // salt
+            );
+
+
+        } else {
+            operation = genOperation(
+                proxyAdmin.address,
+                0, // value
+                proxyAdmin.interface.encodeFunctionData(
+                    'upgrade',
+                    [proxyPolygonAddress,
+                        newImplPolygonAddress],
+                ),
+                ethers.constants.HashZero, // predecesoor
+                salt, // salt
+            );
+        }
 
         // Timelock operations
         const TimelockFactory = await ethers.getContractFactory('PolygonZkEVMTimelock', deployer);

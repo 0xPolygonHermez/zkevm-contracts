@@ -143,7 +143,9 @@ describe('Polygon ZK-EVM', () => {
         expect(await polygonZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
         expect(await polygonZkEVMContract.networkName()).to.be.equal(networkName);
 
-        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.utils.parseEther('1'));
+        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
+        expect(await polygonZkEVMContract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
+        expect(await polygonZkEVMContract.isForcedBatchDisallowed()).to.be.equal(true);
     });
 
     it('should check initialize function', async () => {
@@ -293,6 +295,39 @@ describe('Polygon ZK-EVM', () => {
         ).to.emit(polygonZkEVMContract, 'SetVerifyBatchTimeTarget').withArgs(newVerifyBatchTimeTarget);
         expect(await polygonZkEVMContract.verifyBatchTimeTarget()).to.be.equal(newVerifyBatchTimeTarget);
 
+        // setPendingStateTimeoutDefault
+        const newForceBatchTimeout = 0;
+        await expect(polygonZkEVMContract.setForceBatchTimeout(newForceBatchTimeout))
+            .to.be.revertedWith('OnlyAdmin');
+
+        await expect(polygonZkEVMContract.connect(admin).setForceBatchTimeout(HALT_AGGREGATION_TIMEOUT + 1))
+            .to.be.revertedWith('InvalidRangeForceBatchTimeout');
+
+        await expect(polygonZkEVMContract.connect(admin).setForceBatchTimeout(FORCE_BATCH_TIMEOUT))
+            .to.be.revertedWith('InvalidRangeForceBatchTimeout');
+        await expect(
+            polygonZkEVMContract.connect(admin).setForceBatchTimeout(newForceBatchTimeout),
+        ).to.emit(polygonZkEVMContract, 'SetForceBatchTimeout').withArgs(newForceBatchTimeout);
+        expect(await polygonZkEVMContract.forceBatchTimeout()).to.be.equal(newForceBatchTimeout);
+
+        // Activate force batches
+        await expect(polygonZkEVMContract.activateForceBatches())
+            .to.be.revertedWith('OnlyAdmin');
+
+        // Check force batches are unactive
+        await expect(polygonZkEVMContract.forceBatch('0x', 0))
+            .to.be.revertedWith('ForceBatchNotAllowed');
+        await expect(polygonZkEVMContract.sequenceForceBatches([]))
+            .to.be.revertedWith('ForceBatchNotAllowed');
+
+        await expect(
+            polygonZkEVMContract.connect(admin).activateForceBatches(),
+        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+        await expect(polygonZkEVMContract.connect(admin).activateForceBatches())
+            .to.be.revertedWith('ForceBatchesAlreadyActive');
+
+        expect(await polygonZkEVMContract.isForcedBatchDisallowed()).to.be.equal(false);
+
         // Transfer admin role
 
         // First set pending Admin
@@ -314,6 +349,38 @@ describe('Polygon ZK-EVM', () => {
             polygonZkEVMContract.connect(deployer).acceptAdminRole(),
         ).to.emit(polygonZkEVMContract, 'AcceptAdminRole').withArgs(deployer.address);
         expect(await polygonZkEVMContract.admin()).to.be.equal(deployer.address);
+    });
+
+    it('should check state roots inside prime', async () => {
+        const validRoots = [
+            '0x02959FFA45214AF690A3730806D4F59F7056CCC449373BBE42C20765D3996CA1',
+            '0x7E680781BF155C4682C7D431E86DAFD1DD986BE664A7256879CB2B33391E2DAC',
+            '0xD710F3A64598F4C6C94E2A5F3F6193B4FBADBF5A5DBAFEBD0A75277E27E2BCD3',
+            '0x048F3F2D4430DAF38E3CC891853C9BB102E5880E1ADA799554C7ED392B4BD7F3',
+            '0x7E680781BF155C4682C7D431E86DAFD1DD986BE664A7256879CB2B33391E2DAC',
+            '0xFFFFFFFE45214AF690A3730806D4F59F7056CCC449373BBE42C20765D3996CA1',
+            '0x7E680781BF155C4FFFFFFFF1E86DAFD1DD986BE664A7256879CB2B33391E2DAC',
+            '0xFFFFFFFF00000000C94E2A5F3F6193B4FBADBF5A5DBAFEBD0A75277E27E2BCD3',
+            '0x048F3F2D4430DAF3FFFFFFFF0000000002E5880E1ADA799554C7ED392B4BD7F3',
+            '0x7E680781BF155C4682C7D431E86DAFD1FFFFFFFF0000000079CB2B33391E2DAC',
+            '0x02959FFA45214AF690A3730806D4F59F7056CCC449373BBEFFFFFFFF00000000',
+            '0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000',
+        ];
+
+        const aliasInvalidRoots = ['0xFFFFFFFF45214AF690A3730806D4F59F7056CCC449373BBE42C20765D3996CA1',
+            '0x7E680781BF155C46FFFFFFFFE86DAFD1DD986BE664A7256879CB2B33391E2DAC',
+            '0xD710F3A64598F4C6C94E2A5F3F6193B4FFFFFFFF5DBAFEBD0A75277E27E2BCD3',
+            '0x048F3F2D4430DAF38E3CC891853C9BB102E5880E1ADA7995FFFFFFFF2B4BD7F3',
+            '0xFFFFFFFFBF155C4682C7D431E86DAFD1FFFFFFFF64A7256879CB2B33391E2DAC',
+        ];
+
+        for (let i = 0; i < validRoots.length; i++) {
+            expect(await polygonZkEVMContract.checkStateRootInsidePrime(validRoots[i])).to.be.equal(true);
+        }
+
+        for (let i = 0; i < aliasInvalidRoots.length; i++) {
+            expect(await polygonZkEVMContract.checkStateRootInsidePrime(aliasInvalidRoots[i])).to.be.equal(false);
+        }
     });
 
     it('should sequence a batch as trusted sequencer', async () => {
@@ -477,6 +544,11 @@ describe('Polygon ZK-EVM', () => {
         const approveTx = await maticTokenContract.populateTransaction.approve(polygonZkEVMContract.address, maticAmount);
         await sendDataContract.sendData(approveTx.to, approveTx.data);
 
+        // Activate forced batches
+        await expect(
+            polygonZkEVMContract.connect(admin).activateForceBatches(),
+        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+
         // Force batch
         const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
 
@@ -496,6 +568,11 @@ describe('Polygon ZK-EVM', () => {
         ).to.emit(maticTokenContract, 'Approval');
 
         const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
+
+        // Activate forced batches
+        await expect(
+            polygonZkEVMContract.connect(admin).activateForceBatches(),
+        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
 
         // Force batch
         await expect(polygonZkEVMContract.forceBatch(l2txDataForceBatch, maticAmount))
@@ -674,6 +751,11 @@ describe('Polygon ZK-EVM', () => {
 
         expect(maticAmount.toString()).to.be.equal((await polygonZkEVMContract.getCurrentBatchFee()).toString());
 
+        // Activate force batches
+        await expect(
+            polygonZkEVMContract.connect(admin).activateForceBatches(),
+        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+
         // revert because the maxMatic amount is less than the necessary to pay
         await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount.sub(1)))
             .to.be.revertedWith('NotEnoughMaticAmount');
@@ -726,6 +808,11 @@ describe('Polygon ZK-EVM', () => {
         await expect(
             maticTokenContract.approve(polygonZkEVMContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
+
+        // Activate force batches
+        await expect(
+            polygonZkEVMContract.connect(admin).activateForceBatches(),
+        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
 
         const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
 
@@ -915,6 +1002,11 @@ describe('Polygon ZK-EVM', () => {
             maticTokenContract.approve(polygonZkEVMContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
+        // Activate force batches
+        await expect(
+            polygonZkEVMContract.connect(admin).activateForceBatches(),
+        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+
         const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
         await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
             .to.emit(polygonZkEVMContract, 'ForceBatch')
@@ -1047,6 +1139,11 @@ describe('Polygon ZK-EVM', () => {
         await expect(
             maticTokenContract.approve(polygonZkEVMContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
+
+        // Activate force batches
+        await expect(
+            polygonZkEVMContract.connect(admin).activateForceBatches(),
+        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
 
         const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()).toNumber() + 1;
         await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
@@ -1924,7 +2021,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Assert currentFee
         let currentBatchFee = await polygonZkEVMContract.batchFee();
-        expect(currentBatchFee).to.be.equal(ethers.utils.parseEther('1'));
+        expect(currentBatchFee).to.be.equal(ethers.utils.parseEther('0.1'));
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + verifyBatchTimeTarget * 2]);
 

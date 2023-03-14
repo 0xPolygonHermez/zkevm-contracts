@@ -54,8 +54,6 @@ async function main() {
         'salt',
         'zkEVMDeployerAddress',
         'maticTokenAddress',
-        'disallowForceBatches',
-        'isTestnet',
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -82,8 +80,6 @@ async function main() {
         salt,
         zkEVMDeployerAddress,
         maticTokenAddress,
-        disallowForceBatches,
-        isTestnet,
     } = deployParameters;
 
     // Load provider
@@ -353,12 +349,7 @@ async function main() {
     console.log('networkName:', networkName);
     console.log('networkName:', forkID);
 
-    let PolygonZkEVMFactory;
-    if (isTestnet) {
-        PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMTestnet', deployer);
-    } else {
-        PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVM', deployer);
-    }
+    const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVM', deployer);
 
     let polygonZkEVMContract;
     let deploymentBlockNumber;
@@ -413,11 +404,6 @@ async function main() {
         ongoingDeployment.polygonZkEVMContract = polygonZkEVMContract.address;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
 
-        // Unactivate the forced Batches checking flag
-        if (isTestnet && disallowForceBatches) {
-            await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
-        }
-
         // Transfer ownership of polygonZkEVMContract
         if (zkEVMOwner !== deployer.address) {
             await (await polygonZkEVMContract.transferOwnership(zkEVMOwner)).wait();
@@ -437,11 +423,6 @@ async function main() {
 
         const zkEVMOwnerContract = await polygonZkEVMContract.owner();
         if (zkEVMOwnerContract === deployer.address) {
-            // Unactivate the forced Batches checking flag
-            if (isTestnet && disallowForceBatches) {
-                await (await polygonZkEVMContract.setForcedBatchesAllowed(1)).wait();
-            }
-
             // Transfer ownership of polygonZkEVMContract
             if (zkEVMOwner !== deployer.address) {
                 await (await polygonZkEVMContract.transferOwnership(zkEVMOwner)).wait();

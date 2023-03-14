@@ -112,9 +112,6 @@ contract PolygonZkEVM is
     // Rounded to 300000 bytes
     uint256 internal constant _MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
 
-    // Force batch timeout
-    uint64 internal constant _FORCE_BATCH_TIMEOUT = 5 days;
-
     // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
     uint64 internal constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
@@ -130,6 +127,12 @@ contract PolygonZkEVM is
 
     // Min value batch fee
     uint256 internal constant _MIN_BATCH_FEE = 1 gwei;
+
+    // Goldilocks prime field
+    uint256 internal constant _GOLDILOCKS_PRIME_FIELD = 0xFFFFFFFF00000001; // 2 ** 64 - 2 ** 32 + 1
+
+    // Max uint64
+    uint256 internal constant _MAX_UINT_64 = type(uint64).max; // 0xFFFFFFFFFFFFFFFF
 
     // MATIC token address
     IERC20Upgradeable public immutable matic;
@@ -223,6 +226,12 @@ contract PolygonZkEVM is
     // This account will be able to accept the admin role
     address public pendingAdmin;
 
+    // Force batch timeout
+    uint64 public forceBatchTimeout;
+
+    // Indicates if forced batches are disallowed
+    bool public isForcedBatchDisallowed;
+
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
@@ -304,6 +313,16 @@ contract PolygonZkEVM is
      * @dev Emitted when the admin update the verify batch timeout
      */
     event SetVerifyBatchTimeTarget(uint64 newVerifyBatchTimeTarget);
+
+    /**
+     * @dev Emitted when the admin update the force batch timeout
+     */
+    event SetForceBatchTimeout(uint64 newforceBatchTimeout);
+
+    /**
+     * @dev Emitted when activate force batches
+     */
+    event ActivateForceBatches();
 
     /**
      * @dev Emitted when the admin starts the two-step transfer role setting a new pending admin
@@ -401,10 +420,12 @@ contract PolygonZkEVM is
         trustedAggregatorTimeout = initializePackedParameters
             .trustedAggregatorTimeout;
 
-        // Constant variables
-        batchFee = 10 ** 18; // 1 Matic
+        // Constant deployment variables
+        batchFee = 0.1 ether; // 0.1 Matic
         verifyBatchTimeTarget = 30 minutes;
         multiplierBatchFee = 1002;
+        forceBatchTimeout = 5 days;
+        isForcedBatchDisallowed = true;
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -430,6 +451,13 @@ contract PolygonZkEVM is
     modifier onlyTrustedAggregator() {
         if (trustedAggregator != msg.sender) {
             revert OnlyTrustedAggregator();
+        }
+        _;
+    }
+
+    modifier isForceBatchAllowed() {
+        if (isForcedBatchDisallowed) {
+            revert ForceBatchNotAllowed();
         }
         _;
     }
@@ -980,7 +1008,7 @@ contract PolygonZkEVM is
     function forceBatch(
         bytes calldata transactions,
         uint256 maticAmount
-    ) public virtual ifNotEmergencyState {
+    ) public isForceBatchAllowed ifNotEmergencyState {
         // Calculate matic collateral
         uint256 maticFee = getCurrentBatchFee();
 
@@ -1030,7 +1058,7 @@ contract PolygonZkEVM is
      */
     function sequenceForceBatches(
         ForcedBatchData[] calldata batches
-    ) external virtual ifNotEmergencyState {
+    ) external isForceBatchAllowed ifNotEmergencyState {
         uint256 batchesNum = batches.length;
 
         if (batchesNum == 0) {
@@ -1087,7 +1115,7 @@ contract PolygonZkEVM is
             if (i == (batchesNum - 1)) {
                 // The last batch will have the most restrictive timestamp
                 if (
-                    currentBatch.minForcedTimestamp + _FORCE_BATCH_TIMEOUT >
+                    currentBatch.minForcedTimestamp + forceBatchTimeout >
                     block.timestamp
                 ) {
                     revert ForceBatchTimeoutNotExpired();
@@ -1234,6 +1262,40 @@ contract PolygonZkEVM is
         }
         verifyBatchTimeTarget = newVerifyBatchTimeTarget;
         emit SetVerifyBatchTimeTarget(newVerifyBatchTimeTarget);
+    }
+
+    /**
+     * @notice Allow the admin to set the forcedBatchTimeout
+     * The new value can only be lower, except if emergency state is active
+     * @param newforceBatchTimeout New force batch timeout
+     */
+    function setForceBatchTimeout(
+        uint64 newforceBatchTimeout
+    ) external onlyAdmin {
+        if (newforceBatchTimeout > _HALT_AGGREGATION_TIMEOUT) {
+            revert InvalidRangeForceBatchTimeout();
+        }
+
+        if (!isEmergencyState) {
+            if (newforceBatchTimeout >= forceBatchTimeout) {
+                revert InvalidRangeForceBatchTimeout();
+            }
+        }
+
+        forceBatchTimeout = newforceBatchTimeout;
+        emit SetForceBatchTimeout(newforceBatchTimeout);
+    }
+
+    /**
+     * @notice Allow the admin to turn on the force batches
+     * This action is not reversible
+     */
+    function activateForceBatches() external onlyAdmin {
+        if (!isForcedBatchDisallowed) {
+            revert ForceBatchesAlreadyActive();
+        }
+        isForcedBatchDisallowed = false;
+        emit ActivateForceBatches();
     }
 
     /**
@@ -1582,6 +1644,11 @@ contract PolygonZkEVM is
             revert NewAccInputHashDoesNotExist();
         }
 
+        // Check that new state root is inside goldilocks field
+        if (!checkStateRootInsidePrime(uint256(newStateRoot))) {
+            revert NewStateRootNotInsidePrime();
+        }
+
         return
             abi.encodePacked(
                 msg.sender,
@@ -1595,5 +1662,21 @@ contract PolygonZkEVM is
                 newLocalExitRoot,
                 finalNewBatch
             );
+    }
+
+    function checkStateRootInsidePrime(
+        uint256 newStateRoot
+    ) public pure returns (bool) {
+        if (
+            ((newStateRoot & _MAX_UINT_64) < _GOLDILOCKS_PRIME_FIELD) &&
+            (((newStateRoot >> 64) & _MAX_UINT_64) < _GOLDILOCKS_PRIME_FIELD) &&
+            (((newStateRoot >> 128) & _MAX_UINT_64) <
+                _GOLDILOCKS_PRIME_FIELD) &&
+            ((newStateRoot >> 192) < _GOLDILOCKS_PRIME_FIELD)
+        ) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }
