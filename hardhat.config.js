@@ -121,7 +121,7 @@ module.exports = {
         count: 20,
       },
     },
-    zkevm: {
+    polygonZKEVMTestnet: {
       url: "https://rpc.public.zkevm-test.net",
       accounts: {
         mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
@@ -137,14 +137,17 @@ module.exports = {
     noColors: process.env.REPORT_GAS_FILE ? true : false
   },
   etherscan: {
-    apiKey: `${process.env.ETHERSCAN_API_KEY}`,
+    apiKey: {
+      polygonZKEVMTestnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
+      goerli: `${process.env.ETHERSCAN_API_KEY}`
+    },
     customChains: [
       {
-        network: "zkevm",
+        network: "polygonZKEVMTestnet",
         chainId: 1442,
         urls: {
           apiURL: "https://explorer.public.zkevm-test.net/api",
-          browserURL: "https://explorer.public.zkevm-test.net"
+          browserURL: "https://explorer.public.zkevm-test.net/"
         }
       }
     ]

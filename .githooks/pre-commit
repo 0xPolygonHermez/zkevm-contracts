@@ -17,7 +17,7 @@ if npm run lint; then
     cp artifacts/contracts/mocks/PolygonZkEVMMock.sol/PolygonZkEVMMock.json compiled-contracts/
     cp artifacts/contracts/mocks/VerifierRollupHelperMock.sol/VerifierRollupHelperMock.json compiled-contracts/
     cp artifacts/contracts/PolygonZkEVM.sol/PolygonZkEVM.json compiled-contracts/
-    cp artifacts/contracts/verifiers/Verifier.sol/FflonkVerifier.json compiled-contracts/
+    cp artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json compiled-contracts/
     cp artifacts/@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json compiled-contracts/
     cp artifacts/@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
