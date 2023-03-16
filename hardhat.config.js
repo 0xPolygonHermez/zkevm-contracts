@@ -146,8 +146,8 @@ module.exports = {
         network: "polygonZKEVMTestnet",
         chainId: 1442,
         urls: {
-          apiURL: "https://explorer.public.zkevm-test.net/api",
-          browserURL: "https://explorer.public.zkevm-test.net/"
+          apiURL: "https://api-testnet-zkevm.polygonscan.com/api",
+          browserURL: "https://testnet-zkevm.polygonscan.com/"
         }
       }
     ]
