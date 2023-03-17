@@ -7,7 +7,7 @@ import "../PolygonZkEVM.sol";
  * Contract responsible for managing the state and the updates of the L2 network
  * This contract will NOT BE USED IN PRODUCTION, will be used only in testnet enviroment
  */
-contract PolygonZkEVMTestnetV2 is PolygonZkEVM {
+contract PolygonZkEVMTestnetClearStorage is PolygonZkEVM {
     // Indicates the current version
     uint256 public version;
 
@@ -42,15 +42,15 @@ contract PolygonZkEVMTestnetV2 is PolygonZkEVM {
     error VersionAlreadyUpdated();
 
     /**
-     * @notice Update version of the zkEVM
-     * @param _versionString New version string
+     * @notice Clear previous storage
      */
-    function updateVersion(string memory _versionString) public {
-        if (version != 0) {
-            revert VersionAlreadyUpdated();
+    function clearStorage() public {
+        forceBatchTimeout = 5 days;
+        isForcedBatchDisallowed = true;
+        assembly {
+            sstore(version.slot, 0)
+            sstore(add(version.slot,1), 0)
+            sstore(add(version.slot,2), 0)
         }
-        version++;
-
-        emit UpdateZkEVMVersion(lastVerifiedBatch, forkID, _versionString);
     }
 }
