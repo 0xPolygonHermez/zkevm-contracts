@@ -139,7 +139,8 @@ module.exports = {
   etherscan: {
     apiKey: {
       polygonZKEVMTestnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
-      goerli: `${process.env.ETHERSCAN_API_KEY}`
+      goerli: `${process.env.ETHERSCAN_API_KEY}`,
+      mainnet: `${process.env.ETHERSCAN_API_KEY}`
     },
     customChains: [
       {
