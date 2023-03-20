@@ -48,8 +48,8 @@ contract FflonkVerifier {
     uint256 constant w8_7 = 8613538655231327379234925296132678673308827349856085326283699237864372525723;
 
     // Verifier preprocessed input C_0(x)·[1]_1
-    uint256 constant C0x  = 8505017132698430876370809396719569010047605466841665042051419680948629728424;
-    uint256 constant C0y  = 6257709157861912487345626440543870054772058797760420770783004901932300278589;
+    uint256 constant C0x  = 19323267416548804299650618755036673763131565314046865770755050382630839729192;
+    uint256 constant C0y  = 10826895587366526019855008452068569323914282384489332915803796133618372610008;
 
     // Verifier preprocessed input x·[1]_2
     uint256 constant X2x1 = 21831381940315734285607113342023901060522397560371972897001948545212302161822;
@@ -57,12 +57,14 @@ contract FflonkVerifier {
     uint256 constant X2y1 = 2388026358213174446665280700919698872609886601280537296205114254867301080648;
     uint256 constant X2y2 = 11507326595632554467052522095592665270651932854513688777769618397986436103170;
 
+    // Scalar field size
     uint256 constant q    = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
+    // Base field size
     uint256 constant qf   = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
-
-
+    // [1]_1
     uint256 constant G1x  = 1;
     uint256 constant G1y  = 2;
+    // [1]_2
     uint256 constant G2x1 = 10857046999023057135944570762232829481370756359578518086990519993285655852781;
     uint256 constant G2x2 = 11559732032986387107991004021392285783925812861821192530917403151452391805634;
     uint256 constant G2y1 = 8495653923123431417604973247489272438418190587263600148770280649306958101930;
@@ -210,12 +212,28 @@ contract FflonkVerifier {
                 }
             }
 
-            // Validate all the evaluations sent by the prover ∈ F
-            function checkInput(pProof) {
-                if iszero(eq(mload(pProof), 768)) {
+            function checkPointBelongsToBN128Curve(p) {
+                let x := mload(p)
+                let y := mload(add(p, 32))
+
+                // Check that the point is on the curve
+                // y^2 = x^3 + 3
+                let x3_3 := addmod(mulmod(x, mulmod(x, x, qf), qf), 3, qf)
+                let y2 := mulmod(y, y, qf)
+
+                if iszero(eq(x3_3, y2)) {
                     mstore(0, 0)
                     return(0, 0x20)
                 }
+            }  
+            
+            // Validate all the evaluations sent by the prover ∈ F
+            function checkInput(pProof) {
+                // Check proof commitments fullfill bn128 curve equation Y^2 = X^3 + 3
+                checkPointBelongsToBN128Curve(add(pProof, pC1))
+                checkPointBelongsToBN128Curve(add(pProof, pC2))
+                checkPointBelongsToBN128Curve(add(pProof, pW1))
+                checkPointBelongsToBN128Curve(add(pProof, pW2))
 
                 checkField(mload(add(pProof, pEval_ql)))
                 checkField(mload(add(pProof, pEval_qr)))
@@ -239,18 +257,23 @@ contract FflonkVerifier {
 
             function computeChallenges(pProof, pMem, pPublic) {
                 // Compute challenge.beta & challenge.gamma
-                mstore(add(pMem, 1920), calldataload(pPublic))
-                
-                mstore(add(pMem, 1952 ),  mload(add(pProof, pC1)))
-                mstore(add(pMem, 1984 ),  mload(add(pProof, add(pC1, 32))))
+                mstore(add(pMem, 1920 ), C0x)
+                mstore(add(pMem, 1952 ), C0y)
 
-                mstore(add(pMem, pBeta), mod(keccak256(add(pMem, lastMem), 96), q))
+                mstore(add(pMem, 1984), calldataload(pPublic))
+                
+
+                mstore(add(pMem, 2016 ),  mload(add(pProof, pC1)))
+                mstore(add(pMem, 2048 ),  mload(add(pProof, add(pC1, 32))))
+
+                mstore(add(pMem, pBeta),  mod(keccak256(add(pMem, lastMem), 160), q))
                 mstore(add(pMem, pGamma), mod(keccak256(add(pMem, pBeta), 32), q))
 
                 // Get xiSeed & xiSeed2
-                mstore(add(pMem, lastMem), mload(add(pProof, pC2)))
-                mstore(add(pMem, 1952), mload(add(pProof, add(pC2, 32))))
-                let xiSeed := mod(keccak256(add(pMem, lastMem), 64), q)
+                mstore(add(pMem, lastMem), mload(add(pMem, pGamma)))
+                mstore(add(pMem, 1952), mload(add(pProof, pC2)))
+                mstore(add(pMem, 1984), mload(add(pProof, add(pC2, 32))))
+                let xiSeed := mod(keccak256(add(pMem, lastMem), 96), q)
 
                 mstore(add(pMem, pXiSeed), xiSeed)
                 mstore(add(pMem, pXiSeed2), mulmod(xiSeed, xiSeed, q))
@@ -315,10 +338,29 @@ contract FflonkVerifier {
                 mstore(add(pMem, pZhInv), xin)  // We will invert later together with lagrange pols
 
                 // Compute challenge.alpha
-                mstore(add(pMem, pAlpha), mod(keccak256(add(pProof, pEval_ql), 480), q))
+                mstore(add(pMem, lastMem), xiSeed)
+                mstore(add(pMem, 1952), mload(add(pProof, pEval_ql)))
+                mstore(add(pMem, 1984), mload(add(pProof, pEval_qr)))
+                mstore(add(pMem, 2016), mload(add(pProof, pEval_qm)))
+                mstore(add(pMem, 2048), mload(add(pProof, pEval_qo)))
+                mstore(add(pMem, 2080), mload(add(pProof, pEval_qc)))
+                mstore(add(pMem, 2112), mload(add(pProof, pEval_s1)))
+                mstore(add(pMem, 2144), mload(add(pProof, pEval_s2)))
+                mstore(add(pMem, 2176), mload(add(pProof, pEval_s3)))
+                mstore(add(pMem, 2208), mload(add(pProof, pEval_a)))
+                mstore(add(pMem, 2240), mload(add(pProof, pEval_b)))
+                mstore(add(pMem, 2272), mload(add(pProof, pEval_c)))
+                mstore(add(pMem, 2304), mload(add(pProof, pEval_z)))
+                mstore(add(pMem, 2336), mload(add(pProof, pEval_zw)))
+                mstore(add(pMem, 2368), mload(add(pProof, pEval_t1w)))
+                mstore(add(pMem, 2400), mload(add(pProof, pEval_t2w)))
+                mstore(add(pMem, pAlpha), mod(keccak256(add(pMem, lastMem), 512), q))
 
                 // Compute challenge.y
-                mstore(add(pMem, pY), mod(keccak256(add(pProof, pW1), 64), q))
+                mstore(add(pMem, lastMem), mload(add(pMem, pAlpha)))
+                mstore(add(pMem, 1952 ),  mload(add(pProof, pW1)))
+                mstore(add(pMem, 1984 ),  mload(add(pProof, add(pW1, 32))))
+                mstore(add(pMem, pY), mod(keccak256(add(pMem, lastMem), 96), q))
             }
 
             // This function computes allows as to compute (X-X1)·(X-X2)·...·(X-Xn) used in Lagrange interpolation

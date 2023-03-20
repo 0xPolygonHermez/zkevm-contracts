@@ -239,6 +239,7 @@ contract PolygonZkEVMBridge is
                 keccak256(metadata)
             )
         );
+
         // Update the new root to the global exit root manager if set by the user
         if (forceUpdateGlobalExitRoot) {
             _updateGlobalExitRoot();

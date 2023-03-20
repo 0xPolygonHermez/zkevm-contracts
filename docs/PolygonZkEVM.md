@@ -182,8 +182,8 @@ Internal function to consolidate any pending state that has already exceed the p
     uint64 newLastVerifiedBatch
   ) internal
 ```
-Function to update the batch fee based on the new verfied batches
-The batch fee will not be updated when the trusted aggregator verify batches
+Function to update the batch fee based on the new verified batches
+The batch fee will not be updated when the trusted aggregator verifies batches
 
 
 #### Parameters:
@@ -389,7 +389,7 @@ Allow the current pending admin to accept the admin role
   ) external
 ```
 Allows the trusted aggregator to override the pending state
-if its possible to prove a different state root given the same batches
+if it's possible to prove a different state root given the same batches
 
 
 #### Parameters:
@@ -441,7 +441,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
     bytes proof
   ) internal
 ```
-Internal function that prove a different state root given the same batches to verify
+Internal function that proves a different state root given the same batches to verify
 
 
 #### Parameters:
@@ -461,7 +461,7 @@ Internal function that prove a different state root given the same batches to ve
     uint64 sequencedBatchNum
   ) external
 ```
-Function to activate emergency state, which also enable the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
+Function to activate emergency state, which also enables the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
 If not called by the owner must be provided a batcnNum that does not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
 
 
@@ -512,7 +512,7 @@ Get the last verified batch
   ) public returns (bool)
 ```
 Returns a boolean that indicates if the pendingStateNum is or not consolidable
-Note that his function do not check if the pending state currently exist, or if it's consolidated already
+Note that his function does not check if the pending state currently exists, or if it's consolidated already
 
 
 
@@ -541,7 +541,7 @@ Function to calculate the input snark bytes
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`initNumBatch` | uint64 | Batch which the aggregator starts teh verification
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
 |`oldStateRoot` | bytes32 | State root before batch is processed
@@ -611,7 +611,7 @@ Emitted when pending state is consolidated
   )
 ```
 
-Emitted when the admin update the trusted sequencer address
+Emitted when the admin updates the trusted sequencer address
 
 ### SetTrustedSequencerURL
 ```solidity
@@ -619,7 +619,7 @@ Emitted when the admin update the trusted sequencer address
   )
 ```
 
-Emitted when the admin update the sequencer URL
+Emitted when the admin updates the sequencer URL
 
 ### SetTrustedAggregatorTimeout
 ```solidity
@@ -627,7 +627,7 @@ Emitted when the admin update the sequencer URL
   )
 ```
 
-Emitted when the admin update the trusted aggregator timeout
+Emitted when the admin updates the trusted aggregator timeout
 
 ### SetPendingStateTimeout
 ```solidity
@@ -635,7 +635,7 @@ Emitted when the admin update the trusted aggregator timeout
   )
 ```
 
-Emitted when the admin update the pending state timeout
+Emitted when the admin updates the pending state timeout
 
 ### SetTrustedAggregator
 ```solidity
@@ -643,7 +643,7 @@ Emitted when the admin update the pending state timeout
   )
 ```
 
-Emitted when the admin update the trusted aggregator address
+Emitted when the admin updates the trusted aggregator address
 
 ### SetMultiplierBatchFee
 ```solidity
@@ -651,7 +651,7 @@ Emitted when the admin update the trusted aggregator address
   )
 ```
 
-Emitted when the admin update the multiplier batch fee
+Emitted when the admin updates the multiplier batch fee
 
 ### SetVerifyBatchTimeTarget
 ```solidity
@@ -659,7 +659,7 @@ Emitted when the admin update the multiplier batch fee
   )
 ```
 
-Emitted when the admin update the verify batch timeout
+Emitted when the admin updates the verify batch timeout
 
 ### SetForceBatchTimeout
 ```solidity
