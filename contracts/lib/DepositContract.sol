@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 /**
  * This contract will be used as a helper for all the sparse merkle tree related functions
  * Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
  */
-contract DepositContract is Initializable {
+contract DepositContract is ReentrancyGuardUpgradeable {
+    /**
+     * @dev Thrown when the merkle tree is full
+     */
+    error MerkleTreeFull();
+
     // Merkle tree levels
     uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
@@ -23,6 +28,12 @@ contract DepositContract is Initializable {
     uint256 public depositCount;
 
     /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
+    uint256[10] private _gap;
+
+    /**
      * @notice Computes and returns the merkle root
      */
     function getDepositRoot() public view returns (bytes32) {
@@ -35,11 +46,11 @@ contract DepositContract is Initializable {
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
             height++
         ) {
-            if ((size & 1) == 1)
+            if (((size >> height) & 1) == 1)
                 node = keccak256(abi.encodePacked(_branch[height], node));
             else
                 node = keccak256(abi.encodePacked(node, currentZeroHashHeight));
-            size /= 2;
+
             currentZeroHashHeight = keccak256(
                 abi.encodePacked(currentZeroHashHeight, currentZeroHashHeight)
             );
@@ -55,25 +66,22 @@ contract DepositContract is Initializable {
         bytes32 node = leafHash;
 
         // Avoid overflowing the Merkle tree (and prevent edge case in computing `_branch`)
-        require(
-            depositCount < _MAX_DEPOSIT_COUNT,
-            "DepositContract:_deposit: Merkle tree full"
-        );
+        if (depositCount >= _MAX_DEPOSIT_COUNT) {
+            revert MerkleTreeFull();
+        }
 
         // Add deposit data root to Merkle tree (update a single `_branch` node)
-        depositCount += 1;
-        uint256 size = depositCount;
+        uint256 size = ++depositCount;
         for (
             uint256 height = 0;
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
             height++
         ) {
-            if ((size & 1) == 1) {
+            if (((size >> height) & 1) == 1) {
                 _branch[height] = node;
                 return;
             }
             node = keccak256(abi.encodePacked(_branch[height], node));
-            size /= 2;
         }
         // As the loop should always end prematurely with the `return` statement,
         // this code should be unreachable. We assert `false` just to be safe.
@@ -89,23 +97,21 @@ contract DepositContract is Initializable {
      */
     function verifyMerkleProof(
         bytes32 leafHash,
-        bytes32[] memory smtProof,
-        uint64 index,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
+        uint32 index,
         bytes32 root
     ) public pure returns (bool) {
         bytes32 node = leafHash;
 
         // Check merkle proof
-        uint256 currrentIndex = index;
         for (
             uint256 height = 0;
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
             height++
         ) {
-            if ((currrentIndex & 1) == 1)
+            if (((index >> height) & 1) == 1)
                 node = keccak256(abi.encodePacked(smtProof[height], node));
             else node = keccak256(abi.encodePacked(node, smtProof[height]));
-            currrentIndex /= 2;
         }
 
         return node == root;

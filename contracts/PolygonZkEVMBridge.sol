@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "./lib/DepositContract.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./lib/TokenWrapped.sol";
-import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "./interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IPolygonZkEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./lib/EmergencyManager.sol";
+import "./lib/GlobalExitRootLib.sol";
 
 /**
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
@@ -34,17 +35,26 @@ contract PolygonZkEVMBridge is
     // bytes4(keccak256(bytes("permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)")));
     bytes4 private constant _PERMIT_SIGNATURE_DAI = 0x8fcbaf0c;
 
-    // Mainnet indentifier
-    uint32 public constant MAINNET_NETWORK_ID = 0;
+    // Mainnet identifier
+    uint32 private constant _MAINNET_NETWORK_ID = 0;
+
+    // Number of networks supported by the bridge
+    uint32 private constant _CURRENT_SUPPORTED_NETWORKS = 2;
 
     // Leaf type asset
-    uint8 public constant LEAF_TYPE_ASSET = 0;
+    uint8 private constant _LEAF_TYPE_ASSET = 0;
 
     // Leaf type message
-    uint8 public constant LEAF_TYPE_MESSAGE = 1;
+    uint8 private constant _LEAF_TYPE_MESSAGE = 1;
 
     // Network identifier
     uint32 public networkID;
+
+    // Global Exit Root address
+    IBasePolygonZkEVMGlobalExitRoot public globalExitRootManager;
+
+    // Last updated deposit count to the global exit root manager
+    uint32 public lastUpdatedDepositCount;
 
     // Leaf index --> claimed bit map
     mapping(uint256 => uint256) public claimedBitMap;
@@ -55,9 +65,6 @@ contract PolygonZkEVMBridge is
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
-    // Global Exit Root address
-    IPolygonZkEVMGlobalExitRoot public globalExitRootManager;
-
     // PolygonZkEVM address
     address public polygonZkEVMaddress;
 
@@ -65,22 +72,26 @@ contract PolygonZkEVMBridge is
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
      * @param _polygonZkEVMaddress polygonZkEVM address
+     * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
+     * emergency state is not possible for the L2 deployment of the bridge, intentionally
      */
     function initialize(
         uint32 _networkID,
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress
-    ) public virtual initializer {
+    ) external virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
+
+        // Initialize OZ contracts
+        __ReentrancyGuard_init();
     }
 
     modifier onlyPolygonZkEVM() {
-        require(
-            polygonZkEVMaddress == msg.sender,
-            "PolygonZkEVM::onlyPolygonZkEVM: only PolygonZkEVM contract"
-        );
+        if (polygonZkEVMaddress != msg.sender) {
+            revert OnlyPolygonZkEVM();
+        }
         _;
     }
 
@@ -115,43 +126,53 @@ contract PolygonZkEVMBridge is
     event NewWrappedToken(
         uint32 originNetwork,
         address originTokenAddress,
-        address wrappedTokenAddress
+        address wrappedTokenAddress,
+        bytes metadata
     );
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
-     * @param token Token address, 0 address is reserved for ether
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
+     * @param token Token address, 0 address is reserved for ether
+     * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
      * @param permitData Raw data of the call `permit` of the token
      */
     function bridgeAsset(
-        address token,
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
+        address token,
+        bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
-    ) public payable virtual ifNotEmergencyState {
-        require(
-            destinationNetwork != networkID,
-            "PolygonZkEVMBridge::bridgeAsset: Destination cannot be itself"
-        );
+    ) public payable virtual ifNotEmergencyState nonReentrant {
+        if (
+            destinationNetwork == networkID ||
+            destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS
+        ) {
+            revert DestinationNetworkInvalid();
+        }
 
         address originTokenAddress;
         uint32 originNetwork;
         bytes memory metadata;
+        uint256 leafAmount = amount;
 
         if (token == address(0)) {
             // Ether transfer
-            require(
-                msg.value == amount,
-                "PolygonZkEVMBridge::bridgeAsset: Amount does not match message.value"
-            );
+            if (msg.value != amount) {
+                revert AmountDoesNotMatchMsgValue();
+            }
 
             // Ether is treated as ether from mainnet
-            originNetwork = MAINNET_NETWORK_ID;
+            originNetwork = _MAINNET_NETWORK_ID;
         } else {
+            // Check msg.value is 0 if tokens are bridged
+            if (msg.value != 0) {
+                revert MsgValueNotZero();
+            }
+
             TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[token];
 
             if (tokenInfo.originTokenAddress != address(0)) {
@@ -167,70 +188,86 @@ contract PolygonZkEVMBridge is
                 if (permitData.length != 0) {
                     _permit(token, amount, permitData);
                 }
-                // The token is from this network.
+
+                // In order to support fee tokens check the amount received, not the transferred
+                uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(
+                    address(this)
+                );
                 IERC20Upgradeable(token).safeTransferFrom(
                     msg.sender,
                     address(this),
                     amount
                 );
+                uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(
+                    address(this)
+                );
+
+                // Override leafAmount with the received amount
+                leafAmount = balanceAfter - balanceBefore;
 
                 originTokenAddress = token;
                 originNetwork = networkID;
 
                 // Encode metadata
                 metadata = abi.encode(
-                    IERC20MetadataUpgradeable(token).name(),
-                    IERC20MetadataUpgradeable(token).symbol(),
-                    IERC20MetadataUpgradeable(token).decimals()
+                    _safeName(token),
+                    _safeSymbol(token),
+                    _safeDecimals(token)
                 );
             }
         }
 
         emit BridgeEvent(
-            LEAF_TYPE_ASSET,
+            _LEAF_TYPE_ASSET,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
             destinationAddress,
-            amount,
+            leafAmount,
             metadata,
             uint32(depositCount)
         );
 
         _deposit(
             getLeafValue(
-                LEAF_TYPE_ASSET,
+                _LEAF_TYPE_ASSET,
                 originNetwork,
                 originTokenAddress,
                 destinationNetwork,
                 destinationAddress,
-                amount,
+                leafAmount,
                 keccak256(metadata)
             )
         );
 
-        // Update the new exit root to the exit root manager
-        globalExitRootManager.updateExitRoot(getDepositRoot());
+        // Update the new root to the global exit root manager if set by the user
+        if (forceUpdateGlobalExitRoot) {
+            _updateGlobalExitRoot();
+        }
     }
 
     /**
-     * @notice Bridge message
+     * @notice Bridge message and send ETH value
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
+     * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
      * @param metadata Message metadata
      */
     function bridgeMessage(
         uint32 destinationNetwork,
         address destinationAddress,
-        bytes memory metadata
-    ) public payable ifNotEmergencyState {
-        require(
-            destinationNetwork != networkID,
-            "PolygonZkEVMBridge::bridgeMessage: Destination cannot be itself"
-        );
+        bool forceUpdateGlobalExitRoot,
+        bytes calldata metadata
+    ) external payable ifNotEmergencyState {
+        if (
+            destinationNetwork == networkID ||
+            destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS
+        ) {
+            revert DestinationNetworkInvalid();
+        }
 
         emit BridgeEvent(
-            LEAF_TYPE_MESSAGE,
+            _LEAF_TYPE_MESSAGE,
             networkID,
             msg.sender,
             destinationNetwork,
@@ -242,7 +279,7 @@ contract PolygonZkEVMBridge is
 
         _deposit(
             getLeafValue(
-                LEAF_TYPE_MESSAGE,
+                _LEAF_TYPE_MESSAGE,
                 networkID,
                 msg.sender,
                 destinationNetwork,
@@ -252,8 +289,10 @@ contract PolygonZkEVMBridge is
             )
         );
 
-        // Update the new exit root to the exit root manager
-        globalExitRootManager.updateExitRoot(getDepositRoot());
+        // Update the new root to the global exit root manager if set by the user
+        if (forceUpdateGlobalExitRoot) {
+            _updateGlobalExitRoot();
+        }
     }
 
     /**
@@ -270,7 +309,7 @@ contract PolygonZkEVMBridge is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimAsset(
-        bytes32[] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -279,8 +318,8 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
-    ) public ifNotEmergencyState {
+        bytes calldata metadata
+    ) external ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
@@ -293,11 +332,8 @@ contract PolygonZkEVMBridge is
             destinationAddress,
             amount,
             metadata,
-            LEAF_TYPE_ASSET
+            _LEAF_TYPE_ASSET
         );
-
-        // Update nullifier
-        _setClaimed(index);
 
         // Transfer funds
         if (originTokenAddress == address(0)) {
@@ -306,10 +342,9 @@ contract PolygonZkEVMBridge is
             (bool success, ) = destinationAddress.call{value: amount}(
                 new bytes(0)
             );
-            require(
-                success,
-                "PolygonZkEVMBridge::claimAsset: Ether transfer failed"
-            );
+            if (!success) {
+                revert EtherTransferFailed();
+            }
         } else {
             // Transfer tokens
             if (originNetwork == networkID) {
@@ -354,7 +389,8 @@ contract PolygonZkEVMBridge is
                     emit NewWrappedToken(
                         originNetwork,
                         originTokenAddress,
-                        address(newWrappedToken)
+                        address(newWrappedToken),
+                        metadata
                     );
                 } else {
                     // Use the existing wrapped erc20
@@ -374,6 +410,9 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Verify merkle proof and execute message
+     * If the receiving address is an EOA, the call will result as a success
+     * Which means that the amount of ether will be transferred correctly, but the message
+     * will not trigger any execution
      * @param smtProof Smt proof
      * @param index Index of the leaf
      * @param mainnetExitRoot Mainnet exit root
@@ -386,7 +425,7 @@ contract PolygonZkEVMBridge is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimMessage(
-        bytes32[] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -395,8 +434,8 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
-    ) public ifNotEmergencyState {
+        bytes calldata metadata
+    ) external ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
@@ -409,11 +448,8 @@ contract PolygonZkEVMBridge is
             destinationAddress,
             amount,
             metadata,
-            LEAF_TYPE_MESSAGE
+            _LEAF_TYPE_MESSAGE
         );
-
-        // Update nullifier
-        _setClaimed(index);
 
         // Execute message
         // Transfer ether
@@ -424,7 +460,9 @@ contract PolygonZkEVMBridge is
                 (originAddress, originNetwork, metadata)
             )
         );
-        require(success, "PolygonZkEVMBridge::claimMessage: Message failed");
+        if (!success) {
+            revert MessageFailed();
+        }
 
         emit ClaimEvent(
             index,
@@ -437,6 +475,9 @@ contract PolygonZkEVMBridge is
 
     /**
      * @notice Returns the precalculated address of a wrapper using the token information
+     * Note Updating the metadata of a token is not supported.
+     * Since the metadata has relevance in the address deployed, this function will not return a valid
+     * wrapped address if the metadata provided is not the original one.
      * @param originNetwork Origin network
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
      * @param name Name of the token
@@ -449,7 +490,7 @@ contract PolygonZkEVMBridge is
         string calldata name,
         string calldata symbol,
         uint8 decimals
-    ) public view returns (address) {
+    ) external view returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
@@ -480,7 +521,7 @@ contract PolygonZkEVMBridge is
     function getTokenWrappedAddress(
         uint32 originNetwork,
         address originTokenAddress
-    ) public view returns (address) {
+    ) external view returns (address) {
         return
             tokenInfoToWrappedToken[
                 keccak256(abi.encodePacked(originNetwork, originTokenAddress))
@@ -518,7 +559,7 @@ contract PolygonZkEVMBridge is
      * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
      */
     function _verifyLeaf(
-        bytes32[] memory smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -527,42 +568,40 @@ contract PolygonZkEVMBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata,
+        bytes calldata metadata,
         uint8 leafType
     ) internal {
-        // Check nullifier
-        require(
-            !isClaimed(index),
-            "PolygonZkEVMBridge::_verifyLeaf: Already claimed"
-        );
+        // Set and check nullifier
+        _setAndCheckClaimed(index);
 
         // Check timestamp where the global exit root was set
         uint256 timestampGlobalExitRoot = globalExitRootManager
             .globalExitRootMap(
-                keccak256(abi.encodePacked(mainnetExitRoot, rollupExitRoot))
+                GlobalExitRootLib.calculateGlobalExitRoot(
+                    mainnetExitRoot,
+                    rollupExitRoot
+                )
             );
 
-        require(
-            timestampGlobalExitRoot != 0,
-            "PolygonZkEVMBridge::_verifyLeaf: GlobalExitRoot invalid"
-        );
+        if (timestampGlobalExitRoot == 0) {
+            revert GlobalExitRootInvalid();
+        }
 
         // Destination network must be networkID
-        require(
-            destinationNetwork == networkID,
-            "PolygonZkEVMBridge::_verifyLeaf: Destination network does not match"
-        );
+        if (destinationNetwork != networkID) {
+            revert DestinationNetworkInvalid();
+        }
 
         bytes32 claimRoot;
-        if (networkID == MAINNET_NETWORK_ID) {
+        if (networkID == _MAINNET_NETWORK_ID) {
             // Verify merkle proof using rollup exit root
             claimRoot = rollupExitRoot;
         } else {
             // Verify merkle proof using mainnet exit root
             claimRoot = mainnetExitRoot;
         }
-        require(
-            verifyMerkleProof(
+        if (
+            !verifyMerkleProof(
                 getLeafValue(
                     leafType,
                     originNetwork,
@@ -575,45 +614,61 @@ contract PolygonZkEVMBridge is
                 smtProof,
                 index,
                 claimRoot
-            ),
-            "PolygonZkEVMBridge::_verifyLeaf: Invalid smt proof"
-        );
+            )
+        ) {
+            revert InvalidSmtProof();
+        }
     }
 
     /**
      * @notice Function to check if an index is claimed or not
      * @param index Index
      */
-    function isClaimed(uint256 index) public view returns (bool) {
-        uint256 claimedWordIndex = index / 256;
-        uint256 claimedBitIndex = index % 256;
-        uint256 claimedWord = claimedBitMap[claimedWordIndex];
-        uint256 mask = (1 << claimedBitIndex);
-        return (claimedWord & mask) == mask;
+    function isClaimed(uint256 index) external view returns (bool) {
+        (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
+        uint256 mask = (1 << bitPos);
+        return (claimedBitMap[wordPos] & mask) == mask;
     }
 
     /**
-     * @notice Function set a index as claimed
+     * @notice Function to check that an index is not claimed and set it as claimed
      * @param index Index
      */
-    function _setClaimed(uint256 index) private {
-        uint256 claimedWordIndex = index / 256;
-        uint256 claimedBitIndex = index % 256;
-        claimedBitMap[claimedWordIndex] =
-            claimedBitMap[claimedWordIndex] |
-            (1 << claimedBitIndex);
+    function _setAndCheckClaimed(uint256 index) private {
+        (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
+        uint256 mask = 1 << bitPos;
+        uint256 flipped = claimedBitMap[wordPos] ^= mask;
+        if (flipped & mask == 0) {
+            revert AlreadyClaimed();
+        }
     }
 
     /**
-     * @notice Function to extract the selector of a bytes calldata
-     * @param _data The calldata bytes
+     * @notice Function to update the globalExitRoot if the last deposit is not submitted
      */
-    function _getSelector(
-        bytes memory _data
-    ) private pure returns (bytes4 sig) {
-        assembly {
-            sig := mload(add(_data, 32))
+    function updateGlobalExitRoot() external {
+        if (lastUpdatedDepositCount < depositCount) {
+            _updateGlobalExitRoot();
         }
+    }
+
+    /**
+     * @notice Function to update the globalExitRoot
+     */
+    function _updateGlobalExitRoot() internal {
+        lastUpdatedDepositCount = uint32(depositCount);
+        globalExitRootManager.updateExitRoot(getDepositRoot());
+    }
+
+    /**
+     * @notice Function decode an index into a wordPos and bitPos
+     * @param index Index
+     */
+    function _bitmapPositions(
+        uint256 index
+    ) private pure returns (uint256 wordPos, uint256 bitPos) {
+        wordPos = uint248(index >> 8);
+        bitPos = uint8(index);
     }
 
     /**
@@ -627,7 +682,7 @@ contract PolygonZkEVMBridge is
         uint256 amount,
         bytes calldata permitData
     ) internal {
-        bytes4 sig = _getSelector(permitData);
+        bytes4 sig = bytes4(permitData[:4]);
         if (sig == _PERMIT_SIGNATURE) {
             (
                 address owner,
@@ -649,18 +704,16 @@ contract PolygonZkEVMBridge is
                         bytes32
                     )
                 );
-            require(
-                owner == msg.sender,
-                "PolygonZkEVMBridge::_permit: Permit owner must be the sender"
-            );
-            require(
-                spender == address(this),
-                "PolygonZkEVMBridge::_permit: Spender must be 'this'"
-            );
-            require(
-                value == amount,
-                "PolygonZkEVMBridge::_permit: Permit amount does not match"
-            );
+            if (owner != msg.sender) {
+                revert NotValidOwner();
+            }
+            if (spender != address(this)) {
+                revert NotValidSpender();
+            }
+
+            if (value != amount) {
+                revert NotValidAmount();
+            }
 
             // we call without checking the result, in case it fails and he doesn't have enough balance
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
@@ -679,10 +732,9 @@ contract PolygonZkEVMBridge is
                 )
             );
         } else {
-            require(
-                sig == _PERMIT_SIGNATURE_DAI,
-                "PolygonZkEVMBridge::_permit: Not valid call"
-            );
+            if (sig != _PERMIT_SIGNATURE_DAI) {
+                revert NotValidSignature();
+            }
 
             (
                 address holder,
@@ -706,14 +758,14 @@ contract PolygonZkEVMBridge is
                         bytes32
                     )
                 );
-            require(
-                holder == msg.sender,
-                "PolygonZkEVMBridge::_permit: Permit owner must be the sender"
-            );
-            require(
-                spender == address(this),
-                "PolygonZkEVMBridge::_permit: Spender must be 'this'"
-            );
+
+            if (holder != msg.sender) {
+                revert NotValidOwner();
+            }
+
+            if (spender != address(this)) {
+                revert NotValidSpender();
+            }
 
             // we call without checking the result, in case it fails and he doesn't have enough balance
             // the following transferFrom should be fail. This prevents DoS attacks from using a signature
@@ -732,6 +784,74 @@ contract PolygonZkEVMBridge is
                     s
                 )
             );
+        }
+    }
+
+    // Helpers to safely get the metadata from a token, inspired by https://github.com/traderjoe-xyz/joe-core/blob/main/contracts/MasterChefJoeV3.sol#L55-L95
+
+    /**
+     * @notice Provides a safe ERC20.symbol version which returns 'NO_SYMBOL' as fallback string
+     * @param token The address of the ERC-20 token contract
+     */
+    function _safeSymbol(address token) internal view returns (string memory) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.symbol, ())
+        );
+        return success ? _returnDataToString(data) : "NO_SYMBOL";
+    }
+
+    /**
+     * @notice  Provides a safe ERC20.name version which returns 'NO_NAME' as fallback string.
+     * @param token The address of the ERC-20 token contract.
+     */
+    function _safeName(address token) internal view returns (string memory) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.name, ())
+        );
+        return success ? _returnDataToString(data) : "NO_NAME";
+    }
+
+    /**
+     * @notice Provides a safe ERC20.decimals version which returns '18' as fallback value.
+     * Note Tokens with (decimals > 255) are not supported
+     * @param token The address of the ERC-20 token contract
+     */
+    function _safeDecimals(address token) internal view returns (uint8) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.decimals, ())
+        );
+        return success && data.length == 32 ? abi.decode(data, (uint8)) : 18;
+    }
+
+    /**
+     * @notice Function to convert returned data to string
+     * returns 'NOT_VALID_ENCODING' as fallback value.
+     * @param data returned data
+     */
+    function _returnDataToString(
+        bytes memory data
+    ) internal pure returns (string memory) {
+        if (data.length >= 64) {
+            return abi.decode(data, (string));
+        } else if (data.length == 32) {
+            // Since the strings on bytes32 are encoded left-right, check the first zero in the data
+            uint256 nonZeroBytes;
+            while (nonZeroBytes < 32 && data[nonZeroBytes] != 0) {
+                nonZeroBytes++;
+            }
+
+            // If the first one is 0, we do not handle the encoding
+            if (nonZeroBytes == 0) {
+                return "NOT_VALID_ENCODING";
+            }
+            // Create a byte array with nonZeroBytes length
+            bytes memory bytesArray = new bytes(nonZeroBytes);
+            for (uint256 i = 0; i < nonZeroBytes; i++) {
+                bytesArray[i] = data[i];
+            }
+            return string(bytesArray);
+        } else {
+            return "NOT_VALID_ENCODING";
         }
     }
 }

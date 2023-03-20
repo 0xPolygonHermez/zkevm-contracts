@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 import "../PolygonZkEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
@@ -16,7 +16,7 @@ contract PolygonZkEVMBridgeMock is PolygonZkEVMBridge, OwnableUpgradeable {
      */
     function initialize(
         uint32 _networkID,
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress
     ) public override initializer {
         networkID = _networkID;
@@ -39,17 +39,18 @@ contract PolygonZkEVMBridgeMock is PolygonZkEVMBridge, OwnableUpgradeable {
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
-     * @param token Token address, 0 address is reserved for ether
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
+     * @param token Token address, 0 address is reserved for ether
      * @param permitData Raw data of the call `permit` of the token
      */
     function bridgeAsset(
-        address token,
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
+        address token,
+        bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
     ) public payable override {
         require(
@@ -57,10 +58,11 @@ contract PolygonZkEVMBridgeMock is PolygonZkEVMBridge, OwnableUpgradeable {
             "PolygonZkEVMBridge::bridgeAsset: Cannot bridge more than maxEtherBridge"
         );
         super.bridgeAsset(
-            token,
             destinationNetwork,
             destinationAddress,
             amount,
+            token,
+            forceUpdateGlobalExitRoot,
             permitData
         );
     }

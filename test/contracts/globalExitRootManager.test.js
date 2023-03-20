@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { ethers, upgrades } = require('hardhat');
+const { ethers } = require('hardhat');
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
     return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
@@ -17,10 +17,10 @@ describe('Global Exit Root', () => {
 
         // deploy global exit root manager
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
-        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(
-            PolygonZkEVMGlobalExitRootFactory,
-            [rollup.address,
-                PolygonZkEVMBridge.address],
+
+        polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
+            rollup.address,
+            PolygonZkEVMBridge.address,
         );
         await polygonZkEVMGlobalExitRoot.deployed();
     });
@@ -36,7 +36,7 @@ describe('Global Exit Root', () => {
         const newRootRollup = ethers.utils.hexlify(ethers.utils.randomBytes(32));
 
         await expect(polygonZkEVMGlobalExitRoot.updateExitRoot(newRootRollup))
-            .to.be.revertedWith('PolygonZkEVMGlobalExitRoot::updateExitRoot: Only allowed contracts');
+            .to.be.revertedWith('OnlyAllowedContracts');
 
         // Update root from the rollup
         await expect(polygonZkEVMGlobalExitRoot.connect(rollup).updateExitRoot(newRootRollup))

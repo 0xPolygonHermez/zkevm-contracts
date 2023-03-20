@@ -7,26 +7,29 @@ Contract responsible to manage the token interactions with other networks
 ```solidity
   function initialize(
     uint32 _networkID,
-    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+    contract IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
     address _polygonZkEVMaddress
-  ) public
+  ) external
 ```
-
+The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
+emergency state is not possible for the L2 deployment of the bridge, intentionally
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkID` | uint32 | networkID
-|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | global exit root manager address
+|`_globalExitRootManager` | contract IBasePolygonZkEVMGlobalExitRoot | global exit root manager address
 |`_polygonZkEVMaddress` | address | polygonZkEVM address
+
 
 ### bridgeAsset
 ```solidity
   function bridgeAsset(
-    address token,
     uint32 destinationNetwork,
     address destinationAddress,
     uint256 amount,
+    address token,
+    bool forceUpdateGlobalExitRoot,
     bytes permitData
   ) public
 ```
@@ -36,10 +39,11 @@ Deposit add a new leaf to the merkle tree
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`token` | address | Token address, 0 address is reserved for ether
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
 |`amount` | uint256 | Amount of tokens
+|`token` | address | Token address, 0 address is reserved for ether
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
 |`permitData` | bytes | Raw data of the call `permit` of the token
 
 ### bridgeMessage
@@ -47,10 +51,11 @@ Deposit add a new leaf to the merkle tree
   function bridgeMessage(
     uint32 destinationNetwork,
     address destinationAddress,
+    bool forceUpdateGlobalExitRoot,
     bytes metadata
-  ) public
+  ) external
 ```
-Bridge message
+Bridge message and send ETH value
 
 
 #### Parameters:
@@ -58,12 +63,13 @@ Bridge message
 | :--- | :--- | :------------------------------------------------------------------- |
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
 |`metadata` | bytes | Message metadata
 
 ### claimAsset
 ```solidity
   function claimAsset(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -73,7 +79,7 @@ Bridge message
     address destinationAddress,
     uint256 amount,
     bytes metadata
-  ) public
+  ) external
 ```
 Verify merkle proof and withdraw tokens/ether
 
@@ -81,7 +87,7 @@ Verify merkle proof and withdraw tokens/ether
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -95,7 +101,7 @@ Verify merkle proof and withdraw tokens/ether
 ### claimMessage
 ```solidity
   function claimMessage(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -105,15 +111,18 @@ Verify merkle proof and withdraw tokens/ether
     address destinationAddress,
     uint256 amount,
     bytes metadata
-  ) public
+  ) external
 ```
 Verify merkle proof and execute message
+If the receiving address is an EOA, the call will result as a success
+Which means that the amount of ether will be transferred correctly, but the message
+will not trigger any execution
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -132,9 +141,12 @@ Verify merkle proof and execute message
     string name,
     string symbol,
     uint8 decimals
-  ) public returns (address)
+  ) external returns (address)
 ```
 Returns the precalculated address of a wrapper using the token information
+Note Updating the metadata of a token is not supported.
+Since the metadata has relevance in the address deployed, this function will not return a valid
+wrapped address if the metadata provided is not the original one.
 
 
 #### Parameters:
@@ -151,7 +163,7 @@ Returns the precalculated address of a wrapper using the token information
   function getTokenWrappedAddress(
     uint32 originNetwork,
     address originTokenAddress
-  ) public returns (address)
+  ) external returns (address)
 ```
 Returns the address of a wrapper using the token information if already exist
 
@@ -185,7 +197,7 @@ Function to deactivate the emergency state
 ### _verifyLeaf
 ```solidity
   function _verifyLeaf(
-    bytes32[] smtProof,
+    bytes32[32] smtProof,
     uint32 index,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -204,7 +216,7 @@ Verify leaf and checks that it has not been claimed
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[] | Smt proof
+|`smtProof` | bytes32[32] | Smt proof
 |`index` | uint32 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -220,7 +232,7 @@ Verify leaf and checks that it has not been claimed
 ```solidity
   function isClaimed(
     uint256 index
-  ) public returns (bool)
+  ) external returns (bool)
 ```
 Function to check if an index is claimed or not
 
@@ -229,6 +241,24 @@ Function to check if an index is claimed or not
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`index` | uint256 | Index
+
+### updateGlobalExitRoot
+```solidity
+  function updateGlobalExitRoot(
+  ) external
+```
+Function to update the globalExitRoot if the last deposit is not submitted
+
+
+
+### _updateGlobalExitRoot
+```solidity
+  function _updateGlobalExitRoot(
+  ) internal
+```
+Function to update the globalExitRoot
+
+
 
 ### _permit
 ```solidity
@@ -246,6 +276,64 @@ Function to call token permit method of extended ERC20
 | :--- | :--- | :------------------------------------------------------------------- |
 |`amount` | address | Quantity that is expected to be allowed
 |`permitData` | uint256 | Raw data of the call `permit` of the token
+
+### _safeSymbol
+```solidity
+  function _safeSymbol(
+    address token
+  ) internal returns (string)
+```
+Provides a safe ERC20.symbol version which returns 'NO_SYMBOL' as fallback string
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`token` | address | The address of the ERC-20 token contract
+
+### _safeName
+```solidity
+  function _safeName(
+    address token
+  ) internal returns (string)
+```
+ Provides a safe ERC20.name version which returns 'NO_NAME' as fallback string.
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`token` | address | The address of the ERC-20 token contract.
+
+### _safeDecimals
+```solidity
+  function _safeDecimals(
+    address token
+  ) internal returns (uint8)
+```
+Provides a safe ERC20.decimals version which returns '18' as fallback value.
+Note Tokens with (decimals > 255) are not supported
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`token` | address | The address of the ERC-20 token contract
+
+### _returnDataToString
+```solidity
+  function _returnDataToString(
+    bytes data
+  ) internal returns (string)
+```
+Function to convert returned data to string
+returns 'NOT_VALID_ENCODING' as fallback value.
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`data` | bytes | returned data
 
 ## Events
 ### BridgeEvent

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 // Implementation of permit based on https://github.com/WETH10/WETH10/blob/main/contracts/WETH10.sol
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -26,10 +26,10 @@ contract TokenWrapped is ERC20 {
     bytes32 private immutable _DEPLOYMENT_DOMAIN_SEPARATOR;
 
     // PolygonZkEVM Bridge address
-    address public bridgeAddress;
+    address public immutable bridgeAddress;
 
     // Decimals
-    uint8 private _decimals;
+    uint8 private immutable _decimals;
 
     // Permit nonces
     mapping(address => uint256) public nonces;
@@ -49,8 +49,6 @@ contract TokenWrapped is ERC20 {
     ) ERC20(name, symbol) {
         bridgeAddress = msg.sender;
         _decimals = __decimals;
-
-        // initialize inmutable variables
         deploymentChainId = block.chainid;
         _DEPLOYMENT_DOMAIN_SEPARATOR = _calculateDomainSeparator(block.chainid);
     }
@@ -59,6 +57,7 @@ contract TokenWrapped is ERC20 {
         _mint(to, value);
     }
 
+    // Notice that is not require to approve wrapped tokens to use the bridge
     function burn(address account, uint256 value) external onlyBridge {
         _burn(account, value);
     }

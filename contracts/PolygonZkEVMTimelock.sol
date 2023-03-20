@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/governance/TimelockController.sol";
 import "./PolygonZkEVM.sol";
@@ -11,7 +11,7 @@ import "./PolygonZkEVM.sol";
  */
 contract PolygonZkEVMTimelock is TimelockController {
     // Polygon ZK-EVM address. Will be used to check if it's on emergency state.
-    PolygonZkEVM public polygonZkEVM;
+    PolygonZkEVM public immutable polygonZkEVM;
 
     /**
      * @notice Constructor of timelock

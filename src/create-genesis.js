@@ -75,6 +75,8 @@ async function main() {
     for (let j = 0; j < txs.length; j++) {
         const currentTx = txs[j];
 
+        // if (currentTx.contractName.PolygonZkEVMDeployer) {
+        // }
         const tx = {
             to: currentTx.to || '0x',
             nonce: currentTx.nonce,
@@ -110,7 +112,7 @@ async function main() {
         let customRawTx;
         const address = genesis.find((o) => o.address === currentTx.from);
         const wallet = new ethers.Wallet(address.pvtKey);
-        if (tx.chainId === 0) {
+        if (tx.chainId === 0 || tx.chainId === undefined) {
             const signData = ethers.utils.RLP.encode([
                 processorUtils.toHexStringRlp(Scalar.e(tx.nonce)),
                 processorUtils.toHexStringRlp(tx.gasPrice),
@@ -118,9 +120,6 @@ async function main() {
                 processorUtils.toHexStringRlp(tx.to),
                 processorUtils.toHexStringRlp(tx.value),
                 processorUtils.toHexStringRlp(tx.data),
-                processorUtils.toHexStringRlp(tx.chainId),
-                '0x',
-                '0x',
             ]);
             const digest = ethers.utils.keccak256(signData);
             const signingKey = new ethers.utils.SigningKey(address.pvtKey);
@@ -198,21 +197,33 @@ async function main() {
 
     genesisOutput.root = smtUtils.h4toString(batch.currentStateRoot);
     genesisOutput.genesis = accountsOutput;
+
+    const decodedTxs = await batch.getDecodedTxs();
+    genesisOutput.transactions = rawTxs.map((rawTx, index) => {
+        if (decodedTxs[index].receipt) {
+            const receipt = {
+                status: decodedTxs[index].receipt.status,
+                gasUsed: `0x${decodedTxs[index].receipt.gasUsed.toString('hex')}`,
+                logs: decodedTxs[index].receipt.logs ? decodedTxs[index].receipt.logs.map((log) => log.map((infoLogs) => {
+                    if (Array.isArray(infoLogs)) {
+                        return infoLogs.map((buffer) => `0x${buffer.toString('hex')}`);
+                    }
+                    return `0x${infoLogs.toString('hex')}`;
+                })) : [],
+            };
+            return {
+                rawTx,
+                receipt,
+                createAddress: decodedTxs[index].createdAddress ? `${decodedTxs[index].createdAddress.toString('hex')}` : null,
+            };
+        }
+        return {
+            rawTx,
+        };
+    });
+
     const genesisOutputPath = path.join(__dirname, outPath);
     await fs.writeFileSync(genesisOutputPath, JSON.stringify(genesisOutput, null, 2));
-
-    if (argv.update) {
-        const updatePath = (typeof argv.update === 'undefined') ? undefined : argv.update;
-
-        if (!fs.existsSync(updatePath)) {
-            throw new Error('Update file does not exist');
-        }
-
-        const testVectors = JSON.parse(fs.readFileSync(updatePath));
-        testVectors[0].genesis = genesisOutput.genesis;
-        testVectors[0].expectedOldRoot = genesisOutput.root;
-        await fs.writeFileSync(updatePath, JSON.stringify(testVectors, null, 2));
-    }
 }
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.

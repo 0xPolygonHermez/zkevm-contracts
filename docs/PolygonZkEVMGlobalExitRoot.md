@@ -2,9 +2,9 @@ Contract responsible for managing the exit roots across multiple networks
 
 
 ## Functions
-### initialize
+### constructor
 ```solidity
-  function initialize(
+  function constructor(
     address _rollupAddress,
     address _bridgeAddress
   ) public
@@ -47,5 +47,5 @@ Return last global exit root
   )
 ```
 
-Emitted when the the global exit root is updated
+Emitted when the global exit root is updated
 

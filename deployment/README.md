@@ -21,24 +21,32 @@ cp deploy_parameters.json.example deploy_parameters.json
 
 Fill created `deploy_parameters.json` with appropiate parameters.
 
-To deploy contracts run `npm run deploy:ZkEVM:${network}`, for example:
-
-> set `runs` parameter from the compiler settings in `hardhat.config.js` (i.e. `runs: 200`)
+To deploy contracts first deploy and verify the `PolygonZkEVMDeployer`
 
 ```
-npm run deploy:ZkEVM:goerli
+npm run deploy:deployer:ZkEVM:goerli
+npm run verify:deployer:ZkEVM:goerli
 ```
 
-To verify contracts run `npm run verify:ZkEVM:${network}`, for example:
+Then deploy the contracts, if we are on testnet use `deploy:testnet:ZkEVM:${network}`, in other cases use `deploy:ZkEVM:${network}` and
+set in deploy_parameters the `maticTokenAddress`:
+
+```
+npm run deploy:testnet:ZkEVM:goerli
+
+```
+
+To verify contracts use `npm run verify:ZkEVM:${network}`
 
 ```
 npm run verify:ZkEVM:goerli
 ```
 
+A new folder will be created witth the following name `deployments/${network}_$(date +%s)` with all the output information and the OZ proxy information.
+
 ## deploy-parameters.json
 
 - `trustedSequencerURL`: string, trustedSequencer URL
-- `forceBatchAllowed`: boolean, allow force batches
 - `trustedSequencerAddress`: address, trusted sequencer addresss
 - `realVerifier`: boolean, deploy or not a real verifier
 - `chainID`: uint64, chainID
@@ -46,7 +54,7 @@ npm run verify:ZkEVM:goerli
 
 ### Optional Parameters
 
-- `privateKey`: string, privateKey of the deployment
+- `deployerPvtKey`: string, deployerPvtKey of the deployer
 - `maxFeePerGas`:string, maxFeePerGas of all txs
 - `maxPriorityFeePerGas`:string, maxPriorityFeePerGas of all txs
 - `multiplierGas`: number, Gas multiplier. If maxFeePerGas and maxPriorityFeePerGas are set, will not take effect
@@ -54,7 +62,9 @@ npm run verify:ZkEVM:goerli
 - `PolygonZkEVMBridgeMock`:Boolean, Wheather the PolygonZkEVMBridge will be mock or not ( the mock version has a ether limitation on deposits)
 - `admin`:address, Admin address
 - `trustedAggregator`:address, Trusted aggregator address
+- `minDelayTimelock`: number, minimum timelock delay,
+- `timelockAddress`: address, Timelock owner address
 
 ## Notes
 
-- `gensis.json` has been generated using the tool: `https://github.com/0xPolygonHermez/zkevm-commonjs/blob/main/tools/fill-genesis/create-genesis.js` using as generator file: `genesis-gen.json`
+- `genesis.json` has been generated using the tool: `src/create-genesis.js` using as generator file: `genesis-gen.json`

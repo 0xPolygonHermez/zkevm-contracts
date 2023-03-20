@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "../PolygonZkEVM.sol";
 
@@ -10,6 +10,31 @@ import "../PolygonZkEVM.sol";
  * To enter and exit of the L2 network will be used a PolygonZkEVM Bridge smart contract
  */
 contract PolygonZkEVMMock is PolygonZkEVM {
+    /**
+     * @param _globalExitRootManager Global exit root manager address
+     * @param _matic MATIC token address
+     * @param _rollupVerifier Rollup verifier address
+     * @param _bridgeAddress Bridge address
+     * @param _chainID L2 chainID
+     */
+    constructor(
+        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IERC20Upgradeable _matic,
+        IVerifierRollup _rollupVerifier,
+        IPolygonZkEVMBridge _bridgeAddress,
+        uint64 _chainID,
+        uint64 _forkID
+    )
+        PolygonZkEVM(
+            _globalExitRootManager,
+            _matic,
+            _rollupVerifier,
+            _bridgeAddress,
+            _chainID,
+            _forkID
+        )
+    {}
+
     /**
      * @notice calculate accumulate input hash from parameters
      * @param currentAccInputHash Accumulate input hash
@@ -125,14 +150,6 @@ contract PolygonZkEVMMock is PolygonZkEVM {
 
     /**
      * @notice Set Sequencer
-     * @param _rollupVerifier New verifier
-     */
-    function setVerifier(IVerifierRollup _rollupVerifier) public onlyOwner {
-        rollupVerifier = _rollupVerifier;
-    }
-
-    /**
-     * @notice Set Sequencer
      * @param _numBatch New verifier
      */
     function setVerifiedBatch(uint64 _numBatch) public onlyOwner {
@@ -153,6 +170,14 @@ contract PolygonZkEVMMock is PolygonZkEVM {
      */
     function setNetworkName(string memory _networkName) public onlyOwner {
         networkName = _networkName;
+    }
+
+    /**
+     * @notice Update fee mock function
+     * @param newLastVerifiedBatch New last verified batch
+     */
+    function updateBatchFee(uint64 newLastVerifiedBatch) public onlyOwner {
+        _updateBatchFee(newLastVerifiedBatch);
     }
 
     /**
@@ -277,6 +302,10 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(newLocalExitRoot);
 
-        emit TrustedVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+        emit VerifyBatchesTrustedAggregator(
+            finalNewBatch,
+            newStateRoot,
+            msg.sender
+        );
     }
 }
