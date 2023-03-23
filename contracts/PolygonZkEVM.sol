@@ -110,7 +110,13 @@ contract PolygonZkEVM is
     // Minimum Static keccaks batch = 2
     // Max bytes allowed = (2376 - 2) * 136 = 322864 bytes - 1 byte padding
     // Rounded to 300000 bytes
-    uint256 internal constant _MAX_TRANSACTIONS_BYTE_LENGTH = 300000;
+    // In order to process the transaction, the data is approximately hashed twice for ecrecover:
+    // 300000 bytes / 2 = 150000 bytes
+    // Since geth pool currently only accepts at maximum 128kb transactions:
+    // https://github.com/ethereum/go-ethereum/blob/master/core/txpool/txpool.go#L54
+    // We will limit this length to be compliant with the geth restrictions since our node will use it
+    // We let 8kb as a sanity margin
+    uint256 internal constant _MAX_TRANSACTIONS_BYTE_LENGTH = 120000;
 
     // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
     uint64 internal constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
