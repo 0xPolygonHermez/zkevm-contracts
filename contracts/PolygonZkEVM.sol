@@ -118,6 +118,10 @@ contract PolygonZkEVM is
     // We let 8kb as a sanity margin
     uint256 internal constant _MAX_TRANSACTIONS_BYTE_LENGTH = 120000;
 
+    // Max force batch transaction length
+    // This is used to avoid huge calldata attacks, where the attacker call force batches from another contract
+    uint256 internal constant _MAX_FORCE_BATCH_BYTE_LENGTH = 5000;
+
     // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
     uint64 internal constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
@@ -608,7 +612,7 @@ contract PolygonZkEVM is
         matic.safeTransferFrom(
             msg.sender,
             address(this),
-            getCurrentBatchFee() * nonForcedBatchesSequenced
+            batchFee * nonForcedBatchesSequenced
         );
 
         // Consolidate pending state if possible
@@ -1016,13 +1020,13 @@ contract PolygonZkEVM is
         uint256 maticAmount
     ) public isForceBatchAllowed ifNotEmergencyState {
         // Calculate matic collateral
-        uint256 maticFee = getCurrentBatchFee();
+        uint256 maticFee = getForcedBatchFee();
 
         if (maticFee > maticAmount) {
             revert NotEnoughMaticAmount();
         }
 
-        if (transactions.length > _MAX_TRANSACTIONS_BYTE_LENGTH) {
+        if (transactions.length > _MAX_FORCE_BATCH_BYTE_LENGTH) {
             revert TransactionsLengthAboveMax();
         }
 
@@ -1578,10 +1582,10 @@ contract PolygonZkEVM is
     ////////////////////////
 
     /**
-     * @notice Function to get the batch fee
+     * @notice Get forced batch fee
      */
-    function getCurrentBatchFee() public view returns (uint256) {
-        return batchFee;
+    function getForcedBatchFee() public view returns (uint256) {
+        return batchFee * 100;
     }
 
     /**

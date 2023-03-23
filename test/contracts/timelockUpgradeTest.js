@@ -285,4 +285,95 @@ describe('Polygon ZK-EVM', () => {
             operation.salt,
         )).to.be.revertedWith('TimelockController: underlying transaction reverted');
     });
+
+    it('Should reprocude L2 enviromanet and check upgradability', async () => {
+        const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock');
+        const proposers = [deployer.address];
+        const executors = [deployer.address];
+        const adminAddress = deployer.address;
+        const timelockContractL2 = await timelockContractFactory.deploy(
+            minDelay,
+            proposers,
+            executors,
+            adminAddress,
+            ethers.constants.AddressZero,
+        );
+        await timelockContractL2.deployed();
+
+        // Check deploy parameters
+        expect(await timelockContractL2.getMinDelay()).to.be.equal(minDelay);
+        expect(await timelockContractL2.polygonZkEVM()).to.be.equal(ethers.constants.AddressZero);
+
+        // Upgrade the contract
+        const polygonZkEVMBridgeFactoryV2 = await ethers.getContractFactory('PolygonZkEVMBridgeMock');
+        const polygonZkEVMBridgeContractV2 = polygonZkEVMBridgeFactoryV2.attach(polygonZkEVMBridgeContract.address);
+
+        // Check that is the v0 contract
+        await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
+
+        // Transfer ownership to timelock
+
+        // Can't upgrade the contract since it does not have the ownership
+        await expect(upgrades.upgradeProxy(polygonZkEVMBridgeContract.address, polygonZkEVMBridgeFactoryV2))
+            .to.be.reverted;
+
+        const implBridgeV2Address = await upgrades.prepareUpgrade(polygonZkEVMBridgeContract.address, polygonZkEVMBridgeFactoryV2);
+        const proxyAdmin = await upgrades.admin.getInstance();
+
+        // Use timelock
+        const operation = genOperation(
+            proxyAdmin.address,
+            0,
+            proxyAdmin.interface.encodeFunctionData(
+                'upgrade',
+                [polygonZkEVMBridgeContract.address,
+                    implBridgeV2Address],
+            ),
+            ethers.constants.HashZero,
+            ethers.constants.HashZero,
+        );
+
+        // Check current delay
+        expect(await timelockContractL2.getMinDelay()).to.be.equal(minDelay);
+
+        /*
+         * Put zkevmcontract on emergency mode
+         * Does not affect thsi deployment
+         */
+        await polygonZkEVMContract.activateEmergencyState(0);
+
+        // Check delay is 0
+        expect(await timelockContractL2.getMinDelay()).to.be.equal(minDelay);
+
+        // Schedule operation
+        await expect(timelockContractL2.schedule(
+            operation.target,
+            operation.value,
+            operation.data,
+            operation.predecessor,
+            operation.salt,
+            0,
+        )).to.be.revertedWith('TimelockController: insufficient delay');
+
+        await timelockContractL2.schedule(
+            operation.target,
+            operation.value,
+            operation.data,
+            operation.predecessor,
+            operation.salt,
+            minDelay,
+        );
+
+        // Check that is the v0 contract
+        await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
+
+        // Transaction cna be executed, delay is reduced to 0, but fails bc this timelock is not owner
+        await expect(timelockContractL2.execute(
+            operation.target,
+            operation.value,
+            operation.data,
+            operation.predecessor,
+            operation.salt,
+        )).to.be.revertedWith('TimelockController: operation is not ready');
+    });
 });
