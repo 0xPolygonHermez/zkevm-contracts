@@ -29,9 +29,9 @@ Allows to deploy a contract using create2
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`amount` | uint256 | amount used in create2
-|`salt` | bytes32 | salt used in create2
-|`initBytecode` | bytes | init bytecode that will be use in create2
+|`amount` | uint256 | Amount used in create2
+|`salt` | bytes32 | Salt used in create2
+|`initBytecode` | bytes | Init bytecode that will be use in create2
 
 ### deployDeterministicAndCall
 ```solidity
@@ -48,10 +48,10 @@ Allows to deploy a contract using create2 and call it afterwards
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`amount` | uint256 | amount used in create2
-|`salt` | bytes32 | salt used in create2
-|`initBytecode` | bytes | init bytecode that will be use in create2
-|`dataCall` | bytes | data used in the call after deploying the smart contract
+|`amount` | uint256 | Amount used in create2
+|`salt` | bytes32 | Salt used in create2
+|`initBytecode` | bytes | Init bytecode that will be use in create2
+|`dataCall` | bytes | Data used in the call after deploying the smart contract
 
 ### functionCall
 ```solidity
@@ -82,8 +82,8 @@ Allows to deploy a contract using create2 and call it afterwards
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`salt` | bytes32 | salt used in create2
-|`bytecodeHash` | bytes32 | init bytecode hashed, it contains the constructor parameters
+|`salt` | bytes32 | Salt used in create2
+|`bytecodeHash` | bytes32 | Init bytecode hashed, it contains the constructor parameters
 
 ## Events
 ### NewDeterministicDeployment
