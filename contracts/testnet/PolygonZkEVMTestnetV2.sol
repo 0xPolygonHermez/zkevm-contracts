@@ -46,7 +46,7 @@ contract PolygonZkEVMTestnetV2 is PolygonZkEVM {
      * @param _versionString New version string
      */
     function updateVersion(string memory _versionString) public {
-        if (version != 0) {
+        if (version != 1) {
             revert VersionAlreadyUpdated();
         }
         version++;
