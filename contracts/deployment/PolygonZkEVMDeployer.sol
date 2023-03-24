@@ -28,9 +28,9 @@ contract PolygonZkEVMDeployer is Ownable {
 
     /**
      * @notice Allows to deploy a contract using create2
-     * @param amount amount used in create2
-     * @param salt salt used in create2
-     * @param initBytecode init bytecode that will be use in create2
+     * @param amount Amount used in create2
+     * @param salt Salt used in create2
+     * @param initBytecode Init bytecode that will be use in create2
      */
     function deployDeterministic(
         uint256 amount,
@@ -43,10 +43,10 @@ contract PolygonZkEVMDeployer is Ownable {
 
     /**
      * @notice Allows to deploy a contract using create2 and call it afterwards
-     * @param amount amount used in create2
-     * @param salt salt used in create2
-     * @param initBytecode init bytecode that will be use in create2
-     * @param dataCall data used in the call after deploying the smart contract
+     * @param amount Amount used in create2
+     * @param salt Salt used in create2
+     * @param initBytecode Init bytecode that will be use in create2
+     * @param dataCall Data used in the call after deploying the smart contract
      */
     function deployDeterministicAndCall(
         uint256 amount,
@@ -76,8 +76,8 @@ contract PolygonZkEVMDeployer is Ownable {
     }
 
     /**
-     * @param salt salt used in create2
-     * @param bytecodeHash init bytecode hashed, it contains the constructor parameters
+     * @param salt Salt used in create2
+     * @param bytecodeHash Init bytecode hashed, it contains the constructor parameters
      */
     function predictDeterministicAddress(
         bytes32 salt,

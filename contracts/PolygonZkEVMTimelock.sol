@@ -38,7 +38,7 @@ contract PolygonZkEVMTimelock is TimelockController {
      * If Polygon ZK-EVM is on emergency state the minDelay will be 0 instead.
      */
     function getMinDelay() public view override returns (uint256 duration) {
-        if (polygonZkEVM.isEmergencyState()) {
+        if (address(polygonZkEVM) != address(0) && polygonZkEVM.isEmergencyState()) {
             return 0;
         } else {
             return super.getMinDelay();
