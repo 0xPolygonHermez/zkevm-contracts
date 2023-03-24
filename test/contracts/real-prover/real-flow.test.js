@@ -142,7 +142,7 @@ describe('Real flow test', () => {
         const batchesNum = batchesData.length;
 
         // Approve tokens
-        const maticAmount = await polygonZkEVMContract.getCurrentBatchFee();
+        const maticAmount = await polygonZkEVMContract.batchFee();
         await expect(
             maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount.mul(batchesNum)),
         ).to.emit(maticTokenContract, 'Approval');

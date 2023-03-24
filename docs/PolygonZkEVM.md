@@ -488,12 +488,12 @@ Internal function to activate emergency state on both PolygonZkEVM and PolygonZk
 
 
 
-### getCurrentBatchFee
+### getForcedBatchFee
 ```solidity
-  function getCurrentBatchFee(
+  function getForcedBatchFee(
   ) public returns (uint256)
 ```
-Function to get the batch fee
+Get forced batch fee
 
 
 
