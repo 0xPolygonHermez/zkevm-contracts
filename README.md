@@ -81,4 +81,8 @@ In order to test, the following private keys are being used. These keys are not 
 - private key: `0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f`
   - address:`0xc949254d682d8c9ad5682521675b8f43b102aec4`
 
+# Verify Deployed Smart Contracts
 
+To verify that the smartcontracts of this repository are the same deployed on mainnet, you could follow the instructions described [document](verifyMainnetDeployment/verifyDeployment.md)
+
+The smartcontract used to verify a proof, it's a generated contract from zkEVM Rom and Pil (constraints). To verify the deployment of this smartcontract you could follow the instructions described in this [document](verifyMainnetDeployment/verifyMainnetProofVerifier.md)

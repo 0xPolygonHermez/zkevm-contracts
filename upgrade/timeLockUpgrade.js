@@ -36,6 +36,7 @@ async function main() {
         deployer = new ethers.Wallet(upgradeParameters.deployerPvtKey, currentProvider);
     } else if (process.env.MNEMONIC) {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0').connect(currentProvider);
+        console.log("using mnemonic", deployer.address)
     } else {
         [deployer] = (await ethers.getSigners());
     }
