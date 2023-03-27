@@ -4,7 +4,6 @@ Smart contract implementation which will be used by the polygon-hermez zkevm
 
 [![Main CI](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml)
 
-
 ## Note
 
 Private keys and mnemonics contained in this repository are used for internal test exclusively. Do not use them in production environments
