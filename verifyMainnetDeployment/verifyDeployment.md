@@ -41,9 +41,10 @@ mkdir .env
 INFURA_PROJECT_ID="<Your Infura project ID>s"
 ```
 
-Now you can execute the script:
+Now you can compile the contracts and run the script:
 
 ```bash
+npx hardhat compile
 node verifyMainnetDeployment/verifyMainnetDeployment.js
 ```
 
