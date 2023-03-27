@@ -78,7 +78,7 @@ To run the docker you can use: `docker run -p 8545:8545 hermez-geth1.3:latest`
 
 ### Copyright
 
-Polygon `zkevm-contracts` was developed by Polygon. While we plan to adopt an open source license, we haven’t selected one yet, so all rights are reserved for the time being. Please reach out to us if you have thoughts on licensing.
+Polygon `zkevm-contracts` was developed by Polygon. We have adopted an open source license (AGPLv3). Please review LICENSE file to view full license information.
 
 ## Note
 
@@ -89,6 +89,4 @@ In order to test, the following private keys are being used. These keys are not 
 - private key: `0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f`
   - address:`0xc949254d682d8c9ad5682521675b8f43b102aec4`
 
-### Disclaimer
 
-This code has not yet been audited, and should not be used in any production systems.
