@@ -4,7 +4,6 @@ Smart contract implementation which will be used by the polygon-hermez zkevm
 
 [![Main CI](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml)
 
-> **WARNING**: All code here is in WIP
 
 ## Note
 
@@ -74,12 +73,6 @@ This docker will contain a geth node with the deployed contracts
 The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`
 To run the docker you can use: `docker run -p 8545:8545 hermez-geth1.3:latest`
 
-## License
-
-### Copyright
-
-Polygon `zkevm-contracts` was developed by Polygon. While we plan to adopt an open source license, we haven’t selected one yet, so all rights are reserved for the time being. Please reach out to us if you have thoughts on licensing.
-
 ## Note
 
 In order to test, the following private keys are being used. These keys are not meant to be used in any production environment:
@@ -89,6 +82,8 @@ In order to test, the following private keys are being used. These keys are not 
 - private key: `0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f`
   - address:`0xc949254d682d8c9ad5682521675b8f43b102aec4`
 
-### Disclaimer
+# Verify Deployed Smart Contracts
 
-This code has not yet been audited, and should not be used in any production systems.
+To verify that the smartcontracts of this repository are the same deployed on mainnet, you could follow the instructions described [document](verifyMainnetDeployment/verifyDeployment.md)
+
+The smartcontract used to verify a proof, it's a generated contract from zkEVM Rom and Pil (constraints). To verify the deployment of this smartcontract you could follow the instructions described in this [document](verifyMainnetDeployment/verifyMainnetProofVerifier.md)
