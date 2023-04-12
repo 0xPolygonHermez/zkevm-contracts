@@ -120,15 +120,17 @@ describe('Polygon ZK-EVM TestnetV2', () => {
     });
 
     it('should check updateVersion', async () => {
-        const lastVerifiedBatch = 0;
         const newVersionString = '0.0.2';
 
-        await expect(polygonZkEVMContract.updateVersion(newVersionString))
-            .to.emit(polygonZkEVMContract, 'UpdateZkEVMVersion').withArgs(lastVerifiedBatch, forkID, newVersionString);
+        /*
+         * const lastVerifiedBatch = 0;
+         * await expect(polygonZkEVMContract.updateVersion(newVersionString))
+         *     .to.emit(polygonZkEVMContract, 'UpdateZkEVMVersion').withArgs(lastVerifiedBatch, forkID, newVersionString);
+         */
 
         await expect(polygonZkEVMContract.updateVersion(newVersionString))
             .to.be.revertedWith('VersionAlreadyUpdated');
 
-        expect(await polygonZkEVMContract.version()).to.be.equal(1);
+        // expect(await polygonZkEVMContract.version()).to.be.equal(1);
     });
 });

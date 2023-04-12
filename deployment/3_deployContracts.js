@@ -99,8 +99,8 @@ async function main() {
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
                     return {
-                        maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas).div(1000), // add 3 decimals
-                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas).div(1000), // add 3 decimals
+                        maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas).div(1000),
+                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas).div(1000),
                     };
                 }
                 currentProvider.getFeeData = overrideFeeData;
@@ -347,7 +347,7 @@ async function main() {
     console.log('genesisRoot:', genesisRootHex);
     console.log('trustedSequencerURL:', trustedSequencerURL);
     console.log('networkName:', networkName);
-    console.log('networkName:', forkID);
+    console.log('forkID:', forkID);
 
     const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVM', deployer);
 
@@ -434,7 +434,7 @@ async function main() {
     }
 
     console.log('\n#######################');
-    console.log('#####    Checks  PolygonZkEVMMock  #####');
+    console.log('#####    Checks  PolygonZkEVM  #####');
     console.log('#######################');
     console.log('PolygonZkEVMGlobalExitRootAddress:', await polygonZkEVMContract.globalExitRootManager());
     console.log('maticTokenAddress:', await polygonZkEVMContract.matic());
