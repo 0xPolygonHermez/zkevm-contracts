@@ -3,6 +3,8 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
+const gasPriceKeylessDeployment = '100'; // 100 gweis
+
 async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
     const PolgonZKEVMDeployerFactory = await ethers.getContractFactory('PolygonZkEVMDeployer', signer);
 
@@ -11,7 +13,7 @@ async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
     )).data;
 
     const gasLimit = ethers.BigNumber.from(1000000); // Put 1 Million, aprox 650k are necessary
-    const gasPrice = ethers.BigNumber.from(ethers.utils.parseUnits('100', 'gwei')); // just in case, seems pretty standard
+    const gasPrice = ethers.BigNumber.from(ethers.utils.parseUnits(gasPriceKeylessDeployment, 'gwei'));
     const to = '0x'; // bc deployment transaction, "to" is "0x"
     const tx = {
         to,

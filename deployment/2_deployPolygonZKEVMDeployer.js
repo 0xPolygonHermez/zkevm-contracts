@@ -28,8 +28,8 @@ async function main() {
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
                     return {
-                        maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas), // add 3 decimals
-                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas), // add 3 decimals
+                        maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas).div(1000),
+                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas.mul(deployParameters.multiplierGas).div(1000),
                     };
                 }
                 currentProvider.getFeeData = overrideFeeData;
