@@ -5,7 +5,6 @@ build
 yarn.lock
 node_modules
 coverage.json
-package-lock.json
 coverage
 .coverage_*
 .openzeppelin
