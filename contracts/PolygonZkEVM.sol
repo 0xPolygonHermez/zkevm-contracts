@@ -639,7 +639,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) external ifNotEmergencyState {
         // Check if the trusted aggregator timeout expired,
         // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
@@ -712,7 +712,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) external onlyTrustedAggregator {
         _verifyAndRewardBatches(
             pendingStateNum,
@@ -758,7 +758,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) internal {
         bytes32 oldStateRoot;
         uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
@@ -1352,7 +1352,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) external onlyTrustedAggregator {
         _proveDistinctPendingState(
             initPendingStateNum,
@@ -1400,7 +1400,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) external ifNotEmergencyState {
         _proveDistinctPendingState(
             initPendingStateNum,
@@ -1438,7 +1438,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) internal view {
         bytes32 oldStateRoot;
 
