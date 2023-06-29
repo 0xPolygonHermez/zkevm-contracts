@@ -11,8 +11,8 @@ contract PolygonZkEVMUpgraded is PolygonZkEVM {
     // Indicates the current version
     uint256 public version;
 
-    // Last batch before the last upgrade, should check it inside the _proofDifferentState function
-    uint256 public lastBatchBeforeUpgrade;
+    // Last batch verified before the last upgrade
+    uint256 public lastVerifiedBatchBeforeUpgrade;
 
     // Indicates the last version before upgrade
     uint256 public immutable VERSION_BEFORE_UPGRADE;
@@ -51,6 +51,11 @@ contract PolygonZkEVMUpgraded is PolygonZkEVM {
     error VersionAlreadyUpdated();
 
     /**
+     * @dev Thrown when try to proof a non deterministic state using a verified batch from previous forkIDs
+     */
+    error InitBatchMustMatchCurrentForkID();
+
+    /**
      * @notice Update version of the zkEVM
      * @param _versionString New version string
      */
@@ -60,7 +65,41 @@ contract PolygonZkEVMUpgraded is PolygonZkEVM {
         }
         version++;
 
-        lastBatchBeforeUpgrade = lastVerifiedBatch;
+        lastVerifiedBatchBeforeUpgrade = lastVerifiedBatch;
         emit UpdateZkEVMVersion(lastVerifiedBatch, forkID, _versionString);
+    }
+
+    /**
+     * @notice Internal function that proves a different state root given the same batches to verify
+     * @param initPendingStateNum Init pending state, 0 if consolidated state is used
+     * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param proof fflonk proof
+     */
+    function _proveDistinctPendingState(
+        uint64 initPendingStateNum,
+        uint64 finalPendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        bytes32[24] calldata proof
+    ) internal view override {
+        if (initNumBatch < lastVerifiedBatchBeforeUpgrade) {
+            revert InitBatchMustMatchCurrentForkID();
+        }
+
+        super._proveDistinctPendingState(
+            initPendingStateNum,
+            finalPendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            proof
+        );
     }
 }

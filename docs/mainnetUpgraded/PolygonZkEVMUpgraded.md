@@ -38,3 +38,29 @@ Update version of the zkEVM
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_versionString` | string | New version string
 
+### _proveDistinctPendingState
+```solidity
+  function _proveDistinctPendingState(
+    uint64 initPendingStateNum,
+    uint64 finalPendingStateNum,
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot,
+    bytes32[24] proof
+  ) internal
+```
+Internal function that proves a different state root given the same batches to verify
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`initPendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
+|`finalPendingStateNum` | uint64 | Final pending state, that will be used to compare with the newStateRoot
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proof` | bytes32[24] | fflonk proof
+

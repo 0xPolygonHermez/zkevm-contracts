@@ -1439,7 +1439,7 @@ contract PolygonZkEVM is
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         bytes32[24] calldata proof
-    ) internal view {
+    ) internal view virtual {
         bytes32 oldStateRoot;
 
         // Use pending state if specified, otherwise use consolidated state
