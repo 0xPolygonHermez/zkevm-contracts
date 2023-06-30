@@ -64,3 +64,27 @@ Internal function that proves a different state root given the same batches to v
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 |`proof` | bytes32[24] | fflonk proof
 
+### _verifyAndRewardBatches
+```solidity
+  function _verifyAndRewardBatches(
+    uint64 pendingStateNum,
+    uint64 initNumBatch,
+    uint64 finalNewBatch,
+    bytes32 newLocalExitRoot,
+    bytes32 newStateRoot,
+    bytes32[24] proof
+  ) internal
+```
+Verify and reward batches internal function
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`pendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
+|`finalNewBatch` | uint64 | Last batch aggregator intends to verify
+|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newStateRoot` | bytes32 | New State root once the batch is processed
+|`proof` | bytes32[24] | fflonk proof
+

@@ -102,4 +102,35 @@ contract PolygonZkEVMUpgraded is PolygonZkEVM {
             proof
         );
     }
+
+    /**
+     * @notice Verify and reward batches internal function
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param proof fflonk proof
+     */
+    function _verifyAndRewardBatches(
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        bytes32[24] calldata proof
+    ) internal override {
+        if (initNumBatch < lastVerifiedBatchBeforeUpgrade) {
+            revert InitBatchMustMatchCurrentForkID();
+        }
+
+        super._verifyAndRewardBatches(
+            pendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            proof
+        );
+    }
 }

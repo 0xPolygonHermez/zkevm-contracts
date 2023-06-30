@@ -647,5 +647,16 @@ describe('PolygonZkEVMUpgraded', () => {
                 zkProofFFlonk,
             ),
         ).to.be.revertedWith('InitBatchMustMatchCurrentForkID');
+
+        await expect(
+            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+                0,
+                updatedBatch - 1,
+                newBatch,
+                newLocalExitRoot,
+                newStateRoot2,
+                zkProofFFlonk,
+            ),
+        ).to.be.revertedWith('InitBatchMustMatchCurrentForkID');
     });
 });
