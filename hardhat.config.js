@@ -26,6 +26,17 @@ module.exports = {
         // keep: true
     },
     solidity: {
+        overrides: {
+            'contracts/mainnetUpgraded/PolygonZkEVMUpgraded.sol': {
+                version: '0.8.20',
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 999999,
+                    },
+                },
+            },
+        },
         compilers: [
             {
                 version: '0.8.17',
