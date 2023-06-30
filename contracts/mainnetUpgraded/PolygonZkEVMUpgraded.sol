@@ -8,14 +8,14 @@ import "../PolygonZkEVM.sol";
  * This contract will NOT BE USED IN PRODUCTION, will be used only in testnet enviroment
  */
 contract PolygonZkEVMUpgraded is PolygonZkEVM {
+    // Indicates the last version before upgrade
+    uint256 public immutable VERSION_BEFORE_UPGRADE;
+
     // Indicates the current version
     uint256 public version;
 
     // Last batch verified before the last upgrade
     uint256 public lastVerifiedBatchBeforeUpgrade;
-
-    // Indicates the last version before upgrade
-    uint256 public immutable VERSION_BEFORE_UPGRADE;
 
     /**
      * @param _globalExitRootManager Global exit root manager address
