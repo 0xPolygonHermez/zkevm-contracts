@@ -5,7 +5,10 @@ name: Build-Docker image
 
 on:
   push:
-    branches: [main]
+    # Pattern matched against refs/tags
+    tags:        
+      - '*'
+
 jobs:
   build:
     runs-on: ubuntu-latest
