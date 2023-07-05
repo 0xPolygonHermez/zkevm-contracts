@@ -355,47 +355,7 @@ contract PolygonZkEVMBridge is
                 );
             } else {
                 // The tokens is not from this network
-                // Create a wrapper for the token if not exist yet
-                bytes32 tokenInfoHash = keccak256(
-                    abi.encodePacked(originNetwork, originTokenAddress)
-                );
-                address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
-
-                if (wrappedToken == address(0)) {
-                    // Get ERC20 metadata
-                    (
-                        string memory name,
-                        string memory symbol,
-                        uint8 decimals
-                    ) = abi.decode(metadata, (string, string, uint8));
-
-                    // Create a new wrapped erc20 using create2
-                    TokenWrapped newWrappedToken = (new TokenWrapped){
-                        salt: tokenInfoHash
-                    }(name, symbol, decimals);
-
-                    // Mint tokens for the destination address
-                    newWrappedToken.mint(destinationAddress, amount);
-
-                    // Create mappings
-                    tokenInfoToWrappedToken[tokenInfoHash] = address(
-                        newWrappedToken
-                    );
-
-                    wrappedTokenToTokenInfo[
-                        address(newWrappedToken)
-                    ] = TokenInformation(originNetwork, originTokenAddress);
-
-                    emit NewWrappedToken(
-                        originNetwork,
-                        originTokenAddress,
-                        address(newWrappedToken),
-                        metadata
-                    );
-                } else {
-                    // Use the existing wrapped erc20
-                    TokenWrapped(wrappedToken).mint(destinationAddress, amount);
-                }
+                _issueBridgedTokens( originNetwork, originTokenAddress, metadata, destinationAddress, amount);
             }
         }
 
@@ -406,6 +366,58 @@ contract PolygonZkEVMBridge is
             destinationAddress,
             amount
         );
+    }
+
+    /**
+     * @notice Internal function that issues bridged tokens
+     * @param originNetwork is bridged network origin
+     * @param originTokenAddress is the address of the token from the bridged network
+     * @param metadata of transferred token
+     * @param destinationAddress describes the address where the tokens are issued
+     * @param amount of tokens to be issued
+     */
+    function _issueBridgedTokens(uint32 originNetwork, address originTokenAddress, bytes memory metadata, address destinationAddress, uint256 amount) internal {
+        // Create a wrapper for the token if not exist yet
+        bytes32 tokenInfoHash = keccak256(
+            abi.encodePacked(originNetwork, originTokenAddress)
+        );
+        address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
+
+        if (wrappedToken == address(0)) {
+            // Get ERC20 metadata
+            (
+                string memory name,
+                string memory symbol,
+                uint8 decimals
+            ) = abi.decode(metadata, (string, string, uint8));
+
+            // Create a new wrapped erc20 using create2
+            TokenWrapped newWrappedToken = (new TokenWrapped){
+                salt: tokenInfoHash
+            }(name, symbol, decimals);
+
+            // Mint tokens for the destination address
+            newWrappedToken.mint(destinationAddress, amount);
+
+            // Create mappings
+            tokenInfoToWrappedToken[tokenInfoHash] = address(
+                newWrappedToken
+            );
+
+            wrappedTokenToTokenInfo[
+                address(newWrappedToken)
+            ] = TokenInformation(originNetwork, originTokenAddress);
+
+            emit NewWrappedToken(
+                originNetwork,
+                originTokenAddress,
+                address(newWrappedToken),
+                metadata
+            );
+        } else {
+            // Use the existing wrapped erc20
+            TokenWrapped(wrappedToken).mint(destinationAddress, amount);
+        }
     }
 
     /**
