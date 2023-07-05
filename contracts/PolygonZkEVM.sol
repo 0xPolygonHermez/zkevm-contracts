@@ -35,8 +35,7 @@ contract PolygonZkEVM is
      */
     struct BatchData {
         bytes transactions;
-        bytes32 globalExitRoot;
-        uint64 timestamp;
+        bytes32 historicGlobalExitRoot;
         uint64 minForcedTimestamp;
     }
 
@@ -45,12 +44,12 @@ contract PolygonZkEVM is
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param globalExitRoot Global exit root of the batch
+     * @param historicGlobalExitRoot Historic global exit root of the batch
      * @param minForcedTimestamp Indicates the minimum sequenced timestamp of the batch
      */
     struct ForcedBatchData {
         bytes transactions;
-        bytes32 globalExitRoot;
+        bytes32 historicGlobalExitRoot;
         uint64 minForcedTimestamp;
     }
 
@@ -144,6 +143,12 @@ contract PolygonZkEVM is
     // Max uint64
     uint256 internal constant _MAX_UINT_64 = type(uint64).max; // 0xFFFFFFFFFFFFFFFF
 
+    // Boolena indicating that is a forced batch
+    bool internal constant _IS_FORCED_BATCH = true;
+
+    // Boolena indicating that is not a forced batch
+    bool internal constant _IS_NOT_FORCED_BATCH = false;
+
     // MATIC token address
     IERC20Upgradeable public immutable matic;
 
@@ -186,7 +191,7 @@ contract PolygonZkEVM is
     mapping(uint64 => SequencedBatchData) public sequencedBatches;
 
     // Last sequenced timestamp
-    uint64 public lastTimestamp;
+    uint64 public gapLastTimestamp;
 
     // Last batch sent by the sequencers
     uint64 public lastBatchSequenced;
@@ -491,11 +496,18 @@ contract PolygonZkEVM is
         }
 
         if (batchesNum > _MAX_VERIFY_BATCHES) {
+            // TODO remove?
             revert ExceedMaxVerifyBatches();
         }
 
+        // Update global exit root if there are new deposits
+        bridgeAddress.updateGlobalExitRoot();
+
+        // Get global batch variables
+        bytes32 historicGlobalExitRoot = globalExitRootManager.getRoot();
+        uint64 currentTimestamp = uint64(block.timestamp);
+
         // Store storage variables in memory, to save gas, because will be overrided multiple times
-        uint64 currentTimestamp = lastTimestamp;
         uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
         bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced]
@@ -521,7 +533,7 @@ contract PolygonZkEVM is
                 bytes32 hashedForcedBatchData = keccak256(
                     abi.encodePacked(
                         currentTransactionsHash,
-                        currentBatch.globalExitRoot,
+                        currentBatch.historicGlobalExitRoot,
                         currentBatch.minForcedTimestamp
                     )
                 );
@@ -533,55 +545,41 @@ contract PolygonZkEVM is
                     revert ForcedDataDoesNotMatch();
                 }
 
+                // Calculate next accumulated input hash
+                currentAccInputHash = keccak256(
+                    abi.encodePacked(
+                        currentAccInputHash,
+                        currentTransactionsHash,
+                        currentBatch.historicGlobalExitRoot,
+                        currentBatch.minForcedTimestamp,
+                        l2Coinbase,
+                        _IS_FORCED_BATCH
+                    )
+                );
+
                 // Delete forceBatch data since won't be used anymore
                 delete forcedBatches[currentLastForceBatchSequenced];
-
-                // Check timestamp is bigger than min timestamp
-                if (currentBatch.timestamp < currentBatch.minForcedTimestamp) {
-                    revert SequencedTimestampBelowForcedTimestamp();
-                }
             } else {
-                // Check global exit root exists with proper batch length. These checks are already done in the forceBatches call
-                // Note that the sequencer can skip setting a global exit root putting zeros
-                if (
-                    currentBatch.globalExitRoot != bytes32(0) &&
-                    globalExitRootManager.globalExitRootMap(
-                        currentBatch.globalExitRoot
-                    ) ==
-                    0
-                ) {
-                    revert GlobalExitRootNotExist();
-                }
-
+                // These checks are already done in the forceBatches call
                 if (
                     currentBatch.transactions.length >
                     _MAX_TRANSACTIONS_BYTE_LENGTH
                 ) {
                     revert TransactionsLengthAboveMax();
                 }
+
+                // Calculate next accumulated input hash
+                currentAccInputHash = keccak256(
+                    abi.encodePacked(
+                        currentAccInputHash,
+                        currentTransactionsHash,
+                        historicGlobalExitRoot,
+                        currentTimestamp,
+                        l2Coinbase,
+                        _IS_NOT_FORCED_BATCH
+                    )
+                );
             }
-
-            // Check Batch timestamps are correct
-            if (
-                currentBatch.timestamp < currentTimestamp ||
-                currentBatch.timestamp > block.timestamp
-            ) {
-                revert SequencedTimestampInvalid();
-            }
-
-            // Calculate next accumulated input hash
-            currentAccInputHash = keccak256(
-                abi.encodePacked(
-                    currentAccInputHash,
-                    currentTransactionsHash,
-                    currentBatch.globalExitRoot,
-                    currentBatch.timestamp,
-                    l2Coinbase
-                )
-            );
-
-            // Update timestamp
-            currentTimestamp = currentBatch.timestamp;
         }
         // Update currentBatchSequenced
         currentBatchSequenced += uint64(batchesNum);
@@ -591,9 +589,6 @@ contract PolygonZkEVM is
             revert ForceBatchesOverflow();
         }
 
-        uint256 nonForcedBatchesSequenced = batchesNum -
-            (currentLastForceBatchSequenced - initLastForceBatchSequenced);
-
         // Update sequencedBatches mapping
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
             accInputHash: currentAccInputHash,
@@ -602,11 +597,20 @@ contract PolygonZkEVM is
         });
 
         // Store back the storage variables
-        lastTimestamp = currentTimestamp;
         lastBatchSequenced = currentBatchSequenced;
 
-        if (currentLastForceBatchSequenced != initLastForceBatchSequenced)
+        uint256 nonForcedBatchesSequenced = batchesNum;
+
+        // Check if there has been forced batches
+        if (currentLastForceBatchSequenced != initLastForceBatchSequenced) {
+            // substract forced batches
+            nonForcedBatchesSequenced -=
+                currentLastForceBatchSequenced -
+                initLastForceBatchSequenced;
+
+            // Store new last force batch sequenced
             lastForceBatchSequenced = currentLastForceBatchSequenced;
+        }
 
         // Pay collateral for every non-forced batch submitted
         matic.safeTransferFrom(
@@ -617,9 +621,6 @@ contract PolygonZkEVM is
 
         // Consolidate pending state if possible
         _tryConsolidatePendingState();
-
-        // Update global exit root if there are new deposits
-        bridgeAddress.updateGlobalExitRoot();
 
         emit SequenceBatches(currentBatchSequenced);
     }
@@ -1032,9 +1033,8 @@ contract PolygonZkEVM is
 
         matic.safeTransferFrom(msg.sender, address(this), maticFee);
 
-        // Get globalExitRoot global exit root
-        bytes32 lastGlobalExitRoot = globalExitRootManager
-            .getLastGlobalExitRoot();
+        // Get historic global exit root
+        bytes32 historicGlobalExitRoot = globalExitRootManager.getRoot();
 
         // Update forcedBatches mapping
         lastForceBatch++;
@@ -1042,20 +1042,25 @@ contract PolygonZkEVM is
         forcedBatches[lastForceBatch] = keccak256(
             abi.encodePacked(
                 keccak256(transactions),
-                lastGlobalExitRoot,
+                historicGlobalExitRoot,
                 uint64(block.timestamp)
             )
         );
 
         if (msg.sender == tx.origin) {
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
-            emit ForceBatch(lastForceBatch, lastGlobalExitRoot, msg.sender, "");
+            emit ForceBatch(
+                lastForceBatch,
+                historicGlobalExitRoot,
+                msg.sender,
+                ""
+            );
         } else {
             // Getting internal transaction calldata is complicated (because it requires an archive node)
             // Therefore it's worth it to put the `transactions` in the event, which is easy to query
             emit ForceBatch(
                 lastForceBatch,
-                lastGlobalExitRoot,
+                historicGlobalExitRoot,
                 msg.sender,
                 transactions
             );
@@ -1107,7 +1112,7 @@ contract PolygonZkEVM is
             bytes32 hashedForcedBatchData = keccak256(
                 abi.encodePacked(
                     currentTransactionsHash,
-                    currentBatch.globalExitRoot,
+                    currentBatch.historicGlobalExitRoot,
                     currentBatch.minForcedTimestamp
                 )
             );
@@ -1131,21 +1136,21 @@ contract PolygonZkEVM is
                     revert ForceBatchTimeoutNotExpired();
                 }
             }
+
             // Calculate next acc input hash
             currentAccInputHash = keccak256(
                 abi.encodePacked(
                     currentAccInputHash,
                     currentTransactionsHash,
-                    currentBatch.globalExitRoot,
-                    uint64(block.timestamp),
-                    msg.sender
+                    currentBatch.historicGlobalExitRoot,
+                    currentBatch.minForcedTimestamp, // could be current timestamp
+                    msg.sender,
+                    _IS_FORCED_BATCH
                 )
             );
         }
         // Update currentBatchSequenced
         currentBatchSequenced += uint64(batchesNum);
-
-        lastTimestamp = uint64(block.timestamp);
 
         // Store back the storage variables
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
