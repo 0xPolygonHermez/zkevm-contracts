@@ -12,7 +12,7 @@ contract DepositContractLib {
     error MerkleTreeFull();
 
     // Merkle tree levels
-    uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32; // TODO
+    uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
     // This ensures `depositCount` will fit into 32-bits
     uint256 internal constant _MAX_DEPOSIT_COUNT =
@@ -34,7 +34,7 @@ contract DepositContractLib {
     /**
      * @notice Computes and returns the merkle root
      */
-    function getRoot() public view returns (bytes32) {
+    function getRoot() public view virtual returns (bytes32) {
         bytes32 node;
         uint256 size = depositCount;
         bytes32 currentZeroHashHeight = 0;
@@ -88,18 +88,18 @@ contract DepositContractLib {
 
     /**
      * @notice Verify merkle proof
-     * @param leaf Leaf
+     * @param leafHash Leaf hash
      * @param smtProof Smt proof
      * @param index Index of the leaf
      * @param root Merkle root
      */
     function verifyMerkleProof(
-        bytes32 leaf,
+        bytes32 leafHash,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 root
     ) public pure returns (bool) {
-        bytes32 node = leaf;
+        bytes32 node = leafHash;
 
         // Check merkle proof
         for (

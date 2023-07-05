@@ -889,6 +889,19 @@
     },
     {
       "inputs": [],
+      "name": "gapLastTimestamp",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "getForcedBatchFee",
       "outputs": [
         {
@@ -1176,19 +1189,6 @@
     },
     {
       "inputs": [],
-      "name": "lastTimestamp",
-      "outputs": [
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
       "name": "lastVerifiedBatch",
       "outputs": [
         {
@@ -1429,13 +1429,8 @@
             },
             {
               "internalType": "bytes32",
-              "name": "globalExitRoot",
+              "name": "historicGlobalExitRoot",
               "type": "bytes32"
-            },
-            {
-              "internalType": "uint64",
-              "name": "timestamp",
-              "type": "uint64"
             },
             {
               "internalType": "uint64",
@@ -1469,7 +1464,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "globalExitRoot",
+              "name": "historicGlobalExitRoot",
               "type": "bytes32"
             },
             {

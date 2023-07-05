@@ -33,7 +33,7 @@ contract DepositContractMock is DepositContract {
         uint256 amount,
         bytes32 metadataHash
     ) public {
-        _deposit(
+        _addLeaf(
             getLeafValue(
                 leafType,
                 originNetwork,

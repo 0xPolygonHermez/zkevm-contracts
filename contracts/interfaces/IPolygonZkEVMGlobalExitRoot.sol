@@ -5,4 +5,6 @@ import "./IBasePolygonZkEVMGlobalExitRoot.sol";
 
 interface IPolygonZkEVMGlobalExitRoot is IBasePolygonZkEVMGlobalExitRoot {
     function getLastGlobalExitRoot() external view returns (bytes32);
+
+    function getRoot() external view returns (bytes32);
 }
