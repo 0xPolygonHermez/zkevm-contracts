@@ -228,7 +228,7 @@ contract PolygonZkEVMBridge is
             uint32(depositCount)
         );
 
-        _deposit(
+        _addLeaf(
             getLeafValue(
                 _LEAF_TYPE_ASSET,
                 originNetwork,
@@ -277,7 +277,7 @@ contract PolygonZkEVMBridge is
             uint32(depositCount)
         );
 
-        _deposit(
+        _addLeaf(
             getLeafValue(
                 _LEAF_TYPE_MESSAGE,
                 networkID,
@@ -657,7 +657,7 @@ contract PolygonZkEVMBridge is
      */
     function _updateGlobalExitRoot() internal {
         lastUpdatedDepositCount = uint32(depositCount);
-        globalExitRootManager.updateExitRoot(getDepositRoot());
+        globalExitRootManager.updateExitRoot(getRoot());
     }
 
     /**

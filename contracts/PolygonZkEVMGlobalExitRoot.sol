@@ -4,11 +4,15 @@ pragma solidity 0.8.17;
 
 import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "./lib/GlobalExitRootLib.sol";
+import "./lib/DepositContractLib.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot {
+contract PolygonZkEVMGlobalExitRoot is
+    IPolygonZkEVMGlobalExitRoot,
+    DepositContractLib
+{
     // PolygonZkEVMBridge address
     address public immutable bridgeAddress;
 
@@ -72,6 +76,9 @@ contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot {
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot
             );
+
+            // Update the historical roots
+            _addLeaf(newGlobalExitRoot);
         }
     }
 
@@ -84,5 +91,17 @@ contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot {
                 lastMainnetExitRoot,
                 lastRollupExitRoot
             );
+    }
+
+    /**
+     * @notice Computes and returns the merkle root
+     */
+    function getRoot()
+        public
+        view
+        override(DepositContractLib, IPolygonZkEVMGlobalExitRoot)
+        returns (bytes32)
+    {
+        return super.getRoot();
     }
 }
