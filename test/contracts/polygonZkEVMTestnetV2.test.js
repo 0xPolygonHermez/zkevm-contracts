@@ -29,6 +29,7 @@ describe('Polygon ZK-EVM TestnetV2', () => {
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
+    let doesNeedImplementationDeployment = true;
 
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
@@ -61,12 +62,11 @@ describe('Polygon ZK-EVM TestnetV2', () => {
             firstDeployment = false;
         }
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
-        const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
-
+        const nonceProxyZkevm = nonceProxyBridge + (doesNeedImplementationDeployment ? 2 : 1);
         const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
         const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
         firstDeployment = false;
-
+        doesNeedImplementationDeployment = false;
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
         polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             initializer: false,
@@ -82,14 +82,7 @@ describe('Polygon ZK-EVM TestnetV2', () => {
         const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMTestnetV2');
         polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
             initializer: false,
-            constructorArgs: [
-                polygonZkEVMGlobalExitRoot.address,
-                maticTokenContract.address,
-                verifierContract.address,
-                polygonZkEVMBridgeContract.address,
-                chainID,
-                forkID,
-            ],
+            constructorArgs: [],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
@@ -109,6 +102,12 @@ describe('Polygon ZK-EVM TestnetV2', () => {
             urlSequencer,
             networkName,
             version,
+            polygonZkEVMGlobalExitRoot.address,
+            maticTokenContract.address,
+            verifierContract.address,
+            polygonZkEVMBridgeContract.address,
+            chainID,
+            forkID,
         );
 
         // fund sequencer address with Matic tokens

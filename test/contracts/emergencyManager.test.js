@@ -81,14 +81,7 @@ describe('Emergency mode test', () => {
         const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
         polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
             initializer: false,
-            constructorArgs: [
-                polygonZkEVMGlobalExitRoot.address,
-                maticTokenContract.address,
-                verifierContract.address,
-                polygonZkEVMBridgeContract.address,
-                chainID,
-                0,
-            ],
+            constructorArgs: [],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
@@ -108,6 +101,12 @@ describe('Emergency mode test', () => {
             urlSequencer,
             networkName,
             version,
+            polygonZkEVMGlobalExitRoot.address,
+            maticTokenContract.address,
+            verifierContract.address,
+            polygonZkEVMBridgeContract.address,
+            chainID,
+            0,
         );
 
         // fund sequencer address with Matic tokens

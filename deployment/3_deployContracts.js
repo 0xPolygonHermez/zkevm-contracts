@@ -370,16 +370,15 @@ async function main() {
                         trustedSequencerURL,
                         networkName,
                         version,
+                        polygonZkEVMGlobalExitRoot.address,
+                        maticTokenAddress,
+                        verifierContract.address,
+                        polygonZkEVMBridgeContract.address,
+                        chainID,
+                        forkID,
                     ],
                     {
-                        constructorArgs: [
-                            polygonZkEVMGlobalExitRoot.address,
-                            maticTokenAddress,
-                            verifierContract.address,
-                            polygonZkEVMBridgeContract.address,
-                            chainID,
-                            forkID,
-                        ],
+                        constructorArgs: [],
                         unsafeAllow: ['constructor', 'state-variable-immutable'],
                     },
                 );
