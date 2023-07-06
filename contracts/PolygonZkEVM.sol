@@ -145,22 +145,22 @@ contract PolygonZkEVM is
     uint256 internal constant _MAX_UINT_64 = type(uint64).max; // 0xFFFFFFFFFFFFFFFF
 
     // MATIC token address
-    IERC20Upgradeable public immutable matic;
+    IERC20Upgradeable public  matic;
 
     // Rollup verifier interface
-    IVerifierRollup public immutable rollupVerifier;
+    IVerifierRollup public  rollupVerifier;
 
     // Global Exit Root interface
-    IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
+    IPolygonZkEVMGlobalExitRoot public  globalExitRootManager;
 
     // PolygonZkEVM Bridge Address
-    IPolygonZkEVMBridge public immutable bridgeAddress;
+    IPolygonZkEVMBridge public  bridgeAddress;
 
     // L2 chain identifier
-    uint64 public immutable chainID;
+    uint64 public  chainID;
 
     // L2 chain identifier
-    uint64 public immutable forkID;
+    uint64 public  forkID;
 
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
@@ -368,6 +368,10 @@ contract PolygonZkEVM is
     event UpdateZkEVMVersion(uint64 numBatch, uint64 forkID, string version);
 
     /**
+     * @param initializePackedParameters Struct to save gas and avoid stack too deep errors
+     * @param genesisRoot Rollup genesis root
+     * @param _trustedSequencerURL Trusted sequencer URL
+     * @param _networkName L2 network name
      * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier Rollup verifier address
@@ -375,35 +379,25 @@ contract PolygonZkEVM is
      * @param _chainID L2 chainID
      * @param _forkID Fork Id
      */
-    constructor(
+    function initialize(
+        InitializePackedParameters calldata initializePackedParameters,
+        bytes32 genesisRoot,
+        string memory _trustedSequencerURL,
+        string memory _networkName,
+        string calldata _version,
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
         uint64 _chainID,
         uint64 _forkID
-    ) {
+    ) external initializer {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
         bridgeAddress = _bridgeAddress;
         chainID = _chainID;
         forkID = _forkID;
-    }
-
-    /**
-     * @param initializePackedParameters Struct to save gas and avoid stack too deep errors
-     * @param genesisRoot Rollup genesis root
-     * @param _trustedSequencerURL Trusted sequencer URL
-     * @param _networkName L2 network name
-     */
-    function initialize(
-        InitializePackedParameters calldata initializePackedParameters,
-        bytes32 genesisRoot,
-        string memory _trustedSequencerURL,
-        string memory _networkName,
-        string calldata _version
-    ) external initializer {
         admin = initializePackedParameters.admin;
         trustedSequencer = initializePackedParameters.trustedSequencer;
         trustedAggregator = initializePackedParameters.trustedAggregator;

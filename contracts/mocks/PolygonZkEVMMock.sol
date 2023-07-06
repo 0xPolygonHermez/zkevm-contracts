@@ -10,30 +10,6 @@ import "../PolygonZkEVM.sol";
  * To enter and exit of the L2 network will be used a PolygonZkEVM Bridge smart contract
  */
 contract PolygonZkEVMMock is PolygonZkEVM {
-    /**
-     * @param _globalExitRootManager Global exit root manager address
-     * @param _matic MATIC token address
-     * @param _rollupVerifier Rollup verifier address
-     * @param _bridgeAddress Bridge address
-     * @param _chainID L2 chainID
-     */
-    constructor(
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        IERC20Upgradeable _matic,
-        IVerifierRollup _rollupVerifier,
-        IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID,
-        uint64 _forkID
-    )
-        PolygonZkEVM(
-            _globalExitRootManager,
-            _matic,
-            _rollupVerifier,
-            _bridgeAddress,
-            _chainID,
-            _forkID
-        )
-    {}
 
     /**
      * @notice calculate accumulate input hash from parameters

@@ -23,14 +23,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
         const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
         polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
             initializer: false,
-            constructorArgs: [
-                randomSigner.address,
-                randomSigner.address,
-                randomSigner.address,
-                randomSigner.address,
-                chainID,
-                0,
-            ],
+            constructorArgs: [],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
@@ -46,6 +39,12 @@ describe('Polygon ZK-EVM snark stark input test', () => {
             urlSequencer,
             networkName,
             version,
+            randomSigner.address,
+            randomSigner.address,
+            randomSigner.address,
+            randomSigner.address,
+            chainID,
+            0,
         );
 
         await polygonZkEVMContract.deployed();

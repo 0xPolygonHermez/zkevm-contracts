@@ -12,31 +12,6 @@ contract PolygonZkEVMTestnetV2 is PolygonZkEVM {
     uint256 public version;
 
     /**
-     * @param _globalExitRootManager Global exit root manager address
-     * @param _matic MATIC token address
-     * @param _rollupVerifier Rollup verifier address
-     * @param _bridgeAddress Bridge address
-     * @param _chainID L2 chainID
-     */
-    constructor(
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        IERC20Upgradeable _matic,
-        IVerifierRollup _rollupVerifier,
-        IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID,
-        uint64 _forkID
-    )
-        PolygonZkEVM(
-            _globalExitRootManager,
-            _matic,
-            _rollupVerifier,
-            _bridgeAddress,
-            _chainID,
-            _forkID
-        )
-    {}
-
-    /**
      * @dev Thrown when try to update version when it's already updated
      */
     error VersionAlreadyUpdated();
