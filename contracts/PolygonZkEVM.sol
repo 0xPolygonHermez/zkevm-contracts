@@ -5,9 +5,10 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "./interfaces/IPolygonZkEVMBridge.sol";
 import "./lib/EmergencyManager.sol";
 import "./interfaces/IPolygonZkEVMErrors.sol";
+import "./interfaces/IPolygonZkEVM.sol";
+import "./interfaces/IPolygonZkEVMBridge.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -20,7 +21,8 @@ import "./interfaces/IPolygonZkEVMErrors.sol";
 contract PolygonZkEVM is
     OwnableUpgradeable,
     EmergencyManager,
-    IPolygonZkEVMErrors
+    IPolygonZkEVMErrors,
+    IPolygonZkEVM
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -82,22 +84,6 @@ contract PolygonZkEVM is
         uint64 lastVerifiedBatch;
         bytes32 exitRoot;
         bytes32 stateRoot;
-    }
-
-    /**
-     * @notice Struct to call initialize, this saves gas because pack the parameters and avoid stack too deep errors.
-     * @param admin Admin address
-     * @param trustedSequencer Trusted sequencer address
-     * @param pendingStateTimeout Pending state timeout
-     * @param trustedAggregator Trusted aggregator
-     * @param trustedAggregatorTimeout Trusted aggregator timeout
-     */
-    struct InitializePackedParameters {
-        address admin;
-        address trustedSequencer;
-        uint64 pendingStateTimeout;
-        address trustedAggregator;
-        uint64 trustedAggregatorTimeout;
     }
 
     // Modulus zkSNARK
