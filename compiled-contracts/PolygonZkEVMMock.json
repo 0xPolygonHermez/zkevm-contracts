@@ -746,6 +746,11 @@
           "internalType": "address",
           "name": "sequencerAddress",
           "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "isForced",
+          "type": "bool"
         }
       ],
       "name": "calculateAccInputHash",
@@ -1478,7 +1483,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct PolygonZkEVM.ForcedBatchData[]",
+          "internalType": "struct PolygonZkEVM.BatchData[]",
           "name": "batches",
           "type": "tuple[]"
         }

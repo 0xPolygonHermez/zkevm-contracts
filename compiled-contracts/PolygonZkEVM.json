@@ -1351,7 +1351,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "globalExitRoot",
+              "name": "historicGlobalExitRoot",
               "type": "bytes32"
             },
             {
@@ -1391,7 +1391,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "globalExitRoot",
+              "name": "historicGlobalExitRoot",
               "type": "bytes32"
             },
             {
@@ -1400,7 +1400,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct PolygonZkEVM.ForcedBatchData[]",
+          "internalType": "struct PolygonZkEVM.BatchData[]",
           "name": "batches",
           "type": "tuple[]"
         }

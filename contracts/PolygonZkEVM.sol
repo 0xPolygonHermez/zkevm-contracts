@@ -29,8 +29,7 @@ contract PolygonZkEVM is
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param globalExitRoot Global exit root of the batch
-     * @param timestamp Sequenced timestamp of the batch
+     * @param forcedHistoricGlobalExitRoot Global exit root of the batch
      * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
      */
     struct BatchData {
@@ -1067,7 +1066,7 @@ contract PolygonZkEVM is
      * @param batches Struct array which holds the necessary data to append force batches
      */
     function sequenceForceBatches(
-        ForcedBatchData[] calldata batches
+        BatchData[] calldata batches
     ) external isForceBatchAllowed ifNotEmergencyState {
         uint256 batchesNum = batches.length;
 
@@ -1095,7 +1094,7 @@ contract PolygonZkEVM is
         // Sequence force batches
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
-            ForcedBatchData memory currentBatch = batches[i];
+            BatchData memory currentBatch = batches[i];
             currentLastForceBatchSequenced++;
 
             // Store the current transactions hash since it's used more than once for gas saving
