@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../PolygonZkEVM.sol";
+import "../inheritedMainContracts/PolygonZkEVM.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
@@ -9,7 +9,7 @@ import "../PolygonZkEVM.sol";
  */
 contract PolygonZkEVMUpgraded is PolygonZkEVM {
     // Indicates the last version before upgrade
-    uint256 public immutable VERSION_BEFORE_UPGRADE;
+    uint256 public VERSION_BEFORE_UPGRADE;
 
     // Indicates the current version
     uint256 public version;
@@ -17,31 +17,37 @@ contract PolygonZkEVMUpgraded is PolygonZkEVM {
     // Last batch verified before the last upgrade
     uint256 public lastVerifiedBatchBeforeUpgrade;
 
-    /**
+   /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
      * @param _rollupVerifier Rollup verifier address
      * @param _bridgeAddress Bridge address
-     * @param _chainID L2 chainID
      */
-    constructor(
+    function initialize(
+        InitializePackedParameters calldata initializePackedParameters,
+        bytes32 genesisRoot,
+        string memory _trustedSequencerURL,
+        string memory _networkName,
+        string calldata _version,
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID,
-        uint64 _forkID,
         uint256 versionBeforeUpgrade
-    )
-        PolygonZkEVM(
+    ) public initializer {
+        PolygonZkEVM.initialize(
+            initializePackedParameters,
+            genesisRoot,
+            _trustedSequencerURL,
+            _networkName,
+            _version,
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
             _bridgeAddress,
-            _chainID,
-            _forkID
-        )
-    {
+            0,// todo provide real value
+            0// todo provide real value
+        );
         VERSION_BEFORE_UPGRADE = versionBeforeUpgrade;
     }
 
