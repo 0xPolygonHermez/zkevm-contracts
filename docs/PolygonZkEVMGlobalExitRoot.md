@@ -40,6 +40,15 @@ Return last global exit root
 
 
 
+### getRoot
+```solidity
+  function getRoot(
+  ) public returns (bytes32)
+```
+Computes and returns the merkle root
+
+
+
 ## Events
 ### UpdateGlobalExitRoot
 ```solidity
