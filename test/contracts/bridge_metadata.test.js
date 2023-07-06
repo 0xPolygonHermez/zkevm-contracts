@@ -104,7 +104,7 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
             .withArgs(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount);
 
-        expect(await polygonZkEVMBridgeContract.getDepositRoot()).to.be.equal(rootJSMainnet);
+        expect(await polygonZkEVMBridgeContract.getRoot()).to.be.equal(rootJSMainnet);
     });
 
     it('should PolygonZkEVMBridge with weird token metadata with reverts', async () => {
@@ -170,7 +170,7 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
             .withArgs(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount);
 
-        expect(await polygonZkEVMBridgeContract.getDepositRoot()).to.be.equal(rootJSMainnet);
+        expect(await polygonZkEVMBridgeContract.getRoot()).to.be.equal(rootJSMainnet);
     });
 
     it('should PolygonZkEVMBridge with weird token metadata with empty data', async () => {
@@ -231,6 +231,6 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
             .to.emit(polygonZkEVMBridgeContract, 'BridgeEvent')
             .withArgs(LEAF_TYPE_ASSET, originNetwork, tokenAddress, destinationNetwork, destinationAddress, amount, metadata, depositCount);
 
-        expect(await polygonZkEVMBridgeContract.getDepositRoot()).to.be.equal(rootJSMainnet);
+        expect(await polygonZkEVMBridgeContract.getRoot()).to.be.equal(rootJSMainnet);
     });
 });

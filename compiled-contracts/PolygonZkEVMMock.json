@@ -746,6 +746,11 @@
           "internalType": "address",
           "name": "sequencerAddress",
           "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "isForced",
+          "type": "bool"
         }
       ],
       "name": "calculateAccInputHash",
@@ -1429,7 +1434,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "historicGlobalExitRoot",
+              "name": "forcedHistoricGlobalExitRoot",
               "type": "bytes32"
             },
             {
@@ -1464,7 +1469,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "historicGlobalExitRoot",
+              "name": "forcedHistoricGlobalExitRoot",
               "type": "bytes32"
             },
             {
@@ -1473,7 +1478,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct PolygonZkEVM.ForcedBatchData[]",
+          "internalType": "struct PolygonZkEVM.BatchData[]",
           "name": "batches",
           "type": "tuple[]"
         }
