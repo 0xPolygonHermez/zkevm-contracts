@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
-import "../PolygonZkEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "../PolygonZkEVMBridgeWrapper.sol";
 
 /**
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract PolygonZkEVMBridgeMock is PolygonZkEVMBridge, OwnableUpgradeable {
+contract PolygonZkEVMBridgeMock is PolygonZkEVMBridgeWrapper, OwnableUpgradeable {
     uint256 public maxEtherBridge;
 
     /**

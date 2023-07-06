@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../PolygonZkEVM.sol";
+import "../PolygonZkEVMWrapper.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
@@ -9,7 +9,7 @@ import "../PolygonZkEVM.sol";
  * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
  * To enter and exit of the L2 network will be used a PolygonZkEVM Bridge smart contract
  */
-contract PolygonZkEVMMock is PolygonZkEVM {
+contract PolygonZkEVMMock is PolygonZkEVMWrapper {
 
     /**
      * @notice calculate accumulate input hash from parameters

@@ -2,15 +2,15 @@
 
 pragma solidity 0.8.20;
 
-import "./lib/DepositContract.sol";
+import "../lib/DepositContract.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "./lib/TokenWrapped.sol";
-import "./interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
-import "./interfaces/IBridgeMessageReceiver.sol";
-import "./interfaces/IPolygonZkEVMBridge.sol";
+import "../lib/TokenWrapped.sol";
+import "../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
+import "../interfaces/IBridgeMessageReceiver.sol";
+import "../interfaces/IPolygonZkEVMBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "./lib/EmergencyManager.sol";
-import "./lib/GlobalExitRootLib.sol";
+import "../lib/EmergencyManager.sol";
+import "../lib/GlobalExitRootLib.sol";
 
 /**
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
@@ -79,7 +79,7 @@ contract PolygonZkEVMBridge is
         uint32 _networkID,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress
-    ) external virtual initializer {
+    ) public virtual onlyInitializing {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
