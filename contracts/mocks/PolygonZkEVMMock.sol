@@ -48,7 +48,8 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         bytes memory transactions,
         bytes32 globalExitRoot,
         uint64 timestamp,
-        address sequencerAddress
+        address sequencerAddress,
+        bool isForced
     ) public pure returns (bytes32) {
         return
             keccak256(
@@ -57,7 +58,8 @@ contract PolygonZkEVMMock is PolygonZkEVM {
                     keccak256(transactions),
                     globalExitRoot,
                     timestamp,
-                    sequencerAddress
+                    sequencerAddress,
+                    isForced
                 )
             );
     }

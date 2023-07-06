@@ -214,7 +214,7 @@ with the same nonce
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
-    struct PolygonZkEVM.ForcedBatchData[] batches
+    struct PolygonZkEVM.BatchData[] batches
   ) external
 ```
 Allows anyone to sequence forced Batches if the trusted sequencer has not done so in the timeout period
@@ -223,7 +223,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer has not done s
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonZkEVM.ForcedBatchData[] | Struct array which holds the necessary data to append force batches
+|`batches` | struct PolygonZkEVM.BatchData[] | Struct array which holds the necessary data to append force batches
 
 ### setTrustedSequencer
 ```solidity
