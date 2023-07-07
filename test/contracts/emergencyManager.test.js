@@ -12,10 +12,15 @@ describe('Emergency mode test', () => {
     let polygonZkEVMContract;
     let maticTokenContract;
     let polygonZkEVMGlobalExitRoot;
+    let gasTokenContract;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+
+    const gasTokenName = 'Fork Token';
+    const gasTokenSymbol = 'FORK';
+    const gasTokenInitialBalance = ethers.utils.parseEther('20000000');
 
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
@@ -33,6 +38,16 @@ describe('Emergency mode test', () => {
 
         // load signers
         [deployer, trustedAggregator, trustedSequencer, admin] = await ethers.getSigners();
+
+        // deploy gas token
+        const gasTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
+        gasTokenContract = await gasTokenFactory.deploy(
+            gasTokenName,
+            gasTokenSymbol,
+            deployer.address,
+            gasTokenInitialBalance,
+        );
+        await gasTokenContract.deployed();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory(
@@ -59,7 +74,7 @@ describe('Emergency mode test', () => {
             firstDeployment = false;
         }
 
-        const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
+        const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 2 : 1);
         const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
 
         const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
@@ -88,7 +103,13 @@ describe('Emergency mode test', () => {
         expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
         expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
 
-        await polygonZkEVMBridgeContract.initialize(networkIDMainnet, polygonZkEVMGlobalExitRoot.address, polygonZkEVMContract.address);
+        await polygonZkEVMBridgeContract.initialize(
+            networkIDMainnet,
+            polygonZkEVMGlobalExitRoot.address,
+            polygonZkEVMContract.address,
+            gasTokenContract.address,
+            true,
+        );
         await polygonZkEVMContract.initialize(
             {
                 admin: admin.address,

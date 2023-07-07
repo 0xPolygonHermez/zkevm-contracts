@@ -47,6 +47,17 @@ contract PolygonZkEVMBridge is
     // Leaf type message
     uint8 private constant _LEAF_TYPE_MESSAGE = 1;
 
+    // gas token address on L1 for L2
+    address public gasTokenAddress;
+
+    // flag to indicate if the contract is deployed on L2
+    // This is needed, as the logic for the L2 and L1 diverges
+    // On L1: We allow deposits in gasTokenAddress that will be used to 
+    //        represent the native token (ether) in L2
+    // On L2: We pay out the native token (ether) and allow deposits 
+    //        in the native token (ether)
+    bool public isDeployedOnL2;
+
     // Network identifier
     uint32 public networkID;
 
@@ -78,11 +89,15 @@ contract PolygonZkEVMBridge is
     function initialize(
         uint32 _networkID,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        address _polygonZkEVMaddress
+        address _polygonZkEVMaddress,
+        address _gasTokenAddress,
+        bool _isDeployedOnL2
     ) public virtual onlyInitializing {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
+        gasTokenAddress = _gasTokenAddress;
+        isDeployedOnL2 = _isDeployedOnL2;
 
         // Initialize OZ contracts
         __ReentrancyGuard_init();
@@ -159,16 +174,18 @@ contract PolygonZkEVMBridge is
         bytes memory metadata;
         uint256 leafAmount = amount;
 
-        if (token == address(0)) {
+        if (token == address(0) && isDeployedOnL2) {
             // Ether transfer
             if (msg.value != amount) {
                 revert AmountDoesNotMatchMsgValue();
             }
+            // We use originTokenAddress = address(0) to indicate an native token deposit
+            // originTokenAddress = address(0) is set by initialization of originTokenAddress
 
             // Ether is treated as ether from mainnet
             originNetwork = _MAINNET_NETWORK_ID;
         } else {
-            // Check msg.value is 0 if tokens are bridged
+            // Check msg.value is 0 if tokens are bridged or the contract is deployed on L1
             if (msg.value != 0) {
                 revert MsgValueNotZero();
             }
@@ -205,7 +222,12 @@ contract PolygonZkEVMBridge is
                 // Override leafAmount with the received amount
                 leafAmount = balanceAfter - balanceBefore;
 
-                originTokenAddress = token;
+                if (token == gasTokenAddress) {
+                    // deposits of the gas tokens will be represented as the native token on L2
+                    originTokenAddress = address(0);
+                } else {
+                    originTokenAddress = token;
+                }
                 originNetwork = networkID;
 
                 // Encode metadata
@@ -259,6 +281,9 @@ contract PolygonZkEVMBridge is
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) external payable ifNotEmergencyState {
+        if (msg.value != 0 && !isDeployedOnL2) {
+                revert MsgValueNotZero();
+        }
         if (
             destinationNetwork == networkID ||
             destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS
@@ -336,8 +361,8 @@ contract PolygonZkEVMBridge is
         );
 
         // Transfer funds
-        if (originTokenAddress == address(0)) {
-            // Transfer ether
+        if (originTokenAddress == address(0) && isDeployedOnL2) {
+            // Transfer gasTokenAddress as native asset
             /* solhint-disable avoid-low-level-calls */
             (bool success, ) = destinationAddress.call{value: amount}(
                 new bytes(0)
@@ -347,7 +372,13 @@ contract PolygonZkEVMBridge is
             }
         } else {
             // Transfer tokens
-            if (originNetwork == networkID) {
+            if(originTokenAddress == address(0) && !isDeployedOnL2) {
+                // The was deposited token was the native token on L2
+                IERC20Upgradeable(gasTokenAddress).safeTransfer(
+                    destinationAddress,
+                    amount
+                );
+            } else if (originNetwork == networkID) {
                 // The token is an ERC20 from this network
                 IERC20Upgradeable(originTokenAddress).safeTransfer(
                     destinationAddress,
