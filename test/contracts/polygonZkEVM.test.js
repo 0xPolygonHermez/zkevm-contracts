@@ -12,6 +12,7 @@ describe('Polygon ZK-EVM', () => {
     let trustedSequencer;
     let admin;
     let aggregator1;
+    let gasTokenContract;
 
     let verifierContract;
     let polygonZkEVMBridgeContract;
@@ -22,6 +23,10 @@ describe('Polygon ZK-EVM', () => {
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
     const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+
+    const gasTokenName = 'Fork Token';
+    const gasTokenSymbol = 'FORK';
+    const gasTokenInitialBalance = ethers.utils.parseEther('20000000');
 
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
@@ -52,6 +57,16 @@ describe('Polygon ZK-EVM', () => {
         );
         verifierContract = await VerifierRollupHelperFactory.deploy();
 
+        // deploy gas token
+        const gasTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
+        gasTokenContract = await gasTokenFactory.deploy(
+            gasTokenName,
+            gasTokenSymbol,
+            deployer.address,
+            gasTokenInitialBalance,
+        );
+        await gasTokenContract.deployed();
+
         // deploy MATIC
         const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
         maticTokenContract = await maticTokenFactory.deploy(
@@ -70,8 +85,8 @@ describe('Polygon ZK-EVM', () => {
         if ((await upgrades.admin.getInstance()).address !== '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0') {
             firstDeployment = false;
         }
-        const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
-        const nonceProxyZkevm = nonceProxyBridge + (firstDeployment ? 2 : 1);
+        const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 2 : 2);
+        const nonceProxyZkevm = nonceProxyBridge + (firstDeployment ? 1 : 1);
 
         const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
         const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
@@ -98,7 +113,13 @@ describe('Polygon ZK-EVM', () => {
         expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
         expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
 
-        await polygonZkEVMBridgeContract.initialize(networkIDMainnet, polygonZkEVMGlobalExitRoot.address, polygonZkEVMContract.address);
+        await polygonZkEVMBridgeContract.initialize(
+            networkIDMainnet,
+            polygonZkEVMGlobalExitRoot.address,
+            polygonZkEVMContract.address,
+            gasTokenContract.address,
+            true,
+        );
         await polygonZkEVMContract.initialize(
             {
                 admin: admin.address,

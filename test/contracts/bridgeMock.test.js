@@ -18,6 +18,7 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
     let polygonZkEVMGlobalExitRoot;
     let polygonZkEVMBridgeContract;
     let tokenContract;
+    let gasTokenContract;
 
     const tokenName = 'Matic Token';
     const tokenSymbol = 'MATIC';
@@ -27,7 +28,8 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
         ['string', 'string', 'uint8'],
         [tokenName, tokenSymbol, decimals],
     );
-
+    const gasTokenName = 'Fork Token';
+    const gasTokenSymbol = 'FORK';
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
 
@@ -38,6 +40,16 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
         // load signers
         [deployer, rollup, acc1] = await ethers.getSigners();
 
+        // deploy gas token
+        const gasTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
+        gasTokenContract = await gasTokenFactory.deploy(
+            gasTokenName,
+            gasTokenSymbol,
+            deployer.address,
+            tokenInitialBalance,
+        );
+        await gasTokenContract.deployed();
+
         // deploy global exit root manager
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootMock');
 
@@ -46,7 +58,13 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });
 
         polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(rollup.address, polygonZkEVMBridgeContract.address);
-        await polygonZkEVMBridgeContract.initialize(networkIDMainnet, polygonZkEVMGlobalExitRoot.address, polygonZkEVMAddress);
+        await polygonZkEVMBridgeContract.initialize(
+            networkIDMainnet,
+            polygonZkEVMGlobalExitRoot.address,
+            polygonZkEVMAddress,
+            gasTokenContract.address,
+            true,
+        );
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
