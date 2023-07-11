@@ -2,18 +2,19 @@
 
 pragma solidity 0.8.20;
 
-import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
-import "./lib/GlobalExitRootLib.sol";
+import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "../lib/GlobalExitRootLib.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot {
+contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot, Initializable {
     // PolygonZkEVMBridge address
-    address public immutable bridgeAddress;
+    address public bridgeAddress;
 
     // Rollup contract address
-    address public immutable rollupAddress;
+    address public rollupAddress;
 
     // Rollup exit root, this will be updated every time a batch is verified
     bytes32 public lastRollupExitRoot;
@@ -36,7 +37,7 @@ contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot {
      * @param _rollupAddress Rollup contract address
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
-    constructor(address _rollupAddress, address _bridgeAddress) {
+    function initialize(address _rollupAddress, address _bridgeAddress) public virtual onlyInitializing {
         rollupAddress = _rollupAddress;
         bridgeAddress = _bridgeAddress;
     }
