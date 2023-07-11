@@ -127,6 +127,8 @@ describe('Polygon ZK-EVM', () => {
                 pendingStateTimeout: pendingStateTimeoutDefault,
                 trustedAggregator: trustedAggregator.address,
                 trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
+                chainID,
+                forkID,
             },
             genesisRoot,
             urlSequencer,
@@ -136,8 +138,6 @@ describe('Polygon ZK-EVM', () => {
             maticTokenContract.address,
             verifierContract.address,
             polygonZkEVMBridgeContract.address,
-            chainID,
-            forkID,
         );
 
         // fund sequencer address with Matic tokens
@@ -187,6 +187,8 @@ describe('Polygon ZK-EVM', () => {
                 pendingStateTimeout: HALT_AGGREGATION_TIMEOUT + 1,
                 trustedAggregator: trustedAggregator.address,
                 trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
+                chainID,
+                forkID,
             },
             genesisRoot,
             urlSequencer,
@@ -196,8 +198,7 @@ describe('Polygon ZK-EVM', () => {
             maticTokenContract.address,
             verifierContract.address,
             polygonZkEVMBridgeContract.address,
-            chainID,
-            forkID,
+
         )).to.be.revertedWith('PendingStateTimeoutExceedHaltAggregationTimeout');
 
         await expect(polygonZkEVMContractInitialize.initialize(
@@ -207,6 +208,8 @@ describe('Polygon ZK-EVM', () => {
                 pendingStateTimeout: pendingStateTimeoutDefault,
                 trustedAggregator: trustedAggregator.address,
                 trustedAggregatorTimeout: HALT_AGGREGATION_TIMEOUT + 1,
+                chainID,
+                forkID,
             },
             genesisRoot,
             urlSequencer,
@@ -216,8 +219,7 @@ describe('Polygon ZK-EVM', () => {
             maticTokenContract.address,
             verifierContract.address,
             polygonZkEVMBridgeContract.address,
-            chainID,
-            forkID,
+
         )).to.be.revertedWith('TrustedAggregatorTimeoutExceedHaltAggregationTimeout');
 
         await expect(
@@ -228,6 +230,8 @@ describe('Polygon ZK-EVM', () => {
                     pendingStateTimeout: pendingStateTimeoutDefault,
                     trustedAggregator: trustedAggregator.address,
                     trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
+                    chainID,
+                    forkID,
                 },
                 genesisRoot,
                 urlSequencer,
@@ -237,8 +241,6 @@ describe('Polygon ZK-EVM', () => {
                 maticTokenContract.address,
                 verifierContract.address,
                 polygonZkEVMBridgeContract.address,
-                chainID,
-                forkID,
             ),
         ).to.emit(polygonZkEVMContractInitialize, 'UpdateZkEVMVersion').withArgs(0, forkID, version);
     });

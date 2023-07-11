@@ -117,6 +117,8 @@ describe('Emergency mode test', () => {
                 pendingStateTimeout: pendingStateTimeoutDefault,
                 trustedAggregator: trustedAggregator.address,
                 trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
+                chainID,
+                forkID: 0,
             },
             genesisRoot,
             urlSequencer,
@@ -126,8 +128,6 @@ describe('Emergency mode test', () => {
             maticTokenContract.address,
             verifierContract.address,
             polygonZkEVMBridgeContract.address,
-            chainID,
-            0,
         );
 
         // fund sequencer address with Matic tokens

@@ -118,6 +118,8 @@ describe('Polygon ZK-EVM TestnetV2', () => {
                 pendingStateTimeout: pendingStateTimeoutDefault,
                 trustedAggregator: trustedAggregator.address,
                 trustedAggregatorTimeout: trustedAggregatorTimeoutDefault,
+                chainID,
+                forkID,
             },
             genesisRoot,
             urlSequencer,
@@ -127,8 +129,7 @@ describe('Polygon ZK-EVM TestnetV2', () => {
             maticTokenContract.address,
             verifierContract.address,
             polygonZkEVMBridgeContract.address,
-            chainID,
-            forkID,
+
         );
 
         // fund sequencer address with Matic tokens
