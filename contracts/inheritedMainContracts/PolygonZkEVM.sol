@@ -362,8 +362,6 @@ contract PolygonZkEVM is
      * @param _matic MATIC token address
      * @param _rollupVerifier Rollup verifier address
      * @param _bridgeAddress Bridge address
-     * @param _chainID L2 chainID
-     * @param _forkID Fork Id
      */
     function initialize(
         InitializePackedParameters calldata initializePackedParameters,
@@ -374,16 +372,14 @@ contract PolygonZkEVM is
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
-        IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID,
-        uint64 _forkID
+        IPolygonZkEVMBridge _bridgeAddress
     ) public virtual onlyInitializing {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
         rollupVerifier = _rollupVerifier;
         bridgeAddress = _bridgeAddress;
-        chainID = _chainID;
-        forkID = _forkID;
+        chainID = initializePackedParameters.chainID;
+        forkID = initializePackedParameters.forkID;
         admin = initializePackedParameters.admin;
         trustedSequencer = initializePackedParameters.trustedSequencer;
         trustedAggregator = initializePackedParameters.trustedAggregator;
@@ -421,7 +417,7 @@ contract PolygonZkEVM is
         __Ownable_init_unchained();
 
         // emit version event
-        emit UpdateZkEVMVersion(0, forkID, _version);
+        emit UpdateZkEVMVersion(0, initializePackedParameters.forkID, _version);
     }
 
     modifier onlyAdmin() {

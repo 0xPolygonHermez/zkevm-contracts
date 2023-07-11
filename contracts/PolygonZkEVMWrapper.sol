@@ -13,9 +13,7 @@ contract PolygonZkEVMWrapper is PolygonZkEVM{
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
-        IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID,
-        uint64 _forkID
+        IPolygonZkEVMBridge _bridgeAddress
     ) public override initializer {
         PolygonZkEVM.initialize(
             initializePackedParameters,
@@ -26,9 +24,7 @@ contract PolygonZkEVMWrapper is PolygonZkEVM{
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
-            _bridgeAddress,
-            _chainID,
-            _forkID
+            _bridgeAddress
         );
     }
 }

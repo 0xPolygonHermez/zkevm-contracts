@@ -13,6 +13,8 @@ interface IPolygonZkEVM {
      * @param pendingStateTimeout Pending state timeout
      * @param trustedAggregator Trusted aggregator
      * @param trustedAggregatorTimeout Trusted aggregator timeout
+     * @param _chainID L2 chainID
+     * @param _forkID Fork Id
      */
     struct InitializePackedParameters {
         address admin;
@@ -20,6 +22,8 @@ interface IPolygonZkEVM {
         uint64 pendingStateTimeout;
         address trustedAggregator;
         uint64 trustedAggregatorTimeout;
+        uint64 chainID;
+        uint64 forkID;
     }
 
     function chainID() external view returns (uint64);

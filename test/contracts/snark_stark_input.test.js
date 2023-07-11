@@ -34,6 +34,8 @@ describe('Polygon ZK-EVM snark stark input test', () => {
                 pendingStateTimeout: 0,
                 trustedAggregator: randomSigner.address,
                 trustedAggregatorTimeout: 0,
+                chainID,
+                forkID: 0,
             },
             genesisRoot,
             urlSequencer,
@@ -43,8 +45,6 @@ describe('Polygon ZK-EVM snark stark input test', () => {
             randomSigner.address,
             randomSigner.address,
             randomSigner.address,
-            chainID,
-            0,
         );
 
         await polygonZkEVMContract.deployed();
