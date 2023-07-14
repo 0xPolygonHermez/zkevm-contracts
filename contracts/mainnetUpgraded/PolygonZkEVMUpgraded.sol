@@ -43,9 +43,7 @@ contract PolygonZkEVMUpgraded is PolygonZkEVM {
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
-            _bridgeAddress,
-            0,// todo provide real value
-            0// todo provide real value
+            _bridgeAddress
         );
         VERSION_BEFORE_UPGRADE = versionBeforeUpgrade;
     }

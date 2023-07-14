@@ -460,7 +460,7 @@ contract PolygonZkEVM is
     function sequenceBatches(
         BatchData[] calldata batches,
         address l2Coinbase
-    ) external ifNotEmergencyState onlyTrustedSequencer {
+    ) public virtual ifNotEmergencyState onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
             revert SequenceZeroBatches();
@@ -616,7 +616,7 @@ contract PolygonZkEVM is
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         bytes32[24] calldata proof
-    ) external ifNotEmergencyState {
+    ) public virtual ifNotEmergencyState {
         // Check if the trusted aggregator timeout expired,
         // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
         if (
@@ -689,7 +689,7 @@ contract PolygonZkEVM is
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         bytes32[24] calldata proof
-    ) external onlyTrustedAggregator {
+    ) public virtual onlyTrustedAggregator {
         _verifyAndRewardBatches(
             pendingStateNum,
             initNumBatch,
