@@ -1,5 +1,5 @@
 Contract responsible for managing the state and the updates of the L2 network
-This contract will NOT BE USED IN PRODUCTION, will be used only in testnet enviroment
+This contract will NOT BE USED IN PRODUCTION, will be used only in testnet environment
 
 
 ## Functions
@@ -72,7 +72,7 @@ Set new forcedBatchTimeout
   ) public
 ```
 Set new forced batches allowed
-Defined as a uint256 because it will be easy to updgrade afterwards
+Defined as a uint256 because it will be easy to upgrade afterwards
 
 
 #### Parameters:

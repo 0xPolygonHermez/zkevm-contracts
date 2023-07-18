@@ -510,7 +510,7 @@ describe('Polygon ZK-EVM', () => {
         const sequencedBatchData2 = await polygonZkEVMContract.sequencedBatches(2);
         const batchAccInputHash2 = sequencedBatchData2.accInputHash;
 
-        // Calcultate input Hahs for batch 1
+        // Calculate input Hahs for batch 1
         let batchAccInputHashJs = calculateAccInputHash(
             ethers.constants.HashZero,
             calculateBatchHashData(sequence.transactions),
@@ -519,7 +519,7 @@ describe('Polygon ZK-EVM', () => {
             trustedSequencer.address,
         );
 
-        // Calcultate input Hahs for batch 2
+        // Calculate input Hahs for batch 2
         batchAccInputHashJs = calculateAccInputHash(
             batchAccInputHashJs,
             calculateBatchHashData(sequence2.transactions),
@@ -656,7 +656,7 @@ describe('Polygon ZK-EVM', () => {
 
         /*
          * Check batch mapping
-         * Calcultate input Hahs for batch 1
+         * Calculate input Hahs for batch 1
          */
         let batchAccInputHashJs = calculateAccInputHash(
             ethers.constants.HashZero,
@@ -666,7 +666,7 @@ describe('Polygon ZK-EVM', () => {
             trustedSequencer.address,
         );
 
-        // Calcultate input Hahs for batch 2
+        // Calculate input Hahs for batch 2
         batchAccInputHashJs = calculateAccInputHash(
             batchAccInputHashJs,
             calculateBatchHashData(sequence2.transactions),
@@ -712,7 +712,7 @@ describe('Polygon ZK-EVM', () => {
         let currentTimestamp = (await ethers.provider.getBlock()).timestamp;
         await ethers.provider.send('evm_increaseTime', [1]); // evm_setNextBlockTimestamp
 
-        sequence.timestamp = currentTimestamp + 2; // bigger than current block tiemstamp
+        sequence.timestamp = currentTimestamp + 2; // bigger than current block timestamp
 
         // revert because timestamp is more than the current one
         await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
@@ -1796,7 +1796,7 @@ describe('Polygon ZK-EVM', () => {
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [sequencedTimestmap + haltTimeout]);
 
-        // Succesfully acitvate emergency state
+        // Successfully activate emergency state
         await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(1))
             .to.emit(polygonZkEVMContract, 'EmergencyStateActivated');
     });

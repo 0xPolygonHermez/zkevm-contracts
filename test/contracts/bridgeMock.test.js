@@ -130,7 +130,7 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
         expect(computedGlobalExitRoot).to.be.equal(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot());
     });
 
-    it('shouldnt be able to PolygonZkEVMBridge more thna 0.25e ehters', async () => {
+    it('shouldnt be able to PolygonZkEVMBridge more than 0.25e ehters', async () => {
         // Add a claim leaf to rollup exit tree
         const tokenAddress = ethers.constants.AddressZero; // ether
         const amount = ethers.utils.parseEther('10');

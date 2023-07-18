@@ -20,7 +20,7 @@ cd deployment
 cp deploy_parameters.json.example deploy_parameters.json
 ```
 
-Fill created `deploy_parameters.json` with appropiate parameters.
+Fill created `deploy_parameters.json` with appropriate parameters.
 See below for more information about the `deploy_parameters.json`
 
 The first step is deploying and verifying the `PolygonZkEVMDeployer`, this will be the factory for deterministic contracts, the address of the contracts will depend on the `salt` and the `initialZkEVMDeployerOwner`
@@ -51,14 +51,14 @@ To verify contracts use `npm run verify:ZkEVM:${network}`
 npm run verify:ZkEVM:goerli
 ```
 
-A new folder will be created witth the following name `deployments/${network}_$(date +%s)` with all the output information and the OZ proxy information.
+A new folder will be created with the following name `deployments/${network}_$(date +%s)` with all the output information and the OZ proxy information.
 
 ## deploy-parameters.json
 
 - `realVerifier`: bool, Indicates whether deploy a real verifier or not
 - `trustedSequencerURL`: string, trustedSequencer URL
 - `networkName`: string, networkName
-- `version`:string, will just be emitted at initialization of the contract, usefull just for synchronizer
+- `version`:string, will just be emitted at initialization of the contract, useful just for synchronizer
 - `trustedSequencer`: address, trusted sequencer addresss
 - `chainID`: uint64, chainID of the zkEVM
 - `trustedAggregator`:address, Trusted aggregator address
@@ -77,12 +77,12 @@ A new folder will be created witth the following name `deployments/${network}_$(
 ### Optional Parameters
 
 - `deployerPvtKey`: string, pvtKey of the deployer, overrides the address in `MNEMONIC` of `.env` if exist
-- `maxFeePerGas`:string, Set `maxFeePerGas`, must define aswell `maxPriorityFeePerGas` to use it
-- `maxPriorityFeePerGas`:string, Set `maxPriorityFeePerGas`, must define aswell `maxFeePerGas` to use it
+- `maxFeePerGas`:string, Set `maxFeePerGas`, must define as well `maxPriorityFeePerGas` to use it
+- `maxPriorityFeePerGas`:string, Set `maxPriorityFeePerGas`, must define as well `maxFeePerGas` to use it
 - `multiplierGas`: number, Gas multiplier with 3 decimals. If `maxFeePerGas` and `maxPriorityFeePerGas` are set, this will not take effect
 
 ## Notes
 
 - Since there are deterministic address you cannot deploy twice on the same network using the same `salt` and `initialZkEVMDeployerOwner`. Changing one of them is enough to make a new deployment.
 - It's mandatory to delete the `.openzeppelin` upgradebility information in order to make a new deployment
-- `genesis.json` has been generated using the tool: `1_createGenesis`, this script depends on the `deploy_parameters` aswell.
+- `genesis.json` has been generated using the tool: `1_createGenesis`, this script depends on the `deploy_parameters` as well.

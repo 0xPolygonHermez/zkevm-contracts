@@ -9,7 +9,7 @@ const { expect } = require('chai');
  * @param {String} value - Value of the permit
  * @param {String} nonce - Nonce of the permit
  * @param {String} deadline - Deadline of the permit
- * @returns {Object} - Signature obejct, { v, r, s}
+ * @returns {Object} - Signature object, { v, r, s}
  */
 async function createPermitSignature(tokenContractInstance, wallet, spenderAddress, value, nonce, deadline, chainId) {
     const name = await tokenContractInstance.name();
@@ -59,7 +59,7 @@ async function createPermitSignature(tokenContractInstance, wallet, spenderAddre
  * @param {String} nonce - Nonce of the permit
  * @param {String} expiry - expiry of the permit
  * @param {Number} chainId - expiry of the permit
- * @returns {Object} - Signature obejct, { v, r, s}
+ * @returns {Object} - Signature object, { v, r, s}
  */
 async function createPermitSignatureDaiType(tokenContractInstance, wallet, spenderAddress, nonce, expiry, chainId) {
     const name = await tokenContractInstance.name();
@@ -111,7 +111,7 @@ async function createPermitSignatureDaiType(tokenContractInstance, wallet, spend
  * @param {String} nonce - Nonce of the permit
  * @param {String} deadline - Deadline of the permit
  * @param {Number} chainId - expiry of the permit
- * @returns {Object} - Signature obejct, { v, r, s}
+ * @returns {Object} - Signature object, { v, r, s}
  */
 async function createPermitSignatureUniType(tokenContractInstance, wallet, spenderAddress, value, nonce, deadline, chainId) {
     const name = await tokenContractInstance.name();
