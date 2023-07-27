@@ -832,7 +832,7 @@ contract PolygonZkEVM is
      * Can be called by the trusted aggregator, which can consolidate any state without the timeout restrictions
      * @param pendingStateNum Pending state to consolidate
      */
-    function consolidatePendingState(uint64 pendingStateNum) external {
+    function consolidatePendingState(uint64 pendingStateNum) public virtual {
         // Check if pending state can be consolidated
         // If trusted aggregator is the sender, do not check the timeout or the emergency state
         if (msg.sender != trustedAggregator) {
@@ -1329,7 +1329,7 @@ contract PolygonZkEVM is
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         bytes32[24] calldata proof
-    ) external onlyTrustedAggregator {
+    ) public virtual onlyTrustedAggregator {
         _proveDistinctPendingState(
             initPendingStateNum,
             finalPendingStateNum,
