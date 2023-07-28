@@ -1,8 +1,8 @@
-# zkevm-contracts
+# suppernets2-contracts
 
-Smart contract implementation which will be used by the polygon-hermez zkevm
+Smart contract implementation which will be used by Supernets2
 
-[![Main CI](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml)
+[![Main CI](https://github.com/0xPolygon/supernets2-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygon/supernets2-contracts/actions/workflows/main.yml)
 
 ## Note
 
@@ -15,11 +15,11 @@ Private keys and mnemonics contained in this repository are used for internal te
 
 ## Repository structure
 
-- `contracts`: zkevm contracts
+- `contracts`: supenrets2 contracts
   - `PolygonZkEVMBridge.sol`: transfer assets between chains
     - `PolygonZkEVMGlobalExitRoot.sol`: manage global exit root in L1
     - `PolygonZkEVMGlobalExitRootL2.sol`: manage global exit root in L2
-  - `PolygonZkEVM.sol`: consensus algorithm used by polygon hermez zkevm
+  - `Supernets2.sol`: consensus algorithm used by supernets2
 - `docs`: specs and useful links
 - `test`: contracts tests
 
@@ -55,22 +55,16 @@ Autofix errors:
 npm run lint:fix
 ```
 
-## Deploy on hardhat
-
-```
-npm run deploy:ZkEVM:hardhat
-```
-
 ## Build dockers
 
 ```
 npm run docker:contracts
 ```
 
-A new docker `hermez-geth1.3:latest` will be created
+A new docker `hermeznetwork/geth-supernets2-contracts` will be created
 This docker will contain a geth node with the deployed contracts
 The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`
-To run the docker you can use: `docker run -p 8545:8545 hermez-geth1.3:latest`
+To run the docker you can use: `docker run -p 8545:8545 hermeznetwork/geth-supernets2-contracts`
 
 ## Note
 
@@ -85,4 +79,4 @@ In order to test, the following private keys are being used. These keys are not 
 
 To verify that the smartcontracts of this repository are the same deployed on mainnet, you could follow the instructions described [document](verifyMainnetDeployment/verifyDeployment.md)
 
-The smartcontract used to verify a proof, it's a generated contract from zkEVM Rom and Pil (constraints). To verify the deployment of this smartcontract you could follow the instructions described in this [document](verifyMainnetDeployment/verifyMainnetProofVerifier.md)
+The smartcontract used to verify a proof, it's a generated contract from zkEVM Rom and Pil (constraints).

@@ -6,7 +6,7 @@ const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
 const { calculateSnarkInput, calculateAccInputHash, calculateBatchHashData } = contractUtils;
 
-describe('Polygon ZK-EVM', () => {
+describe('Supernets2', () => {
     let deployer;
     let trustedAggregator;
     let trustedSequencer;
@@ -14,10 +14,11 @@ describe('Polygon ZK-EVM', () => {
     let aggregator1;
 
     let verifierContract;
-    let polygonZkEVMBridgeContract;
-    let polygonZkEVMContract;
+    let PolygonZkEVMBridgeContract;
+    let supernets2Contract;
+    let supernets2DataCommitteeContract;
     let maticTokenContract;
-    let polygonZkEVMGlobalExitRoot;
+    let PolygonZkEVMGlobalExitRoot;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
@@ -26,16 +27,16 @@ describe('Polygon ZK-EVM', () => {
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
     const networkIDMainnet = 0;
-    const urlSequencer = 'http://zkevm-json-rpc:8123';
+    const urlSequencer = 'http://supernets2-json-rpc:8123';
     const chainID = 1000;
-    const networkName = 'zkevm';
+    const networkName = 'supernets2';
     const version = '0.0.1';
     const forkID = 0;
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
 
-    // PolygonZkEVM Constants
+    // Supernets2 Constants
     const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
     const MAX_BATCH_MULTIPLIER = 12;
     const HALT_AGGREGATION_TIMEOUT = 60 * 60 * 24 * 7; // 7 days
@@ -71,43 +72,56 @@ describe('Polygon ZK-EVM', () => {
             firstDeployment = false;
         }
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
-        const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
+        const nonceProxyCommittee = nonceProxyBridge + (firstDeployment ? 2 : 1);
+        // Always have to redeploy impl since the PolygonZkEVMGlobalExitRoot address changes
+        const nonceProxySupernets2 = nonceProxyCommittee + 2;
 
         const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
-        const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        const precalculateCommitteeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyCommittee });
+        const precalculateSupernets2Address = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxySupernets2 });
         firstDeployment = false;
 
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
-        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+        PolygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             initializer: false,
-            constructorArgs: [precalculateZkevmAddress, precalculateBridgeAddress],
+            constructorArgs: [precalculateSupernets2Address, precalculateBridgeAddress],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
         // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
-        polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });
+        const PolygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
+        PolygonZkEVMBridgeContract = await upgrades.deployProxy(PolygonZkEVMBridgeFactory, [], { initializer: false });
 
-        // deploy PolygonZkEVMMock
-        const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
-        polygonZkEVMContract = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
+        // deploy Supernets2DataCommittee
+        const supernets2DataCommitteeFactory = await ethers.getContractFactory('Supernets2DataCommittee');
+        supernets2DataCommitteeContract = await upgrades.deployProxy(
+            supernets2DataCommitteeFactory,
+            [],
+            { initializer: false },
+        );
+
+        // deploy Supernets2Mock
+        const Supernets2Factory = await ethers.getContractFactory('Supernets2Mock');
+        supernets2Contract = await upgrades.deployProxy(Supernets2Factory, [], {
             initializer: false,
             constructorArgs: [
-                polygonZkEVMGlobalExitRoot.address,
+                PolygonZkEVMGlobalExitRoot.address,
                 maticTokenContract.address,
                 verifierContract.address,
-                polygonZkEVMBridgeContract.address,
+                PolygonZkEVMBridgeContract.address,
+                supernets2DataCommitteeContract.address,
                 chainID,
                 forkID,
             ],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
-        expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.address);
-        expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
+        expect(precalculateBridgeAddress).to.be.equal(PolygonZkEVMBridgeContract.address);
+        expect(precalculateCommitteeAddress).to.be.equal(supernets2DataCommitteeContract.address);
+        expect(precalculateSupernets2Address).to.be.equal(supernets2Contract.address);
 
-        await polygonZkEVMBridgeContract.initialize(networkIDMainnet, polygonZkEVMGlobalExitRoot.address, polygonZkEVMContract.address);
-        await polygonZkEVMContract.initialize(
+        await PolygonZkEVMBridgeContract.initialize(networkIDMainnet, PolygonZkEVMGlobalExitRoot.address, supernets2Contract.address);
+        await supernets2Contract.initialize(
             {
                 admin: admin.address,
                 trustedSequencer: trustedSequencer.address,
@@ -120,53 +134,60 @@ describe('Polygon ZK-EVM', () => {
             networkName,
             version,
         );
+        await supernets2DataCommitteeContract.initialize();
+        const expectedHash = ethers.utils.solidityKeccak256(['bytes'], [[]]);
+        await expect(supernets2DataCommitteeContract.connect(deployer)
+            .setupCommittee(0, [], []))
+            .to.emit(supernets2DataCommitteeContract, 'CommitteeUpdated')
+            .withArgs(expectedHash);
 
         // fund sequencer address with Matic tokens
         await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('1000'));
     });
 
     it('should check the constructor parameters', async () => {
-        expect(await polygonZkEVMContract.globalExitRootManager()).to.be.equal(polygonZkEVMGlobalExitRoot.address);
-        expect(await polygonZkEVMContract.matic()).to.be.equal(maticTokenContract.address);
-        expect(await polygonZkEVMContract.rollupVerifier()).to.be.equal(verifierContract.address);
-        expect(await polygonZkEVMContract.bridgeAddress()).to.be.equal(polygonZkEVMBridgeContract.address);
+        expect(await supernets2Contract.globalExitRootManager()).to.be.equal(PolygonZkEVMGlobalExitRoot.address);
+        expect(await supernets2Contract.matic()).to.be.equal(maticTokenContract.address);
+        expect(await supernets2Contract.rollupVerifier()).to.be.equal(verifierContract.address);
+        expect(await supernets2Contract.bridgeAddress()).to.be.equal(PolygonZkEVMBridgeContract.address);
 
-        expect(await polygonZkEVMContract.owner()).to.be.equal(deployer.address);
-        expect(await polygonZkEVMContract.admin()).to.be.equal(admin.address);
-        expect(await polygonZkEVMContract.chainID()).to.be.equal(chainID);
-        expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
-        expect(await polygonZkEVMContract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
-        expect(await polygonZkEVMContract.trustedAggregator()).to.be.equal(trustedAggregator.address);
-        expect(await polygonZkEVMContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeoutDefault);
+        expect(await supernets2Contract.owner()).to.be.equal(deployer.address);
+        expect(await supernets2Contract.admin()).to.be.equal(admin.address);
+        expect(await supernets2Contract.chainID()).to.be.equal(chainID);
+        expect(await supernets2Contract.trustedSequencer()).to.be.equal(trustedSequencer.address);
+        expect(await supernets2Contract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
+        expect(await supernets2Contract.trustedAggregator()).to.be.equal(trustedAggregator.address);
+        expect(await supernets2Contract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeoutDefault);
 
-        expect(await polygonZkEVMContract.batchNumToStateRoot(0)).to.be.equal(genesisRoot);
-        expect(await polygonZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
-        expect(await polygonZkEVMContract.networkName()).to.be.equal(networkName);
+        expect(await supernets2Contract.batchNumToStateRoot(0)).to.be.equal(genesisRoot);
+        expect(await supernets2Contract.trustedSequencerURL()).to.be.equal(urlSequencer);
+        expect(await supernets2Contract.networkName()).to.be.equal(networkName);
 
-        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
-        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
-        expect(await polygonZkEVMContract.getForcedBatchFee()).to.be.equal(ethers.utils.parseEther('10'));
+        expect(await supernets2Contract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
+        expect(await supernets2Contract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
+        expect(await supernets2Contract.getForcedBatchFee()).to.be.equal(ethers.utils.parseEther('10'));
 
-        expect(await polygonZkEVMContract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
-        expect(await polygonZkEVMContract.isForcedBatchDisallowed()).to.be.equal(true);
+        expect(await supernets2Contract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
+        expect(await supernets2Contract.isForcedBatchDisallowed()).to.be.equal(true);
     });
 
     it('should check initialize function', async () => {
-        const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVMMock');
-        const polygonZkEVMContractInitialize = await upgrades.deployProxy(PolygonZkEVMFactory, [], {
+        const Supernets2Factory = await ethers.getContractFactory('Supernets2Mock');
+        const supernets2ContractInitialize = await upgrades.deployProxy(Supernets2Factory, [], {
             initializer: false,
             constructorArgs: [
-                polygonZkEVMGlobalExitRoot.address,
+                PolygonZkEVMGlobalExitRoot.address,
                 maticTokenContract.address,
                 verifierContract.address,
-                polygonZkEVMBridgeContract.address,
+                PolygonZkEVMBridgeContract.address,
+                supernets2DataCommitteeContract.address,
                 chainID,
                 forkID,
             ],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
-        await expect(polygonZkEVMContractInitialize.initialize(
+        await expect(supernets2ContractInitialize.initialize(
             {
                 admin: admin.address,
                 trustedSequencer: trustedSequencer.address,
@@ -180,7 +201,7 @@ describe('Polygon ZK-EVM', () => {
             version,
         )).to.be.revertedWith('PendingStateTimeoutExceedHaltAggregationTimeout');
 
-        await expect(polygonZkEVMContractInitialize.initialize(
+        await expect(supernets2ContractInitialize.initialize(
             {
                 admin: admin.address,
                 trustedSequencer: trustedSequencer.address,
@@ -195,7 +216,7 @@ describe('Polygon ZK-EVM', () => {
         )).to.be.revertedWith('TrustedAggregatorTimeoutExceedHaltAggregationTimeout');
 
         await expect(
-            polygonZkEVMContractInitialize.initialize(
+            supernets2ContractInitialize.initialize(
                 {
                     admin: admin.address,
                     trustedSequencer: trustedSequencer.address,
@@ -208,150 +229,150 @@ describe('Polygon ZK-EVM', () => {
                 networkName,
                 version,
             ),
-        ).to.emit(polygonZkEVMContractInitialize, 'UpdateZkEVMVersion').withArgs(0, forkID, version);
+        ).to.emit(supernets2ContractInitialize, 'UpdateSupernets2Version').withArgs(0, forkID, version);
     });
 
     it('should check setters of admin', async () => {
-        expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
-        expect(await polygonZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
-        expect(await polygonZkEVMContract.trustedAggregator()).to.be.equal(trustedAggregator.address);
-        expect(await polygonZkEVMContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeoutDefault);
-        expect(await polygonZkEVMContract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
-        expect(await polygonZkEVMContract.admin()).to.be.equal(admin.address);
+        expect(await supernets2Contract.trustedSequencer()).to.be.equal(trustedSequencer.address);
+        expect(await supernets2Contract.trustedSequencerURL()).to.be.equal(urlSequencer);
+        expect(await supernets2Contract.trustedAggregator()).to.be.equal(trustedAggregator.address);
+        expect(await supernets2Contract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeoutDefault);
+        expect(await supernets2Contract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
+        expect(await supernets2Contract.admin()).to.be.equal(admin.address);
 
         // setTrustedSequencer
-        await expect(polygonZkEVMContract.setTrustedSequencer(deployer.address))
+        await expect(supernets2Contract.setTrustedSequencer(deployer.address))
             .to.be.revertedWith('OnlyAdmin');
         await expect(
-            polygonZkEVMContract.connect(admin).setTrustedSequencer(deployer.address),
-        ).to.emit(polygonZkEVMContract, 'SetTrustedSequencer').withArgs(deployer.address);
-        expect(await polygonZkEVMContract.trustedSequencer()).to.be.equal(deployer.address);
+            supernets2Contract.connect(admin).setTrustedSequencer(deployer.address),
+        ).to.emit(supernets2Contract, 'SetTrustedSequencer').withArgs(deployer.address);
+        expect(await supernets2Contract.trustedSequencer()).to.be.equal(deployer.address);
 
         // setTrustedSequencerURL
         const url = 'https://test';
-        await expect(polygonZkEVMContract.setTrustedSequencerURL(url))
+        await expect(supernets2Contract.setTrustedSequencerURL(url))
             .to.be.revertedWith('OnlyAdmin');
         await expect(
-            polygonZkEVMContract.connect(admin).setTrustedSequencerURL(url),
-        ).to.emit(polygonZkEVMContract, 'SetTrustedSequencerURL').withArgs(url);
-        expect(await polygonZkEVMContract.trustedSequencerURL()).to.be.equal(url);
+            supernets2Contract.connect(admin).setTrustedSequencerURL(url),
+        ).to.emit(supernets2Contract, 'SetTrustedSequencerURL').withArgs(url);
+        expect(await supernets2Contract.trustedSequencerURL()).to.be.equal(url);
 
         // setTrustedAggregator
         const newTrustedAggregator = deployer.address;
-        await expect(polygonZkEVMContract.setTrustedAggregator(newTrustedAggregator))
+        await expect(supernets2Contract.setTrustedAggregator(newTrustedAggregator))
             .to.be.revertedWith('OnlyAdmin');
         await expect(
-            polygonZkEVMContract.connect(admin).setTrustedAggregator(newTrustedAggregator),
-        ).to.emit(polygonZkEVMContract, 'SetTrustedAggregator').withArgs(newTrustedAggregator);
-        expect(await polygonZkEVMContract.trustedAggregator()).to.be.equal(newTrustedAggregator);
+            supernets2Contract.connect(admin).setTrustedAggregator(newTrustedAggregator),
+        ).to.emit(supernets2Contract, 'SetTrustedAggregator').withArgs(newTrustedAggregator);
+        expect(await supernets2Contract.trustedAggregator()).to.be.equal(newTrustedAggregator);
 
         // setTrustedAggregatorTimeout
-        await expect(polygonZkEVMContract.setTrustedAggregatorTimeout(trustedAggregatorTimeoutDefault))
+        await expect(supernets2Contract.setTrustedAggregatorTimeout(trustedAggregatorTimeoutDefault))
             .to.be.revertedWith('OnlyAdmin');
 
-        await expect(polygonZkEVMContract.connect(admin).setTrustedAggregatorTimeout(HALT_AGGREGATION_TIMEOUT + 1))
+        await expect(supernets2Contract.connect(admin).setTrustedAggregatorTimeout(HALT_AGGREGATION_TIMEOUT + 1))
             .to.be.revertedWith('TrustedAggregatorTimeoutExceedHaltAggregationTimeout');
 
-        await expect(polygonZkEVMContract.connect(admin).setTrustedAggregatorTimeout(trustedAggregatorTimeoutDefault))
+        await expect(supernets2Contract.connect(admin).setTrustedAggregatorTimeout(trustedAggregatorTimeoutDefault))
             .to.be.revertedWith('NewTrustedAggregatorTimeoutMustBeLower');
 
         const newTrustedAggregatorTimeout = trustedAggregatorTimeoutDefault - 1;
         await expect(
-            polygonZkEVMContract.connect(admin).setTrustedAggregatorTimeout(newTrustedAggregatorTimeout),
-        ).to.emit(polygonZkEVMContract, 'SetTrustedAggregatorTimeout').withArgs(newTrustedAggregatorTimeout);
-        expect(await polygonZkEVMContract.trustedAggregatorTimeout()).to.be.equal(newTrustedAggregatorTimeout);
+            supernets2Contract.connect(admin).setTrustedAggregatorTimeout(newTrustedAggregatorTimeout),
+        ).to.emit(supernets2Contract, 'SetTrustedAggregatorTimeout').withArgs(newTrustedAggregatorTimeout);
+        expect(await supernets2Contract.trustedAggregatorTimeout()).to.be.equal(newTrustedAggregatorTimeout);
 
         // setPendingStateTimeoutDefault
-        await expect(polygonZkEVMContract.setPendingStateTimeout(pendingStateTimeoutDefault))
+        await expect(supernets2Contract.setPendingStateTimeout(pendingStateTimeoutDefault))
             .to.be.revertedWith('OnlyAdmin');
 
-        await expect(polygonZkEVMContract.connect(admin).setPendingStateTimeout(HALT_AGGREGATION_TIMEOUT + 1))
+        await expect(supernets2Contract.connect(admin).setPendingStateTimeout(HALT_AGGREGATION_TIMEOUT + 1))
             .to.be.revertedWith('PendingStateTimeoutExceedHaltAggregationTimeout');
 
-        await expect(polygonZkEVMContract.connect(admin).setPendingStateTimeout(pendingStateTimeoutDefault))
+        await expect(supernets2Contract.connect(admin).setPendingStateTimeout(pendingStateTimeoutDefault))
             .to.be.revertedWith('NewPendingStateTimeoutMustBeLower');
 
         const newPendingStateTimeoutDefault = pendingStateTimeoutDefault - 1;
         await expect(
-            polygonZkEVMContract.connect(admin).setPendingStateTimeout(newPendingStateTimeoutDefault),
-        ).to.emit(polygonZkEVMContract, 'SetPendingStateTimeout').withArgs(newPendingStateTimeoutDefault);
-        expect(await polygonZkEVMContract.pendingStateTimeout()).to.be.equal(newPendingStateTimeoutDefault);
+            supernets2Contract.connect(admin).setPendingStateTimeout(newPendingStateTimeoutDefault),
+        ).to.emit(supernets2Contract, 'SetPendingStateTimeout').withArgs(newPendingStateTimeoutDefault);
+        expect(await supernets2Contract.pendingStateTimeout()).to.be.equal(newPendingStateTimeoutDefault);
 
         // setMultiplierBatchFee
         const newMultiplierBatchFee = 1023;
-        await expect(polygonZkEVMContract.connect(admin).setMultiplierBatchFee(newMultiplierBatchFee + 1))
+        await expect(supernets2Contract.connect(admin).setMultiplierBatchFee(newMultiplierBatchFee + 1))
             .to.be.revertedWith('InvalidRangeMultiplierBatchFee');
 
         await expect(
-            polygonZkEVMContract.connect(admin).setMultiplierBatchFee(newMultiplierBatchFee),
-        ).to.emit(polygonZkEVMContract, 'SetMultiplierBatchFee').withArgs(newMultiplierBatchFee);
-        expect(await polygonZkEVMContract.multiplierBatchFee()).to.be.equal(newMultiplierBatchFee);
+            supernets2Contract.connect(admin).setMultiplierBatchFee(newMultiplierBatchFee),
+        ).to.emit(supernets2Contract, 'SetMultiplierBatchFee').withArgs(newMultiplierBatchFee);
+        expect(await supernets2Contract.multiplierBatchFee()).to.be.equal(newMultiplierBatchFee);
 
         // setVerifyBatchTimeTarget
         const newVerifyBatchTimeTarget = 100;
 
-        await expect(polygonZkEVMContract.connect(admin).setVerifyBatchTimeTarget(60 * 60 * 24 + 1)) // more than 1 day
+        await expect(supernets2Contract.connect(admin).setVerifyBatchTimeTarget(60 * 60 * 24 + 1)) // more than 1 day
             .to.be.revertedWith('InvalidRangeBatchTimeTarget');
 
         await expect(
-            polygonZkEVMContract.connect(admin).setVerifyBatchTimeTarget(newVerifyBatchTimeTarget),
-        ).to.emit(polygonZkEVMContract, 'SetVerifyBatchTimeTarget').withArgs(newVerifyBatchTimeTarget);
-        expect(await polygonZkEVMContract.verifyBatchTimeTarget()).to.be.equal(newVerifyBatchTimeTarget);
+            supernets2Contract.connect(admin).setVerifyBatchTimeTarget(newVerifyBatchTimeTarget),
+        ).to.emit(supernets2Contract, 'SetVerifyBatchTimeTarget').withArgs(newVerifyBatchTimeTarget);
+        expect(await supernets2Contract.verifyBatchTimeTarget()).to.be.equal(newVerifyBatchTimeTarget);
 
         // setPendingStateTimeoutDefault
         const newForceBatchTimeout = 0;
-        await expect(polygonZkEVMContract.setForceBatchTimeout(newForceBatchTimeout))
+        await expect(supernets2Contract.setForceBatchTimeout(newForceBatchTimeout))
             .to.be.revertedWith('OnlyAdmin');
 
-        await expect(polygonZkEVMContract.connect(admin).setForceBatchTimeout(HALT_AGGREGATION_TIMEOUT + 1))
+        await expect(supernets2Contract.connect(admin).setForceBatchTimeout(HALT_AGGREGATION_TIMEOUT + 1))
             .to.be.revertedWith('InvalidRangeForceBatchTimeout');
 
-        await expect(polygonZkEVMContract.connect(admin).setForceBatchTimeout(FORCE_BATCH_TIMEOUT))
+        await expect(supernets2Contract.connect(admin).setForceBatchTimeout(FORCE_BATCH_TIMEOUT))
             .to.be.revertedWith('InvalidRangeForceBatchTimeout');
         await expect(
-            polygonZkEVMContract.connect(admin).setForceBatchTimeout(newForceBatchTimeout),
-        ).to.emit(polygonZkEVMContract, 'SetForceBatchTimeout').withArgs(newForceBatchTimeout);
-        expect(await polygonZkEVMContract.forceBatchTimeout()).to.be.equal(newForceBatchTimeout);
+            supernets2Contract.connect(admin).setForceBatchTimeout(newForceBatchTimeout),
+        ).to.emit(supernets2Contract, 'SetForceBatchTimeout').withArgs(newForceBatchTimeout);
+        expect(await supernets2Contract.forceBatchTimeout()).to.be.equal(newForceBatchTimeout);
 
         // Activate force batches
-        await expect(polygonZkEVMContract.activateForceBatches())
+        await expect(supernets2Contract.activateForceBatches())
             .to.be.revertedWith('OnlyAdmin');
 
         // Check force batches are unactive
-        await expect(polygonZkEVMContract.forceBatch('0x', 0))
+        await expect(supernets2Contract.forceBatch('0x', 0))
             .to.be.revertedWith('ForceBatchNotAllowed');
-        await expect(polygonZkEVMContract.sequenceForceBatches([]))
+        await expect(supernets2Contract.sequenceForceBatches([]))
             .to.be.revertedWith('ForceBatchNotAllowed');
 
         await expect(
-            polygonZkEVMContract.connect(admin).activateForceBatches(),
-        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
-        await expect(polygonZkEVMContract.connect(admin).activateForceBatches())
+            supernets2Contract.connect(admin).activateForceBatches(),
+        ).to.emit(supernets2Contract, 'ActivateForceBatches');
+        await expect(supernets2Contract.connect(admin).activateForceBatches())
             .to.be.revertedWith('ForceBatchesAlreadyActive');
 
-        expect(await polygonZkEVMContract.isForcedBatchDisallowed()).to.be.equal(false);
+        expect(await supernets2Contract.isForcedBatchDisallowed()).to.be.equal(false);
 
         // Transfer admin role
 
         // First set pending Admin
-        expect(await polygonZkEVMContract.pendingAdmin()).to.be.equal(ethers.constants.AddressZero);
-        await expect(polygonZkEVMContract.transferAdminRole(deployer.address))
+        expect(await supernets2Contract.pendingAdmin()).to.be.equal(ethers.constants.AddressZero);
+        await expect(supernets2Contract.transferAdminRole(deployer.address))
             .to.be.revertedWith('OnlyAdmin');
 
         await expect(
-            polygonZkEVMContract.connect(admin).transferAdminRole(deployer.address),
-        ).to.emit(polygonZkEVMContract, 'TransferAdminRole').withArgs(deployer.address);
-        expect(await polygonZkEVMContract.pendingAdmin()).to.be.equal(deployer.address);
+            supernets2Contract.connect(admin).transferAdminRole(deployer.address),
+        ).to.emit(supernets2Contract, 'TransferAdminRole').withArgs(deployer.address);
+        expect(await supernets2Contract.pendingAdmin()).to.be.equal(deployer.address);
 
         // Accept transfer admin
-        expect(await polygonZkEVMContract.admin()).to.be.equal(admin.address);
-        await expect(polygonZkEVMContract.connect(admin).acceptAdminRole())
+        expect(await supernets2Contract.admin()).to.be.equal(admin.address);
+        await expect(supernets2Contract.connect(admin).acceptAdminRole())
             .to.be.revertedWith('OnlyPendingAdmin');
 
         await expect(
-            polygonZkEVMContract.connect(deployer).acceptAdminRole(),
-        ).to.emit(polygonZkEVMContract, 'AcceptAdminRole').withArgs(deployer.address);
-        expect(await polygonZkEVMContract.admin()).to.be.equal(deployer.address);
+            supernets2Contract.connect(deployer).acceptAdminRole(),
+        ).to.emit(supernets2Contract, 'AcceptAdminRole').withArgs(deployer.address);
+        expect(await supernets2Contract.admin()).to.be.equal(deployer.address);
     });
 
     it('should check state roots inside prime', async () => {
@@ -378,32 +399,33 @@ describe('Polygon ZK-EVM', () => {
         ];
 
         for (let i = 0; i < validRoots.length; i++) {
-            expect(await polygonZkEVMContract.checkStateRootInsidePrime(validRoots[i])).to.be.equal(true);
+            expect(await supernets2Contract.checkStateRootInsidePrime(validRoots[i])).to.be.equal(true);
         }
 
         for (let i = 0; i < aliasInvalidRoots.length; i++) {
-            expect(await polygonZkEVMContract.checkStateRootInsidePrime(aliasInvalidRoots[i])).to.be.equal(false);
+            expect(await supernets2Contract.checkStateRootInsidePrime(aliasInvalidRoots[i])).to.be.equal(false);
         }
     });
 
     it('should sequence a batch as trusted sequencer', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.batchFee();
+        const transactionsHash = calculateBatchHashData(l2txData);
+        const maticAmount = await supernets2Contract.batchFee();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: ethers.BigNumber.from(currentTimestamp),
             minForcedTimestamp: 0,
         };
 
         // revert because sender is not truested sequencer
-        await expect(polygonZkEVMContract.sequenceBatches([sequence], trustedSequencer.address))
+        await expect(supernets2Contract.sequenceBatches([sequence], trustedSequencer.address, []))
             .to.be.revertedWith('OnlyTrustedSequencer');
 
         // revert because tokens were not approved
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address, []))
             .to.be.revertedWith('ERC20: insufficient allowance');
 
         const initialOwnerBalance = await maticTokenContract.balanceOf(
@@ -412,23 +434,23 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
 
         // Test sequence batches errors
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([], trustedSequencer.address, []))
             .to.be.revertedWith('SequenceZeroBatches');
 
         sequence.globalExitRoot = ethers.constants.MaxUint256;
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address, []))
             .to.be.revertedWith('GlobalExitRootNotExist');
         sequence.globalExitRoot = ethers.constants.HashZero;
 
         // Sequence batch
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], deployer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence], deployer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
         const sequencedTimestamp = (await ethers.provider.getBlock()).timestamp;
@@ -441,12 +463,12 @@ describe('Polygon ZK-EVM', () => {
         );
 
         // Check batch mapping
-        const sequencedBatchData = await polygonZkEVMContract.sequencedBatches(1);
+        const sequencedBatchData = await supernets2Contract.sequencedBatches(1);
         const batchAccInputHash = sequencedBatchData.accInputHash;
 
         const batchAccInputHashJs = calculateAccInputHash(
-            (await polygonZkEVMContract.sequencedBatches(0)).accInputHash,
-            calculateBatchHashData(sequence.transactions),
+            (await supernets2Contract.sequencedBatches(0)).accInputHash,
+            transactionsHash,
             sequence.globalExitRoot,
             sequence.timestamp,
             deployer.address,
@@ -458,19 +480,20 @@ describe('Polygon ZK-EVM', () => {
 
     it('sequenceBatches should sequence multiple batches', async () => {
         const l2txData = '0x1234';
-        const maticAmount = (await polygonZkEVMContract.batchFee()).mul(2);
+        const transactionsHash = calculateBatchHashData(l2txData);
+        const maticAmount = (await supernets2Contract.batchFee()).mul(2);
 
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
 
         const sequence2 = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
@@ -482,14 +505,14 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
 
         // Sequence batches
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 2);
 
         const finalOwnerBalance = await maticTokenContract.balanceOf(
@@ -501,19 +524,19 @@ describe('Polygon ZK-EVM', () => {
         );
 
         // Check batch mapping
-        const sequencedBatchData = await polygonZkEVMContract.sequencedBatches(1);
+        const sequencedBatchData = await supernets2Contract.sequencedBatches(1);
         const batchAccInputHash = sequencedBatchData.accInputHash;
 
         // Only last batch is added to the mapping
         expect(batchAccInputHash).to.be.equal(ethers.constants.HashZero);
 
-        const sequencedBatchData2 = await polygonZkEVMContract.sequencedBatches(2);
+        const sequencedBatchData2 = await supernets2Contract.sequencedBatches(2);
         const batchAccInputHash2 = sequencedBatchData2.accInputHash;
 
         // Calcultate input Hahs for batch 1
         let batchAccInputHashJs = calculateAccInputHash(
             ethers.constants.HashZero,
-            calculateBatchHashData(sequence.transactions),
+            sequence.transactionsHash,
             sequence.globalExitRoot,
             sequence.timestamp,
             trustedSequencer.address,
@@ -522,7 +545,7 @@ describe('Polygon ZK-EVM', () => {
         // Calcultate input Hahs for batch 2
         batchAccInputHashJs = calculateAccInputHash(
             batchAccInputHashJs,
-            calculateBatchHashData(sequence2.transactions),
+            sequence2.transactionsHash,
             sequence2.globalExitRoot,
             sequence2.timestamp,
             trustedSequencer.address,
@@ -532,8 +555,8 @@ describe('Polygon ZK-EVM', () => {
 
     it('force batches through smart contract', async () => {
         const l2txDataForceBatch = '0x123456';
-        const maticAmount = await polygonZkEVMContract.getForcedBatchFee();
-        const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+        const maticAmount = await supernets2Contract.getForcedBatchFee();
+        const lastGlobalExitRoot = await PolygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         // deploy sender SC
         const sendDataFactory = await ethers.getContractFactory('SendData');
@@ -544,59 +567,61 @@ describe('Polygon ZK-EVM', () => {
         await maticTokenContract.transfer(sendDataContract.address, ethers.utils.parseEther('1000'));
 
         // Approve matic
-        const approveTx = await maticTokenContract.populateTransaction.approve(polygonZkEVMContract.address, maticAmount);
+        const approveTx = await maticTokenContract.populateTransaction.approve(supernets2Contract.address, maticAmount);
         await sendDataContract.sendData(approveTx.to, approveTx.data);
 
         // Activate forced batches
         await expect(
-            polygonZkEVMContract.connect(admin).activateForceBatches(),
-        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+            supernets2Contract.connect(admin).activateForceBatches(),
+        ).to.emit(supernets2Contract, 'ActivateForceBatches');
 
         // Force batch
-        const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
+        const lastForcedBatch = (await supernets2Contract.lastForceBatch()) + 1;
 
-        const forceBatchTx = await polygonZkEVMContract.populateTransaction.forceBatch(l2txDataForceBatch, maticAmount);
+        const forceBatchTx = await supernets2Contract.populateTransaction.forceBatch(l2txDataForceBatch, maticAmount);
         await expect(sendDataContract.sendData(forceBatchTx.to, forceBatchTx.data))
-            .to.emit(polygonZkEVMContract, 'ForceBatch')
+            .to.emit(supernets2Contract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, sendDataContract.address, l2txDataForceBatch);
     });
 
     it('sequenceBatches should sequence multiple batches and force batches', async () => {
         const l2txDataForceBatch = '0x123456';
-        const maticAmount = await polygonZkEVMContract.getForcedBatchFee();
-        const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+        const transactionsHashForceBatch = calculateBatchHashData(l2txDataForceBatch);
+        const maticAmount = await supernets2Contract.getForcedBatchFee();
+        const lastGlobalExitRoot = await PolygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
-            maticTokenContract.approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
+        const lastForcedBatch = (await supernets2Contract.lastForceBatch()) + 1;
 
         // Activate forced batches
         await expect(
-            polygonZkEVMContract.connect(admin).activateForceBatches(),
-        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+            supernets2Contract.connect(admin).activateForceBatches(),
+        ).to.emit(supernets2Contract, 'ActivateForceBatches');
 
         // Force batch
-        await expect(polygonZkEVMContract.forceBatch(l2txDataForceBatch, maticAmount))
-            .to.emit(polygonZkEVMContract, 'ForceBatch')
+        await expect(supernets2Contract.forceBatch(l2txDataForceBatch, maticAmount))
+            .to.emit(supernets2Contract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
         // sequence 2 batches
         const l2txData = '0x1234';
-        const maticAmountSequence = (await polygonZkEVMContract.batchFee()).mul(1);
+        const transactionsHash2 = calculateBatchHashData(l2txData);
+        const maticAmountSequence = (await supernets2Contract.batchFee()).mul(1);
 
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
-            transactions: l2txDataForceBatch,
+            transactionsHash: transactionsHashForceBatch,
             globalExitRoot: lastGlobalExitRoot,
             timestamp: currentTimestamp,
             minForcedTimestamp: currentTimestamp,
         };
 
         const sequence2 = {
-            transactions: l2txData,
+            transactionsHash: transactionsHash2,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
@@ -608,35 +633,35 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmountSequence),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmountSequence),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
 
         // Assert that the timestamp requirements must accomplish with force batches too
         sequence.minForcedTimestamp += 1;
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('ForcedDataDoesNotMatch');
         sequence.minForcedTimestamp -= 1;
 
         sequence.timestamp -= 1;
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('SequencedTimestampBelowForcedTimestamp');
         sequence.timestamp += 1;
 
         sequence.timestamp = currentTimestamp + 10;
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('SequencedTimestampInvalid');
         sequence.timestamp = currentTimestamp;
 
         sequence2.timestamp -= 1;
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('SequencedTimestampInvalid');
         sequence2.timestamp += 1;
 
         // Sequence Bathces
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
             .withArgs(Number(lastBatchSequenced) + 2);
 
         const sequencedTimestamp = (await ethers.provider.getBlock()).timestamp;
@@ -650,7 +675,7 @@ describe('Polygon ZK-EVM', () => {
         );
 
         // Check batch mapping
-        const batchAccInputHash = (await polygonZkEVMContract.sequencedBatches(1)).accInputHash;
+        const batchAccInputHash = (await supernets2Contract.sequencedBatches(1)).accInputHash;
         // Only last batch is added to the mapping
         expect(batchAccInputHash).to.be.equal(ethers.constants.HashZero);
 
@@ -660,7 +685,7 @@ describe('Polygon ZK-EVM', () => {
          */
         let batchAccInputHashJs = calculateAccInputHash(
             ethers.constants.HashZero,
-            calculateBatchHashData(sequence.transactions),
+            sequence.transactionsHash,
             sequence.globalExitRoot,
             sequence.timestamp,
             trustedSequencer.address,
@@ -669,12 +694,12 @@ describe('Polygon ZK-EVM', () => {
         // Calcultate input Hahs for batch 2
         batchAccInputHashJs = calculateAccInputHash(
             batchAccInputHashJs,
-            calculateBatchHashData(sequence2.transactions),
+            sequence2.transactionsHash,
             sequence2.globalExitRoot,
             sequence2.timestamp,
             trustedSequencer.address,
         );
-        const batchData2 = await polygonZkEVMContract.sequencedBatches(2);
+        const batchData2 = await supernets2Contract.sequencedBatches(2);
         expect(batchData2.accInputHash).to.be.equal(batchAccInputHashJs);
         expect(batchData2.sequencedTimestamp).to.be.equal(sequencedTimestamp);
         expect(batchData2.previousLastBatchSequenced).to.be.equal(0);
@@ -682,17 +707,18 @@ describe('Polygon ZK-EVM', () => {
 
     it('sequenceBatches should check the timestamp correctly', async () => {
         const l2txData = '0x';
-        const maticAmount = (await polygonZkEVMContract.batchFee()).mul(2);
+        const transactionsHash = calculateBatchHashData(l2txData);
+        const maticAmount = (await supernets2Contract.batchFee()).mul(2);
 
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: 0,
             minForcedTimestamp: 0,
         };
 
         const sequence2 = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: 0,
             minForcedTimestamp: 0,
@@ -704,10 +730,10 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
 
         let currentTimestamp = (await ethers.provider.getBlock()).timestamp;
         await ethers.provider.send('evm_increaseTime', [1]); // evm_setNextBlockTimestamp
@@ -715,7 +741,7 @@ describe('Polygon ZK-EVM', () => {
         sequence.timestamp = currentTimestamp + 2; // bigger than current block tiemstamp
 
         // revert because timestamp is more than the current one
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address, []))
             .to.be.revertedWith('SequencedTimestampInvalid');
 
         currentTimestamp = (await ethers.provider.getBlock()).timestamp;
@@ -725,7 +751,7 @@ describe('Polygon ZK-EVM', () => {
         sequence2.timestamp = currentTimestamp - 1;
 
         // revert because the second sequence has less timestamp than the previous batch
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address))
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('SequencedTimestampInvalid');
 
         currentTimestamp = (await ethers.provider.getBlock()).timestamp;
@@ -735,8 +761,8 @@ describe('Polygon ZK-EVM', () => {
         sequence2.timestamp = currentTimestamp + 1;
 
         // Sequence Batches
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence, sequence2], trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 2);
 
         const finalOwnerBalance = await maticTokenContract.balanceOf(
@@ -749,36 +775,36 @@ describe('Polygon ZK-EVM', () => {
 
     it('should force a batch of transactions', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.getForcedBatchFee();
-        const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+        const maticAmount = await supernets2Contract.getForcedBatchFee();
+        const lastGlobalExitRoot = await PolygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
-        expect(maticAmount.toString()).to.be.equal((await polygonZkEVMContract.getForcedBatchFee()).toString());
+        expect(maticAmount.toString()).to.be.equal((await supernets2Contract.getForcedBatchFee()).toString());
 
         // Activate force batches
         await expect(
-            polygonZkEVMContract.connect(admin).activateForceBatches(),
-        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+            supernets2Contract.connect(admin).activateForceBatches(),
+        ).to.emit(supernets2Contract, 'ActivateForceBatches');
 
         // revert because the maxMatic amount is less than the necessary to pay
-        await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount.sub(1)))
+        await expect(supernets2Contract.forceBatch(l2txData, maticAmount.sub(1)))
             .to.be.revertedWith('NotEnoughMaticAmount');
 
         // revert because tokens were not approved
-        await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
+        await expect(supernets2Contract.forceBatch(l2txData, maticAmount))
             .to.be.revertedWith('ERC20: insufficient allowance');
 
         const initialOwnerBalance = await maticTokenContract.balanceOf(
             await deployer.address,
         );
         await expect(
-            maticTokenContract.approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastForceBatch = await polygonZkEVMContract.lastForceBatch();
+        const lastForceBatch = await supernets2Contract.lastForceBatch();
 
         // Force batch
-        await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
-            .to.emit(polygonZkEVMContract, 'ForceBatch')
+        await expect(supernets2Contract.forceBatch(l2txData, maticAmount))
+            .to.emit(supernets2Contract, 'ForceBatch')
             .withArgs(lastForceBatch + 1, lastGlobalExitRoot, deployer.address, '0x');
 
         const finalOwnerBalance = await maticTokenContract.balanceOf(
@@ -789,7 +815,7 @@ describe('Polygon ZK-EVM', () => {
         );
 
         // Check force batches struct
-        const batchHash = await polygonZkEVMContract.forcedBatches(1);
+        const batchHash = await supernets2Contract.forcedBatches(1);
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
 
         const batchHashJs = ethers.utils.solidityKeccak256(
@@ -805,27 +831,27 @@ describe('Polygon ZK-EVM', () => {
 
     it('should sequence force batches using sequenceForceBatches', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.getForcedBatchFee();
-        const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+        const maticAmount = await supernets2Contract.getForcedBatchFee();
+        const lastGlobalExitRoot = await PolygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
-            maticTokenContract.approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
         // Activate force batches
         await expect(
-            polygonZkEVMContract.connect(admin).activateForceBatches(),
-        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+            supernets2Contract.connect(admin).activateForceBatches(),
+        ).to.emit(supernets2Contract, 'ActivateForceBatches');
 
-        const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
+        const lastForcedBatch = (await supernets2Contract.lastForceBatch()) + 1;
 
-        await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
-            .to.emit(polygonZkEVMContract, 'ForceBatch')
+        await expect(supernets2Contract.forceBatch(l2txData, maticAmount))
+            .to.emit(supernets2Contract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
 
-        const forceBatchHash = await polygonZkEVMContract.forcedBatches(1);
+        const forceBatchHash = await supernets2Contract.forcedBatches(1);
 
         const batchHashJs = ethers.utils.solidityKeccak256(
             ['bytes32', 'bytes32', 'uint64'],
@@ -838,9 +864,9 @@ describe('Polygon ZK-EVM', () => {
         expect(batchHashJs).to.be.equal(forceBatchHash);
 
         // Check storage variables before call
-        expect(await polygonZkEVMContract.lastForceBatchSequenced()).to.be.equal(0);
-        expect(await polygonZkEVMContract.lastForceBatch()).to.be.equal(1);
-        expect(await polygonZkEVMContract.lastBatchSequenced()).to.be.equal(0);
+        expect(await supernets2Contract.lastForceBatchSequenced()).to.be.equal(0);
+        expect(await supernets2Contract.lastForceBatch()).to.be.equal(1);
+        expect(await supernets2Contract.lastBatchSequenced()).to.be.equal(0);
 
         const forceBatchStruct = {
             transactions: l2txData,
@@ -849,15 +875,15 @@ describe('Polygon ZK-EVM', () => {
         };
 
         // revert because the timeout is not expired
-        await expect(polygonZkEVMContract.sequenceForceBatches([]))
+        await expect(supernets2Contract.sequenceForceBatches([]))
             .to.be.revertedWith('SequenceZeroBatches');
 
         // revert because does not exist that many forced Batches
-        await expect(polygonZkEVMContract.sequenceForceBatches(Array(2).fill(forceBatchStruct)))
+        await expect(supernets2Contract.sequenceForceBatches(Array(2).fill(forceBatchStruct)))
             .to.be.revertedWith('ForceBatchesOverflow');
 
         // revert because the timeout is not expired
-        await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStruct]))
+        await expect(supernets2Contract.sequenceForceBatches([forceBatchStruct]))
             .to.be.revertedWith('ForceBatchTimeoutNotExpired');
 
         const forceBatchStructBad = {
@@ -867,17 +893,17 @@ describe('Polygon ZK-EVM', () => {
         };
 
         forceBatchStructBad.minForcedTimestamp += 1;
-        await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStructBad]))
+        await expect(supernets2Contract.sequenceForceBatches([forceBatchStructBad]))
             .to.be.revertedWith('ForcedDataDoesNotMatch');
         forceBatchStructBad.minForcedTimestamp -= 1;
 
         forceBatchStructBad.globalExitRoot = ethers.constants.HashZero;
-        await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStructBad]))
+        await expect(supernets2Contract.sequenceForceBatches([forceBatchStructBad]))
             .to.be.revertedWith('ForcedDataDoesNotMatch');
         forceBatchStructBad.globalExitRoot = lastGlobalExitRoot;
 
         forceBatchStructBad.transactions = '0x1111';
-        await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStructBad]))
+        await expect(supernets2Contract.sequenceForceBatches([forceBatchStructBad]))
             .to.be.revertedWith('ForcedDataDoesNotMatch');
         forceBatchStructBad.transactions = l2txData;
 
@@ -885,18 +911,18 @@ describe('Polygon ZK-EVM', () => {
         await ethers.provider.send('evm_setNextBlockTimestamp', [timestampForceBatch + FORCE_BATCH_TIMEOUT]);
 
         // sequence force batch
-        await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStruct]))
-            .to.emit(polygonZkEVMContract, 'SequenceForceBatches')
+        await expect(supernets2Contract.sequenceForceBatches([forceBatchStruct]))
+            .to.emit(supernets2Contract, 'SequenceForceBatches')
             .withArgs(1);
 
         const timestampSequenceBatch = (await ethers.provider.getBlock()).timestamp;
 
-        expect(await polygonZkEVMContract.lastForceBatchSequenced()).to.be.equal(1);
-        expect(await polygonZkEVMContract.lastForceBatch()).to.be.equal(1);
-        expect(await polygonZkEVMContract.lastBatchSequenced()).to.be.equal(1);
+        expect(await supernets2Contract.lastForceBatchSequenced()).to.be.equal(1);
+        expect(await supernets2Contract.lastForceBatch()).to.be.equal(1);
+        expect(await supernets2Contract.lastBatchSequenced()).to.be.equal(1);
 
         // Check force batches struct
-        const batchAccInputHash = (await polygonZkEVMContract.sequencedBatches(1)).accInputHash;
+        const batchAccInputHash = (await supernets2Contract.sequencedBatches(1)).accInputHash;
 
         const batchAccInputHashJs = calculateAccInputHash(
             ethers.constants.HashZero,
@@ -910,11 +936,12 @@ describe('Polygon ZK-EVM', () => {
 
     it('should verify a sequenced batch using verifyBatchesTrustedAggregator', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.batchFee();
+        const transactionsHash = calculateBatchHashData(l2txData);
+        const maticAmount = await supernets2Contract.batchFee();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
@@ -922,20 +949,20 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
         // Sequence Batches
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
         // trustedAggregator forge the batch
         const pendingState = 0;
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
+        const numBatch = (await supernets2Contract.lastVerifiedBatch()) + 1;
         const zkProofFFlonk = '0x';
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
@@ -943,7 +970,7 @@ describe('Polygon ZK-EVM', () => {
         );
 
         await expect(
-            polygonZkEVMContract.connect(deployer).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(deployer).verifyBatchesTrustedAggregator(
                 pendingState,
                 numBatch - 1,
                 numBatch - 1,
@@ -954,7 +981,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('OnlyTrustedAggregator');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 pendingState,
                 numBatch - 1,
                 numBatch - 1,
@@ -965,7 +992,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('FinalNumBatchBelowLastVerifiedBatch');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 pendingState,
                 numBatch - 1,
                 numBatch + 1,
@@ -977,7 +1004,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Verify batch
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 pendingState,
                 numBatch - 1,
                 numBatch,
@@ -985,7 +1012,7 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrustedAggregator')
+        ).to.emit(supernets2Contract, 'VerifyBatchesTrustedAggregator')
             .withArgs(numBatch, newStateRoot, trustedAggregator.address);
 
         const finalAggregatorMatic = await maticTokenContract.balanceOf(
@@ -998,21 +1025,21 @@ describe('Polygon ZK-EVM', () => {
 
     it('should verify forced sequenced batch using verifyBatchesTrustedAggregator', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.getForcedBatchFee();
-        const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+        const maticAmount = await supernets2Contract.getForcedBatchFee();
+        const lastGlobalExitRoot = await PolygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
-            maticTokenContract.approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
         // Activate force batches
         await expect(
-            polygonZkEVMContract.connect(admin).activateForceBatches(),
-        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+            supernets2Contract.connect(admin).activateForceBatches(),
+        ).to.emit(supernets2Contract, 'ActivateForceBatches');
 
-        const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()) + 1;
-        await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
-            .to.emit(polygonZkEVMContract, 'ForceBatch')
+        const lastForcedBatch = (await supernets2Contract.lastForceBatch()) + 1;
+        await expect(supernets2Contract.forceBatch(l2txData, maticAmount))
+            .to.emit(supernets2Contract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
@@ -1026,15 +1053,15 @@ describe('Polygon ZK-EVM', () => {
         };
 
         // sequence force batch
-        await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStruct]))
-            .to.emit(polygonZkEVMContract, 'SequenceForceBatches')
+        await expect(supernets2Contract.sequenceForceBatches([forceBatchStruct]))
+            .to.emit(supernets2Contract, 'SequenceForceBatches')
             .withArgs(lastForcedBatch);
 
         // trustedAggregator forge the batch
         const pendingState = 0;
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
+        const numBatch = (await supernets2Contract.lastVerifiedBatch()) + 1;
         const zkProofFFlonk = '0x';
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
@@ -1043,7 +1070,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Verify batch
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 pendingState,
                 numBatch - 1,
                 numBatch,
@@ -1051,10 +1078,10 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatch')
+        ).to.emit(supernets2Contract, 'VerifyBatch')
             .withArgs(numBatch, trustedAggregator.address)
             .to.emit(maticTokenContract, 'Transfer')
-            .withArgs(polygonZkEVMContract.address, trustedAggregator.address, maticAmount);
+            .withArgs(supernets2Contract.address, trustedAggregator.address, maticAmount);
 
         const finalAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -1067,11 +1094,12 @@ describe('Polygon ZK-EVM', () => {
 
     it('should match the computed SC input with the Js input', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.batchFee();
+        const transactionsHash = calculateBatchHashData(l2txData);
+        const maticAmount = await supernets2Contract.batchFee();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
@@ -1079,22 +1107,22 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
 
         // Sequence
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
-        const sentBatchHash = (await polygonZkEVMContract.sequencedBatches(lastBatchSequenced + 1)).accInputHash;
-        const oldAccInputHash = (await polygonZkEVMContract.sequencedBatches(0)).accInputHash;
+        const sentBatchHash = (await supernets2Contract.sequencedBatches(lastBatchSequenced + 1)).accInputHash;
+        const oldAccInputHash = (await supernets2Contract.sequencedBatches(0)).accInputHash;
 
         const batchAccInputHashJs = calculateAccInputHash(
             oldAccInputHash,
-            calculateBatchHashData(sequence.transactions),
+            sequence.transactionsHash,
             sequence.globalExitRoot,
             sequence.timestamp,
             trustedSequencer.address,
@@ -1102,10 +1130,10 @@ describe('Polygon ZK-EVM', () => {
         expect(sentBatchHash).to.be.equal(batchAccInputHashJs);
 
         // Compute circuit input with the SC function
-        const currentStateRoot = await polygonZkEVMContract.batchNumToStateRoot(0);
+        const currentStateRoot = await supernets2Contract.batchNumToStateRoot(0);
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
-        const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
+        const numBatch = (await supernets2Contract.lastVerifiedBatch()) + 1;
 
         // Compute Js input
         const inputSnarkJS = await calculateSnarkInput(
@@ -1123,7 +1151,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Compute Js input
         const pendingStateNum = 0;
-        const circuitInpuSnarkSC = await polygonZkEVMContract.getNextSnarkInput(
+        const circuitInpuSnarkSC = await supernets2Contract.getNextSnarkInput(
             pendingStateNum,
             numBatch - 1,
             numBatch,
@@ -1136,21 +1164,21 @@ describe('Polygon ZK-EVM', () => {
 
     it('should match the computed SC input with the Js input in force batches', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.getForcedBatchFee();
-        const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+        const maticAmount = await supernets2Contract.getForcedBatchFee();
+        const lastGlobalExitRoot = await PolygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
-            maticTokenContract.approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
         // Activate force batches
         await expect(
-            polygonZkEVMContract.connect(admin).activateForceBatches(),
-        ).to.emit(polygonZkEVMContract, 'ActivateForceBatches');
+            supernets2Contract.connect(admin).activateForceBatches(),
+        ).to.emit(supernets2Contract, 'ActivateForceBatches');
 
-        const lastForcedBatch = (await polygonZkEVMContract.lastForceBatch()).toNumber() + 1;
-        await expect(polygonZkEVMContract.forceBatch(l2txData, maticAmount))
-            .to.emit(polygonZkEVMContract, 'ForceBatch')
+        const lastForcedBatch = (await supernets2Contract.lastForceBatch()).toNumber() + 1;
+        await expect(supernets2Contract.forceBatch(l2txData, maticAmount))
+            .to.emit(supernets2Contract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
@@ -1165,13 +1193,13 @@ describe('Polygon ZK-EVM', () => {
         };
 
         // sequence force batch
-        await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStruct]))
-            .to.emit(polygonZkEVMContract, 'SequenceForceBatches')
+        await expect(supernets2Contract.sequenceForceBatches([forceBatchStruct]))
+            .to.emit(supernets2Contract, 'SequenceForceBatches')
             .withArgs(lastForcedBatch);
 
         const sequencedTimestmap = (await ethers.provider.getBlock()).timestamp;
-        const oldAccInputHash = (await polygonZkEVMContract.sequencedBatches(0)).accInputHash;
-        const batchAccInputHash = (await polygonZkEVMContract.sequencedBatches(1)).accInputHash;
+        const oldAccInputHash = (await supernets2Contract.sequencedBatches(0)).accInputHash;
+        const batchAccInputHash = (await supernets2Contract.sequencedBatches(1)).accInputHash;
 
         const batchAccInputHashJs = calculateAccInputHash(
             oldAccInputHash,
@@ -1183,10 +1211,10 @@ describe('Polygon ZK-EVM', () => {
         expect(batchAccInputHash).to.be.equal(batchAccInputHashJs);
 
         // Compute circuit input with the SC function
-        const currentStateRoot = await polygonZkEVMContract.batchNumToStateRoot(0);
+        const currentStateRoot = await supernets2Contract.batchNumToStateRoot(0);
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000001234';
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000456';
-        const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
+        const numBatch = (await supernets2Contract.lastVerifiedBatch()) + 1;
 
         // Compute Js input
         const inputSnarkJS = await calculateSnarkInput(
@@ -1204,7 +1232,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Compute Js input
         const pendingStateNum = 0;
-        const circuitInpuSnarkSC = await polygonZkEVMContract.getNextSnarkInput(
+        const circuitInpuSnarkSC = await supernets2Contract.getNextSnarkInput(
             pendingStateNum,
             numBatch - 1,
             numBatch,
@@ -1217,11 +1245,12 @@ describe('Polygon ZK-EVM', () => {
 
     it('should verify a sequenced batch using verifyBatches', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.batchFee();
+        const transactionsHash = calculateBatchHashData(l2txData);
+        const maticAmount = await supernets2Contract.batchFee();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
@@ -1229,32 +1258,32 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
         // Sequence Batches
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
 
         // aggregator forge the batch
         const pendingState = 0;
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
+        const numBatch = (await supernets2Contract.lastVerifiedBatch()) + 1;
         const zkProofFFlonk = '0x';
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             aggregator1.address,
         );
 
-        const sequencedBatchData = await polygonZkEVMContract.sequencedBatches(1);
+        const sequencedBatchData = await supernets2Contract.sequencedBatches(1);
         const { sequencedTimestamp } = sequencedBatchData;
-        const currentBatchFee = await polygonZkEVMContract.batchFee();
+        const currentBatchFee = await supernets2Contract.batchFee();
 
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 pendingState,
                 numBatch - 1,
                 numBatch,
@@ -1267,7 +1296,7 @@ describe('Polygon ZK-EVM', () => {
         await ethers.provider.send('evm_setNextBlockTimestamp', [sequencedTimestamp.toNumber() + trustedAggregatorTimeoutDefault - 1]);
 
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 pendingState,
                 numBatch - 1,
                 numBatch,
@@ -1278,7 +1307,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('TrustedAggregatorTimeoutNotExpired');
 
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 pendingState,
                 numBatch - 1,
                 numBatch + 1,
@@ -1289,7 +1318,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('NewAccInputHashDoesNotExist');
 
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 pendingState,
                 numBatch - 1,
                 numBatch + _MAX_VERIFY_BATCHES,
@@ -1300,7 +1329,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('ExceedMaxVerifyBatches');
         // Verify batch
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 pendingState,
                 numBatch - 1,
                 numBatch,
@@ -1308,7 +1337,7 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(numBatch, newStateRoot, aggregator1.address);
 
         const verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
@@ -1322,65 +1351,66 @@ describe('Polygon ZK-EVM', () => {
 
         // Check pending state
         const lastPendingstate = 1;
-        expect(lastPendingstate).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(lastPendingstate).to.be.equal(await supernets2Contract.lastPendingState());
 
-        const pendingStateData = await polygonZkEVMContract.pendingStateTransitions(lastPendingstate);
+        const pendingStateData = await supernets2Contract.pendingStateTransitions(lastPendingstate);
         expect(verifyTimestamp).to.be.equal(pendingStateData.timestamp);
         expect(numBatch).to.be.equal(pendingStateData.lastVerifiedBatch);
         expect(newLocalExitRoot).to.be.equal(pendingStateData.exitRoot);
         expect(newStateRoot).to.be.equal(pendingStateData.stateRoot);
 
         // Try consolidate state
-        expect(0).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
+        expect(0).to.be.equal(await supernets2Contract.lastVerifiedBatch());
 
         // Pending state can't be 0
         await expect(
-            polygonZkEVMContract.consolidatePendingState(0),
+            supernets2Contract.consolidatePendingState(0),
         ).to.be.revertedWith('PendingStateInvalid');
 
         // Pending state does not exist
         await expect(
-            polygonZkEVMContract.consolidatePendingState(2),
+            supernets2Contract.consolidatePendingState(2),
         ).to.be.revertedWith('PendingStateInvalid');
 
         // Not ready to be consolidated
         await expect(
-            polygonZkEVMContract.consolidatePendingState(lastPendingstate),
+            supernets2Contract.consolidatePendingState(lastPendingstate),
         ).to.be.revertedWith('PendingStateNotConsolidable');
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [verifyTimestamp + pendingStateTimeoutDefault - 1]);
 
         await expect(
-            polygonZkEVMContract.consolidatePendingState(lastPendingstate),
+            supernets2Contract.consolidatePendingState(lastPendingstate),
         ).to.be.revertedWith('PendingStateNotConsolidable');
 
         await expect(
-            polygonZkEVMContract.consolidatePendingState(lastPendingstate),
-        ).to.emit(polygonZkEVMContract, 'ConsolidatePendingState')
+            supernets2Contract.consolidatePendingState(lastPendingstate),
+        ).to.emit(supernets2Contract, 'ConsolidatePendingState')
             .withArgs(numBatch, newStateRoot, lastPendingstate);
 
         // Pending state already consolidated
         await expect(
-            polygonZkEVMContract.consolidatePendingState(1),
+            supernets2Contract.consolidatePendingState(1),
         ).to.be.revertedWith('PendingStateInvalid');
 
         // Fee es divided because is was fast verified
-        const multiplierFee = await polygonZkEVMContract.multiplierBatchFee();
-        expect((currentBatchFee.mul(1000)).div(multiplierFee)).to.be.equal(await polygonZkEVMContract.batchFee());
+        const multiplierFee = await supernets2Contract.multiplierBatchFee();
+        expect((currentBatchFee.mul(1000)).div(multiplierFee)).to.be.equal(await supernets2Contract.batchFee());
 
         // Check pending state variables
-        expect(1).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
-        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(1));
-        expect(1).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+        expect(1).to.be.equal(await supernets2Contract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await supernets2Contract.batchNumToStateRoot(1));
+        expect(1).to.be.equal(await supernets2Contract.lastPendingStateConsolidated());
     });
 
     it('should test the pending state properly', async () => {
         const l2txData = '0x123456';
+        const transactionsHash = calculateBatchHashData(l2txData);
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const batchesForSequence = 5;
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
@@ -1390,13 +1420,13 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve lots of tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticTokenInitialBalance),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticTokenInitialBalance),
         ).to.emit(maticTokenContract, 'Approval');
 
         // Make 20 sequences of 5 batches, with 1 minut timestamp difference
         for (let i = 0; i < 20; i++) {
-            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches(sequencesArray, trustedSequencer.address))
-                .to.emit(polygonZkEVMContract, 'SequenceBatches');
+            await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches(sequencesArray, trustedSequencer.address, []))
+                .to.emit(supernets2Contract, 'SequenceBatches');
         }
         await ethers.provider.send('evm_increaseTime', [60]);
 
@@ -1411,7 +1441,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Verify batch
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1419,16 +1449,16 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
 
         let verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         // Check pending state
         currentPendingState++;
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
 
-        let currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        let currentPendingStateData = await supernets2Contract.pendingStateTransitions(currentPendingState);
         expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
         expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
         expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
@@ -1436,7 +1466,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Try to verify Batches that does not go beyond the last pending state
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 0,
                 currentNumBatch,
                 newBatch,
@@ -1447,7 +1477,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('FinalNumBatchBelowLastVerifiedBatch');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 10,
                 currentNumBatch,
                 newBatch,
@@ -1458,7 +1488,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('PendingStateDoesNotExist');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1472,7 +1502,7 @@ describe('Polygon ZK-EVM', () => {
         newBatch += batchesForSequence;
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1480,21 +1510,21 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatchesTrustedAggregator')
+        ).to.emit(supernets2Contract, 'VerifyBatchesTrustedAggregator')
             .withArgs(newBatch, newStateRoot, trustedAggregator.address);
 
         // Check pending state is clear
         currentPendingState = 0;
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
-        expect(0).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
+        expect(0).to.be.equal(await supernets2Contract.lastPendingStateConsolidated());
 
         // Check consolidated state
         let currentVerifiedBatch = newBatch;
-        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
-        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+        expect(currentVerifiedBatch).to.be.equal(await supernets2Contract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await supernets2Contract.batchNumToStateRoot(currentVerifiedBatch));
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 1,
                 currentNumBatch,
                 newBatch,
@@ -1505,9 +1535,9 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('PendingStateDoesNotExist');
 
         // Since this pending state was not consolidated, the currentNumBatch does not have stored root
-        expect(ethers.constants.HashZero).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentNumBatch));
+        expect(ethers.constants.HashZero).to.be.equal(await supernets2Contract.batchNumToStateRoot(currentNumBatch));
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1518,7 +1548,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('OldStateRootDoesNotExist');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 currentPendingState,
                 0,
                 newBatch,
@@ -1532,7 +1562,7 @@ describe('Polygon ZK-EVM', () => {
         currentNumBatch = newBatch;
         newBatch += batchesForSequence;
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1540,15 +1570,15 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
 
         // Check pending state
         verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
         currentPendingState++;
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
 
-        currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        currentPendingStateData = await supernets2Contract.pendingStateTransitions(currentPendingState);
         expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
         expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
         expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
@@ -1559,7 +1589,7 @@ describe('Polygon ZK-EVM', () => {
         newBatch += batchesForSequence;
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 0,
                 1,
                 newBatch,
@@ -1570,7 +1600,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('OldStateRootDoesNotExist');
 
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 0,
                 0,
                 newBatch,
@@ -1578,15 +1608,15 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
 
         // Check pending state
         verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
         currentPendingState++;
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
 
-        currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        currentPendingStateData = await supernets2Contract.pendingStateTransitions(currentPendingState);
         expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
         expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
         expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
@@ -1598,7 +1628,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Must specify pending state num while is not consolidated
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
+            supernets2Contract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 0,
                 currentNumBatch - 5,
                 newBatch,
@@ -1609,7 +1639,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('OldStateRootDoesNotExist');
 
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 currentPendingState - 1,
                 currentNumBatch - 5,
                 newBatch,
@@ -1617,21 +1647,21 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
 
         verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
         currentPendingState++;
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
 
-        currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        currentPendingStateData = await supernets2Contract.pendingStateTransitions(currentPendingState);
         expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
         expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
         expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
         expect(newStateRoot).to.be.equal(currentPendingStateData.stateRoot);
 
         // Consolidate using verifyBatches
-        const firstPendingState = await polygonZkEVMContract.pendingStateTransitions(1);
+        const firstPendingState = await supernets2Contract.pendingStateTransitions(1);
         await ethers.provider.send('evm_setNextBlockTimestamp', [firstPendingState.timestamp.toNumber() + pendingStateTimeoutDefault]);
 
         let currentPendingConsolidated = 0;
@@ -1639,7 +1669,7 @@ describe('Polygon ZK-EVM', () => {
         newBatch += batchesForSequence;
 
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1647,17 +1677,17 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address)
-            .to.emit(polygonZkEVMContract, 'ConsolidatePendingState')
+            .to.emit(supernets2Contract, 'ConsolidatePendingState')
             .withArgs(firstPendingState.lastVerifiedBatch, newStateRoot, ++currentPendingConsolidated);
 
         verifyTimestamp = (await ethers.provider.getBlock()).timestamp;
         currentPendingState++;
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
-        expect(currentPendingConsolidated).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
+        expect(currentPendingConsolidated).to.be.equal(await supernets2Contract.lastPendingStateConsolidated());
 
-        currentPendingStateData = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        currentPendingStateData = await supernets2Contract.pendingStateTransitions(currentPendingState);
         expect(verifyTimestamp).to.be.equal(currentPendingStateData.timestamp);
         expect(newBatch).to.be.equal(currentPendingStateData.lastVerifiedBatch);
         expect(newLocalExitRoot).to.be.equal(currentPendingStateData.exitRoot);
@@ -1665,32 +1695,32 @@ describe('Polygon ZK-EVM', () => {
 
         // Check state consolidated
         currentVerifiedBatch += batchesForSequence;
-        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
-        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+        expect(currentVerifiedBatch).to.be.equal(await supernets2Contract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await supernets2Contract.batchNumToStateRoot(currentVerifiedBatch));
 
         // Consolidate using sendBatches
-        const secondPendingState = await polygonZkEVMContract.pendingStateTransitions(2);
+        const secondPendingState = await supernets2Contract.pendingStateTransitions(2);
         await ethers.provider.send('evm_setNextBlockTimestamp', [secondPendingState.timestamp.toNumber() + pendingStateTimeoutDefault]);
 
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches(sequencesArray, trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
-            .to.emit(polygonZkEVMContract, 'ConsolidatePendingState')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches(sequencesArray, trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
+            .to.emit(supernets2Contract, 'ConsolidatePendingState')
             .withArgs(secondPendingState.lastVerifiedBatch, newStateRoot, ++currentPendingConsolidated);
 
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
-        expect(currentPendingConsolidated).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
+        expect(currentPendingConsolidated).to.be.equal(await supernets2Contract.lastPendingStateConsolidated());
 
         // Check state consolidated
         currentVerifiedBatch += batchesForSequence;
-        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
-        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+        expect(currentVerifiedBatch).to.be.equal(await supernets2Contract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await supernets2Contract.batchNumToStateRoot(currentVerifiedBatch));
 
         // Put a lot of pending states and check that half of them are consoldiated
         for (let i = 0; i < 8; i++) {
             currentNumBatch = newBatch;
             newBatch += batchesForSequence;
             await expect(
-                polygonZkEVMContract.connect(aggregator1).verifyBatches(
+                supernets2Contract.connect(aggregator1).verifyBatches(
                     currentPendingState,
                     currentNumBatch,
                     newBatch,
@@ -1698,40 +1728,40 @@ describe('Polygon ZK-EVM', () => {
                     newStateRoot,
                     zkProofFFlonk,
                 ),
-            ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+            ).to.emit(supernets2Contract, 'VerifyBatches')
                 .withArgs(newBatch, newStateRoot, aggregator1.address);
 
             currentPendingState++;
         }
 
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
 
-        currentPendingConsolidated = await polygonZkEVMContract.lastPendingStateConsolidated();
-        const lastPendingState = await polygonZkEVMContract.pendingStateTransitions(currentPendingState);
+        currentPendingConsolidated = await supernets2Contract.lastPendingStateConsolidated();
+        const lastPendingState = await supernets2Contract.pendingStateTransitions(currentPendingState);
         await ethers.provider.send('evm_setNextBlockTimestamp', [lastPendingState.timestamp.toNumber() + pendingStateTimeoutDefault]);
 
         // call verify batches and check that half of them are consolidated
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
-        expect(currentPendingConsolidated).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
+        expect(currentPendingConsolidated).to.be.equal(await supernets2Contract.lastPendingStateConsolidated());
 
         const nextPendingConsolidated = Number(currentPendingConsolidated) + 1;
         const nextConsolidatedStateNum = nextPendingConsolidated + Number(Math.floor((currentPendingState - nextPendingConsolidated) / 2));
-        const nextConsolidatedState = await polygonZkEVMContract.pendingStateTransitions(nextConsolidatedStateNum);
+        const nextConsolidatedState = await supernets2Contract.pendingStateTransitions(nextConsolidatedStateNum);
 
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches(sequencesArray, trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
-            .to.emit(polygonZkEVMContract, 'ConsolidatePendingState')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches(sequencesArray, trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
+            .to.emit(supernets2Contract, 'ConsolidatePendingState')
             .withArgs(nextConsolidatedState.lastVerifiedBatch, newStateRoot, nextConsolidatedStateNum);
 
         // Put pendingState to 0 and check that the pending state is clear after verifyBatches
         await expect(
-            polygonZkEVMContract.connect(admin).setPendingStateTimeout(0),
-        ).to.emit(polygonZkEVMContract, 'SetPendingStateTimeout').withArgs(0);
+            supernets2Contract.connect(admin).setPendingStateTimeout(0),
+        ).to.emit(supernets2Contract, 'SetPendingStateTimeout').withArgs(0);
 
         currentNumBatch = newBatch;
         newBatch += batchesForSequence;
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1739,26 +1769,27 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
 
         currentPendingState = 0;
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
-        expect(0).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
+        expect(0).to.be.equal(await supernets2Contract.lastPendingStateConsolidated());
 
         // Check consolidated state
         currentVerifiedBatch = newBatch;
-        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
-        expect(newStateRoot).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+        expect(currentVerifiedBatch).to.be.equal(await supernets2Contract.lastVerifiedBatch());
+        expect(newStateRoot).to.be.equal(await supernets2Contract.batchNumToStateRoot(currentVerifiedBatch));
     });
 
     it('Activate emergency state due halt timeout', async () => {
         const l2txData = '0x123456';
-        const maticAmount = await polygonZkEVMContract.batchFee();
+        const transactionsHash = calculateBatchHashData(l2txData);
+        const maticAmount = await supernets2Contract.batchFee();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: ethers.BigNumber.from(currentTimestamp),
             minForcedTimestamp: 0,
@@ -1766,48 +1797,49 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
         // Sequence batch
         const lastBatchSequenced = 1;
-        await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
-            .to.emit(polygonZkEVMContract, 'SequenceBatches')
+        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address, []))
+            .to.emit(supernets2Contract, 'SequenceBatches')
             .withArgs(lastBatchSequenced);
 
-        const sequencedTimestmap = Number((await polygonZkEVMContract.sequencedBatches(1)).sequencedTimestamp);
+        const sequencedTimestmap = Number((await supernets2Contract.sequencedBatches(1)).sequencedTimestamp);
         const haltTimeout = HALT_AGGREGATION_TIMEOUT;
 
         // Try to activate the emergency state
 
         // Check batch is not sequenced
-        await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(2))
+        await expect(supernets2Contract.connect(aggregator1).activateEmergencyState(2))
             .to.be.revertedWith('BatchNotSequencedOrNotSequenceEnd');
 
         // Check batch is already verified
-        await polygonZkEVMContract.setVerifiedBatch(1);
-        await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(1))
+        await supernets2Contract.setVerifiedBatch(1);
+        await expect(supernets2Contract.connect(aggregator1).activateEmergencyState(1))
             .to.be.revertedWith('BatchAlreadyVerified');
-        await polygonZkEVMContract.setVerifiedBatch(0);
+        await supernets2Contract.setVerifiedBatch(0);
 
         // check timeout is not expired
-        await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(1))
+        await expect(supernets2Contract.connect(aggregator1).activateEmergencyState(1))
             .to.be.revertedWith('HaltTimeoutNotExpired');
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [sequencedTimestmap + haltTimeout]);
 
         // Succesfully acitvate emergency state
-        await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(1))
-            .to.emit(polygonZkEVMContract, 'EmergencyStateActivated');
+        await expect(supernets2Contract.connect(aggregator1).activateEmergencyState(1))
+            .to.emit(supernets2Contract, 'EmergencyStateActivated');
     });
 
     it('Test overridePendingState properly', async () => {
         const l2txData = '0x123456';
+        const transactionsHash = calculateBatchHashData(l2txData);
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const batchesForSequence = 5;
         const sequence = {
-            transactions: l2txData,
+            transactionsHash,
             globalExitRoot: ethers.constants.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
@@ -1817,13 +1849,13 @@ describe('Polygon ZK-EVM', () => {
 
         // Approve lots of tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticTokenInitialBalance),
+            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticTokenInitialBalance),
         ).to.emit(maticTokenContract, 'Approval');
 
         // Make 20 sequences of 5 batches, with 1 minut timestamp difference
         for (let i = 0; i < 20; i++) {
-            await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches(sequencesArray, trustedSequencer.address))
-                .to.emit(polygonZkEVMContract, 'SequenceBatches');
+            await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches(sequencesArray, trustedSequencer.address, []))
+                .to.emit(supernets2Contract, 'SequenceBatches');
         }
         await ethers.provider.send('evm_increaseTime', [60]);
 
@@ -1838,7 +1870,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Verify batch 2 batches
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1846,7 +1878,7 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
 
         // verify second sequence
@@ -1854,7 +1886,7 @@ describe('Polygon ZK-EVM', () => {
         currentNumBatch = newBatch;
         newBatch += batchesForSequence;
         await expect(
-            polygonZkEVMContract.connect(aggregator1).verifyBatches(
+            supernets2Contract.connect(aggregator1).verifyBatches(
                 currentPendingState,
                 currentNumBatch,
                 newBatch,
@@ -1862,13 +1894,13 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'VerifyBatches')
+        ).to.emit(supernets2Contract, 'VerifyBatches')
             .withArgs(newBatch, newStateRoot, aggregator1.address);
 
         const finalPendingState = 2;
 
         await expect(
-            polygonZkEVMContract.connect(aggregator1).overridePendingState(
+            supernets2Contract.connect(aggregator1).overridePendingState(
                 currentPendingState,
                 finalPendingState,
                 currentNumBatch,
@@ -1880,7 +1912,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('OnlyTrustedAggregator');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 finalPendingState + 1,
                 finalPendingState + 2,
                 currentNumBatch,
@@ -1892,7 +1924,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('PendingStateDoesNotExist');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 currentPendingState,
                 finalPendingState,
                 currentNumBatch + 1,
@@ -1904,7 +1936,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('InitNumBatchDoesNotMatchPendingState');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 currentPendingState,
                 finalPendingState,
                 currentNumBatch,
@@ -1916,7 +1948,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('FinalNumBatchDoesNotMatchPendingState');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 0,
                 finalPendingState,
                 currentNumBatch,
@@ -1928,7 +1960,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('OldStateRootDoesNotExist');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 finalPendingState,
                 finalPendingState,
                 currentNumBatch + 5,
@@ -1940,7 +1972,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('FinalPendingStateNumInvalid');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 finalPendingState,
                 finalPendingState + 2,
                 currentNumBatch + 5,
@@ -1952,7 +1984,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('FinalPendingStateNumInvalid');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 currentPendingState,
                 finalPendingState,
                 currentNumBatch,
@@ -1964,7 +1996,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('FinalNumBatchDoesNotMatchPendingState');
 
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 currentPendingState,
                 finalPendingState,
                 currentNumBatch,
@@ -1977,7 +2009,7 @@ describe('Polygon ZK-EVM', () => {
 
         const newStateRoot2 = '0x0000000000000000000000000000000000000000000000000000000000000003';
         await expect(
-            polygonZkEVMContract.connect(trustedAggregator).overridePendingState(
+            supernets2Contract.connect(trustedAggregator).overridePendingState(
                 currentPendingState,
                 finalPendingState,
                 currentNumBatch,
@@ -1986,36 +2018,36 @@ describe('Polygon ZK-EVM', () => {
                 newStateRoot2,
                 zkProofFFlonk,
             ),
-        ).to.emit(polygonZkEVMContract, 'OverridePendingState').withArgs(newBatch, newStateRoot2, trustedAggregator.address);
+        ).to.emit(supernets2Contract, 'OverridePendingState').withArgs(newBatch, newStateRoot2, trustedAggregator.address);
 
         // check pending state is clear
         currentPendingState = 0;
-        expect(currentPendingState).to.be.equal(await polygonZkEVMContract.lastPendingState());
-        expect(0).to.be.equal(await polygonZkEVMContract.lastPendingStateConsolidated());
+        expect(currentPendingState).to.be.equal(await supernets2Contract.lastPendingState());
+        expect(0).to.be.equal(await supernets2Contract.lastPendingStateConsolidated());
 
         // check consolidated state
         const currentVerifiedBatch = newBatch;
-        expect(currentVerifiedBatch).to.be.equal(await polygonZkEVMContract.lastVerifiedBatch());
-        expect(newStateRoot2).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentVerifiedBatch));
+        expect(currentVerifiedBatch).to.be.equal(await supernets2Contract.lastVerifiedBatch());
+        expect(newStateRoot2).to.be.equal(await supernets2Contract.batchNumToStateRoot(currentVerifiedBatch));
     });
 
     it('Test batch fees properly', async () => {
         const accInputData = ethers.constants.HashZero;
-        const verifyBatchTimeTarget = Number(await polygonZkEVMContract.verifyBatchTimeTarget());
+        const verifyBatchTimeTarget = Number(await supernets2Contract.verifyBatchTimeTarget());
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
-        const multiplierFee = ethers.BigNumber.from(await polygonZkEVMContract.multiplierBatchFee()); // 1002
+        const multiplierFee = ethers.BigNumber.from(await supernets2Contract.multiplierBatchFee()); // 1002
         const bingNumber1000 = ethers.BigNumber.from(1000);
 
         // Create sequenced to update the fee
-        await polygonZkEVMContract.setSequencedBatches(
+        await supernets2Contract.setSequencedBatches(
             50,
             accInputData,
             currentTimestamp + verifyBatchTimeTarget,
             0,
         ); // Edge case, will be below
 
-        await polygonZkEVMContract.setSequencedBatches(
+        await supernets2Contract.setSequencedBatches(
             100,
             accInputData,
             currentTimestamp + verifyBatchTimeTarget + 1,
@@ -2023,27 +2055,27 @@ describe('Polygon ZK-EVM', () => {
         ); // Edge case, will be above
 
         // Assert currentFee
-        let currentBatchFee = await polygonZkEVMContract.batchFee();
+        let currentBatchFee = await supernets2Contract.batchFee();
         expect(currentBatchFee).to.be.equal(ethers.utils.parseEther('0.1'));
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + verifyBatchTimeTarget * 2]);
 
-        await polygonZkEVMContract.updateBatchFee(100);
+        await supernets2Contract.updateBatchFee(100);
 
         // Fee does not change since there are the same batches above than below
-        expect(await polygonZkEVMContract.batchFee()).to.be.equal(currentBatchFee);
+        expect(await supernets2Contract.batchFee()).to.be.equal(currentBatchFee);
 
         /*
          * Now all the batches will be above
          * since the MAX_BATCH_MULTIPLIER is 12 this will be the pow
          */
-        await polygonZkEVMContract.updateBatchFee(100);
+        await supernets2Contract.updateBatchFee(100);
 
         currentBatchFee = currentBatchFee.mul(multiplierFee.pow(MAX_BATCH_MULTIPLIER)).div(bingNumber1000.pow(MAX_BATCH_MULTIPLIER));
-        expect(currentBatchFee).to.be.equal(await polygonZkEVMContract.batchFee());
+        expect(currentBatchFee).to.be.equal(await supernets2Contract.batchFee());
 
         // Check the fee is now below
-        await polygonZkEVMContract.setSequencedBatches(50, accInputData, currentTimestamp + verifyBatchTimeTarget * 2, 0); // Below
+        await supernets2Contract.setSequencedBatches(50, accInputData, currentTimestamp + verifyBatchTimeTarget * 2, 0); // Below
         currentBatchFee = currentBatchFee.mul(bingNumber1000.pow(MAX_BATCH_MULTIPLIER)).div(multiplierFee.pow(MAX_BATCH_MULTIPLIER));
     });
 });

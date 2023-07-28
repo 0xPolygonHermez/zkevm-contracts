@@ -1,4 +1,4 @@
-Contract responsible for deploying deterministic address contracts related with the PolygonZkEVM
+Contract responsible for deploying deterministic address contracts related with the Supernets2
 
 
 ## Functions

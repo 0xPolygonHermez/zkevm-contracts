@@ -1,7 +1,7 @@
 {
     "realVerifier": false,
-    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
-    "networkName": "zkevm",
+    "trustedSequencerURL": "http://supernets2-json-rpc:8123",
+    "networkName": "supernets2",
     "version":"0.0.1",
     "trustedSequencer":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
     "chainID": 1001,
@@ -10,15 +10,17 @@
     "pendingStateTimeout": 604799,
     "forkID": 1,
     "admin":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-    "zkEVMOwner": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "supernets2Owner": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
     "timelockAddress": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
     "minDelayTimelock": 3600,
     "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "initialZkEVMDeployerOwner" :"0xaddress",
+    "initialSupernets2DeployerOwner" :"0xaddress",
     "maticTokenAddress":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-    "zkEVMDeployerAddress":"",
+    "supernets2DeployerAddress":"",
     "deployerPvtKey": "",
     "maxFeePerGas":"",
     "maxPriorityFeePerGas":"",
-    "multiplierGas": ""
+    "multiplierGas": "",
+    "setupEmptyCommittee": true,
+    "committeeTimelock": false
 }

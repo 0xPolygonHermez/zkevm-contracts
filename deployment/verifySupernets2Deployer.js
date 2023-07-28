@@ -13,18 +13,19 @@ async function main() {
         throw new Error('Etherscan API KEY has not been defined');
     }
 
-    // verify zkEVM deployer
+    // verify supernets2 deployer
     try {
         await hre.run(
             'verify:verify',
             {
-                address: deployParameters.zkEVMDeployerAddress,
+                address: deployParameters.supernets2DeployerAddress,
                 constructorArguments: [
-                    deployParameters.initialZkEVMDeployerOwner,
+                    deployParameters.initialSupernets2DeployerOwner,
                 ],
             },
         );
     } catch (error) {
+        console.error(error);
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 }

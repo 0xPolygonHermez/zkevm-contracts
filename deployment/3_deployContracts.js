@@ -48,12 +48,14 @@ async function main() {
         'trustedAggregatorTimeout',
         'pendingStateTimeout',
         'forkID',
-        'zkEVMOwner',
+        'supernets2Owner',
         'timelockAddress',
         'minDelayTimelock',
         'salt',
-        'zkEVMDeployerAddress',
+        'supernets2DeployerAddress',
         'maticTokenAddress',
+        'setupEmptyCommittee',
+        'committeeTimelock',
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -74,12 +76,14 @@ async function main() {
         trustedAggregatorTimeout,
         pendingStateTimeout,
         forkID,
-        zkEVMOwner,
+        supernets2Owner,
         timelockAddress,
         minDelayTimelock,
         salt,
-        zkEVMDeployerAddress,
+        supernets2DeployerAddress,
         maticTokenAddress,
+        setupEmptyCommittee,
+        committeeTimelock,
     } = deployParameters;
 
     // Load provider
@@ -120,15 +124,15 @@ async function main() {
         [deployer] = (await ethers.getSigners());
     }
 
-    // Load zkEVM deployer
-    const PolgonZKEVMDeployerFactory = await ethers.getContractFactory('PolygonZkEVMDeployer', deployer);
-    const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress);
+    // Load supernets2 deployer
+    const Supernets2DeployerFactory = await ethers.getContractFactory('Supernets2Deployer', deployer);
+    const supernets2DeployerContract = Supernets2DeployerFactory.attach(supernets2DeployerAddress);
 
     // check deployer is the owner of the deployer
-    if (await deployer.provider.getCode(zkEVMDeployerContract.address) === '0x') {
-        throw new Error('zkEVM deployer contract is not deployed');
+    if (await deployer.provider.getCode(supernets2DeployerContract.address) === '0x') {
+        throw new Error('supernets2 deployer contract is not deployed');
     }
-    expect(deployer.address).to.be.equal(await zkEVMDeployerContract.owner());
+    expect(deployer.address).to.be.equal(await supernets2DeployerContract.owner());
 
     let verifierContract;
     if (!ongoingDeployment.verifierContract) {
@@ -163,7 +167,7 @@ async function main() {
     const deployTransactionAdmin = (proxyAdminFactory.getDeployTransaction()).data;
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
     const [proxyAdminAddress, isProxyAdminDeployed] = await create2Deployment(
-        zkEVMDeployerContract,
+        supernets2DeployerContract,
         salt,
         deployTransactionAdmin,
         dataCallAdmin,
@@ -179,13 +183,13 @@ async function main() {
     }
 
     // Deploy implementation PolygonZkEVMBridge
-    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
-    const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
+    const PolygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
+    const deployTransactionBridge = (PolygonZkEVMBridgeFactory.getDeployTransaction()).data;
     const dataCallNull = null;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(5500000);
     const [bridgeImplementationAddress, isBridgeImplDeployed] = await create2Deployment(
-        zkEVMDeployerContract,
+        supernets2DeployerContract,
         salt,
         deployTransactionBridge,
         dataCallNull,
@@ -213,129 +217,169 @@ async function main() {
         initializeEmptyDataProxy,
     )).data;
 
-    // Nonce globalExitRoot: currentNonce + 1 (deploy bridge proxy) + 1(impl globalExitRoot) = +2
-    const nonceProxyGlobalExitRoot = Number((await ethers.provider.getTransactionCount(deployer.address))) + 2;
-    // nonceProxyZkevm :Nonce globalExitRoot + 1 (proxy globalExitRoot) + 1 (impl Zkevm) = +2
-    const nonceProxyZkevm = nonceProxyGlobalExitRoot + 2;
+    /*
+     * Nonce globalExitRoot: currentNonce + 1 (deploy bridge proxy) + 1(impl globalExitRoot
+     * + 1 (deploy data comittee proxy) + 1(impl data committee) + setupCommitte? = +4 or +5
+     */
+    const nonceDelta = 4 + (setupEmptyCommittee ? 1 : 0);
+    const nonceProxyGlobalExitRoot = Number((await ethers.provider.getTransactionCount(deployer.address)))
+        + nonceDelta;
+    // nonceProxySupernets2 :Nonce globalExitRoot + 1 (proxy globalExitRoot) + 1 (impl supernets) = +2
+    const nonceProxySupernets2 = nonceProxyGlobalExitRoot + 2;
 
     let precalculateGLobalExitRootAddress; let
-        precalculateZkevmAddress;
+        precalculateSupernets2Address;
 
     // Check if the contract is already deployed
-    if (ongoingDeployment.polygonZkEVMGlobalExitRoot && ongoingDeployment.polygonZkEVMContract) {
-        precalculateGLobalExitRootAddress = ongoingDeployment.polygonZkEVMGlobalExitRoot;
-        precalculateZkevmAddress = ongoingDeployment.polygonZkEVMContract;
+    if (ongoingDeployment.PolygonZkEVMGlobalExitRoot && ongoingDeployment.supernets2Contract) {
+        precalculateGLobalExitRootAddress = ongoingDeployment.PolygonZkEVMGlobalExitRoot;
+        precalculateSupernets2Address = ongoingDeployment.supernets2Contract;
     } else {
         // If both are not deployed, it's better to deploy them both again
-        delete ongoingDeployment.polygonZkEVMGlobalExitRoot;
-        delete ongoingDeployment.polygonZkEVMContract;
+        delete ongoingDeployment.PolygonZkEVMGlobalExitRoot;
+        delete ongoingDeployment.supernets2Contract;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
 
         // Contracts are not deployed, normal deployment
         precalculateGLobalExitRootAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyGlobalExitRoot });
-        precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        precalculateSupernets2Address = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxySupernets2 });
     }
 
-    const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData(
+    const dataCallProxy = PolygonZkEVMBridgeFactory.interface.encodeFunctionData(
         'initialize',
         [
             networkIDMainnet,
             precalculateGLobalExitRootAddress,
-            precalculateZkevmAddress,
+            precalculateSupernets2Address,
         ],
     );
     const [proxyBridgeAddress, isBridgeProxyDeployed] = await create2Deployment(
-        zkEVMDeployerContract,
+        supernets2DeployerContract,
         salt,
         deployTransactionProxy,
         dataCallProxy,
         deployer,
     );
-    const polygonZkEVMBridgeContract = polygonZkEVMBridgeFactory.attach(proxyBridgeAddress);
+    const PolygonZkEVMBridgeContract = PolygonZkEVMBridgeFactory.attach(proxyBridgeAddress);
 
     if (isBridgeProxyDeployed) {
         console.log('#######################\n');
-        console.log('PolygonZkEVMBridge deployed to:', polygonZkEVMBridgeContract.address);
+        console.log('PolygonZkEVMBridge deployed to:', PolygonZkEVMBridgeContract.address);
     } else {
         console.log('#######################\n');
-        console.log('PolygonZkEVMBridge was already deployed to:', polygonZkEVMBridgeContract.address);
+        console.log('PolygonZkEVMBridge was already deployed to:', PolygonZkEVMBridgeContract.address);
 
         // If it was already deployed, check that the initialized calldata matches the actual deployment
-        expect(precalculateGLobalExitRootAddress).to.be.equal(await polygonZkEVMBridgeContract.globalExitRootManager());
-        expect(precalculateZkevmAddress).to.be.equal(await polygonZkEVMBridgeContract.polygonZkEVMaddress());
+        expect(precalculateGLobalExitRootAddress).to.be.equal(await PolygonZkEVMBridgeContract.globalExitRootManager());
+        expect(precalculateSupernets2Address).to.be.equal(await PolygonZkEVMBridgeContract.polygonZkEVMaddress());
     }
 
     console.log('\n#######################');
     console.log('#####    Checks PolygonZkEVMBridge   #####');
     console.log('#######################');
-    console.log('PolygonZkEVMGlobalExitRootAddress:', await polygonZkEVMBridgeContract.globalExitRootManager());
-    console.log('networkID:', await polygonZkEVMBridgeContract.networkID());
-    console.log('zkEVMaddress:', await polygonZkEVMBridgeContract.polygonZkEVMaddress());
+    console.log('PolygonZkEVMGlobalExitRootAddress:', await PolygonZkEVMBridgeContract.globalExitRootManager());
+    console.log('networkID:', await PolygonZkEVMBridgeContract.networkID());
+    console.log('supernets2address:', await PolygonZkEVMBridgeContract.polygonZkEVMaddress());
 
     // Import OZ manifest the deployed contracts, its enough to import just the proxy, the rest are imported automatically (admin/impl)
-    await upgrades.forceImport(proxyBridgeAddress, polygonZkEVMBridgeFactory, 'transparent');
+    await upgrades.forceImport(proxyBridgeAddress, PolygonZkEVMBridgeFactory, 'transparent');
+
+    /*
+     * Deployment Data Committee
+     */
+    let supernets2DataCommitteeContract;
+    const Supernets2DataCommitteeContractFactory = await ethers.getContractFactory('Supernets2DataCommittee', deployer);
+    for (let i = 0; i < attemptsDeployProxy; i++) {
+        try {
+            supernets2DataCommitteeContract = await upgrades.deployProxy(
+                Supernets2DataCommitteeContractFactory,
+                [],
+            );
+            break;
+        } catch (error) {
+            console.log(`attempt ${i}`);
+            console.log('upgrades.deployProxy of supernets2DataCommitteeContract ', error.message);
+        }
+
+        // reach limits of attempts
+        if (i + 1 === attemptsDeployProxy) {
+            throw new Error('supernets2DataCommitteeContract contract has not been deployed');
+        }
+    }
+
+    console.log('#######################\n');
+    console.log('supernets2DataCommittee deployed to:', supernets2DataCommitteeContract.address);
+
+    if (setupEmptyCommittee) {
+        const expectedHash = ethers.utils.solidityKeccak256(['bytes'], [[]]);
+        await expect(supernets2DataCommitteeContract.connect(deployer)
+            .setupCommittee(0, [], []))
+            .to.emit(supernets2DataCommitteeContract, 'CommitteeUpdated')
+            .withArgs(expectedHash);
+        console.log('Empty committee seted up');
+    }
 
     /*
      *Deployment Global exit root manager
      */
-    let polygonZkEVMGlobalExitRoot;
+    let PolygonZkEVMGlobalExitRoot;
     const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot', deployer);
-    if (!ongoingDeployment.polygonZkEVMGlobalExitRoot) {
+    if (!ongoingDeployment.PolygonZkEVMGlobalExitRoot) {
         for (let i = 0; i < attemptsDeployProxy; i++) {
             try {
-                polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+                PolygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
                     initializer: false,
-                    constructorArgs: [precalculateZkevmAddress, proxyBridgeAddress],
+                    constructorArgs: [precalculateSupernets2Address, proxyBridgeAddress],
                     unsafeAllow: ['constructor', 'state-variable-immutable'],
                 });
                 break;
             } catch (error) {
                 console.log(`attempt ${i}`);
-                console.log('upgrades.deployProxy of polygonZkEVMGlobalExitRoot ', error.message);
+                console.log('upgrades.deployProxy of PolygonZkEVMGlobalExitRoot ', error.message);
             }
 
             // reach limits of attempts
             if (i + 1 === attemptsDeployProxy) {
-                throw new Error('polygonZkEVMGlobalExitRoot contract has not been deployed');
+                throw new Error('PolygonZkEVMGlobalExitRoot contract has not been deployed');
             }
         }
 
-        expect(precalculateGLobalExitRootAddress).to.be.equal(polygonZkEVMGlobalExitRoot.address);
+        expect(precalculateGLobalExitRootAddress).to.be.equal(PolygonZkEVMGlobalExitRoot.address);
 
         console.log('#######################\n');
-        console.log('polygonZkEVMGlobalExitRoot deployed to:', polygonZkEVMGlobalExitRoot.address);
+        console.log('PolygonZkEVMGlobalExitRoot deployed to:', PolygonZkEVMGlobalExitRoot.address);
 
         // save an ongoing deployment
-        ongoingDeployment.polygonZkEVMGlobalExitRoot = polygonZkEVMGlobalExitRoot.address;
+        ongoingDeployment.PolygonZkEVMGlobalExitRoot = PolygonZkEVMGlobalExitRoot.address;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
     } else {
         // sanity check
-        expect(precalculateGLobalExitRootAddress).to.be.equal(polygonZkEVMGlobalExitRoot.address);
+        expect(precalculateGLobalExitRootAddress).to.be.equal(PolygonZkEVMGlobalExitRoot.address);
         // Expect the precalculate address matches de onogin deployment
-        polygonZkEVMGlobalExitRoot = PolygonZkEVMGlobalExitRootFactory.attach(ongoingDeployment.polygonZkEVMGlobalExitRoot);
+        PolygonZkEVMGlobalExitRoot = PolygonZkEVMGlobalExitRootFactory.attach(ongoingDeployment.PolygonZkEVMGlobalExitRoot);
 
         console.log('#######################\n');
-        console.log('polygonZkEVMGlobalExitRoot already deployed on: ', ongoingDeployment.polygonZkEVMGlobalExitRoot);
+        console.log('PolygonZkEVMGlobalExitRoot already deployed on: ', ongoingDeployment.PolygonZkEVMGlobalExitRoot);
 
         // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically (admin/impl)
-        await upgrades.forceImport(ongoingDeployment.polygonZkEVMGlobalExitRoot, PolygonZkEVMGlobalExitRootFactory, 'transparent');
+        await upgrades.forceImport(ongoingDeployment.PolygonZkEVMGlobalExitRoot, PolygonZkEVMGlobalExitRootFactory, 'transparent');
 
         // Check against current deployment
-        expect(polygonZkEVMBridgeContract.address).to.be.equal(await polygonZkEVMBridgeContract.bridgeAddress());
-        expect(precalculateZkevmAddress).to.be.equal(await polygonZkEVMBridgeContract.rollupAddress());
+        expect(PolygonZkEVMBridgeContract.address).to.be.equal(await PolygonZkEVMBridgeContract.bridgeAddress());
+        expect(precalculateSupernets2Address).to.be.equal(await PolygonZkEVMBridgeContract.rollupAddress());
     }
 
-    // deploy PolygonZkEVMM
+    // deploy Supernets2M
     const genesisRootHex = genesis.root;
 
     console.log('\n#######################');
-    console.log('##### Deployment Polygon ZK-EVM #####');
+    console.log('##### Deployment Supernets2 #####');
     console.log('#######################');
     console.log('deployer:', deployer.address);
-    console.log('PolygonZkEVMGlobalExitRootAddress:', polygonZkEVMGlobalExitRoot.address);
+    console.log('PolygonZkEVMGlobalExitRootAddress:', PolygonZkEVMGlobalExitRoot.address);
     console.log('maticTokenAddress:', maticTokenAddress);
     console.log('verifierAddress:', verifierContract.address);
-    console.log('polygonZkEVMBridgeContract:', polygonZkEVMBridgeContract.address);
+    console.log('PolygonZkEVMBridgeContract:', PolygonZkEVMBridgeContract.address);
 
     console.log('admin:', admin);
     console.log('chainID:', chainID);
@@ -349,15 +393,15 @@ async function main() {
     console.log('networkName:', networkName);
     console.log('forkID:', forkID);
 
-    const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVM', deployer);
+    const Supernets2Factory = await ethers.getContractFactory('Supernets2', deployer);
 
-    let polygonZkEVMContract;
+    let supernets2Contract;
     let deploymentBlockNumber;
-    if (!ongoingDeployment.polygonZkEVMContract) {
+    if (!ongoingDeployment.supernets2Contract) {
         for (let i = 0; i < attemptsDeployProxy; i++) {
             try {
-                polygonZkEVMContract = await upgrades.deployProxy(
-                    PolygonZkEVMFactory,
+                supernets2Contract = await upgrades.deployProxy(
+                    Supernets2Factory,
                     [
                         {
                             admin,
@@ -373,10 +417,11 @@ async function main() {
                     ],
                     {
                         constructorArgs: [
-                            polygonZkEVMGlobalExitRoot.address,
+                            PolygonZkEVMGlobalExitRoot.address,
                             maticTokenAddress,
                             verifierContract.address,
-                            polygonZkEVMBridgeContract.address,
+                            PolygonZkEVMBridgeContract.address,
+                            supernets2DataCommitteeContract.address,
                             chainID,
                             forkID,
                         ],
@@ -386,82 +431,82 @@ async function main() {
                 break;
             } catch (error) {
                 console.log(`attempt ${i}`);
-                console.log('upgrades.deployProxy of polygonZkEVMContract ', error.message);
+                console.log('upgrades.deployProxy of supernets2Contract ', error.message);
             }
 
             // reach limits of attempts
             if (i + 1 === attemptsDeployProxy) {
-                throw new Error('PolygonZkEVM contract has not been deployed');
+                throw new Error('Supernets2 contract has not been deployed');
             }
         }
 
-        expect(precalculateZkevmAddress).to.be.equal(polygonZkEVMContract.address);
+        expect(precalculateSupernets2Address).to.be.equal(supernets2Contract.address);
 
         console.log('#######################\n');
-        console.log('polygonZkEVMContract deployed to:', polygonZkEVMContract.address);
+        console.log('supernets2Contract deployed to:', supernets2Contract.address);
 
         // save an ongoing deployment
-        ongoingDeployment.polygonZkEVMContract = polygonZkEVMContract.address;
+        ongoingDeployment.supernets2Contract = supernets2Contract.address;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
 
-        // Transfer ownership of polygonZkEVMContract
-        if (zkEVMOwner !== deployer.address) {
-            await (await polygonZkEVMContract.transferOwnership(zkEVMOwner)).wait();
+        // Transfer ownership of supernets2Contract
+        if (supernets2Owner !== deployer.address) {
+            await (await supernets2Contract.transferOwnership(supernets2Owner)).wait();
         }
 
-        deploymentBlockNumber = (await polygonZkEVMContract.deployTransaction.wait()).blockNumber;
+        deploymentBlockNumber = (await supernets2Contract.deployTransaction.wait()).blockNumber;
     } else {
         // Expect the precalculate address matches de onogin deployment, sanity check
-        expect(precalculateZkevmAddress).to.be.equal(ongoingDeployment.polygonZkEVMContract);
-        polygonZkEVMContract = PolygonZkEVMFactory.attach(ongoingDeployment.polygonZkEVMContract);
+        expect(precalculateSupernets2Address).to.be.equal(ongoingDeployment.supernets2Contract);
+        supernets2Contract = Supernets2Factory.attach(ongoingDeployment.supernets2Contract);
 
         console.log('#######################\n');
-        console.log('polygonZkEVMContract already deployed on: ', ongoingDeployment.polygonZkEVMContract);
+        console.log('supernets2Contract already deployed on: ', ongoingDeployment.supernets2Contract);
 
         // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
-        await upgrades.forceImport(ongoingDeployment.polygonZkEVMContract, PolygonZkEVMFactory, 'transparent');
+        await upgrades.forceImport(ongoingDeployment.supernets2Contract, Supernets2Factory, 'transparent');
 
-        const zkEVMOwnerContract = await polygonZkEVMContract.owner();
-        if (zkEVMOwnerContract === deployer.address) {
-            // Transfer ownership of polygonZkEVMContract
-            if (zkEVMOwner !== deployer.address) {
-                await (await polygonZkEVMContract.transferOwnership(zkEVMOwner)).wait();
+        const supernets2OwnerContract = await supernets2Contract.owner();
+        if (supernets2OwnerContract === deployer.address) {
+            // Transfer ownership of supernets2Contract
+            if (supernets2Owner !== deployer.address) {
+                await (await supernets2Contract.transferOwnership(supernets2Owner)).wait();
             }
         } else {
-            expect(zkEVMOwner).to.be.equal(zkEVMOwnerContract);
+            expect(supernets2Owner).to.be.equal(supernets2OwnerContract);
         }
         deploymentBlockNumber = 0;
     }
 
     console.log('\n#######################');
-    console.log('#####    Checks  PolygonZkEVM  #####');
+    console.log('#####    Checks  Supernets2  #####');
     console.log('#######################');
-    console.log('PolygonZkEVMGlobalExitRootAddress:', await polygonZkEVMContract.globalExitRootManager());
-    console.log('maticTokenAddress:', await polygonZkEVMContract.matic());
-    console.log('verifierAddress:', await polygonZkEVMContract.rollupVerifier());
-    console.log('polygonZkEVMBridgeContract:', await polygonZkEVMContract.bridgeAddress());
+    console.log('PolygonZkEVMGlobalExitRootAddress:', await supernets2Contract.globalExitRootManager());
+    console.log('maticTokenAddress:', await supernets2Contract.matic());
+    console.log('verifierAddress:', await supernets2Contract.rollupVerifier());
+    console.log('PolygonZkEVMBridgeContract:', await supernets2Contract.bridgeAddress());
 
-    console.log('admin:', await polygonZkEVMContract.admin());
-    console.log('chainID:', await polygonZkEVMContract.chainID());
-    console.log('trustedSequencer:', await polygonZkEVMContract.trustedSequencer());
-    console.log('pendingStateTimeout:', await polygonZkEVMContract.pendingStateTimeout());
-    console.log('trustedAggregator:', await polygonZkEVMContract.trustedAggregator());
-    console.log('trustedAggregatorTimeout:', await polygonZkEVMContract.trustedAggregatorTimeout());
+    console.log('admin:', await supernets2Contract.admin());
+    console.log('chainID:', await supernets2Contract.chainID());
+    console.log('trustedSequencer:', await supernets2Contract.trustedSequencer());
+    console.log('pendingStateTimeout:', await supernets2Contract.pendingStateTimeout());
+    console.log('trustedAggregator:', await supernets2Contract.trustedAggregator());
+    console.log('trustedAggregatorTimeout:', await supernets2Contract.trustedAggregatorTimeout());
 
-    console.log('genesiRoot:', await polygonZkEVMContract.batchNumToStateRoot(0));
-    console.log('trustedSequencerURL:', await polygonZkEVMContract.trustedSequencerURL());
-    console.log('networkName:', await polygonZkEVMContract.networkName());
-    console.log('owner:', await polygonZkEVMContract.owner());
-    console.log('forkID:', await polygonZkEVMContract.forkID());
+    console.log('genesiRoot:', await supernets2Contract.batchNumToStateRoot(0));
+    console.log('trustedSequencerURL:', await supernets2Contract.trustedSequencerURL());
+    console.log('networkName:', await supernets2Contract.networkName());
+    console.log('owner:', await supernets2Contract.owner());
+    console.log('forkID:', await supernets2Contract.forkID());
 
     // Assert admin address
-    expect(await upgrades.erc1967.getAdminAddress(precalculateZkevmAddress)).to.be.equal(proxyAdminAddress);
+    expect(await upgrades.erc1967.getAdminAddress(precalculateSupernets2Address)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(precalculateGLobalExitRootAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
     const proxyAdminInstance = proxyAdminFactory.attach(proxyAdminAddress);
     const proxyAdminOwner = await proxyAdminInstance.owner();
-    const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock', deployer);
+    const timelockContractFactory = await ethers.getContractFactory('Supernets2Timelock', deployer);
 
     // TODO test stop here
 
@@ -469,7 +514,7 @@ async function main() {
     if (proxyAdminOwner !== deployer.address) {
         // Check if there's a timelock deployed there that match the current deployment
         timelockContract = timelockContractFactory.attach(proxyAdminOwner);
-        expect(precalculateZkevmAddress).to.be.equal(await timelockContract.polygonZkEVM());
+        expect(precalculateSupernets2Address).to.be.equal(await timelockContract.supernets2());
 
         console.log('#######################\n');
         console.log(
@@ -483,13 +528,13 @@ async function main() {
         console.log('#######################');
         console.log('minDelayTimelock:', minDelayTimelock);
         console.log('timelockAddress:', timelockAddress);
-        console.log('zkEVMAddress:', polygonZkEVMContract.address);
+        console.log('supernets2Address:', supernets2Contract.address);
         timelockContract = await timelockContractFactory.deploy(
             minDelayTimelock,
             [timelockAddress],
             [timelockAddress],
             timelockAddress,
-            polygonZkEVMContract.address,
+            supernets2Contract.address,
         );
         await timelockContract.deployed();
         console.log('#######################\n');
@@ -502,19 +547,24 @@ async function main() {
         await upgrades.admin.transferProxyAdminOwnership(timelockContract.address);
     }
 
+    if (committeeTimelock) {
+        await (await supernets2DataCommitteeContract.transferOwnership(timelockContract.address)).wait();
+    }
+
     console.log('\n#######################');
     console.log('#####  Checks TimelockContract  #####');
     console.log('#######################');
     console.log('minDelayTimelock:', await timelockContract.getMinDelay());
-    console.log('polygonZkEVM:', await timelockContract.polygonZkEVM());
+    console.log('supernets2:', await timelockContract.supernets2());
 
     const outputJson = {
-        polygonZkEVMAddress: polygonZkEVMContract.address,
-        polygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.address,
-        polygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot.address,
+        supernets2Address: supernets2Contract.address,
+        polygonZkEVMBridgeAddress: PolygonZkEVMBridgeContract.address,
+        polygonZkEVMGlobalExitRootAddress: PolygonZkEVMGlobalExitRoot.address,
+        supernets2DataCommitteeContract: supernets2DataCommitteeContract.address,
         maticTokenAddress,
         verifierAddress: verifierContract.address,
-        zkEVMDeployerContract: zkEVMDeployerContract.address,
+        supernets2DeployerContract: supernets2DeployerContract.address,
         deployerAddress: deployer.address,
         timelockContractAddress: timelockContract.address,
         deploymentBlockNumber,

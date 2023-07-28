@@ -75,7 +75,7 @@ async function main() {
     for (let j = 0; j < txs.length; j++) {
         const currentTx = txs[j];
 
-        // if (currentTx.contractName.PolygonZkEVMDeployer) {
+        // if (currentTx.contractName.Supernets2Deployer) {
         // }
         const tx = {
             to: currentTx.to || '0x',
