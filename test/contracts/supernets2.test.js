@@ -963,7 +963,7 @@ describe('Supernets2', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const numBatch = (await supernets2Contract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -1062,7 +1062,7 @@ describe('Supernets2', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const numBatch = (await supernets2Contract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -1272,7 +1272,7 @@ describe('Supernets2', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
         const numBatch = (await supernets2Contract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             aggregator1.address,
@@ -1433,7 +1433,7 @@ describe('Supernets2', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;
@@ -1862,7 +1862,7 @@ describe('Supernets2', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;

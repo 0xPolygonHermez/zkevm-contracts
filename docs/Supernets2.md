@@ -79,7 +79,7 @@ note that each ECDSA signatures are used, therefore each one must be 65 bytes
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    bytes proof
+    bytes32[24] proof
   ) external
 ```
 Allows an aggregator to verify multiple batches
@@ -93,7 +93,7 @@ Allows an aggregator to verify multiple batches
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes | fflonk proof
+|`proof` | bytes32[24] | fflonk proof
 
 ### verifyBatchesTrustedAggregator
 ```solidity
@@ -103,7 +103,7 @@ Allows an aggregator to verify multiple batches
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    bytes proof
+    bytes32[24] proof
   ) external
 ```
 Allows an aggregator to verify multiple batches
@@ -117,7 +117,7 @@ Allows an aggregator to verify multiple batches
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes | fflonk proof
+|`proof` | bytes32[24] | fflonk proof
 
 ### _verifyAndRewardBatches
 ```solidity
@@ -127,7 +127,7 @@ Allows an aggregator to verify multiple batches
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    bytes proof
+    bytes32[24] proof
   ) internal
 ```
 Verify and reward batches internal function
@@ -141,7 +141,7 @@ Verify and reward batches internal function
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes | fflonk proof
+|`proof` | bytes32[24] | fflonk proof
 
 ### _tryConsolidatePendingState
 ```solidity
@@ -391,7 +391,7 @@ Allow the current pending admin to accept the admin role
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    bytes proof
+    bytes32[24] proof
   ) external
 ```
 Allows the trusted aggregator to override the pending state
@@ -407,7 +407,7 @@ if it's possible to prove a different state root given the same batches
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes | fflonk proof
+|`proof` | bytes32[24] | fflonk proof
 
 ### proveNonDeterministicPendingState
 ```solidity
@@ -418,7 +418,7 @@ if it's possible to prove a different state root given the same batches
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    bytes proof
+    bytes32[24] proof
   ) external
 ```
 Allows to halt the Supernets2 if its possible to prove a different state root given the same batches
@@ -433,7 +433,7 @@ Allows to halt the Supernets2 if its possible to prove a different state root gi
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes | fflonk proof
+|`proof` | bytes32[24] | fflonk proof
 
 ### _proveDistinctPendingState
 ```solidity
@@ -444,7 +444,7 @@ Allows to halt the Supernets2 if its possible to prove a different state root gi
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    bytes proof
+    bytes32[24] proof
   ) internal
 ```
 Internal function that proves a different state root given the same batches to verify
@@ -459,7 +459,7 @@ Internal function that proves a different state root given the same batches to v
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes | fflonk proof
+|`proof` | bytes32[24] | fflonk proof
 
 ### activateEmergencyState
 ```solidity
