@@ -39,6 +39,7 @@ describe('Polygon ZK-EVM', () => {
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
+    const depositBranches = new Array(32).fill(ethers.constants.HashZero);
 
     // PolygonZkEVM Constants
     const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
@@ -119,6 +120,8 @@ describe('Polygon ZK-EVM', () => {
             polygonZkEVMContract.address,
             gasTokenContract.address,
             true,
+            0,
+            depositBranches,
         );
         await polygonZkEVMContract.initialize(
             {

@@ -83,6 +83,10 @@ contract PolygonZkEVMBridge is
      * @param _networkID networkID
      * @param _globalExitRootManager global exit root manager address
      * @param _polygonZkEVMaddress polygonZkEVM address
+     * @param _gasTokenAddress gas token address
+     * @param _isDeployedOnL2 flag to indicate if the contract is deployed on L2
+     * @param _lastUpdatedDepositCount last updated deposit count
+     * @param depositBranches deposit branches
      * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
      * emergency state is not possible for the L2 deployment of the bridge, intentionally
      */
@@ -91,14 +95,18 @@ contract PolygonZkEVMBridge is
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress,
         address _gasTokenAddress,
-        bool _isDeployedOnL2
+        bool _isDeployedOnL2,
+        uint32 _lastUpdatedDepositCount,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory depositBranches
     ) public virtual onlyInitializing {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
         gasTokenAddress = _gasTokenAddress;
         isDeployedOnL2 = _isDeployedOnL2;
-
+        lastUpdatedDepositCount = _lastUpdatedDepositCount;
+        DepositContract.initialize(lastUpdatedDepositCount, depositBranches);
+        
         // Initialize OZ contracts
         __ReentrancyGuard_init();
     }
@@ -280,7 +288,7 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
-    ) external payable ifNotEmergencyState {
+    ) public virtual payable ifNotEmergencyState {
         if (msg.value != 0 && !isDeployedOnL2) {
                 revert MsgValueNotZero();
         }
@@ -344,7 +352,7 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) external ifNotEmergencyState {
+    ) public virtual ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
@@ -478,7 +486,7 @@ contract PolygonZkEVMBridge is
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) external ifNotEmergencyState {
+    ) public virtual ifNotEmergencyState {
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProof,
@@ -667,7 +675,7 @@ contract PolygonZkEVMBridge is
      * @notice Function to check if an index is claimed or not
      * @param index Index
      */
-    function isClaimed(uint256 index) external view returns (bool) {
+    function isClaimed(uint256 index) public virtual view returns (bool) {
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
         uint256 mask = (1 << bitPos);
         return (claimedBitMap[wordPos] & mask) == mask;
@@ -677,7 +685,7 @@ contract PolygonZkEVMBridge is
      * @notice Function to check that an index is not claimed and set it as claimed
      * @param index Index
      */
-    function _setAndCheckClaimed(uint256 index) private {
+    function _setAndCheckClaimed(uint256 index) internal virtual {
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(index);
         uint256 mask = 1 << bitPos;
         uint256 flipped = claimedBitMap[wordPos] ^= mask;
@@ -689,7 +697,7 @@ contract PolygonZkEVMBridge is
     /**
      * @notice Function to update the globalExitRoot if the last deposit is not submitted
      */
-    function updateGlobalExitRoot() external {
+    function updateGlobalExitRoot() public {
         if (lastUpdatedDepositCount < depositCount) {
             _updateGlobalExitRoot();
         }
@@ -709,7 +717,7 @@ contract PolygonZkEVMBridge is
      */
     function _bitmapPositions(
         uint256 index
-    ) private pure returns (uint256 wordPos, uint256 bitPos) {
+    ) internal pure returns (uint256 wordPos, uint256 bitPos) {
         wordPos = uint248(index >> 8);
         bitPos = uint8(index);
     }
@@ -898,3 +906,4 @@ contract PolygonZkEVMBridge is
         }
     }
 }
+

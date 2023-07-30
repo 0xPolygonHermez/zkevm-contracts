@@ -35,6 +35,7 @@ describe('Polygon ZK-EVM TestnetV2', () => {
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
     let doesNeedImplementationDeployment = true;
+    const depositBranches = new Array(32).fill(ethers.constants.HashZero);
 
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
@@ -110,6 +111,8 @@ describe('Polygon ZK-EVM TestnetV2', () => {
             polygonZkEVMContract.address,
             gasTokenContract.address,
             true,
+            0,
+            depositBranches,
         );
         await polygonZkEVMContract.initialize(
             {
