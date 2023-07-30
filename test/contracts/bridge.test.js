@@ -41,6 +41,7 @@ describe('PolygonZkEVMBridge Contract - for L2', () => {
     let polygonZkEVMBridgeContract;
     let tokenContract;
     let gasTokenContract;
+    const depositBranches = new Array(32).fill(ethers.constants.HashZero);
 
     beforeEach('Deploy contracts', async () => {
         // load signers
@@ -72,6 +73,8 @@ describe('PolygonZkEVMBridge Contract - for L2', () => {
             polygonZkEVMAddress,
             gasTokenContract.address,
             true,
+            0,
+            depositBranches,
         );
 
         // deploy token
@@ -1201,11 +1204,15 @@ describe('PolygonZkEVMBridge Contract - for L1', () => {
     let polygonZkEVMBridgeContract;
     let tokenContract;
     let gasTokenContract;
+    const depositBranches = new Array(32);
 
     beforeEach('Deploy contracts', async () => {
         // load signers
         [deployer, rollup, acc1] = await ethers.getSigners();
 
+        for (let i = 0; i < 32; i++) {
+            depositBranches[i] = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+        }
         // deploy gas token
         const gasTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
         gasTokenContract = await gasTokenFactory.deploy(
@@ -1232,6 +1239,8 @@ describe('PolygonZkEVMBridge Contract - for L1', () => {
             polygonZkEVMAddress,
             gasTokenContract.address,
             false,
+            0,
+            depositBranches,
         );
 
         // deploy token

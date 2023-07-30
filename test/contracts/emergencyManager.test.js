@@ -32,6 +32,7 @@ describe('Emergency mode test', () => {
     const pendingStateTimeoutDefault = 10;
     const trustedAggregatorTimeoutDefault = 10;
     let firstDeployment = true;
+    const depositBranches = new Array(32).fill(ethers.constants.HashZero);
 
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
@@ -109,6 +110,8 @@ describe('Emergency mode test', () => {
             polygonZkEVMContract.address,
             gasTokenContract.address,
             true,
+            0,
+            depositBranches,
         );
         await polygonZkEVMContract.initialize(
             {

@@ -42,6 +42,7 @@ describe('PolygonZkEVMBridge Contract Permit tests', () => {
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
     const LEAF_TYPE_ASSET = 0;
+    const depositBranches = new Array(32).fill(ethers.constants.HashZero);
 
     const polygonZkEVMAddress = ethers.constants.AddressZero;
 
@@ -74,6 +75,8 @@ describe('PolygonZkEVMBridge Contract Permit tests', () => {
             polygonZkEVMAddress,
             gasTokenContract.address,
             true,
+            0,
+            depositBranches,
         );
 
         // deploy token

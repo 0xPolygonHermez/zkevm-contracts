@@ -35,6 +35,7 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
 
     const LEAF_TYPE_ASSET = 0;
     const polygonZkEVMAddress = ethers.constants.AddressZero;
+    const depositBranches = new Array(32).fill(ethers.constants.HashZero);
 
     beforeEach('Deploy contracts', async () => {
         // load signers
@@ -65,6 +66,8 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
             polygonZkEVMAddress,
             gasTokenContract.address,
             true,
+            0,
+            depositBranches,
         );
 
         // deploy token

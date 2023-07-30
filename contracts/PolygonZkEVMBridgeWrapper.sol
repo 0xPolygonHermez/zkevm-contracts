@@ -9,8 +9,10 @@ contract PolygonZkEVMBridgeWrapper is PolygonZkEVMBridge{
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress,
         address _gasTokenAddress,
-        bool _isDeployedOnL2
+        bool _isDeployedOnL2,
+        uint32 _lastUpdatedDepositCount,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory depositBranches
     ) public virtual override initializer {
-        PolygonZkEVMBridge.initialize(_networkID, _globalExitRootManager, _polygonZkEVMaddress, _gasTokenAddress, _isDeployedOnL2);
+        PolygonZkEVMBridge.initialize(_networkID, _globalExitRootManager, _polygonZkEVMaddress, _gasTokenAddress, _isDeployedOnL2, _lastUpdatedDepositCount, depositBranches);
     }
 }

@@ -22,7 +22,7 @@ contract DepositContract is ReentrancyGuardUpgradeable {
 
     // Branch array which contains the necessary sibilings to compute the next root when a new
     // leaf is inserted
-    bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] internal _branch;
+    bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] public branch;
 
     // Counter of current deposits
     uint256 public depositCount;
@@ -32,6 +32,16 @@ contract DepositContract is ReentrancyGuardUpgradeable {
      * variables without shifting down storage in the inheritance chain.
      */
     uint256[10] private _gap;
+
+    /**
+     * @dev Initializer that allows to pretend that there have been already previous deposits.
+        * @param _depositCount Number of deposits already made
+        * @param _branch Branch array which contains the necessary sibilings to compute the next root when a new
+     */
+    function initialize(uint32 _depositCount, bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory _branch) internal onlyInitializing {
+        depositCount = _depositCount;
+        branch = _branch;
+    }
 
     /**
      * @notice Computes and returns the merkle root
@@ -47,7 +57,7 @@ contract DepositContract is ReentrancyGuardUpgradeable {
             height++
         ) {
             if (((size >> height) & 1) == 1)
-                node = keccak256(abi.encodePacked(_branch[height], node));
+                node = keccak256(abi.encodePacked(branch[height], node));
             else
                 node = keccak256(abi.encodePacked(node, currentZeroHashHeight));
 
@@ -65,12 +75,12 @@ contract DepositContract is ReentrancyGuardUpgradeable {
     function _deposit(bytes32 leafHash) internal {
         bytes32 node = leafHash;
 
-        // Avoid overflowing the Merkle tree (and prevent edge case in computing `_branch`)
+        // Avoid overflowing the Merkle tree (and prevent edge case in computing `branch`)
         if (depositCount >= _MAX_DEPOSIT_COUNT) {
             revert MerkleTreeFull();
         }
 
-        // Add deposit data root to Merkle tree (update a single `_branch` node)
+        // Add deposit data root to Merkle tree (update a single `branch` node)
         uint256 size = ++depositCount;
         for (
             uint256 height = 0;
@@ -78,10 +88,10 @@ contract DepositContract is ReentrancyGuardUpgradeable {
             height++
         ) {
             if (((size >> height) & 1) == 1) {
-                _branch[height] = node;
+                branch[height] = node;
                 return;
             }
-            node = keccak256(abi.encodePacked(_branch[height], node));
+            node = keccak256(abi.encodePacked(branch[height], node));
         }
         // As the loop should always end prematurely with the `return` statement,
         // this code should be unreachable. We assert `false` just to be safe.

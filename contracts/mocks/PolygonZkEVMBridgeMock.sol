@@ -19,13 +19,17 @@ contract PolygonZkEVMBridgeMock is PolygonZkEVMBridgeWrapper, OwnableUpgradeable
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonZkEVMaddress,
         address _gasTokenAddress,
-        bool _isDeployedOnL2
+        bool _isDeployedOnL2,
+        uint32 _lastUpdatedDepositCount,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory depositBranches
     ) public override initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonZkEVMaddress = _polygonZkEVMaddress;
         gasTokenAddress = _gasTokenAddress;
         isDeployedOnL2= _isDeployedOnL2;
+        lastUpdatedDepositCount = _lastUpdatedDepositCount;
+        DepositContract.initialize(lastUpdatedDepositCount, depositBranches);
 
         maxEtherBridge = 0.25 ether;
 
