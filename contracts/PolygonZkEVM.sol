@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./interfaces/IVerifierRollup.sol";
 import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "./interfaces/IPolygonZkEVMBridge.sol";
 import "./lib/EmergencyManager.sol";
 import "./interfaces/IPolygonZkEVMErrors.sol";
@@ -18,7 +18,7 @@ import "./interfaces/IPolygonZkEVMErrors.sol";
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
 contract PolygonZkEVM is
-    OwnableUpgradeable,
+    Ownable2StepUpgradeable,
     EmergencyManager,
     IPolygonZkEVMErrors
 {
@@ -428,7 +428,7 @@ contract PolygonZkEVM is
         isForcedBatchDisallowed = true;
 
         // Initialize OZ contracts
-        __Ownable_init_unchained();
+        __Ownable2Step_init();
 
         // emit version event
         emit UpdateZkEVMVersion(0, forkID, _version);

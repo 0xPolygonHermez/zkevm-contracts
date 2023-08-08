@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * Contract responsible for deploying deterministic address contracts related with the PolygonZkEVM
  */
-contract PolygonZkEVMDeployer is Ownable {
+contract PolygonZkEVMDeployer is Ownable2Step {
     /**
      * @param _owner Owner
      */
-    constructor(address _owner) Ownable() {
+    constructor(address _owner) Ownable2Step() {
         _transferOwnership(_owner);
     }
 
