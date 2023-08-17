@@ -499,7 +499,7 @@ async function main() {
         );
 
         // Transfer ownership of the proxyAdmin to timelock
-        await upgrades.admin.transferProxyAdminOwnership(timelockContract.address);
+        await upgrades.admin.transferProxyAdminOwnership(timelockContract.address, deployer);
     }
 
     console.log('\n#######################');
