@@ -489,6 +489,7 @@ contract PolygonZkEVM is
         bridgeAddress.updateGlobalExitRoot();
 
         // Get global batch variables
+        // COMMENT: I would change the name to `historicGERRoot`
         bytes32 historicGlobalExitRoot = globalExitRootManager.getRoot();
         uint64 currentTimestamp = uint64(block.timestamp);
 

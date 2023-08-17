@@ -96,6 +96,7 @@ contract PolygonZkEVMGlobalExitRoot is
     /**
      * @notice Computes and returns the merkle root
      */
+    // COMMENT: I would change the name to: 'getHistoricalGERRoot'
     function getRoot()
         public
         view
