@@ -479,6 +479,19 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "getDepositRoot",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "uint8",
@@ -525,19 +538,6 @@
         }
       ],
       "stateMutability": "pure",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "getRoot",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
       "type": "function"
     },
     {
