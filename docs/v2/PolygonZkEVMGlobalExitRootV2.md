@@ -5,7 +5,7 @@ Contract responsible for managing the exit roots across multiple networks
 ### constructor
 ```solidity
   function constructor(
-    address _rollupAddress,
+    address _rollupManager,
     address _bridgeAddress
   ) public
 ```
@@ -14,7 +14,7 @@ Contract responsible for managing the exit roots across multiple networks
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_rollupAddress` | address | Rollup contract address
+|`_rollupManager` | address | Rollup contract address
 |`_bridgeAddress` | address | PolygonZkEVMBridge contract address
 
 ### updateExitRoot
@@ -37,6 +37,15 @@ Update the exit root of one of the networks and the global exit root
   ) public returns (bytes32)
 ```
 Return last global exit root
+
+
+
+### getRoot
+```solidity
+  function getRoot(
+  ) public returns (bytes32)
+```
+Computes and returns the merkle root
 
 
 
