@@ -16,9 +16,6 @@ const {
 
 const { deployPolygonZkEVMDeployer, create2Deployment } = require('./helpers/deployment-helpers');
 
-const deployParametersPath = argv.input ? argv.input : './deploy_parameters.json';
-const deployParameters = require(deployParametersPath);
-
 const outPath = argv.out ? argv.out : './genesis.json';
 const pathOutputJson = path.join(__dirname, outPath);
 
@@ -29,38 +26,29 @@ const pathOutputJson = path.join(__dirname, outPath);
 const _ADMIN_SLOT = '0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103';
 const _IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';
 
+// Genesis mainnet address:
+const mainnetZkEVMDeployerAddress = '0xCB19eDdE626906eB1EE52357a27F62dd519608C2';
+const mainnetProxyAdminAddress = '0x0F99738B2Fc14D77308337f3e2596b63aE7BCC4A';
+const mainnetZkEVMBridgeImplementationAddress = '0x5ac4182A1dd41AeEf465E40B82fd326BF66AB82C';
+const mainnetZkEVMBridgeProxyAddress = '0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe';
+const mainnetGlobalExitRootL2ImplementationAddress = '0x0200143Fa295EE4dffEF22eE2616c2E008D81688';
+const mainnetGlobalExitRootL2ProxyAddress = '0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa';
+const mainnetZkEVMTimelockAddress = '0xBBa0935Fa93Eb23de7990b47F0D96a8f75766d13';
+
+const mainnetMultisig = '0x4c1665d6651ecEfa59B9B3041951608468b18891';
+const mainnetInitialZkEVMDeployerOwner = '0x4c1665d6651ecEfa59B9B3041951608468b18891';
+const mainnetMinDelayTimelock = 864000;
+
 async function main() {
     // Constant variables
     const attemptsDeployProxy = 20;
     const networkIDL2 = 1;
-    const globalExitRootL2Address = '0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa';
     const zkevmAddressL2 = ethers.constants.AddressZero;
-    const maxUint256 = ethers.BigNumber.from('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff').toString();
 
-    // deploy parameters
-    const mandatoryDeploymentParameters = [
-        'timelockAddress',
-        'minDelayTimelock',
-        'salt',
-        'initialZkEVMDeployerOwner',
-        'gasTokenAddress',
-    ];
-
-    for (const parameterName of mandatoryDeploymentParameters) {
-        if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === '') {
-            throw new Error(`Missing parameter: ${parameterName}`);
-        }
-    }
-
-    const {
-        timelockAddress,
-        minDelayTimelock,
-        salt,
-        initialZkEVMDeployerOwner,
-        gasTokenAddress,
-    } = deployParameters;
-
-    const balanceBriged = (gasTokenAddress === '' || gasTokenAddress === '0x0000000000000000000000000000000000000000') ? '200000000000000000000000000' : maxUint256;
+    const timelockAddress = mainnetMultisig;
+    const initialZkEVMDeployerOwner = mainnetInitialZkEVMDeployerOwner;
+    const salt = '0x0000000000000000000000000000000000000000000000000000000000000000'; // salt mock
+    const minDelayTimelock = mainnetMinDelayTimelock;
 
     // Load deployer
     await ethers.provider.send('hardhat_impersonateAccount', [initialZkEVMDeployerOwner]);
@@ -68,7 +56,7 @@ async function main() {
     const deployer = await ethers.getSigner(initialZkEVMDeployerOwner);
 
     // Deploy PolygonZkEVMDeployer if is not deployed already
-    const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(initialZkEVMDeployerOwner, deployer);
+    const [zkEVMDeployerContract] = await deployPolygonZkEVMDeployer(initialZkEVMDeployerOwner, deployer);
 
     /*
      * Deploy Bridge
@@ -81,16 +69,9 @@ async function main() {
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
     const [proxyAdminAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
 
-    // Deploy implementation PolygonZkEVMBridge
+    // Deploy implementation PolygonZkEVMBridg
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
-
-    /*
-     * precalculate bridge address
-     * const hashInitCodeBridge = ethers.utils.solidityKeccak256(['bytes'], [deployTransactionBridge]);
-     * const precalculatedAddressDeployed = ethers.utils.getCreate2Address(zkEVMDeployerContract.address, salt, hashInitCodeBridge);
-     */
-
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(5500000);
     const [bridgeImplementationAddress] = await create2Deployment(
@@ -118,7 +99,7 @@ async function main() {
         'initialize',
         [
             networkIDL2,
-            globalExitRootL2Address,
+            mainnetGlobalExitRootL2ProxyAddress,
             zkevmAddressL2,
         ],
     );
@@ -136,7 +117,7 @@ async function main() {
         try {
             polygonZkEVMGlobalExitRootL2 = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootL2Factory, [], {
                 initializer: false,
-                constructorArgs: [proxyBridgeAddress],
+                constructorArgs: [mainnetZkEVMBridgeProxyAddress],
                 unsafeAllow: ['constructor', 'state-variable-immutable'],
             });
             break;
@@ -167,7 +148,7 @@ async function main() {
 
     // Transfer ownership of the proxyAdmin to timelock
     const proxyAdminInstance = proxyAdminFactory.attach(proxyAdminAddress);
-    await (await proxyAdminInstance.connect(deployer).transferOwnership(timelockContract.address)).wait();
+    await (await proxyAdminInstance.connect(deployer).transferOwnership(mainnetZkEVMTimelockAddress)).wait();
 
     // Recreate genesis with the current information:
     const genesis = [];
@@ -178,7 +159,7 @@ async function main() {
         contractName: 'PolygonZkEVMDeployer',
         balance: '0',
         nonce: zkEVMDeployerInfo.nonce.toString(),
-        address: zkEVMDeployerContract.address,
+        address: mainnetZkEVMDeployerAddress, // override adddress
         bytecode: zkEVMDeployerInfo.bytecode,
         storage: zkEVMDeployerInfo.storage,
     });
@@ -189,7 +170,7 @@ async function main() {
         contractName: 'ProxyAdmin',
         balance: '0',
         nonce: proxyAdminInfo.nonce.toString(),
-        address: proxyAdminAddress,
+        address: mainnetProxyAdminAddress, // override adddress
         bytecode: proxyAdminInfo.bytecode,
         storage: proxyAdminInfo.storage,
     });
@@ -200,7 +181,7 @@ async function main() {
         contractName: 'PolygonZkEVMBridge implementation',
         balance: '0',
         nonce: bridgeImplementationInfo.nonce.toString(),
-        address: bridgeImplementationAddress,
+        address: mainnetZkEVMBridgeImplementationAddress, // override adddress
         bytecode: bridgeImplementationInfo.bytecode,
         // storage: bridgeImplementationInfo.storage, implementation do not have storage
     });
@@ -208,11 +189,16 @@ async function main() {
     // Bridge proxy
     const bridgeProxyInfo = await getAddressInfo(proxyBridgeAddress);
 
+    // Override admin and implementation slots:
+    bridgeProxyInfo.storage[_ADMIN_SLOT] = ethers.utils.hexZeroPad(mainnetProxyAdminAddress, 32);
+    bridgeProxyInfo.storage[_IMPLEMENTATION_SLOT] = ethers.utils.hexZeroPad(mainnetZkEVMBridgeImplementationAddress, 32);
+
+    // update proxy storage
     genesis.push({
         contractName: 'PolygonZkEVMBridge proxy',
-        balance: balanceBriged,
+        balance: '200000000000000000000000000',
         nonce: bridgeProxyInfo.nonce.toString(),
-        address: proxyBridgeAddress,
+        address: mainnetZkEVMBridgeProxyAddress, // override adddress
         bytecode: bridgeProxyInfo.bytecode,
         storage: bridgeProxyInfo.storage,
     });
@@ -224,18 +210,23 @@ async function main() {
         contractName: 'PolygonZkEVMGlobalExitRootL2 implementation',
         balance: '0',
         nonce: implGlobalExitRootL2Info.nonce.toString(),
-        address: implGlobalExitRootL2,
+        address: mainnetGlobalExitRootL2ImplementationAddress, // override address
         bytecode: implGlobalExitRootL2Info.bytecode,
         // storage: implGlobalExitRootL2Info.storage, , implementation do not have storage
     });
 
     // polygonZkEVMGlobalExitRootL2 proxy
     const proxyGlobalExitRootL2Info = await getAddressInfo(polygonZkEVMGlobalExitRootL2.address);
+
+    // Override admin and implementation slots:
+    proxyGlobalExitRootL2Info.storage[_ADMIN_SLOT] = ethers.utils.hexZeroPad(mainnetProxyAdminAddress, 32);
+    proxyGlobalExitRootL2Info.storage[_IMPLEMENTATION_SLOT] = ethers.utils.hexZeroPad(mainnetGlobalExitRootL2ImplementationAddress, 32);
+
     genesis.push({
         contractName: 'PolygonZkEVMGlobalExitRootL2 proxy',
         balance: '0',
         nonce: proxyGlobalExitRootL2Info.nonce.toString(),
-        address: globalExitRootL2Address, // Override address!
+        address: mainnetGlobalExitRootL2ProxyAddress, // Override address!
         bytecode: proxyGlobalExitRootL2Info.bytecode,
         storage: proxyGlobalExitRootL2Info.storage,
     });
@@ -288,14 +279,6 @@ async function main() {
 
     // Put nonces on deployers
 
-    // Keyless deployer
-    genesis.push({
-        accountName: 'keyless Deployer',
-        balance: '0',
-        nonce: '1',
-        address: keylessDeployer,
-    });
-
     // deployer
     const deployerInfo = await getAddressInfo(deployer.address);
     genesis.push({
@@ -304,11 +287,6 @@ async function main() {
         nonce: deployerInfo.nonce.toString(),
         address: deployer.address,
     });
-
-    if (argv.test) {
-        // Add tester account with ether
-        genesis[genesis.length - 1].balance = '100000000000000000000000';
-    }
 
     // calculate root
     const poseidon = await getPoseidon();
