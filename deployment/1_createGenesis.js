@@ -110,7 +110,13 @@ async function main() {
             cdkValidiumAddressL2,
         ],
     );
-    const [proxyBridgeAddress] = await create2Deployment(cdkValidiumDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
+    const [proxyBridgeAddress] = await create2Deployment(
+        cdkValidiumDeployerContract,
+        salt,
+        deployTransactionProxy,
+        dataCallProxy,
+        deployer,
+    );
 
     // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
     await upgrades.forceImport(proxyBridgeAddress, PolygonZkEVMBridgeFactory, 'transparent');

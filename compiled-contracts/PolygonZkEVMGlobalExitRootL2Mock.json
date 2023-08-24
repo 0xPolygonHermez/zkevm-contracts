@@ -1,0 +1,116 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "PolygonZkEVMGlobalExitRootL2Mock",
+  "sourceName": "contracts/mocks/PolygonZkEVMGlobalExitRootL2Mock.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_bridgeAddress",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyAllowedContracts",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "bridgeAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "globalExitRootMap",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastRollupExitRoot",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "newRoot",
+          "type": "bytes32"
+        }
+      ],
+      "name": "setExitRoot",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "globalExitRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "blockNumber",
+          "type": "uint256"
+        }
+      ],
+      "name": "setLastGlobalExitRoot",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "newRoot",
+          "type": "bytes32"
+        }
+      ],
+      "name": "updateExitRoot",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60a060405234801561001057600080fd5b506040516102b93803806102b983398101604081905261002f91610040565b6001600160a01b0316608052610070565b60006020828403121561005257600080fd5b81516001600160a01b038116811461006957600080fd5b9392505050565b60805161022761009260003960008181610100015261015f01526102276000f3fe608060405234801561001057600080fd5b50600436106100725760003560e01c806333d6247d1161005057806333d6247d146100c857806396e07459146100db578063a3c573eb146100fb57600080fd5b806301fd904414610077578063116c40c314610093578063257b3632146100a8575b600080fd5b61008060015481565b6040519081526020015b60405180910390f35b6100a66100a13660046101b6565b600155565b005b6100806100b63660046101b6565b60006020819052908152604090205481565b6100a66100d63660046101b6565b610147565b6100a66100e93660046101cf565b60009182526020829052604090912055565b6101227f000000000000000000000000000000000000000000000000000000000000000081565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161008a565b3373ffffffffffffffffffffffffffffffffffffffff7f000000000000000000000000000000000000000000000000000000000000000016146100a1576040517fb49365dd00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6000602082840312156101c857600080fd5b5035919050565b600080604083850312156101e257600080fd5b5050803592602090910135915056fea26469706673582212203dc131ea7b3c9a0e0d9f97c222b405f0086fc9beecf67bf79956cd48dcb6461d64736f6c63430008140033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100725760003560e01c806333d6247d1161005057806333d6247d146100c857806396e07459146100db578063a3c573eb146100fb57600080fd5b806301fd904414610077578063116c40c314610093578063257b3632146100a8575b600080fd5b61008060015481565b6040519081526020015b60405180910390f35b6100a66100a13660046101b6565b600155565b005b6100806100b63660046101b6565b60006020819052908152604090205481565b6100a66100d63660046101b6565b610147565b6100a66100e93660046101cf565b60009182526020829052604090912055565b6101227f000000000000000000000000000000000000000000000000000000000000000081565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161008a565b3373ffffffffffffffffffffffffffffffffffffffff7f000000000000000000000000000000000000000000000000000000000000000016146100a1576040517fb49365dd00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6000602082840312156101c857600080fd5b5035919050565b600080604083850312156101e257600080fd5b5050803592602090910135915056fea26469706673582212203dc131ea7b3c9a0e0d9f97c222b405f0086fc9beecf67bf79956cd48dcb6461d64736f6c63430008140033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
