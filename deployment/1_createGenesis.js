@@ -37,6 +37,15 @@ async function main() {
     const zkevmAddressL2 = ethers.constants.AddressZero;
     const maxUint256 = ethers.BigNumber.from('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff').toString();
 
+    let balanceBrige;
+
+    let bridgeImplementationAddress;
+    let proxyBridgeAddress;
+    let finalBridgeImplAddress;
+    let finalBridgeProxyAddress;
+
+    const genesis = [];
+
     // deploy parameters
     const mandatoryDeploymentParameters = [
         'timelockAddress',
@@ -62,9 +71,6 @@ async function main() {
         gasTokenNetwork,
     } = deployParameters;
 
-    // TODO
-    const balanceBrige = (gasTokenAddress === '' || gasTokenAddress === '0x0000000000000000000000000000000000000000') ? '200000000000000000000000000' : maxUint256;
-
     // Load deployer
     await ethers.provider.send('hardhat_impersonateAccount', [initialZkEVMDeployerOwner]);
     await ethers.provider.send('hardhat_setBalance', [initialZkEVMDeployerOwner, '0xffffffffffffffff']); // 18 ethers aprox
@@ -84,65 +90,133 @@ async function main() {
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
     const [proxyAdminAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
 
-    // Get L1 address
+    if ((gasTokenAddress === '' || gasTokenAddress === '0x0000000000000000000000000000000000000000')) {
+        // deploy with ether as gasToken
+        balanceBrige = '200000000000000000000000000';
 
-    // get bridge impl
-    const polygonZkEVML1BridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
-    const deployTransactionBridgeL1 = (polygonZkEVML1BridgeFactory.getDeployTransaction()).data;
-    const L1ZkEVMBridgeImplementationAddress = getCreate2Address(
-        zkEVMDeployerContract,
-        salt,
-        deployTransactionBridgeL1,
-    );
+        // Deploy implementation PolygonZkEVMBridge
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
+        const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
+        // Mandatory to override the gasLimit since the estimation with create are mess up D:
+        const overrideGasLimit = ethers.BigNumber.from(5500000);
+        [bridgeImplementationAddress] = await create2Deployment(
+            zkEVMDeployerContract,
+            salt,
+            deployTransactionBridge,
+            null,
+            deployer,
+            overrideGasLimit,
+        );
+        finalBridgeProxyAddress = bridgeImplementationAddress;
 
-    // get bridge proxy
-    const transparentProxyFactoryL1 = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
-    const initializeEmptyDataProxyL1 = '0x';
-    const deployTransactionProxyL1 = (transparentProxyFactoryL1.getDeployTransaction(
-        L1ZkEVMBridgeImplementationAddress,
-        proxyAdminAddress,
-        initializeEmptyDataProxyL1,
-    )).data;
-    const L1ZkEVMBridgeProxyAddress = getCreate2Address(zkEVMDeployerContract, salt, deployTransactionProxyL1);
+        /*
+         * deploy proxy
+         * Do not initialize directlythe proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
+         */
+        const transparentProxyFactory = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
+        const initializeEmptyDataProxy = '0x';
+        const deployTransactionProxy = (transparentProxyFactory.getDeployTransaction(
+            bridgeImplementationAddress,
+            proxyAdminAddress,
+            initializeEmptyDataProxy,
+        )).data;
 
-    // Deploy implementation PolygonZkEVMBridge
-    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
-    const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
-    // Mandatory to override the gasLimit since the estimation with create are mess up D:
-    const overrideGasLimit = ethers.BigNumber.from(5500000);
-    const [bridgeImplementationAddress] = await create2Deployment(
-        zkEVMDeployerContract,
-        salt,
-        deployTransactionBridge,
-        null,
-        deployer,
-        overrideGasLimit,
-    );
+        const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData(
+            'initialize',
+            [
+                networkIDL2,
+                globalExitRootL2Address,
+                zkevmAddressL2,
+            ],
+        );
+        [proxyBridgeAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
+        finalBridgeProxyAddress = proxyBridgeAddress;
 
-    /*
-     * deploy proxy
-     * Do not initialize directlythe proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
-     */
-    const transparentProxyFactory = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
-    const initializeEmptyDataProxy = '0x';
-    const deployTransactionProxy = (transparentProxyFactory.getDeployTransaction(
-        bridgeImplementationAddress,
-        proxyAdminAddress,
-        initializeEmptyDataProxy,
-    )).data;
+        // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
+        await upgrades.forceImport(proxyBridgeAddress, polygonZkEVMBridgeFactory, 'transparent');
+    } else {
+        // deploy token as gasToken
+        balanceBrige = maxUint256;
 
-    const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData(
-        'initialize',
-        [
-            networkIDL2,
-            globalExitRootL2Address,
-            zkevmAddressL2,
-        ],
-    );
-    const [proxyBridgeAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
+        // Get L1 address
 
-    // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
-    await upgrades.forceImport(proxyBridgeAddress, polygonZkEVMBridgeFactory, 'transparent');
+        // get bridge impl
+        const polygonZkEVML1BridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
+        const deployTransactionBridgeL1 = (polygonZkEVML1BridgeFactory.getDeployTransaction()).data;
+        finalBridgeImplAddress = getCreate2Address(
+            zkEVMDeployerContract,
+            salt,
+            deployTransactionBridgeL1,
+        );
+
+        // get bridge proxy
+        const transparentProxyFactoryL1 = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
+        const initializeEmptyDataProxyL1 = '0x';
+        const deployTransactionProxyL1 = (transparentProxyFactoryL1.getDeployTransaction(
+            finalBridgeImplAddress,
+            proxyAdminAddress,
+            initializeEmptyDataProxyL1,
+        )).data;
+        finalBridgeProxyAddress = getCreate2Address(zkEVMDeployerContract, salt, deployTransactionProxyL1);
+
+        // Deploy WETH token
+        const WETHzkEVMFactory = await ethers.getContractFactory('WETHzkEVM', deployer);
+        const WETHToken = await WETHzkEVMFactory.deploy(finalBridgeProxyAddress);
+        await WETHToken.deployed();
+
+        // Deploy implementation PolygonZkEVMBridge
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeL2', deployer);
+        const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
+        // Mandatory to override the gasLimit since the estimation with create are mess up D:
+        const overrideGasLimit = ethers.BigNumber.from(5500000);
+        [bridgeImplementationAddress] = await create2Deployment(
+            zkEVMDeployerContract,
+            salt,
+            deployTransactionBridge,
+            null,
+            deployer,
+            overrideGasLimit,
+        );
+
+        /*
+         * deploy proxy
+         * Do not initialize directlythe proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
+         */
+        const transparentProxyFactory = await ethers.getContractFactory('TransparentUpgradeableProxy', deployer);
+        const initializeEmptyDataProxy = '0x';
+        const deployTransactionProxy = (transparentProxyFactory.getDeployTransaction(
+            bridgeImplementationAddress,
+            proxyAdminAddress,
+            initializeEmptyDataProxy,
+        )).data;
+
+        const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData(
+            'initialize',
+            [
+                networkIDL2,
+                globalExitRootL2Address,
+                zkevmAddressL2,
+                gasTokenAddress,
+                gasTokenNetwork,
+                WETHToken.address,
+            ],
+        );
+        [proxyBridgeAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
+
+        // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
+        await upgrades.forceImport(proxyBridgeAddress, polygonZkEVMBridgeFactory, 'transparent');
+
+        // Update genesis with the WETH token
+        const WETHInfo = await getAddressInfo(WETHToken.address);
+        genesis.push({
+            contractName: 'WETHzkEVM',
+            balance: '0',
+            nonce: WETHInfo.nonce.toString(),
+            address: WETHToken.address,
+            bytecode: WETHInfo.bytecode,
+            storage: WETHInfo.storage,
+        });
+    }
 
     /*
      *Deployment Global exit root manager
@@ -153,7 +227,7 @@ async function main() {
         try {
             polygonZkEVMGlobalExitRootL2 = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootL2Factory, [], {
                 initializer: false,
-                constructorArgs: [L1ZkEVMBridgeProxyAddress],
+                constructorArgs: [finalBridgeProxyAddress],
                 unsafeAllow: ['constructor', 'state-variable-immutable'],
             });
             break;
@@ -187,7 +261,6 @@ async function main() {
     await (await proxyAdminInstance.connect(deployer).transferOwnership(timelockContract.address)).wait();
 
     // Recreate genesis with the current information:
-    const genesis = [];
 
     // ZKEVMDeployer
     const zkEVMDeployerInfo = await getAddressInfo(zkEVMDeployerContract.address);
@@ -217,7 +290,7 @@ async function main() {
         contractName: 'PolygonZkEVMBridge implementation',
         balance: '0',
         nonce: bridgeImplementationInfo.nonce.toString(),
-        address: L1ZkEVMBridgeImplementationAddress, // override address
+        address: finalBridgeImplAddress, // override address
         bytecode: bridgeImplementationInfo.bytecode,
         // storage: bridgeImplementationInfo.storage, implementation do not have storage
     });
@@ -226,13 +299,13 @@ async function main() {
     const bridgeProxyInfo = await getAddressInfo(proxyBridgeAddress);
     // Override admin and implementation slots:
     bridgeProxyInfo.storage[_ADMIN_SLOT] = ethers.utils.hexZeroPad(proxyAdminAddress, 32);
-    bridgeProxyInfo.storage[_IMPLEMENTATION_SLOT] = ethers.utils.hexZeroPad(L1ZkEVMBridgeImplementationAddress, 32);
+    bridgeProxyInfo.storage[_IMPLEMENTATION_SLOT] = ethers.utils.hexZeroPad(finalBridgeImplAddress, 32);
 
     genesis.push({
         contractName: 'PolygonZkEVMBridge proxy',
         balance: balanceBrige,
         nonce: bridgeProxyInfo.nonce.toString(),
-        address: L1ZkEVMBridgeProxyAddress, // override adddress
+        address: finalBridgeProxyAddress, // override adddress
         bytecode: bridgeProxyInfo.bytecode,
         storage: bridgeProxyInfo.storage,
     });
