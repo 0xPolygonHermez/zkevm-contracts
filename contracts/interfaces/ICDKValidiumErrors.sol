@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-interface ISupernets2Errors {
+interface ICDKValidiumErrors {
     /**
      * @dev Thrown when the pending state timeout exceeds the _HALT_AGGREGATION_TIMEOUT
      */

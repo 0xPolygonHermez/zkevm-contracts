@@ -14,7 +14,7 @@ const {
     MemDB, ZkEVMDB, getPoseidon, smtUtils,
 } = require('@0xpolygonhermez/zkevm-commonjs');
 
-const { deploySupernets2Deployer, create2Deployment } = require('./helpers/deployment-helpers');
+const { deployCDKValidiumDeployer, create2Deployment } = require('./helpers/deployment-helpers');
 
 const deployParametersPath = argv.input ? argv.input : './deploy_parameters.json';
 const deployParameters = require(deployParametersPath);
@@ -34,14 +34,14 @@ async function main() {
     const attemptsDeployProxy = 20;
     const networkIDL2 = 1;
     const globalExitRootL2Address = '0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa';
-    const supernets2AddressL2 = ethers.constants.AddressZero;
+    const cdkValidiumAddressL2 = ethers.constants.AddressZero;
 
     // deploy parameters
     const mandatoryDeploymentParameters = [
         'timelockAddress',
         'minDelayTimelock',
         'salt',
-        'initialSupernets2DeployerOwner',
+        'initialCDKValidiumDeployerOwner',
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -54,16 +54,16 @@ async function main() {
         timelockAddress,
         minDelayTimelock,
         salt,
-        initialSupernets2DeployerOwner,
+        initialCDKValidiumDeployerOwner,
     } = deployParameters;
 
     // Load deployer
-    await ethers.provider.send('hardhat_impersonateAccount', [initialSupernets2DeployerOwner]);
-    await ethers.provider.send('hardhat_setBalance', [initialSupernets2DeployerOwner, '0xffffffffffffffff']); // 18 ethers aprox
-    const deployer = await ethers.getSigner(initialSupernets2DeployerOwner);
+    await ethers.provider.send('hardhat_impersonateAccount', [initialCDKValidiumDeployerOwner]);
+    await ethers.provider.send('hardhat_setBalance', [initialCDKValidiumDeployerOwner, '0xffffffffffffffff']); // 18 ethers aprox
+    const deployer = await ethers.getSigner(initialCDKValidiumDeployerOwner);
 
-    // Deploy Supernets2Deployer if is not deployed already
-    const [supernets2DeployerContract, keylessDeployer] = await deploySupernets2Deployer(initialSupernets2DeployerOwner, deployer);
+    // Deploy CDKValidiumDeployer if is not deployed already
+    const [cdkValidiumDeployerContract, keylessDeployer] = await deployCDKValidiumDeployer(initialCDKValidiumDeployerOwner, deployer);
 
     /*
      * Deploy Bridge
@@ -74,15 +74,15 @@ async function main() {
     const proxyAdminFactory = await ethers.getContractFactory('ProxyAdmin', deployer);
     const deployTransactionAdmin = (proxyAdminFactory.getDeployTransaction()).data;
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
-    const [proxyAdminAddress] = await create2Deployment(supernets2DeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
+    const [proxyAdminAddress] = await create2Deployment(cdkValidiumDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
 
-    // Deploy implementation Supernets2Bridg
+    // Deploy implementation PolygonZkEVMBridg
     const PolygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge', deployer);
     const deployTransactionBridge = (PolygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(5500000);
     const [bridgeImplementationAddress] = await create2Deployment(
-        supernets2DeployerContract,
+        cdkValidiumDeployerContract,
         salt,
         deployTransactionBridge,
         null,
@@ -107,10 +107,10 @@ async function main() {
         [
             networkIDL2,
             globalExitRootL2Address,
-            supernets2AddressL2,
+            cdkValidiumAddressL2,
         ],
     );
-    const [proxyBridgeAddress] = await create2Deployment(supernets2DeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
+    const [proxyBridgeAddress] = await create2Deployment(cdkValidiumDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
 
     // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
     await upgrades.forceImport(proxyBridgeAddress, PolygonZkEVMBridgeFactory, 'transparent');
@@ -143,13 +143,13 @@ async function main() {
     expect(await upgrades.erc1967.getAdminAddress(PolygonZkEVMGlobalExitRootL2.address)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
-    const timelockContractFactory = await ethers.getContractFactory('Supernets2Timelock', deployer);
+    const timelockContractFactory = await ethers.getContractFactory('CDKValidiumTimelock', deployer);
     const timelockContract = await timelockContractFactory.deploy(
         minDelayTimelock,
         [timelockAddress],
         [timelockAddress],
         timelockAddress,
-        supernets2AddressL2,
+        cdkValidiumAddressL2,
     );
     await timelockContract.deployed();
 
@@ -160,15 +160,15 @@ async function main() {
     // Recreate genesis with the current information:
     const genesis = [];
 
-    // Supernets2Deployer
-    const supernets2DeployerInfo = await getAddressInfo(supernets2DeployerContract.address);
+    // CDKValidiumDeployer
+    const cdkValidiumDeployerInfo = await getAddressInfo(cdkValidiumDeployerContract.address);
     genesis.push({
-        contractName: 'Supernets2Deployer',
+        contractName: 'CDKValidiumDeployer',
         balance: '0',
-        nonce: supernets2DeployerInfo.nonce.toString(),
-        address: supernets2DeployerContract.address,
-        bytecode: supernets2DeployerInfo.bytecode,
-        storage: supernets2DeployerInfo.storage,
+        nonce: cdkValidiumDeployerInfo.nonce.toString(),
+        address: cdkValidiumDeployerContract.address,
+        bytecode: cdkValidiumDeployerInfo.bytecode,
+        storage: cdkValidiumDeployerInfo.storage,
     });
 
     // Proxy Admin
@@ -266,7 +266,7 @@ async function main() {
     }
 
     genesis.push({
-        contractName: 'Supernets2Timelock',
+        contractName: 'CDKValidiumTimelock',
         balance: '0',
         nonce: timelockInfo.nonce.toString(),
         address: timelockContract.address,

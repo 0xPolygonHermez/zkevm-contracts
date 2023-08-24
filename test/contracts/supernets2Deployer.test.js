@@ -2,10 +2,10 @@
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 
-describe('Supernets2 Deployer', () => {
+describe('CDKValidium Deployer', () => {
     let deployer; let
         owner;
-    let supernets2DeployerContract;
+    let cdkValidiumDeployerContract;
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
@@ -18,15 +18,15 @@ describe('Supernets2 Deployer', () => {
         [deployer, owner] = await ethers.getSigners();
 
         // deploy mock verifier
-        const Supernets2DeployerFactory = await ethers.getContractFactory(
-            'Supernets2Deployer',
+        const CDKValidiumDeployerFactory = await ethers.getContractFactory(
+            'CDKValidiumDeployer',
         );
-        supernets2DeployerContract = await Supernets2DeployerFactory.deploy(owner.address);
-        await supernets2DeployerContract.deployed();
+        cdkValidiumDeployerContract = await CDKValidiumDeployerFactory.deploy(owner.address);
+        await cdkValidiumDeployerContract.deployed();
     });
 
     it('should check the owner', async () => {
-        expect(await supernets2DeployerContract.owner()).to.be.equal(owner.address);
+        expect(await cdkValidiumDeployerContract.owner()).to.be.equal(owner.address);
     });
 
     it('should check to deploy a simple contract and call it', async () => {
@@ -46,63 +46,63 @@ describe('Supernets2 Deployer', () => {
         const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransactionERC20]);
 
         // Precalculate create2 address
-        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(supernets2DeployerContract.address, salt, hashInitCode);
-        expect(await supernets2DeployerContract.predictDeterministicAddress(
+        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(cdkValidiumDeployerContract.address, salt, hashInitCode);
+        expect(await cdkValidiumDeployerContract.predictDeterministicAddress(
             salt,
             hashInitCode,
         )).to.be.equal(precalculateTokenDeployed);
 
         const amount = 0;
-        await expect(supernets2DeployerContract.connect(deployer).deployDeterministic(
+        await expect(cdkValidiumDeployerContract.connect(deployer).deployDeterministic(
             amount,
             salt,
             deployTransactionERC20,
         )).to.be.revertedWith('Ownable');
 
         // Deploy using create2
-        await expect(supernets2DeployerContract.connect(owner).deployDeterministic(
+        await expect(cdkValidiumDeployerContract.connect(owner).deployDeterministic(
             amount,
             salt,
             deployTransactionERC20,
-        )).to.emit(supernets2DeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
+        )).to.emit(cdkValidiumDeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
 
         const dataCall = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.utils.parseEther('1')]);
         // Check deployed contract
         const instanceToken = OZERC20PresetFactory.attach(precalculateTokenDeployed);
         expect(await instanceToken.balanceOf(owner.address)).to.be.equal(maticTokenInitialBalance);
 
-        await expect(supernets2DeployerContract.functionCall(
+        await expect(cdkValidiumDeployerContract.functionCall(
             precalculateTokenDeployed,
             dataCall,
             1, // amount
         )).to.be.revertedWith('Ownable');
 
-        await expect(supernets2DeployerContract.connect(owner).functionCall(
+        await expect(cdkValidiumDeployerContract.connect(owner).functionCall(
             precalculateTokenDeployed,
             dataCall,
             1, // amount
         )).to.be.revertedWith('Address: insufficient balance for call');
 
-        await expect(supernets2DeployerContract.connect(owner).functionCall(
+        await expect(cdkValidiumDeployerContract.connect(owner).functionCall(
             precalculateTokenDeployed,
             dataCall,
             1, // amount
             { value: 1 },
         )).to.be.revertedWith('Address: low-level call with value failed');
 
-        await expect(supernets2DeployerContract.connect(owner).functionCall(
+        await expect(cdkValidiumDeployerContract.connect(owner).functionCall(
             precalculateTokenDeployed,
             dataCall,
             0,
         )).to.be.revertedWith('ERC20: transfer amount exceeds balance');
 
         // Transfer tokens first
-        await instanceToken.connect(owner).transfer(supernets2DeployerContract.address, ethers.utils.parseEther('1'));
-        await expect(supernets2DeployerContract.connect(owner).functionCall(
+        await instanceToken.connect(owner).transfer(cdkValidiumDeployerContract.address, ethers.utils.parseEther('1'));
+        await expect(cdkValidiumDeployerContract.connect(owner).functionCall(
             precalculateTokenDeployed,
             dataCall,
             0, // amount
-        )).to.emit(supernets2DeployerContract, 'FunctionCall');
+        )).to.emit(cdkValidiumDeployerContract, 'FunctionCall');
     });
 
     it('should check to deploy a simple contract and call it', async () => {
@@ -117,20 +117,20 @@ describe('Supernets2 Deployer', () => {
             maticTokenName,
             maticTokenSymbol,
             maticTokenInitialBalance,
-            supernets2DeployerContract.address,
+            cdkValidiumDeployerContract.address,
         )).data;
 
         const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransactionERC20]);
 
         // Precalculate create2 address
-        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(supernets2DeployerContract.address, salt, hashInitCode);
+        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(cdkValidiumDeployerContract.address, salt, hashInitCode);
         const dataCall = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.utils.parseEther('1')]);
         const amount = 0;
 
         const dataCallFail = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.utils.parseEther('20000001')]);
 
         // Cannot fails internal call, contract not deployed
-        await expect(supernets2DeployerContract.connect(owner).deployDeterministicAndCall(
+        await expect(cdkValidiumDeployerContract.connect(owner).deployDeterministicAndCall(
             amount,
             salt,
             deployTransactionERC20,
@@ -138,18 +138,18 @@ describe('Supernets2 Deployer', () => {
         )).to.be.revertedWith('ERC20: transfer amount exceeds balance');
 
         // Deploy using create2
-        await expect(supernets2DeployerContract.connect(owner).deployDeterministicAndCall(
+        await expect(cdkValidiumDeployerContract.connect(owner).deployDeterministicAndCall(
             amount,
             salt,
             deployTransactionERC20,
             dataCall,
-        )).to.emit(supernets2DeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
+        )).to.emit(cdkValidiumDeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
 
         const instanceToken = OZERC20PresetFactory.attach(precalculateTokenDeployed);
         expect(await instanceToken.balanceOf(owner.address)).to.be.equal(ethers.utils.parseEther('1'));
 
         // Cannot create 2 times the same contract
-        await expect(supernets2DeployerContract.connect(owner).deployDeterministicAndCall(
+        await expect(cdkValidiumDeployerContract.connect(owner).deployDeterministicAndCall(
             amount,
             salt,
             deployTransactionERC20,
@@ -158,11 +158,11 @@ describe('Supernets2 Deployer', () => {
     });
 
     it('Test keyless deployment', async () => {
-        const Supernets2DeployerFactory = await ethers.getContractFactory(
-            'Supernets2Deployer',
+        const CDKValidiumDeployerFactory = await ethers.getContractFactory(
+            'CDKValidiumDeployer',
         );
 
-        const deployTxSupernets2Deployer = (Supernets2DeployerFactory.getDeployTransaction(
+        const deployTxCDKValidiumDeployer = (CDKValidiumDeployerFactory.getDeployTransaction(
             owner.address,
         )).data;
 
@@ -175,7 +175,7 @@ describe('Supernets2 Deployer', () => {
             value: 0,
             gasLimit: gasLimit.toHexString(),
             gasPrice: gasPrice.toHexString(),
-            data: deployTxSupernets2Deployer,
+            data: deployTxCDKValidiumDeployer,
         };
 
         const signature = {
@@ -192,13 +192,13 @@ describe('Supernets2 Deployer', () => {
             to: resultTransaction.from,
             value: totalEther.toHexString(),
         };
-        const supernets2DeployerAddress = ethers.utils.getContractAddress(resultTransaction);
+        const cdkValidium2DeployerAddress = ethers.utils.getContractAddress(resultTransaction);
 
         await deployer.sendTransaction(params);
         await ethers.provider.sendTransaction(serializedTransaction);
 
-        const _supernets2DeployerContract = Supernets2DeployerFactory.attach(supernets2DeployerAddress);
-        expect(await _supernets2DeployerContract.owner()).to.be.equal(owner.address);
+        const _cdkValidiumDeployerContract = CDKValidiumDeployerFactory.attach(cdkValidium2DeployerAddress);
+        expect(await _cdkValidiumDeployerContract.owner()).to.be.equal(owner.address);
     });
     it('Test Bridge deployment', async () => {
         const bridgeFactory = await ethers.getContractFactory(
@@ -212,8 +212,8 @@ describe('Supernets2 Deployer', () => {
         const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransactionBridge]);
 
         // Precalculate create2 address
-        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(supernets2DeployerContract.address, salt, hashInitCode);
-        expect(await supernets2DeployerContract.predictDeterministicAddress(
+        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(cdkValidiumDeployerContract.address, salt, hashInitCode);
+        expect(await cdkValidiumDeployerContract.predictDeterministicAddress(
             salt,
             hashInitCode,
         )).to.be.equal(precalculateTokenDeployed);
@@ -221,7 +221,7 @@ describe('Supernets2 Deployer', () => {
         const amount = 0;
 
         // Deploy using create2
-        const populatedTransaction = await supernets2DeployerContract.connect(owner).populateTransaction.deployDeterministic(
+        const populatedTransaction = await cdkValidiumDeployerContract.connect(owner).populateTransaction.deployDeterministic(
             amount,
             salt,
             deployTransactionBridge,
@@ -229,6 +229,6 @@ describe('Supernets2 Deployer', () => {
 
         populatedTransaction.gasLimit = ethers.BigNumber.from(6000000); // Should be more than enough with 5M
         await expect(owner.sendTransaction(populatedTransaction))
-            .to.emit(supernets2DeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
+            .to.emit(cdkValidiumDeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
     });
 });

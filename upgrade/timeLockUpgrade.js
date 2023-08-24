@@ -46,15 +46,15 @@ async function main() {
     const proxyAdmin = await upgrades.admin.getInstance();
     const output = [];
 
-    // Upgrade supernets2
+    // Upgrade cdkValidium
     for (const upgrade of upgradeParameters.upgrades) {
         const proxyPolygonAddress = upgrade.address;
-        const supernets2Factory = await ethers.getContractFactory(upgrade.contractName, deployer);
+        const cdkValidiumFactory = await ethers.getContractFactory(upgrade.contractName, deployer);
 
         let newImplPolygonAddress;
 
         if (upgrade.constructorArgs) {
-            newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, supernets2Factory,
+            newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, cdkValidiumFactory,
                 {
                     constructorArgs: upgrade.constructorArgs,
                     unsafeAllow: ['constructor', 'state-variable-immutable'],
@@ -66,7 +66,7 @@ async function main() {
             console.log(`npx hardhat verify --constructor-args upgrade/arguments.js ${newImplPolygonAddress} --network ${process.env.HARDHAT_NETWORK}\n`);
             console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", upgrade.constructorArgs)
         } else {
-            newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, supernets2Factory);
+            newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, cdkValidiumFactory);
 
             console.log({ newImplPolygonAddress });
             console.log("you can verify the new impl address with:")
@@ -86,7 +86,7 @@ async function main() {
                     [
                         proxyPolygonAddress,
                         newImplPolygonAddress,
-                        supernets2Factory.interface.encodeFunctionData(
+                        cdkValidiumFactory.interface.encodeFunctionData(
                             upgrade.callAfterUpgrade.functionName,
                             upgrade.callAfterUpgrade.arguments,
                         )
@@ -112,7 +112,7 @@ async function main() {
         }
 
         // Timelock operations
-        const TimelockFactory = await ethers.getContractFactory('Supernets2Timelock', deployer);
+        const TimelockFactory = await ethers.getContractFactory('CDKValidiumTimelock', deployer);
         const minDelay = upgradeParameters.timelockMinDelay || 0;
 
         // Schedule operation

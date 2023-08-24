@@ -1,8 +1,8 @@
 # suppernets2-contracts
 
-Smart contract implementation which will be used by Supernets2
+Smart contract implementation which will be used by CDK chains with Validium configuration
 
-[![Main CI](https://github.com/0xPolygon/supernets2-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygon/supernets2-contracts/actions/workflows/main.yml)
+[![Main CI](https://github.com/0xPolygon/cdk-validium-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygon/cdk-validium-contracts/actions/workflows/main.yml)
 
 ## Note
 
@@ -19,7 +19,7 @@ Private keys and mnemonics contained in this repository are used for internal te
   - `PolygonZkEVMBridge.sol`: transfer assets between chains
     - `PolygonZkEVMGlobalExitRoot.sol`: manage global exit root in L1
     - `PolygonZkEVMGlobalExitRootL2.sol`: manage global exit root in L2
-  - `Supernets2.sol`: consensus algorithm used by supernets2
+  - `CDKValidium.sol`: consensus algorithm used by validium CDK chains
 - `docs`: specs and useful links
 - `test`: contracts tests
 
@@ -61,10 +61,10 @@ npm run lint:fix
 npm run docker:contracts
 ```
 
-A new docker `hermeznetwork/geth-supernets2-contracts` will be created
+A new docker `hermeznetwork/geth-cdk-validium-contracts` will be created
 This docker will contain a geth node with the deployed contracts
 The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`
-To run the docker you can use: `docker run -p 8545:8545 hermeznetwork/geth-supernets2-contracts`
+To run the docker you can use: `docker run -p 8545:8545 hermeznetwork/geth-cdk-validium-contracts`
 
 ## Note
 

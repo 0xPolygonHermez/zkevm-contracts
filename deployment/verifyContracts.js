@@ -62,7 +62,7 @@ async function main() {
                     [timelockAddress],
                     [timelockAddress],
                     timelockAddress,
-                    deployOutputParameters.supernets2Address,
+                    deployOutputParameters.cdkValidiumAddress,
                 ],
             },
         );
@@ -82,18 +82,18 @@ async function main() {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
-    // verify supernets2 address
+    // verify cdkValidium address
     try {
         await hre.run(
             'verify:verify',
             {
-                address: deployOutputParameters.supernets2Address,
+                address: deployOutputParameters.cdkValidiumAddress,
                 constructorArguments: [
                     deployOutputParameters.PolygonZkEVMGlobalExitRootAddress,
                     deployOutputParameters.maticTokenAddress,
                     deployOutputParameters.verifierAddress,
                     deployOutputParameters.PolygonZkEVMBridgeAddress,
-                    deployOutputParameters.supernets2DataCommitteeContract,
+                    deployOutputParameters.cdkDataCommitteeContract,
                     deployOutputParameters.chainID,
                     deployOutputParameters.forkID,
                 ],
@@ -110,7 +110,7 @@ async function main() {
             {
                 address: deployOutputParameters.PolygonZkEVMGlobalExitRootAddress,
                 constructorArguments: [
-                    deployOutputParameters.supernets2Address,
+                    deployOutputParameters.cdkValidiumAddress,
                     deployOutputParameters.PolygonZkEVMBridgeAddress,
                 ],
             },

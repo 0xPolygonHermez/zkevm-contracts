@@ -3,7 +3,7 @@
     "upgrades": [
         {
             "address": "0xEfF10DB3c6445FB06411c6fc74fDCC8D1019aC7d",
-            "contractName": "Supernets2TestnetV2",
+            "contractName": "CDKValidiumTestnetV2",
             "constructorArgs": [
                 "0x6407cf296a27B38fd29c401518504D388F1DFB3d",
                 "0xF1b13757bcF3EF902a7847f409A6068BA43a89D4",

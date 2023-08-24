@@ -6,9 +6,9 @@ import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * Contract responsible for deploying deterministic address contracts related with the Supernets2
+ * Contract responsible for deploying deterministic address contracts related with the CDKValidium
  */
-contract Supernets2Deployer is Ownable {
+contract CDKValidiumDeployer is Ownable {
     /**
      * @param _owner Owner
      */

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-interface ISupernets2DataCommitteeErrors {
+interface ICDKDataCommitteeErrors {
     /**
      * @dev Thrown when the addres bytes doesn't have the expected length
      */

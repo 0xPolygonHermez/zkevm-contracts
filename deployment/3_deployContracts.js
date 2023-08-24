@@ -48,11 +48,11 @@ async function main() {
         'trustedAggregatorTimeout',
         'pendingStateTimeout',
         'forkID',
-        'supernets2Owner',
+        'cdkValidiumOwner',
         'timelockAddress',
         'minDelayTimelock',
         'salt',
-        'supernets2DeployerAddress',
+        'cdkValidium2DeployerAddress',
         'maticTokenAddress',
         'setupEmptyCommittee',
         'committeeTimelock',
@@ -76,11 +76,11 @@ async function main() {
         trustedAggregatorTimeout,
         pendingStateTimeout,
         forkID,
-        supernets2Owner,
+        cdkValidiumOwner,
         timelockAddress,
         minDelayTimelock,
         salt,
-        supernets2DeployerAddress,
+        cdkValidium2DeployerAddress,
         maticTokenAddress,
         setupEmptyCommittee,
         committeeTimelock,
@@ -124,15 +124,15 @@ async function main() {
         [deployer] = (await ethers.getSigners());
     }
 
-    // Load supernets2 deployer
-    const Supernets2DeployerFactory = await ethers.getContractFactory('Supernets2Deployer', deployer);
-    const supernets2DeployerContract = Supernets2DeployerFactory.attach(supernets2DeployerAddress);
+    // Load cdkValidium deployer
+    const CDKValidiumDeployerFactory = await ethers.getContractFactory('CDKValidiumDeployer', deployer);
+    const cdkValidiumDeployerContract = CDKValidiumDeployerFactory.attach(cdkValidium2DeployerAddress);
 
     // check deployer is the owner of the deployer
-    if (await deployer.provider.getCode(supernets2DeployerContract.address) === '0x') {
-        throw new Error('supernets2 deployer contract is not deployed');
+    if (await deployer.provider.getCode(cdkValidiumDeployerContract.address) === '0x') {
+        throw new Error('cdkValidium deployer contract is not deployed');
     }
-    expect(deployer.address).to.be.equal(await supernets2DeployerContract.owner());
+    expect(deployer.address).to.be.equal(await cdkValidiumDeployerContract.owner());
 
     let verifierContract;
     if (!ongoingDeployment.verifierContract) {
@@ -167,7 +167,7 @@ async function main() {
     const deployTransactionAdmin = (proxyAdminFactory.getDeployTransaction()).data;
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
     const [proxyAdminAddress, isProxyAdminDeployed] = await create2Deployment(
-        supernets2DeployerContract,
+        cdkValidiumDeployerContract,
         salt,
         deployTransactionAdmin,
         dataCallAdmin,
@@ -189,7 +189,7 @@ async function main() {
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = ethers.BigNumber.from(5500000);
     const [bridgeImplementationAddress, isBridgeImplDeployed] = await create2Deployment(
-        supernets2DeployerContract,
+        cdkValidiumDeployerContract,
         salt,
         deployTransactionBridge,
         dataCallNull,
@@ -224,25 +224,25 @@ async function main() {
     const nonceDelta = 4 + (setupEmptyCommittee ? 1 : 0);
     const nonceProxyGlobalExitRoot = Number((await ethers.provider.getTransactionCount(deployer.address)))
         + nonceDelta;
-    // nonceProxySupernets2 :Nonce globalExitRoot + 1 (proxy globalExitRoot) + 1 (impl supernets) = +2
-    const nonceProxySupernets2 = nonceProxyGlobalExitRoot + 2;
+    // nonceProxyCDKValidium :Nonce globalExitRoot + 1 (proxy globalExitRoot) + 1 (impl cdk) = +2
+    const nonceProxyCDKValidium = nonceProxyGlobalExitRoot + 2;
 
     let precalculateGLobalExitRootAddress; let
-        precalculateSupernets2Address;
+        precalculateCDKValidiumAddress;
 
     // Check if the contract is already deployed
-    if (ongoingDeployment.PolygonZkEVMGlobalExitRoot && ongoingDeployment.supernets2Contract) {
+    if (ongoingDeployment.PolygonZkEVMGlobalExitRoot && ongoingDeployment.cdkValidiumContract) {
         precalculateGLobalExitRootAddress = ongoingDeployment.PolygonZkEVMGlobalExitRoot;
-        precalculateSupernets2Address = ongoingDeployment.supernets2Contract;
+        precalculateCDKValidiumAddress = ongoingDeployment.cdkValidiumContract;
     } else {
         // If both are not deployed, it's better to deploy them both again
         delete ongoingDeployment.PolygonZkEVMGlobalExitRoot;
-        delete ongoingDeployment.supernets2Contract;
+        delete ongoingDeployment.cdkValidiumContract;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
 
         // Contracts are not deployed, normal deployment
         precalculateGLobalExitRootAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyGlobalExitRoot });
-        precalculateSupernets2Address = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxySupernets2 });
+        precalculateCDKValidiumAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyCDKValidium });
     }
 
     const dataCallProxy = PolygonZkEVMBridgeFactory.interface.encodeFunctionData(
@@ -250,11 +250,11 @@ async function main() {
         [
             networkIDMainnet,
             precalculateGLobalExitRootAddress,
-            precalculateSupernets2Address,
+            precalculateCDKValidiumAddress,
         ],
     );
     const [proxyBridgeAddress, isBridgeProxyDeployed] = await create2Deployment(
-        supernets2DeployerContract,
+        cdkValidiumDeployerContract,
         salt,
         deployTransactionProxy,
         dataCallProxy,
@@ -271,7 +271,7 @@ async function main() {
 
         // If it was already deployed, check that the initialized calldata matches the actual deployment
         expect(precalculateGLobalExitRootAddress).to.be.equal(await PolygonZkEVMBridgeContract.globalExitRootManager());
-        expect(precalculateSupernets2Address).to.be.equal(await PolygonZkEVMBridgeContract.polygonZkEVMaddress());
+        expect(precalculateCDKValidiumAddress).to.be.equal(await PolygonZkEVMBridgeContract.polygonZkEVMaddress());
     }
 
     console.log('\n#######################');
@@ -279,7 +279,7 @@ async function main() {
     console.log('#######################');
     console.log('PolygonZkEVMGlobalExitRootAddress:', await PolygonZkEVMBridgeContract.globalExitRootManager());
     console.log('networkID:', await PolygonZkEVMBridgeContract.networkID());
-    console.log('supernets2address:', await PolygonZkEVMBridgeContract.polygonZkEVMaddress());
+    console.log('cdkValidiumaddress:', await PolygonZkEVMBridgeContract.polygonZkEVMaddress());
 
     // Import OZ manifest the deployed contracts, its enough to import just the proxy, the rest are imported automatically (admin/impl)
     await upgrades.forceImport(proxyBridgeAddress, PolygonZkEVMBridgeFactory, 'transparent');
@@ -287,34 +287,34 @@ async function main() {
     /*
      * Deployment Data Committee
      */
-    let supernets2DataCommitteeContract;
-    const Supernets2DataCommitteeContractFactory = await ethers.getContractFactory('Supernets2DataCommittee', deployer);
+    let cdkDataCommitteeContract;
+    const CDKValidiumDataCommitteeContractFactory = await ethers.getContractFactory('CDKValidiumDataCommittee', deployer);
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
-            supernets2DataCommitteeContract = await upgrades.deployProxy(
-                Supernets2DataCommitteeContractFactory,
+            cdkDataCommitteeContract = await upgrades.deployProxy(
+                CDKValidiumDataCommitteeContractFactory,
                 [],
             );
             break;
         } catch (error) {
             console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of supernets2DataCommitteeContract ', error.message);
+            console.log('upgrades.deployProxy of cdkDataCommitteeContract ', error.message);
         }
 
         // reach limits of attempts
         if (i + 1 === attemptsDeployProxy) {
-            throw new Error('supernets2DataCommitteeContract contract has not been deployed');
+            throw new Error('cdkDataCommitteeContract contract has not been deployed');
         }
     }
 
     console.log('#######################\n');
-    console.log('supernets2DataCommittee deployed to:', supernets2DataCommitteeContract.address);
+    console.log('cdkDataCommittee deployed to:', cdkDataCommitteeContract.address);
 
     if (setupEmptyCommittee) {
         const expectedHash = ethers.utils.solidityKeccak256(['bytes'], [[]]);
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(0, [], []))
-            .to.emit(supernets2DataCommitteeContract, 'CommitteeUpdated')
+            .to.emit(cdkDataCommitteeContract, 'CommitteeUpdated')
             .withArgs(expectedHash);
         console.log('Empty committee seted up');
     }
@@ -329,7 +329,7 @@ async function main() {
             try {
                 PolygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
                     initializer: false,
-                    constructorArgs: [precalculateSupernets2Address, proxyBridgeAddress],
+                    constructorArgs: [precalculateCDKValidiumAddress, proxyBridgeAddress],
                     unsafeAllow: ['constructor', 'state-variable-immutable'],
                 });
                 break;
@@ -366,14 +366,14 @@ async function main() {
 
         // Check against current deployment
         expect(PolygonZkEVMBridgeContract.address).to.be.equal(await PolygonZkEVMBridgeContract.bridgeAddress());
-        expect(precalculateSupernets2Address).to.be.equal(await PolygonZkEVMBridgeContract.rollupAddress());
+        expect(precalculateCDKValidiumAddress).to.be.equal(await PolygonZkEVMBridgeContract.rollupAddress());
     }
 
-    // deploy Supernets2M
+    // deploy CDKValidium
     const genesisRootHex = genesis.root;
 
     console.log('\n#######################');
-    console.log('##### Deployment Supernets2 #####');
+    console.log('##### Deployment CDKValidium #####');
     console.log('#######################');
     console.log('deployer:', deployer.address);
     console.log('PolygonZkEVMGlobalExitRootAddress:', PolygonZkEVMGlobalExitRoot.address);
@@ -393,15 +393,15 @@ async function main() {
     console.log('networkName:', networkName);
     console.log('forkID:', forkID);
 
-    const Supernets2Factory = await ethers.getContractFactory('Supernets2', deployer);
+    const CDKValidiumFactory = await ethers.getContractFactory('CDKValidium', deployer);
 
-    let supernets2Contract;
+    let cdkValidiumContract;
     let deploymentBlockNumber;
-    if (!ongoingDeployment.supernets2Contract) {
+    if (!ongoingDeployment.cdkValidiumContract) {
         for (let i = 0; i < attemptsDeployProxy; i++) {
             try {
-                supernets2Contract = await upgrades.deployProxy(
-                    Supernets2Factory,
+                cdkValidiumContract = await upgrades.deployProxy(
+                    CDKValidiumFactory,
                     [
                         {
                             admin,
@@ -421,7 +421,7 @@ async function main() {
                             maticTokenAddress,
                             verifierContract.address,
                             PolygonZkEVMBridgeContract.address,
-                            supernets2DataCommitteeContract.address,
+                            cdkDataCommitteeContract.address,
                             chainID,
                             forkID,
                         ],
@@ -431,82 +431,82 @@ async function main() {
                 break;
             } catch (error) {
                 console.log(`attempt ${i}`);
-                console.log('upgrades.deployProxy of supernets2Contract ', error.message);
+                console.log('upgrades.deployProxy of cdkValidiumContract ', error.message);
             }
 
             // reach limits of attempts
             if (i + 1 === attemptsDeployProxy) {
-                throw new Error('Supernets2 contract has not been deployed');
+                throw new Error('CDKValidium contract has not been deployed');
             }
         }
 
-        expect(precalculateSupernets2Address).to.be.equal(supernets2Contract.address);
+        expect(precalculateCDKValidiumAddress).to.be.equal(cdkValidiumContract.address);
 
         console.log('#######################\n');
-        console.log('supernets2Contract deployed to:', supernets2Contract.address);
+        console.log('cdkValidiumContract deployed to:', cdkValidiumContract.address);
 
         // save an ongoing deployment
-        ongoingDeployment.supernets2Contract = supernets2Contract.address;
+        ongoingDeployment.cdkValidiumContract = cdkValidiumContract.address;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
 
-        // Transfer ownership of supernets2Contract
-        if (supernets2Owner !== deployer.address) {
-            await (await supernets2Contract.transferOwnership(supernets2Owner)).wait();
+        // Transfer ownership of cdkValidiumContract
+        if (cdkValidiumOwner !== deployer.address) {
+            await (await cdkValidiumContract.transferOwnership(cdkValidiumOwner)).wait();
         }
 
-        deploymentBlockNumber = (await supernets2Contract.deployTransaction.wait()).blockNumber;
+        deploymentBlockNumber = (await cdkValidiumContract.deployTransaction.wait()).blockNumber;
     } else {
         // Expect the precalculate address matches de onogin deployment, sanity check
-        expect(precalculateSupernets2Address).to.be.equal(ongoingDeployment.supernets2Contract);
-        supernets2Contract = Supernets2Factory.attach(ongoingDeployment.supernets2Contract);
+        expect(precalculateCDKValidiumAddress).to.be.equal(ongoingDeployment.cdkValidiumContract);
+        cdkValidiumContract = CDKValidiumFactory.attach(ongoingDeployment.cdkValidiumContract);
 
         console.log('#######################\n');
-        console.log('supernets2Contract already deployed on: ', ongoingDeployment.supernets2Contract);
+        console.log('cdkValidiumContract already deployed on: ', ongoingDeployment.cdkValidiumContract);
 
         // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
-        await upgrades.forceImport(ongoingDeployment.supernets2Contract, Supernets2Factory, 'transparent');
+        await upgrades.forceImport(ongoingDeployment.cdkValidiumContract, CDKValidiumFactory, 'transparent');
 
-        const supernets2OwnerContract = await supernets2Contract.owner();
-        if (supernets2OwnerContract === deployer.address) {
-            // Transfer ownership of supernets2Contract
-            if (supernets2Owner !== deployer.address) {
-                await (await supernets2Contract.transferOwnership(supernets2Owner)).wait();
+        const cdkValidiumOwnerContract = await cdkValidiumContract.owner();
+        if (cdkValidiumOwnerContract === deployer.address) {
+            // Transfer ownership of cdkValidiumContract
+            if (cdkValidiumOwner !== deployer.address) {
+                await (await cdkValidiumContract.transferOwnership(cdkValidiumOwner)).wait();
             }
         } else {
-            expect(supernets2Owner).to.be.equal(supernets2OwnerContract);
+            expect(cdkValidiumOwner).to.be.equal(cdkValidiumOwnerContract);
         }
         deploymentBlockNumber = 0;
     }
 
     console.log('\n#######################');
-    console.log('#####    Checks  Supernets2  #####');
+    console.log('#####    Checks  CDKValidium  #####');
     console.log('#######################');
-    console.log('PolygonZkEVMGlobalExitRootAddress:', await supernets2Contract.globalExitRootManager());
-    console.log('maticTokenAddress:', await supernets2Contract.matic());
-    console.log('verifierAddress:', await supernets2Contract.rollupVerifier());
-    console.log('PolygonZkEVMBridgeContract:', await supernets2Contract.bridgeAddress());
+    console.log('PolygonZkEVMGlobalExitRootAddress:', await cdkValidiumContract.globalExitRootManager());
+    console.log('maticTokenAddress:', await cdkValidiumContract.matic());
+    console.log('verifierAddress:', await cdkValidiumContract.rollupVerifier());
+    console.log('PolygonZkEVMBridgeContract:', await cdkValidiumContract.bridgeAddress());
 
-    console.log('admin:', await supernets2Contract.admin());
-    console.log('chainID:', await supernets2Contract.chainID());
-    console.log('trustedSequencer:', await supernets2Contract.trustedSequencer());
-    console.log('pendingStateTimeout:', await supernets2Contract.pendingStateTimeout());
-    console.log('trustedAggregator:', await supernets2Contract.trustedAggregator());
-    console.log('trustedAggregatorTimeout:', await supernets2Contract.trustedAggregatorTimeout());
+    console.log('admin:', await cdkValidiumContract.admin());
+    console.log('chainID:', await cdkValidiumContract.chainID());
+    console.log('trustedSequencer:', await cdkValidiumContract.trustedSequencer());
+    console.log('pendingStateTimeout:', await cdkValidiumContract.pendingStateTimeout());
+    console.log('trustedAggregator:', await cdkValidiumContract.trustedAggregator());
+    console.log('trustedAggregatorTimeout:', await cdkValidiumContract.trustedAggregatorTimeout());
 
-    console.log('genesiRoot:', await supernets2Contract.batchNumToStateRoot(0));
-    console.log('trustedSequencerURL:', await supernets2Contract.trustedSequencerURL());
-    console.log('networkName:', await supernets2Contract.networkName());
-    console.log('owner:', await supernets2Contract.owner());
-    console.log('forkID:', await supernets2Contract.forkID());
+    console.log('genesiRoot:', await cdkValidiumContract.batchNumToStateRoot(0));
+    console.log('trustedSequencerURL:', await cdkValidiumContract.trustedSequencerURL());
+    console.log('networkName:', await cdkValidiumContract.networkName());
+    console.log('owner:', await cdkValidiumContract.owner());
+    console.log('forkID:', await cdkValidiumContract.forkID());
 
     // Assert admin address
-    expect(await upgrades.erc1967.getAdminAddress(precalculateSupernets2Address)).to.be.equal(proxyAdminAddress);
+    expect(await upgrades.erc1967.getAdminAddress(precalculateCDKValidiumAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(precalculateGLobalExitRootAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
     const proxyAdminInstance = proxyAdminFactory.attach(proxyAdminAddress);
     const proxyAdminOwner = await proxyAdminInstance.owner();
-    const timelockContractFactory = await ethers.getContractFactory('Supernets2Timelock', deployer);
+    const timelockContractFactory = await ethers.getContractFactory('CDKValidiumTimelock', deployer);
 
     // TODO test stop here
 
@@ -514,7 +514,7 @@ async function main() {
     if (proxyAdminOwner !== deployer.address) {
         // Check if there's a timelock deployed there that match the current deployment
         timelockContract = timelockContractFactory.attach(proxyAdminOwner);
-        expect(precalculateSupernets2Address).to.be.equal(await timelockContract.supernets2());
+        expect(precalculateCDKValidiumAddress).to.be.equal(await timelockContract.cdkValidium());
 
         console.log('#######################\n');
         console.log(
@@ -528,13 +528,13 @@ async function main() {
         console.log('#######################');
         console.log('minDelayTimelock:', minDelayTimelock);
         console.log('timelockAddress:', timelockAddress);
-        console.log('supernets2Address:', supernets2Contract.address);
+        console.log('cdkValidiumAddress:', cdkValidiumContract.address);
         timelockContract = await timelockContractFactory.deploy(
             minDelayTimelock,
             [timelockAddress],
             [timelockAddress],
             timelockAddress,
-            supernets2Contract.address,
+            cdkValidiumContract.address,
         );
         await timelockContract.deployed();
         console.log('#######################\n');
@@ -548,23 +548,23 @@ async function main() {
     }
 
     if (committeeTimelock) {
-        await (await supernets2DataCommitteeContract.transferOwnership(timelockContract.address)).wait();
+        await (await cdkDataCommitteeContract.transferOwnership(timelockContract.address)).wait();
     }
 
     console.log('\n#######################');
     console.log('#####  Checks TimelockContract  #####');
     console.log('#######################');
     console.log('minDelayTimelock:', await timelockContract.getMinDelay());
-    console.log('supernets2:', await timelockContract.supernets2());
+    console.log('cdkValidium:', await timelockContract.cdkValidium());
 
     const outputJson = {
-        supernets2Address: supernets2Contract.address,
+        cdkValidiumAddress: cdkValidiumContract.address,
         polygonZkEVMBridgeAddress: PolygonZkEVMBridgeContract.address,
         polygonZkEVMGlobalExitRootAddress: PolygonZkEVMGlobalExitRoot.address,
-        supernets2DataCommitteeContract: supernets2DataCommitteeContract.address,
+        cdkDataCommitteeContract: cdkDataCommitteeContract.address,
         maticTokenAddress,
         verifierAddress: verifierContract.address,
-        supernets2DeployerContract: supernets2DeployerContract.address,
+        cdkValidiumDeployerContract: cdkValidiumDeployerContract.address,
         deployerAddress: deployer.address,
         timelockContractAddress: timelockContract.address,
         deploymentBlockNumber,

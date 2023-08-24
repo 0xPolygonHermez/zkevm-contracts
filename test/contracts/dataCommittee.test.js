@@ -14,8 +14,8 @@ describe('Polygon Data Committee', () => {
 
     let verifierContract;
     let PolygonZkEVMBridgeContract;
-    let supernets2Contract;
-    let supernets2DataCommitteeContract;
+    let cdkValidiumContract;
+    let cdkDataCommitteeContract;
     let maticTokenContract;
     let PolygonZkEVMGlobalExitRoot;
 
@@ -26,9 +26,9 @@ describe('Polygon Data Committee', () => {
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
     const networkIDMainnet = 0;
-    const urlSequencer = 'http://supernets2-json-rpc:8123';
+    const urlSequencer = 'http://cdk-validium-json-rpc:8123';
     const chainID = 1000;
-    const networkName = 'supernets2';
+    const networkName = 'cdk-validium';
     const version = '0.0.1';
     const forkID = 0;
     const pendingStateTimeoutDefault = 100;
@@ -87,8 +87,8 @@ describe('Polygon Data Committee', () => {
     }
 
     async function calculateLastAccInputHash(sequences) {
-        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
-        let currentAccInputHash = (await supernets2Contract.sequencedBatches(lastBatchSequenced)).accInputHash;
+        const lastBatchSequenced = await cdkValidiumContract.lastBatchSequenced();
+        let currentAccInputHash = (await cdkValidiumContract.sequencedBatches(lastBatchSequenced)).accInputHash;
         for (let i = 0; i < sequences.length; i++) {
             currentAccInputHash = calculateAccInputHash(
                 currentAccInputHash,
@@ -133,25 +133,25 @@ describe('Polygon Data Committee', () => {
         );
         await maticTokenContract.deployed();
 
-        // deploy Supernets2DataCommittee
-        const supernets2DataCommitteeFactory = await ethers.getContractFactory('Supernets2DataCommittee');
-        supernets2DataCommitteeContract = await upgrades.deployProxy(
-            supernets2DataCommitteeFactory,
+        // deploy CDKDataCommittee
+        const cdkDataCommitteeFactory = await ethers.getContractFactory('CDKDataCommittee');
+        cdkDataCommitteeContract = await upgrades.deployProxy(
+            cdkDataCommitteeFactory,
             [],
             { initializer: false },
         );
 
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + 2;
         // Always have to redeploy impl since the PolygonZkEVMGlobalExitRoot address changes
-        const nonceProxySupernets2 = nonceProxyBridge + 2;
+        const nonceProxyCDKValidium = nonceProxyBridge + 2;
 
         const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
-        const precalculateSupernets2Address = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxySupernets2 });
+        const precalculateCDKValidiumAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyCDKValidium });
 
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
         PolygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             initializer: false,
-            constructorArgs: [precalculateSupernets2Address, precalculateBridgeAddress],
+            constructorArgs: [precalculateCDKValidiumAddress, precalculateBridgeAddress],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
@@ -159,16 +159,16 @@ describe('Polygon Data Committee', () => {
         const PolygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
         PolygonZkEVMBridgeContract = await upgrades.deployProxy(PolygonZkEVMBridgeFactory, [], { initializer: false });
 
-        // deploy Supernets2Mock
-        const Supernets2Factory = await ethers.getContractFactory('Supernets2Mock');
-        supernets2Contract = await upgrades.deployProxy(Supernets2Factory, [], {
+        // deploy CDKValidiumMock
+        const CDKValidiumFactory = await ethers.getContractFactory('CDKValidiumMock');
+        cdkValidiumContract = await upgrades.deployProxy(CDKValidiumFactory, [], {
             initializer: false,
             constructorArgs: [
                 PolygonZkEVMGlobalExitRoot.address,
                 maticTokenContract.address,
                 verifierContract.address,
                 PolygonZkEVMBridgeContract.address,
-                supernets2DataCommitteeContract.address,
+                cdkDataCommitteeContract.address,
                 chainID,
                 forkID,
             ],
@@ -176,10 +176,10 @@ describe('Polygon Data Committee', () => {
         });
 
         expect(precalculateBridgeAddress).to.be.equal(PolygonZkEVMBridgeContract.address);
-        expect(precalculateSupernets2Address).to.be.equal(supernets2Contract.address);
+        expect(precalculateCDKValidiumAddress).to.be.equal(cdkValidiumContract.address);
 
-        await PolygonZkEVMBridgeContract.initialize(networkIDMainnet, PolygonZkEVMGlobalExitRoot.address, supernets2Contract.address);
-        await supernets2Contract.initialize(
+        await PolygonZkEVMBridgeContract.initialize(networkIDMainnet, PolygonZkEVMGlobalExitRoot.address, cdkValidiumContract.address);
+        await cdkValidiumContract.initialize(
             {
                 admin: admin.address,
                 trustedSequencer: trustedSequencer.address,
@@ -198,19 +198,19 @@ describe('Polygon Data Committee', () => {
         // setup committee
         const { urls, addrsBytes } = membersToURLsAndAddrsBytes(committeeMembers);
         const expectedHash = ethers.utils.solidityKeccak256(['bytes'], [addrsBytes]);
-        await supernets2DataCommitteeContract.initialize();
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await cdkDataCommitteeContract.initialize();
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(requiredAmountOfSignatures, urls, addrsBytes))
-            .to.emit(supernets2DataCommitteeContract, 'CommitteeUpdated')
+            .to.emit(cdkDataCommitteeContract, 'CommitteeUpdated')
             .withArgs(expectedHash);
-        const actualAmountOfmembers = await supernets2DataCommitteeContract.getAmountOfMembers();
+        const actualAmountOfmembers = await cdkDataCommitteeContract.getAmountOfMembers();
         expect(actualAmountOfmembers).to.be.equal(committeeMembers.length);
     });
 
     // SETUP COMMITTEE tests
     it('fail because required amount of signatures is greater than members', async () => {
         const { urls, addrsBytes } = membersToURLsAndAddrsBytes(committeeMembers);
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(nMembers + 1, urls, addrsBytes))
             .to.be.revertedWith('TooManyRequiredSignatures');
     });
@@ -224,7 +224,7 @@ describe('Polygon Data Committee', () => {
             addr: '0x2d630a3ac2b39472958507d73e3e450acde3431c',
         }];
         const { urls, addrsBytes } = membersToURLsAndAddrsBytes(wrongAddressOrderMembers);
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(1, urls, addrsBytes))
             .to.be.revertedWith('WrongAddrOrder');
     });
@@ -238,7 +238,7 @@ describe('Polygon Data Committee', () => {
             addr: '0x2d630a3ac2b39472958507d73e3e450acde3431c',
         }];
         const { urls, addrsBytes } = membersToURLsAndAddrsBytes(wrongAddressOrderMembers);
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(1, urls, addrsBytes))
             .to.be.revertedWith('WrongAddrOrder');
     });
@@ -252,7 +252,7 @@ describe('Polygon Data Committee', () => {
             addr: '0x2d630a3ac2b39472958507d73e3e450acde3431c',
         }];
         const { urls, addrsBytes } = membersToURLsAndAddrsBytes(wrongAddressOrderMembers);
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(1, urls, addrsBytes))
             .to.be.revertedWith('WrongAddrOrder');
     });
@@ -266,7 +266,7 @@ describe('Polygon Data Committee', () => {
             addr: '0x341f33e89ec1f28b9d5618413c223f973426140b',
         }];
         const { urls, addrsBytes } = membersToURLsAndAddrsBytes(wrongAddressOrderMembers);
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(1, urls, addrsBytes))
             .to.be.revertedWith('EmptyURLNotAllowed');
     });
@@ -280,10 +280,10 @@ describe('Polygon Data Committee', () => {
             addr: '0x341f33e89ec1f28b9d5618413c223f973426140b',
         }];
         const { urls, addrsBytes } = membersToURLsAndAddrsBytes(wrongAddressOrderMembers);
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(1, urls, addrsBytes.substring(0, addrsBytes.length - 2)))
             .to.be.revertedWith('UnexpectedAddrsBytesLength');
-        await expect(supernets2DataCommitteeContract.connect(deployer)
+        await expect(cdkDataCommitteeContract.connect(deployer)
             .setupCommittee(1, urls, `${addrsBytes}ff`))
             .to.be.revertedWith('UnexpectedAddrsBytesLength');
     });
@@ -306,19 +306,19 @@ describe('Polygon Data Committee', () => {
 
         // Remove last byte
         const withMissingByte = signaturesAndAddrs.substring(0, signaturesAndAddrs.length - 2);
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, withMissingByte))
             .to.be.revertedWith('UnexpectedAddrsAndSignaturesSize');
 
         // Add extra byte
         const withExtraByte = `${signaturesAndAddrs.substring(0, signaturesAndAddrs.length)}11`;
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, withExtraByte))
             .to.be.revertedWith('UnexpectedAddrsAndSignaturesSize');
 
         // Add extra bytes that matches with address length (20 bytes) will fail to match the hash
         const extra20Bytes = '690b9a9e9aa1c9db991c7721a92d351db4fac990';
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, signaturesAndAddrs + extra20Bytes))
             .to.be.revertedWith('UnexpectedCommitteeHash');
     });
@@ -340,7 +340,7 @@ describe('Polygon Data Committee', () => {
 
         // Change half byte of the address list, so the hash doesn't match
         const withLastHalfByteSwapped = `${signaturesAndAddrs.substring(0, signaturesAndAddrs.length - 1)}a`;
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, withLastHalfByteSwapped))
             .to.be.revertedWith('UnexpectedCommitteeHash');
     });
@@ -364,7 +364,7 @@ describe('Polygon Data Committee', () => {
         const addressNotFromTheCommittee = '690b9a9e9aa1c9db991c7721a92d351db4fac990';
         const withWrongAddr = signaturesAndAddrs.substring(0, signaturesAndAddrs.length - 40)
             + addressNotFromTheCommittee;
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, withWrongAddr))
             .to.be.revertedWith('UnexpectedCommitteeHash');
     });
@@ -391,7 +391,7 @@ describe('Polygon Data Committee', () => {
         );
         const withWrongAddr = signaturesAndAddrs.substring(0, signaturesAndAddrs.length - 80)
             + repeatedAddr + repeatedAddr;
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, withWrongAddr))
             .to.be.revertedWith('UnexpectedCommitteeHash');
     });
@@ -413,7 +413,7 @@ describe('Polygon Data Committee', () => {
 
         // Replace last address
         const withWrongSignature = `0x1${signaturesAndAddrs.slice(3)}`;
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, withWrongSignature))
             .to.be.revertedWith('CommitteeAddressDoesntExist');
     });
@@ -441,7 +441,7 @@ describe('Polygon Data Committee', () => {
         const withRepeatedSignature = `0x${repeatedSignature}${repeatedSignature
         }${withoutZeroXAndTwoFirstSignatures}`;
 
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, withRepeatedSignature))
             .to.be.revertedWith('CommitteeAddressDoesntExist');
     });
@@ -449,7 +449,7 @@ describe('Polygon Data Committee', () => {
     it('success single batch', async () => {
         const l2txData = '0x123456';
         const transactionsHash = calculateBatchHashData(l2txData);
-        const maticAmount = await supernets2Contract.batchFee();
+        const maticAmount = await cdkValidiumContract.batchFee();
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
@@ -461,7 +461,7 @@ describe('Polygon Data Committee', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(cdkValidiumContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
         // Sign committee data
@@ -469,10 +469,10 @@ describe('Polygon Data Committee', () => {
         const signaturesAndAddrs = genSignaturesAndAddrs(hashToSign);
 
         // Send sequence successfully
-        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
-        await expect(supernets2Contract.connect(trustedSequencer)
+        const lastBatchSequenced = await cdkValidiumContract.lastBatchSequenced();
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence], deployer.address, signaturesAndAddrs))
-            .to.emit(supernets2Contract, 'SequenceBatches')
+            .to.emit(cdkValidiumContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 1);
     });
 
@@ -498,9 +498,9 @@ describe('Polygon Data Committee', () => {
         };
 
         // Approve tokens
-        const maticAmount = (await supernets2Contract.batchFee()).mul(2);
+        const maticAmount = (await cdkValidiumContract.batchFee()).mul(2);
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmount),
+            maticTokenContract.connect(trustedSequencer).approve(cdkValidiumContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
         // Sign committee data
@@ -508,39 +508,39 @@ describe('Polygon Data Committee', () => {
         const signaturesAndAddrs = genSignaturesAndAddrs(hashToSign);
 
         // Send sequence successfully
-        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
-        await expect(supernets2Contract.connect(trustedSequencer)
+        const lastBatchSequenced = await cdkValidiumContract.lastBatchSequenced();
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence1, sequence2], deployer.address, signaturesAndAddrs))
-            .to.emit(supernets2Contract, 'SequenceBatches')
+            .to.emit(cdkValidiumContract, 'SequenceBatches')
             .withArgs(lastBatchSequenced + 2);
     });
 
     it('success forced batch', async () => {
         const l2txDataForceBatch = '0x123456';
         const transactionsHashForceBatch = calculateBatchHashData(l2txDataForceBatch);
-        const maticAmount = await supernets2Contract.getForcedBatchFee();
+        const maticAmount = await cdkValidiumContract.getForcedBatchFee();
         const lastGlobalExitRoot = await PolygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         await expect(
-            maticTokenContract.approve(supernets2Contract.address, maticAmount),
+            maticTokenContract.approve(cdkValidiumContract.address, maticAmount),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastForcedBatch = (await supernets2Contract.lastForceBatch()) + 1;
+        const lastForcedBatch = (await cdkValidiumContract.lastForceBatch()) + 1;
 
         // Activate forced batches
         await expect(
-            supernets2Contract.connect(admin).activateForceBatches(),
-        ).to.emit(supernets2Contract, 'ActivateForceBatches');
+            cdkValidiumContract.connect(admin).activateForceBatches(),
+        ).to.emit(cdkValidiumContract, 'ActivateForceBatches');
 
         // Force batch
-        await expect(supernets2Contract.forceBatch(l2txDataForceBatch, maticAmount))
-            .to.emit(supernets2Contract, 'ForceBatch')
+        await expect(cdkValidiumContract.forceBatch(l2txDataForceBatch, maticAmount))
+            .to.emit(cdkValidiumContract, 'ForceBatch')
             .withArgs(lastForcedBatch, lastGlobalExitRoot, deployer.address, '0x');
 
         // sequence 2 batches
         const l2txData = '0x1234';
         const transactionsHash2 = calculateBatchHashData(l2txData);
-        const maticAmountSequence = (await supernets2Contract.batchFee()).mul(1);
+        const maticAmountSequence = (await cdkValidiumContract.batchFee()).mul(1);
 
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
@@ -564,30 +564,30 @@ describe('Polygon Data Committee', () => {
 
         // Approve tokens
         await expect(
-            maticTokenContract.connect(trustedSequencer).approve(supernets2Contract.address, maticAmountSequence),
+            maticTokenContract.connect(trustedSequencer).approve(cdkValidiumContract.address, maticAmountSequence),
         ).to.emit(maticTokenContract, 'Approval');
 
-        const lastBatchSequenced = await supernets2Contract.lastBatchSequenced();
+        const lastBatchSequenced = await cdkValidiumContract.lastBatchSequenced();
 
         // Assert that the timestamp requirements must accomplish with force batches too
 
         sequence1.minForcedTimestamp += 1;
-        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence1, sequence2], trustedSequencer.address, []))
+        await expect(cdkValidiumContract.connect(trustedSequencer).sequenceBatches([sequence1, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('ForcedDataDoesNotMatch');
         sequence1.minForcedTimestamp -= 1;
 
         sequence1.timestamp -= 1;
-        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence1, sequence2], trustedSequencer.address, []))
+        await expect(cdkValidiumContract.connect(trustedSequencer).sequenceBatches([sequence1, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('SequencedTimestampBelowForcedTimestamp');
         sequence1.timestamp += 1;
 
         sequence1.timestamp = currentTimestamp + 10;
-        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence1, sequence2], trustedSequencer.address, []))
+        await expect(cdkValidiumContract.connect(trustedSequencer).sequenceBatches([sequence1, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('SequencedTimestampInvalid');
         sequence1.timestamp = currentTimestamp;
 
         sequence2.timestamp -= 1;
-        await expect(supernets2Contract.connect(trustedSequencer).sequenceBatches([sequence1, sequence2], trustedSequencer.address, []))
+        await expect(cdkValidiumContract.connect(trustedSequencer).sequenceBatches([sequence1, sequence2], trustedSequencer.address, []))
             .to.be.revertedWith('SequencedTimestampInvalid');
         sequence2.timestamp += 1;
 
@@ -610,9 +610,9 @@ describe('Polygon Data Committee', () => {
             trustedSequencer.address,
         );
         const signaturesAndAddrs = genSignaturesAndAddrs(batchAccInputHashJs);
-        await expect(supernets2Contract.connect(trustedSequencer)
+        await expect(cdkValidiumContract.connect(trustedSequencer)
             .sequenceBatches([sequence1, sequence2], trustedSequencer.address, signaturesAndAddrs))
-            .to.emit(supernets2Contract, 'SequenceBatches')
+            .to.emit(cdkValidiumContract, 'SequenceBatches')
             .withArgs(Number(lastBatchSequenced) + 2);
 
         const sequencedTimestamp = (await ethers.provider.getBlock()).timestamp;
@@ -626,11 +626,11 @@ describe('Polygon Data Committee', () => {
         );
 
         // Check batch mapping
-        const batchAccInputHash = (await supernets2Contract.sequencedBatches(1)).accInputHash;
+        const batchAccInputHash = (await cdkValidiumContract.sequencedBatches(1)).accInputHash;
         // Only last batch is added to the mapping
         expect(batchAccInputHash).to.be.equal(ethers.constants.HashZero);
 
-        const batchData2 = await supernets2Contract.sequencedBatches(2);
+        const batchData2 = await cdkValidiumContract.sequencedBatches(2);
         expect(batchData2.accInputHash).to.be.equal(batchAccInputHashJs);
         expect(batchData2.sequencedTimestamp).to.be.equal(sequencedTimestamp);
         expect(batchData2.previousLastBatchSequenced).to.be.equal(0);

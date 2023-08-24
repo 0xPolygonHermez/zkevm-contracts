@@ -22,7 +22,7 @@ npm i
 npm run docker:contracts
 ```
 
-A new docker `hermeznetwork/geth-supernets2-contracts:latest` will be created
+A new docker `hermeznetwork/geth-cdk-validium-contracts:latest` will be created
 This docker will contain a geth node with the deployed contracts
 The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`
-To run the docker you can use: `docker run -p 8545:8545 hermeznetwork/geth-supernets2-contracts:latest`
+To run the docker you can use: `docker run -p 8545:8545 hermeznetwork/geth-cdk-validium-contracts:latest`

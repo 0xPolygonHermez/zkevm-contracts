@@ -75,7 +75,7 @@ async function main() {
     for (let j = 0; j < txs.length; j++) {
         const currentTx = txs[j];
 
-        // if (currentTx.contractName.Supernets2Deployer) {
+        // if (currentTx.contractName.CDKValidiumDeployer) {
         // }
         const tx = {
             to: currentTx.to || '0x',

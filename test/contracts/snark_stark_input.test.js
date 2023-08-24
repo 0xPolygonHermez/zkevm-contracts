@@ -3,14 +3,14 @@ const { ethers, upgrades } = require('hardhat');
 
 const { contractUtils } = require('@0xpolygonhermez/zkevm-commonjs');
 
-describe('Supernets2 snark stark input test', () => {
-    let supernets2Contract;
+describe('Polygon ZK-EVM snark stark input test', () => {
+    let cdkValidiumContract;
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
     let randomSigner;
 
-    const urlSequencer = 'http://supernets2-json-rpc:8123';
+    const urlSequencer = 'http://cdk-validium-json-rpc:8123';
     const chainID = 1000;
-    const networkName = 'supernets2';
+    const networkName = 'cdk-validium';
     const version = '0.0.1';
     const forkID = 0;
     const batchL2Data = '0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b';
@@ -19,9 +19,9 @@ describe('Supernets2 snark stark input test', () => {
         // load signers
         [randomSigner] = await ethers.getSigners();
 
-        // deploy Supernets2Mock
-        const Supernets2Factory = await ethers.getContractFactory('Supernets2Mock');
-        supernets2Contract = await upgrades.deployProxy(Supernets2Factory, [], {
+        // deploy CDKValidiumMock
+        const CDKValidiumFactory = await ethers.getContractFactory('CDKValidiumMock');
+        cdkValidiumContract = await upgrades.deployProxy(CDKValidiumFactory, [], {
             initializer: false,
             constructorArgs: [
                 randomSigner.address,
@@ -35,7 +35,7 @@ describe('Supernets2 snark stark input test', () => {
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
-        await supernets2Contract.initialize(
+        await cdkValidiumContract.initialize(
             {
                 admin: randomSigner.address,
                 trustedSequencer: randomSigner.address,
@@ -51,7 +51,7 @@ describe('Supernets2 snark stark input test', () => {
             version,
         );
 
-        await supernets2Contract.deployed();
+        await cdkValidiumContract.deployed();
     });
 
     it('Check Accumualte input Hash', async () => {
@@ -69,7 +69,7 @@ describe('Supernets2 snark stark input test', () => {
             timestamp,
             sequencerAddr,
         );
-        const accumulateInputHashSC = await supernets2Contract.calculateAccInputHash(
+        const accumulateInputHashSC = await cdkValidiumContract.calculateAccInputHash(
             oldAccInputHash,
             batchL2Data,
             globalExitRoot,
@@ -94,9 +94,9 @@ describe('Supernets2 snark stark input test', () => {
         const lastPendingStateConsolidated = 0;
         const sequencedTimestamp = 999;
         // set smart contract with correct parameters
-        await supernets2Contract.setStateRoot(oldStateRoot, oldNumBatch);
-        await supernets2Contract.setSequencedBatches(newNumBatch, newAccInputHash, sequencedTimestamp, lastPendingStateConsolidated);
-        await supernets2Contract.setSequencedBatch(1);
+        await cdkValidiumContract.setStateRoot(oldStateRoot, oldNumBatch);
+        await cdkValidiumContract.setSequencedBatches(newNumBatch, newAccInputHash, sequencedTimestamp, lastPendingStateConsolidated);
+        await cdkValidiumContract.setSequencedBatch(1);
 
         await ethers.provider.send('hardhat_impersonateAccount', [aggregatorAddress]);
         const aggregator = await ethers.getSigner(aggregatorAddress);
@@ -107,7 +107,7 @@ describe('Supernets2 snark stark input test', () => {
 
         // Compute SC input
         const pendingStateNum = 0;
-        const inputSnarkSC = await supernets2Contract.connect(aggregator).getNextSnarkInput(
+        const inputSnarkSC = await cdkValidiumContract.connect(aggregator).getNextSnarkInput(
             pendingStateNum,
             oldNumBatch,
             newNumBatch,

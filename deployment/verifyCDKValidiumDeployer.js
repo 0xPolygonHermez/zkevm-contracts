@@ -13,14 +13,14 @@ async function main() {
         throw new Error('Etherscan API KEY has not been defined');
     }
 
-    // verify supernets2 deployer
+    // verify cdkValidium deployer
     try {
         await hre.run(
             'verify:verify',
             {
-                address: deployParameters.supernets2DeployerAddress,
+                address: deployParameters.cdkValidium2DeployerAddress,
                 constructorArguments: [
-                    deployParameters.initialSupernets2DeployerOwner,
+                    deployParameters.initialCDKValidiumDeployerOwner,
                 ],
             },
         );

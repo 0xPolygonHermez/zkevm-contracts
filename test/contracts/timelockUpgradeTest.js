@@ -21,7 +21,7 @@ function genOperation(target, value, data, predecessor, salt) {
     };
 }
 
-describe('Supernets2', () => {
+describe('CDKValidium', () => {
     let deployer;
     let trustedAggregator;
     let trustedSequencer;
@@ -30,8 +30,8 @@ describe('Supernets2', () => {
     let timelockContract;
     let verifierContract;
     let PolygonZkEVMBridgeContract;
-    let supernets2Contract;
-    let supernets2DataCommitteeContract;
+    let cdkValidiumContract;
+    let cdkDataCommitteeContract;
     let maticTokenContract;
     let PolygonZkEVMGlobalExitRoot;
 
@@ -43,9 +43,9 @@ describe('Supernets2', () => {
 
     const networkIDMainnet = 0;
 
-    const urlSequencer = 'http://supernets2-json-rpc:8123';
+    const urlSequencer = 'http://cdk-validium-json-rpc:8123';
     const chainID = 1000;
-    const networkName = 'supernets2';
+    const networkName = 'cdk-validium';
     const version = '0.0.1';
     const pendingStateTimeoutDefault = 10;
     const trustedAggregatorTimeoutDefault = 10;
@@ -86,17 +86,17 @@ describe('Supernets2', () => {
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
         const nonceProxyCommittee = nonceProxyBridge + (firstDeployment ? 2 : 1);
         // Always have to redeploy impl since the PolygonZkEVMGlobalExitRoot address changes
-        const nonceProxySupernets2 = nonceProxyCommittee + 2;
+        const nonceProxyCDKValidium = nonceProxyCommittee + 2;
 
         const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
         const precalculateCommitteeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyCommittee });
-        const precalculateSupernets2Address = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxySupernets2 });
+        const precalculateCDKValidiumAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyCDKValidium });
         firstDeployment = false;
 
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
         PolygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             initializer: false,
-            constructorArgs: [precalculateSupernets2Address, precalculateBridgeAddress],
+            constructorArgs: [precalculateCDKValidiumAddress, precalculateBridgeAddress],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
@@ -104,24 +104,24 @@ describe('Supernets2', () => {
         const PolygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridge');
         PolygonZkEVMBridgeContract = await upgrades.deployProxy(PolygonZkEVMBridgeFactory, [], { initializer: false });
 
-        // deploy Supernets2DataCommittee
-        const supernets2DataCommitteeFactory = await ethers.getContractFactory('Supernets2DataCommittee');
-        supernets2DataCommitteeContract = await upgrades.deployProxy(
-            supernets2DataCommitteeFactory,
+        // deploy CDKDataCommittee
+        const cdkDataCommitteeFactory = await ethers.getContractFactory('CDKDataCommittee');
+        cdkDataCommitteeContract = await upgrades.deployProxy(
+            cdkDataCommitteeFactory,
             [],
             { initializer: false },
         );
 
-        // deploy Supernets2Mock
-        const Supernets2Factory = await ethers.getContractFactory('Supernets2Mock');
-        supernets2Contract = await upgrades.deployProxy(Supernets2Factory, [], {
+        // deploy CDKValidiumMock
+        const CDKValidiumFactory = await ethers.getContractFactory('CDKValidiumMock');
+        cdkValidiumContract = await upgrades.deployProxy(CDKValidiumFactory, [], {
             initializer: false,
             constructorArgs: [
                 PolygonZkEVMGlobalExitRoot.address,
                 maticTokenContract.address,
                 verifierContract.address,
                 PolygonZkEVMBridgeContract.address,
-                supernets2DataCommitteeContract.address,
+                cdkDataCommitteeContract.address,
                 chainID,
                 0,
             ],
@@ -129,11 +129,11 @@ describe('Supernets2', () => {
         });
 
         expect(precalculateBridgeAddress).to.be.equal(PolygonZkEVMBridgeContract.address);
-        expect(precalculateCommitteeAddress).to.be.equal(supernets2DataCommitteeContract.address);
-        expect(precalculateSupernets2Address).to.be.equal(supernets2Contract.address);
+        expect(precalculateCommitteeAddress).to.be.equal(cdkDataCommitteeContract.address);
+        expect(precalculateCDKValidiumAddress).to.be.equal(cdkValidiumContract.address);
 
-        await PolygonZkEVMBridgeContract.initialize(networkIDMainnet, PolygonZkEVMGlobalExitRoot.address, supernets2Contract.address);
-        await supernets2Contract.initialize(
+        await PolygonZkEVMBridgeContract.initialize(networkIDMainnet, PolygonZkEVMGlobalExitRoot.address, cdkValidiumContract.address);
+        await cdkValidiumContract.initialize(
             {
                 admin: admin.address,
                 trustedSequencer: trustedSequencer.address,
@@ -154,8 +154,8 @@ describe('Supernets2', () => {
         const executors = [deployer.address];
         const adminAddress = deployer.address;
 
-        const timelockContractFactory = await ethers.getContractFactory('Supernets2Timelock');
-        timelockContract = await timelockContractFactory.deploy(minDelay, proposers, executors, adminAddress, supernets2Contract.address);
+        const timelockContractFactory = await ethers.getContractFactory('CDKValidiumTimelock');
+        timelockContract = await timelockContractFactory.deploy(minDelay, proposers, executors, adminAddress, cdkValidiumContract.address);
         await timelockContract.deployed();
     });
 
@@ -271,8 +271,8 @@ describe('Supernets2', () => {
         // Check current delay
         expect(await timelockContract.getMinDelay()).to.be.equal(minDelay);
 
-        // Put supernets2 contract on emergency mode
-        await supernets2Contract.activateEmergencyState(0);
+        // Put CDKValidium contract on emergency mode
+        await cdkValidiumContract.activateEmergencyState(0);
 
         // Check delay is 0
         expect(await timelockContract.getMinDelay()).to.be.equal(0);
@@ -301,7 +301,7 @@ describe('Supernets2', () => {
     });
 
     it('Should reprocude L2 enviromanet and check upgradability', async () => {
-        const timelockContractFactory = await ethers.getContractFactory('Supernets2Timelock');
+        const timelockContractFactory = await ethers.getContractFactory('CDKValidiumTimelock');
         const proposers = [deployer.address];
         const executors = [deployer.address];
         const adminAddress = deployer.address;
@@ -316,7 +316,7 @@ describe('Supernets2', () => {
 
         // Check deploy parameters
         expect(await timelockContractL2.getMinDelay()).to.be.equal(minDelay);
-        expect(await timelockContractL2.supernets2()).to.be.equal(ethers.constants.AddressZero);
+        expect(await timelockContractL2.cdkValidium()).to.be.equal(ethers.constants.AddressZero);
 
         // Upgrade the contract
         const PolygonZkEVMBridgeFactoryV2 = await ethers.getContractFactory('PolygonZkEVMBridgeMock');
@@ -351,10 +351,10 @@ describe('Supernets2', () => {
         expect(await timelockContractL2.getMinDelay()).to.be.equal(minDelay);
 
         /*
-         * Put supernets2 contract on emergency mode
+         * Put CDKValidium contract on emergency mode
          * Does not affect thsi deployment
          */
-        await supernets2Contract.activateEmergencyState(0);
+        await cdkValidiumContract.activateEmergencyState(0);
 
         // Check delay is 0
         expect(await timelockContractL2.getMinDelay()).to.be.equal(minDelay);

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../Supernets2.sol";
+import "../CDKValidium.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
  * There will be sequencer, which are able to send transactions. That transactions will be stored in the contract.
  * The aggregators are forced to process and validate the sequencers transactions in the same order by using a verifier.
- * To enter and exit of the L2 network will be used a Supernets2 Bridge smart contract
+ * To enter and exit of the L2 network will be used a PolygonZkEVM Bridge smart contract
  */
-contract Supernets2Mock is Supernets2 {
+contract CDKValidiumMock is CDKValidium {
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
@@ -22,11 +22,11 @@ contract Supernets2Mock is Supernets2 {
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
-        ISupernets2DataCommittee _dataComiteeAddress,
+        ICDKDataCommittee _dataComiteeAddress,
         uint64 _chainID,
         uint64 _forkID
     )
-        Supernets2(
+        CDKValidium(
             _globalExitRootManager,
             _matic,
             _rollupVerifier,
@@ -88,7 +88,7 @@ contract Supernets2Mock is Supernets2 {
             // Already consolidated pending states can be used aswell
             require(
                 pendingStateNum <= lastPendingState,
-                "Supernets2::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+                "CDKValidium::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -102,27 +102,27 @@ contract Supernets2Mock is Supernets2 {
             // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "Supernets2::verifyBatches: initNumBatch must match the pending state batch"
+                "CDKValidium::verifyBatches: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "Supernets2::verifyBatches: initNumBatch state root does not exist"
+                "CDKValidium::verifyBatches: initNumBatch state root does not exist"
             );
 
             // Check initNumBatch is inside the range
             require(
                 initNumBatch <= currentLastVerifiedBatch,
-                "Supernets2::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "CDKValidium::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
         // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
-            "Supernets2::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "CDKValidium::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -229,7 +229,7 @@ contract Supernets2Mock is Supernets2 {
             // Already consolidated pending states can be used aswell
             require(
                 pendingStateNum <= lastPendingState,
-                "Supernets2::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
+                "CDKValidium::verifyBatches: pendingStateNum must be less or equal than lastPendingState"
             );
 
             // Check choosen pending state
@@ -243,27 +243,27 @@ contract Supernets2Mock is Supernets2 {
             // Check initNumBatch matches the pending state
             require(
                 initNumBatch == currentPendingState.lastVerifiedBatch,
-                "Supernets2::verifyBatches: initNumBatch must match the pending state batch"
+                "CDKValidium::verifyBatches: initNumBatch must match the pending state batch"
             );
         } else {
             // Use consolidated state
             oldStateRoot = batchNumToStateRoot[initNumBatch];
             require(
                 oldStateRoot != bytes32(0),
-                "Supernets2::verifyBatches: initNumBatch state root does not exist"
+                "CDKValidium::verifyBatches: initNumBatch state root does not exist"
             );
 
             // Check initNumBatch is inside the range
             require(
                 initNumBatch <= currentLastVerifiedBatch,
-                "Supernets2::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
+                "CDKValidium::verifyBatches: initNumBatch must be less or equal than currentLastVerifiedBatch"
             );
         }
 
         // Check final batch
         require(
             finalNewBatch > currentLastVerifiedBatch,
-            "Supernets2::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
+            "CDKValidium::verifyBatches: finalNewBatch must be bigger than currentLastVerifiedBatch"
         );
 
         // Get snark bytes
@@ -281,7 +281,7 @@ contract Supernets2Mock is Supernets2 {
         // // Verify proof
         // require(
         //     rollupVerifier.verifyProof(proofA, proofB, proofC, [inputSnark]),
-        //     "Supernets2::verifyBatches: INVALID_PROOF"
+        //     "CDKValidium::verifyBatches: INVALID_PROOF"
         // );
 
         // // Get MATIC reward

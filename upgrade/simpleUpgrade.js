@@ -36,10 +36,10 @@ async function main() {
 
     for (const upgrade of upgradeParameters.upgrades) {
         const proxyPolygonAddress = upgrade.address;
-        const supernets2Factory = await ethers.getContractFactory(upgrade.contractName, deployer);
+        const cdkValidiumFactory = await ethers.getContractFactory(upgrade.contractName, deployer);
 
         if (upgrade.constructorArgs) {
-            const txZKEVM = await upgrades.upgradeProxy(proxyPolygonAddress, supernets2Factory, 
+            const txZKEVM = await upgrades.upgradeProxy(proxyPolygonAddress, cdkValidiumFactory, 
             {
                 constructorArgs: upgrade.constructorArgs,
                 unsafeAllow: ['constructor', 'state-variable-immutable'],
@@ -55,7 +55,7 @@ async function main() {
             console.log(`npx hardhat verify --constructor-args upgrade/arguments.js ${txZKEVM.address} --network ${process.env.HARDHAT_NETWORK}\n`);
             console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", upgrade.constructorArgs)
         } else {
-            const txZKEVM = await upgrades.upgradeProxy(proxyPolygonAddress, supernets2Factory)
+            const txZKEVM = await upgrades.upgradeProxy(proxyPolygonAddress, cdkValidiumFactory)
 
             console.log(txZKEVM.address);
             console.log("you can verify the new impl address with:")

@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-const { deploySupernets2Deployer } = require('./helpers/deployment-helpers');
+const { deployCDKValidiumDeployer } = require('./helpers/deployment-helpers');
 
 const pathDeployParameters = path.join(__dirname, './deploy_parameters.json');
 const deployParameters = require('./deploy_parameters.json');
@@ -47,26 +47,26 @@ async function main() {
         [deployer] = (await ethers.getSigners());
     }
 
-    // Load initialSupernets2DeployerOwner
+    // Load initialCDKValidiumDeployerOwner
     const {
-        initialSupernets2DeployerOwner,
+        initialCDKValidiumDeployerOwner,
     } = deployParameters;
 
-    if (initialSupernets2DeployerOwner === undefined || initialSupernets2DeployerOwner === '') {
-        throw new Error('Missing parameter: initialSupernets2DeployerOwner');
+    if (initialCDKValidiumDeployerOwner === undefined || initialCDKValidiumDeployerOwner === '') {
+        throw new Error('Missing parameter: initialCDKValidiumDeployerOwner');
     }
 
-    // Deploy Supernets2Deployer if is not deployed already using keyless deployment
-    const [supernets2DeployerContract, keylessDeployer] = await deploySupernets2Deployer(initialSupernets2DeployerOwner, deployer);
+    // Deploy CDKValidiumDeployer if is not deployed already using keyless deployment
+    const [cdkValidiumDeployerContract, keylessDeployer] = await deployCDKValidiumDeployer(initialCDKValidiumDeployerOwner, deployer);
     if (keylessDeployer === ethers.constants.AddressZero) {
         console.log('#######################\n');
-        console.log('supernets2Deployer already deployed on: ', supernets2DeployerContract.address);
+        console.log('cdkValidium2Deployer already deployed on: ', cdkValidiumDeployerContract.address);
     } else {
         console.log('#######################\n');
-        console.log('supernets2Deployer deployed on: ', supernets2DeployerContract.address);
+        console.log('cdkValidium2Deployer deployed on: ', cdkValidiumDeployerContract.address);
     }
 
-    deployParameters.supernets2DeployerAddress = supernets2DeployerContract.address;
+    deployParameters.cdkValidium2DeployerAddress = cdkValidiumDeployerContract.address;
     fs.writeFileSync(pathDeployParameters, JSON.stringify(deployParameters, null, 1));
 }
 

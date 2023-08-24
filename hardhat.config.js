@@ -139,29 +139,9 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
-      // supernets2Testnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
-      // supernets2Mainnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
       goerli: `${process.env.ETHERSCAN_API_KEY}`,
       sepolia: `${process.env.ETHERSCAN_API_KEY}`,
       mainnet: `${process.env.ETHERSCAN_API_KEY}`
     },
-    customChains: [
-      // {
-      //   network: "supernets2Mainnet",
-      //   chainId: 1101,
-      //   urls: {
-      //     apiURL: "https://api-zkevm.polygonscan.com/api",
-      //     browserURL: "https://zkevm.polygonscan.com/"
-      //   }
-      // },
-      // {
-      //   network: "supernets2Testnet",
-      //   chainId: 1442,
-      //   urls: {
-      //     apiURL: "https://api-testnet-zkevm.polygonscan.com/api",
-      //     browserURL: "https://testnet-zkevm.polygonscan.com/"
-      //   }
-      // }
-    ]
   },
 };

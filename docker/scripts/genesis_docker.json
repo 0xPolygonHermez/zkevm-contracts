@@ -2,7 +2,7 @@
  "root": "0xd88680f1b151dd67518f9aca85161424c0cac61df2f5424a3ddc04ea25adecc7",
  "genesis": [
   {
-   "contractName": "Supernets2Deployer",
+   "contractName": "CDKValidiumDeployer",
    "balance": "0",
    "nonce": "4",
    "address": "0x4b2700570f8426A24EA85e0324611E527BdD55B8",
@@ -61,7 +61,7 @@
    }
   },
   {
-   "contractName": "Supernets2Timelock",
+   "contractName": "CDKValidiumTimelock",
    "balance": "0",
    "nonce": "1",
    "address": "0x0165878A594ca255338adfa4d48449f69242Eb8F",

@@ -7,8 +7,8 @@ import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/IPolygonZkEVMBridge.sol";
 import "./lib/EmergencyManager.sol";
-import "./interfaces/ISupernets2Errors.sol";
-import "./interfaces/ISupernets2DataCommittee.sol";
+import "./interfaces/ICDKValidiumErrors.sol";
+import "./interfaces/ICDKDataCommittee.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -18,10 +18,10 @@ import "./interfaces/ISupernets2DataCommittee.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract Supernets2 is
+contract CDKValidium is
     OwnableUpgradeable,
     EmergencyManager,
-    ISupernets2Errors
+    ICDKValidiumErrors
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -154,11 +154,11 @@ contract Supernets2 is
     // Global Exit Root interface
     IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
 
-    // Supernets2 Bridge Address
+    // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridge public immutable bridgeAddress;
 
-    // Supernets2 Data Committee Address
-    ISupernets2DataCommittee public immutable dataCommitteeAddress;
+    // CDK Data Committee Address
+    ICDKDataCommittee public immutable dataCommitteeAddress;
 
     // L2 chain identifier
     uint64 public immutable chainID;
@@ -369,7 +369,7 @@ contract Supernets2 is
      * @dev Emitted everytime the forkID is updated, this includes the first initialization of the contract
      * This event is intended to be emitted for every upgrade of the contract with relevant changes for the nodes
      */
-    event UpdateSupernets2Version(uint64 numBatch, uint64 forkID, string version);
+    event UpdateZkEVMVersion(uint64 numBatch, uint64 forkID, string version);
 
     /**
      * @param _globalExitRootManager Global exit root manager address
@@ -385,7 +385,7 @@ contract Supernets2 is
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
-        ISupernets2DataCommittee _dataCommitteeAddress,
+        ICDKDataCommittee _dataCommitteeAddress,
         uint64 _chainID,
         uint64 _forkID
     ) {
@@ -448,7 +448,7 @@ contract Supernets2 is
         __Ownable_init_unchained();
 
         // emit version event
-        emit UpdateSupernets2Version(0, forkID, _version);
+        emit UpdateZkEVMVersion(0, forkID, _version);
     }
 
     modifier onlyAdmin() {
@@ -1387,7 +1387,7 @@ contract Supernets2 is
     }
 
     /**
-     * @notice Allows to halt the Supernets2 if its possible to prove a different state root given the same batches
+     * @notice Allows to halt the CDKValidium if its possible to prove a different state root given the same batches
      * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -1524,7 +1524,7 @@ contract Supernets2 is
     }
 
     /**
-     * @notice Function to activate emergency state, which also enables the emergency mode on both Supernets2 and PolygonZkEVMBridge contracts
+     * @notice Function to activate emergency state, which also enables the emergency mode on both CDKValidium and PolygonZkEVMBridge contracts
      * If not called by the owner must be provided a batcnNum that does not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
      * @param sequencedBatchNum Sequenced batch number that has not been aggreagated in _HALT_AGGREGATION_TIMEOUT
      */
@@ -1559,7 +1559,7 @@ contract Supernets2 is
     }
 
     /**
-     * @notice Function to deactivate emergency state on both Supernets2 and PolygonZkEVMBridge contracts
+     * @notice Function to deactivate emergency state on both CDKValidium and PolygonZkEVMBridge contracts
      */
     function deactivateEmergencyState() external onlyAdmin {
         // Deactivate emergency state on PolygonZkEVMBridge
@@ -1570,10 +1570,10 @@ contract Supernets2 is
     }
 
     /**
-     * @notice Internal function to activate emergency state on both Supernets2 and PolygonZkEVMBridge contracts
+     * @notice Internal function to activate emergency state on both CDKValidium and PolygonZkEVMBridge contracts
      */
     function _activateEmergencyState() internal override {
-        // Activate emergency state on Supernets2 Bridge
+        // Activate emergency state on PolygonZkEVM Bridge
         bridgeAddress.activateEmergencyState();
 
         // Activate emergency state on this contract

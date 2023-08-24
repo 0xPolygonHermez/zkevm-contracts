@@ -5,10 +5,10 @@ const { ethers } = require('hardhat');
 
 const gasPriceKeylessDeployment = '100'; // 100 gweis
 
-async function deploySupernets2Deployer(deployerAddress, signer) {
-    const Supernets2DeployerFactory = await ethers.getContractFactory('Supernets2Deployer', signer);
+async function deployCDKValidiumDeployer(deployerAddress, signer) {
+    const CDKValidiumDeployerFactory = await ethers.getContractFactory('CDKValidiumDeployer', signer);
 
-    const deployTxSupernets2Deployer = (Supernets2DeployerFactory.getDeployTransaction(
+    const deployTxCDKValidiumDeployer = (CDKValidiumDeployerFactory.getDeployTransaction(
         deployerAddress,
     )).data;
 
@@ -21,7 +21,7 @@ async function deploySupernets2Deployer(deployerAddress, signer) {
         value: 0,
         gasLimit: gasLimit.toHexString(),
         gasPrice: gasPrice.toHexString(),
-        data: deployTxSupernets2Deployer,
+        data: deployTxCDKValidiumDeployer,
     };
 
     const signature = {
@@ -34,11 +34,11 @@ async function deploySupernets2Deployer(deployerAddress, signer) {
     const totalEther = gasLimit.mul(gasPrice); // 0.1 ether
 
     // Check if it's already deployed
-    const supernets2DeployerAddress = ethers.utils.getContractAddress(resultTransaction);
-    if (await signer.provider.getCode(supernets2DeployerAddress) !== '0x') {
-        const supernets2DeployerContract = Supernets2DeployerFactory.attach(supernets2DeployerAddress);
-        expect(await supernets2DeployerContract.owner()).to.be.equal(signer.address);
-        return [supernets2DeployerContract, ethers.constants.AddressZero];
+    const cdkValidium2DeployerAddress = ethers.utils.getContractAddress(resultTransaction);
+    if (await signer.provider.getCode(cdkValidium2DeployerAddress) !== '0x') {
+        const cdkValidiumDeployerContract = CDKValidiumDeployerFactory.attach(cdkValidium2DeployerAddress);
+        expect(await cdkValidiumDeployerContract.owner()).to.be.equal(signer.address);
+        return [cdkValidiumDeployerContract, ethers.constants.AddressZero];
     }
 
     // Fund keyless deployment
@@ -51,17 +51,17 @@ async function deploySupernets2Deployer(deployerAddress, signer) {
     // Deploy supernes2Deployer
     await (await signer.provider.sendTransaction(serializedTransaction)).wait();
 
-    const supernets2DeployerContract = await Supernets2DeployerFactory.attach(supernets2DeployerAddress);
-    expect(await supernets2DeployerContract.owner()).to.be.equal(deployerAddress);
-    return [supernets2DeployerContract, resultTransaction.from];
+    const cdkValidiumDeployerContract = await CDKValidiumDeployerFactory.attach(cdkValidium2DeployerAddress);
+    expect(await cdkValidiumDeployerContract.owner()).to.be.equal(deployerAddress);
+    return [cdkValidiumDeployerContract, resultTransaction.from];
 }
 
-async function create2Deployment(supernets2DeployerContract, salt, deployTransaction, dataCall, deployer, hardcodedGasLimit) {
+async function create2Deployment(cdkValidiumDeployerContract, salt, deployTransaction, dataCall, deployer, hardcodedGasLimit) {
     // Encode deploy transaction
     const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransaction]);
 
     // Precalculate create2 address
-    const precalculatedAddressDeployed = ethers.utils.getCreate2Address(supernets2DeployerContract.address, salt, hashInitCode);
+    const precalculatedAddressDeployed = ethers.utils.getCreate2Address(cdkValidiumDeployerContract.address, salt, hashInitCode);
     const amount = 0;
 
     if (await deployer.provider.getCode(precalculatedAddressDeployed) !== '0x') {
@@ -71,7 +71,7 @@ async function create2Deployment(supernets2DeployerContract, salt, deployTransac
     if (dataCall) {
         // Deploy using create2 and call
         if (hardcodedGasLimit) {
-            const populatedTransaction = await supernets2DeployerContract.populateTransaction.deployDeterministicAndCall(
+            const populatedTransaction = await cdkValidiumDeployerContract.populateTransaction.deployDeterministicAndCall(
                 amount,
                 salt,
                 deployTransaction,
@@ -80,12 +80,12 @@ async function create2Deployment(supernets2DeployerContract, salt, deployTransac
             populatedTransaction.gasLimit = ethers.BigNumber.from(hardcodedGasLimit);
             await (await deployer.sendTransaction(populatedTransaction)).wait();
         } else {
-            await (await supernets2DeployerContract.deployDeterministicAndCall(amount, salt, deployTransaction, dataCall)).wait();
+            await (await cdkValidiumDeployerContract.deployDeterministicAndCall(amount, salt, deployTransaction, dataCall)).wait();
         }
     } else {
         // Deploy using create2
         if (hardcodedGasLimit) {
-            const populatedTransaction = await supernets2DeployerContract.populateTransaction.deployDeterministic(
+            const populatedTransaction = await cdkValidiumDeployerContract.populateTransaction.deployDeterministic(
                 amount,
                 salt,
                 deployTransaction,
@@ -93,13 +93,13 @@ async function create2Deployment(supernets2DeployerContract, salt, deployTransac
             populatedTransaction.gasLimit = ethers.BigNumber.from(hardcodedGasLimit);
             await (await deployer.sendTransaction(populatedTransaction)).wait();
         } else {
-            await (await supernets2DeployerContract.deployDeterministic(amount, salt, deployTransaction)).wait();
+            await (await cdkValidiumDeployerContract.deployDeterministic(amount, salt, deployTransaction)).wait();
         }
     }
     return [precalculatedAddressDeployed, true];
 }
 
 module.exports = {
-    deploySupernets2Deployer,
+    deployCDKValidiumDeployer,
     create2Deployment,
 };

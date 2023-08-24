@@ -1,10 +1,10 @@
 {
-  "name": "supernets2-contracts",
-  "description": "Core contracts for the Polygon Supernets 2",
+  "name": "cdk-validium-contracts",
+  "description": "Core contracts for the Polygon CDK Validium",
   "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/0xPolygon/supernets2-contracts.git"
+    "url": "git+https://github.com/0xPolygon/cdk-validium-contracts.git"
   },
   "main": "index.js",
   "keywords": [
@@ -25,9 +25,9 @@
     "src"
   ],
   "bugs": {
-    "url": "https://github.com/0xPolygon/supernets2-contracts/issues"
+    "url": "https://github.com/0xPolygon/cdk-validium-contracts/issues"
   },
-  "homepage": "https://github.com/0xPolygon/supernets2-contracts#readme",
+  "homepage": "https://github.com/0xPolygon/CDKValidium-contracts#readme",
   "license": "pending",
   "dependencies": {
     "chai": "^4.3.7",
@@ -63,26 +63,26 @@
     "saveDeployment:mainnet": "mkdir -p deployments/mainnet_$(date +%s) && cp -r deployment/deploy_*.json deployments/mainnet_$(date +%s) && cp .openzeppelin/mainnet.json deployments/mainnet_$(date +%s) && cp deployment/genesis.json deployments/mainnet_$(date +%s)",
     "test": "npx hardhat test test/contracts/**.test.js",
     "docgen": "npx solidity-docgen --solc-module solc-0.8 -t ./docs/templates -e ./contracts/verifiers,./contracts/mocks",
-    "prepare:testnet:Supernets2:localhost": "npx hardhat run deployment/testnet/prepareTestnet.js --network localhost",
-    "deploy:Supernets2:localhost": "rm -f .openzeppelin/unknown-31337.json && node deployment/1_createGenesis.js && npx hardhat run deployment/2_deploySupernets2Deployer.js --network localhost && npx hardhat run deployment/3_deployContracts.js --network localhost",
-    "deploy:testnet:Supernets2:localhost": "npm run prepare:testnet:Supernets2:localhost && npm run deploy:Supernets2:localhost",
-    "prepare:testnet:Supernets2:sepolia": "npx hardhat run deployment/testnet/prepareTestnet.js --network sepolia",
-    "deploy:Supernets2:sepolia": "node deployment/1_createGenesis.js && npx hardhat run deployment/3_deployContracts.js --network sepolia && npm run saveDeployment:sepolia",
-    "deploy:deployer:Supernets2:sepolia": "npx hardhat run deployment/2_deploySupernets2Deployer.js --network sepolia",
-    "verify:deployer:Supernets2:sepolia": "npx hardhat run deployment/verifySupernets2Deployer.js --network sepolia",
-    "deploy:testnet:Supernets2:sepolia": "npm run prepare:testnet:Supernets2:sepolia && npm run deploy:Supernets2:sepolia",
+    "prepare:testnet:CDKValidium:localhost": "npx hardhat run deployment/testnet/prepareTestnet.js --network localhost",
+    "deploy:CDKValidium:localhost": "rm -f .openzeppelin/unknown-31337.json && node deployment/1_createGenesis.js && npx hardhat run deployment/2_deployCDKValidiumDeployer.js --network localhost && npx hardhat run deployment/3_deployContracts.js --network localhost",
+    "deploy:testnet:CDKValidium:localhost": "npm run prepare:testnet:CDKValidium:localhost && npm run deploy:CDKValidium:localhost",
+    "prepare:testnet:CDKValidium:sepolia": "npx hardhat run deployment/testnet/prepareTestnet.js --network sepolia",
+    "deploy:CDKValidium:sepolia": "node deployment/1_createGenesis.js && npx hardhat run deployment/3_deployContracts.js --network sepolia && npm run saveDeployment:sepolia",
+    "deploy:deployer:CDKValidium:sepolia": "npx hardhat run deployment/2_deployCDKValidiumDeployer.js --network sepolia",
+    "verify:deployer:CDKValidium:sepolia": "npx hardhat run deployment/verifyCDKValidiumDeployer.js --network sepolia",
+    "deploy:testnet:CDKValidium:sepolia": "npm run prepare:testnet:CDKValidium:sepolia && npm run deploy:CDKValidium:sepolia",
     "upgrade:timelock:sepolia": "npx hardhat run upgrade/timeLockUpgrade.js --network sepolia",
-    "verify:Supernets2:sepolia": "npx hardhat run deployment/verifyContracts.js --network sepolia",
-    "deploy:deployer:Supernets2:mainnet": "npx hardhat run deployment/2_deploySupernets2Deployer.js --network mainnet",
-    "verify:deployer:Supernets2:mainnet": "npx hardhat run deployment/verifySupernets2Deployer.js --network mainnet",
-    "deploy:Supernets2:mainnet": "node deployment/1_createGenesis.js && npx hardhat run deployment/3_deployContracts.js --network mainnet && npm run saveDeployment:mainnet",
+    "verify:CDKValidium:sepolia": "npx hardhat run deployment/verifyContracts.js --network sepolia",
+    "deploy:deployer:CDKValidium:mainnet": "npx hardhat run deployment/2_deployCDKValidiumDeployer.js --network mainnet",
+    "verify:deployer:CDKValidium:mainnet": "npx hardhat run deployment/verifyCDKValidiumDeployer.js --network mainnet",
+    "deploy:CDKValidium:mainnet": "node deployment/1_createGenesis.js && npx hardhat run deployment/3_deployContracts.js --network mainnet && npm run saveDeployment:mainnet",
     "upgrade:timelock:mainnet": "npx hardhat run upgrade/timeLockUpgrade.js --network mainnet",
-    "verify:Supernets2:mainnet": "npx hardhat run deployment/verifyContracts.js --network mainnet",
+    "verify:CDKValidium:mainnet": "npx hardhat run deployment/verifyContracts.js --network mainnet",
     "lint": "npx eslint ./test && npx eslint ./docker/scripts && npx eslint ./deployment && npx eslint ./src",
     "lint:fix": "npx eslint ./test --fix && npx eslint ./docker/scripts --fix && npx eslint ./deployment --fix && npx eslint ./src --fix",
     "compile": "npx hardhat compile",
     "docker:contracts": "./docker/scripts/deploy-docker.sh",
-    "push:docker:contracts": "docker push hermeznetwork/geth-supernets2-contracts",
+    "push:docker:contracts": "docker push hermeznetwork/geth-cdk-validium-contracts",
     "update:genesis": "node deployment/1_createGenesis.js && node deployment/1_createGenesis.js --test --input ../docker/scripts/deploy_parameters_docker.json --out ../docker/scripts/genesis_docker.json",
     "coverage": "npx hardhat coverage",
     "gas:report": "REPORT_GAS=true npx hardhat test",
