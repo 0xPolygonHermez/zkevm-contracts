@@ -14,7 +14,7 @@ if npm run lint; then
     cp artifacts/contracts/mocks/ERC20PermitMock.sol/ERC20PermitMock.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZkEVMGlobalExitRootL2Mock.sol/PolygonZkEVMGlobalExitRootL2Mock.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZkEVMGlobalExitRootMock.sol/PolygonZkEVMGlobalExitRootMock.json compiled-contracts/
-    cp artifacts/contracts/mocks/PolygonZkEVMMock.sol/PolygonZkEVMMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/CDKValidiumMock.sol/CDKValidiumMock.json compiled-contracts/
     cp artifacts/contracts/mocks/VerifierRollupHelperMock.sol/VerifierRollupHelperMock.json compiled-contracts/
     cp artifacts/contracts/CDKValidium.sol/CDKValidium.json compiled-contracts/
     cp artifacts/contracts/CDKDataCommittee.sol/CDKDataCommittee.json compiled-contracts/
