@@ -288,11 +288,11 @@ async function main() {
      * Deployment Data Committee
      */
     let cdkDataCommitteeContract;
-    const CDKValidiumDataCommitteeContractFactory = await ethers.getContractFactory('CDKValidiumDataCommittee', deployer);
+    const CDKDataCommitteeContractFactory = await ethers.getContractFactory('CDKDataCommittee', deployer);
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
             cdkDataCommitteeContract = await upgrades.deployProxy(
-                CDKValidiumDataCommitteeContractFactory,
+                CDKDataCommitteeContractFactory,
                 [],
             );
             break;
