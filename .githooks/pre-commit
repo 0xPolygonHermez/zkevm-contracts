@@ -21,8 +21,8 @@ if npm run lint; then
     cp artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json compiled-contracts/
     cp artifacts/@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json compiled-contracts/
     cp artifacts/@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
-    cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
-    cp artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json compiled-contracts/
+    cp artifacts/contracts/deployment/CDKValidiumDeployer.sol/CDKValidiumDeployer.json compiled-contracts/
+    cp artifacts/contracts/CDKValidiumTimelock.sol/CDKValidiumTimelock.json compiled-contracts/
     git add compiled-contracts
     exit 0
 else
