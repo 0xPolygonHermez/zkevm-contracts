@@ -194,7 +194,7 @@ contract PolygonZkEVMBridgeL2 is
                 revert MsgValueNotZero();
             }
 
-            // Check if it's official WETh
+            // Check if it's WETH
             if (token == address(WETHToken)) {
                 // Burn tokens
                 TokenWrapped(token).burn(msg.sender, amount);
@@ -326,7 +326,7 @@ contract PolygonZkEVMBridgeL2 is
                 msg.sender,
                 destinationNetwork,
                 destinationAddress,
-                msg.value,
+                amountWETH,
                 keccak256(metadata)
             )
         );
@@ -507,10 +507,12 @@ contract PolygonZkEVMBridgeL2 is
             _LEAF_TYPE_MESSAGE
         );
 
+        // mint wETH tokens
+        WETHToken.mint(destinationAddress, amount);
+
         // Execute message
-        // Transfer ether
         /* solhint-disable avoid-low-level-calls */
-        (bool success, ) = destinationAddress.call{value: amount}(
+        (bool success, ) = destinationAddress.call(
             abi.encodeCall(
                 IBridgeMessageReceiver.onMessageReceived,
                 (originAddress, originNetwork, metadata)
