@@ -52,8 +52,6 @@ async function main() {
         'minDelayTimelock',
         'salt',
         'initialZkEVMDeployerOwner',
-        'gasTokenAddress',
-        'gasTokenNetwork',
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -90,7 +88,7 @@ async function main() {
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData('transferOwnership', [deployer.address]);
     const [proxyAdminAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionAdmin, dataCallAdmin, deployer);
 
-    if ((gasTokenAddress === '' || gasTokenAddress === '0x0000000000000000000000000000000000000000')) {
+    if ((gasTokenAddress === undefined || gasTokenAddress === '' || gasTokenAddress === '0x0000000000000000000000000000000000000000')) {
         // deploy with ether as gasToken
         balanceBrige = '200000000000000000000000000';
 
