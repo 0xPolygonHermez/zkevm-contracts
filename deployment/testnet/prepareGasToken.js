@@ -61,12 +61,12 @@ async function main() {
         deployer.address,
         gasTokenInitialBalance,
     );
-    awaitgasTokenContract.deployed();
+    await gasTokenContract.deployed();
 
     console.log('#######################\n');
     console.log('Gas Token deployed to:', gasTokenContract.address);
 
-    deployParameters.gasTokenAddress = maticTokenContract.address;
+    deployParameters.gasTokenAddress = gasTokenContract.address;
     deployParameters.gasTokenNetwork = 0;
 
     fs.writeFileSync(pathDeployParameters, JSON.stringify(deployParameters, null, 1));

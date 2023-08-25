@@ -99,7 +99,7 @@ async function create2Deployment(polgonZKEVMDeployerContract, salt, deployTransa
     return [precalculatedAddressDeployed, true];
 }
 
-async function getCreate2Address(polgonZKEVMDeployerContract, salt, deployTransaction) {
+function getCreate2Address(polgonZKEVMDeployerContract, salt, deployTransaction) {
     // Encode deploy transaction
     const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransaction]);
 
