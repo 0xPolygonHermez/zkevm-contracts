@@ -9,6 +9,54 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * Contract responsible for managing the exit roots across multiple networks
  */
 abstract contract PolygonRollupManager is IPolygonRollupManager, Initializable {
+    /**
+     * @notice Struct which will be stored for every batch sequence
+     * @param accInputHash Hash chain that contains all the information to process a batch:
+     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
+     * @param sequencedTimestamp Sequenced timestamp
+     * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
+     */
+    struct SequencedBatchData {
+        bytes32 accInputHash;
+        uint64 sequencedTimestamp;
+        uint64 previousLastBatchSequenced;
+    }
+
+    /**
+     * @notice Struct which to store the rollup data of each chain
+     * @param accInputHash Hash chain that contains all the information to process a batch:
+     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
+     * @param sequencedTimestamp Sequenced timestamp
+     * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
+     */
+    struct ChainData {
+        mapping(uint64 => SequencedBatchData) sequencedBatches;
+        mapping(uint64 => bytes32) batchNumToStateRoot;
+        mapping(uint256 => PendingState) pendingStateTransitions;
+        uint64 lastBatchSequenced;
+        uint64 lastVerifiedBatch;
+        uint64 lastPendingState;
+        uint64 lastPendingStateConsolidated;
+        address trustedAggregator;
+    }
+
+    /**
+     * @notice Struct to store the pending states
+     * Pending state will be an intermediary state, that after a timeout can be consolidated, which means that will be added
+     * to the state root mapping, and the global exit root will be updated
+     * This is a protection mechanism against soundness attacks, that will be turned off in the future
+     * @param timestamp Timestamp where the pending state is added to the queue
+     * @param lastVerifiedBatch Last batch verified batch of this pending state
+     * @param exitRoot Pending exit root
+     * @param stateRoot Pending state root
+     */
+    struct PendingState {
+        uint64 timestamp;
+        uint64 lastVerifiedBatch;
+        bytes32 exitRoot;
+        bytes32 stateRoot;
+    }
+
     // struct to store consensus metadata?¿
 
     // Number of consensus added, every new consensus will be assigned sequencially a new ID
@@ -31,65 +79,18 @@ abstract contract PolygonRollupManager is IPolygonRollupManager, Initializable {
     // Governance address
     address public networkCount;
 
-    // Time target of the verification of a batch
-    // Adaptatly the batchFee will be updated to achieve this target
-    uint64 public verifyBatchTimeTarget;
-
-    // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
-    uint16 public multiplierBatchFee;
-
-    // Trusted sequencer address
-    address public trustedSequencer;
-
-    // Current matic fee per batch sequenced
-    uint256 public batchFee;
-
-    /**
-     * @notice Struct which will be stored for every batch sequence
-     * @param accInputHash Hash chain that contains all the information to process a batch:
-     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
-     * @param sequencedTimestamp Sequenced timestamp
-     * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
-     */
-    struct SequencedBatchData {
-        bytes32 accInputHash;
-        uint64 sequencedTimestamp;
-        uint64 previousLastBatchSequenced;
-    }
-
-    /**
-     * @notice Struct to store the pending states
-     * Pending state will be an intermediary state, that after a timeout can be consolidated, which means that will be added
-     * to the state root mapping, and the global exit root will be updated
-     * This is a protection mechanism against soundness attacks, that will be turned off in the future
-     * @param timestamp Timestamp where the pending state is added to the queue
-     * @param lastVerifiedBatch Last batch verified batch of this pending state
-     * @param exitRoot Pending exit root
-     * @param stateRoot Pending state root
-     */
-    struct PendingState {
-        uint64 timestamp;
-        uint64 lastVerifiedBatch;
-        bytes32 exitRoot;
-        bytes32 stateRoot;
-    }
-
-    struct ChainData {
-        mapping(uint64 => SequencedBatchData) sequencedBatches;
-        mapping(uint64 => bytes32) batchNumToStateRoot;
-        mapping(uint256 => PendingState) pendingStateTransitions;
-        uint64 lastBatchSequenced;
-        uint64 lastVerifiedBatch;
-        uint64 lastPendingState;
-        uint64 lastPendingStateConsolidated;
-    }
-
     // Once a pending state exceeds this timeout it can be consolidated
     uint64 public pendingStateTimeout;
 
     // Trusted aggregator timeout, if a sequence is not verified in this time frame,
     // everyone can verify that sequence
     uint64 public trustedAggregatorTimeout;
+
+    // Address that will be able to adjust contract parameters or stop the emergency state
+    address public admin;
+
+    // This account will be able to accept the admin role
+    address public pendingAdmin;
 
     /**
      * @dev Emitted when a new consensus is added
