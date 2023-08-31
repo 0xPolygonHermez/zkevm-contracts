@@ -72,15 +72,13 @@ contract PolygonZkEVMV2 is
      * @notice Struct to call initialize, this saves gas because pack the parameters and avoid stack too deep errors.
      * @param admin Admin address
      * @param trustedSequencer Trusted sequencer address
-     * @param pendingStateTimeout Pending state timeout
      * @param trustedAggregator Trusted aggregator
      * @param trustedAggregatorTimeout Trusted aggregator timeout
      */
     struct InitializePackedParameters {
         address admin;
         address trustedSequencer;
-        uint64 pendingStateTimeout;
-        address trustedAggregator;
+        address trustedAggregator; //¿?¿?¿?¿?
         uint64 trustedAggregatorTimeout;
     }
 
@@ -357,22 +355,21 @@ contract PolygonZkEVMV2 is
      */
     event UpdateZkEVMVersion(uint64 numBatch, uint64 forkID, string version);
 
+
+    // General parameters that will have all networks that deploys this contract
+
+
     /**
-     * @param _globalExitRootManager Global exit root manager address
      * @param _rollupVerifier Rollup verifier address
-     * @param _bridgeAddress Bridge address
-     * @param _chainID L2 chainID
-     * @param _forkID Fork Id
+     * @param _rollupManager Global exit root manager address
+     * @param _forkID Fork ID
      */
     constructor(
         IVerifierRollup _rollupVerifier,
-        IPolygonZkEVMBridge _bridgeAddress,
-        uint64 _chainID,
-        uint64 _forkID
+        IRollupManager _rollupManager
     ) {
         rollupVerifier = _rollupVerifier;
-        bridgeAddress = _bridgeAddress;
-        chainID = _chainID;
+        rollupManager = _rollupManager;
         forkID = _forkID;
     }
 
@@ -381,6 +378,7 @@ contract PolygonZkEVMV2 is
      * @param genesisRoot Rollup genesis root
      * @param _trustedSequencerURL Trusted sequencer URL
      * @param _networkName L2 network name
+     * @param _chainID L2 chainID
      */
     function initialize(
         InitializePackedParameters calldata initializePackedParameters,
@@ -388,7 +386,9 @@ contract PolygonZkEVMV2 is
         string memory _trustedSequencerURL,
         string memory _networkName,
         string calldata _version,
-        IERC20Upgradeable _feeToken
+        IERC20Upgradeable _feeToken,
+            uint64 _chainID,
+        uint64 _forkID
     ) external initializer {
         admin = initializePackedParameters.admin;
         trustedSequencer = initializePackedParameters.trustedSequencer;
@@ -423,6 +423,9 @@ contract PolygonZkEVMV2 is
         multiplierBatchFee = 1002;
         forceBatchTimeout = 5 days;
         isForcedBatchDisallowed = true;
+
+        chainID = _chainID;
+        forkID = _forkID;
 
         // Initialize OZ contracts
         __Ownable_init_unchained();
