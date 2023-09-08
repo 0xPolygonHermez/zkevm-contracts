@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.17;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./interfaces/IVerifierRollup.sol";
@@ -639,7 +639,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) external ifNotEmergencyState {
         // Check if the trusted aggregator timeout expired,
         // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
@@ -712,7 +712,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) external onlyTrustedAggregator {
         _verifyAndRewardBatches(
             pendingStateNum,
@@ -758,8 +758,8 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
-    ) internal {
+        bytes32[24] calldata proof
+    ) internal virtual {
         bytes32 oldStateRoot;
         uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
 
@@ -1352,7 +1352,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) external onlyTrustedAggregator {
         _proveDistinctPendingState(
             initPendingStateNum,
@@ -1400,7 +1400,7 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
+        bytes32[24] calldata proof
     ) external ifNotEmergencyState {
         _proveDistinctPendingState(
             initPendingStateNum,
@@ -1438,8 +1438,8 @@ contract PolygonZkEVM is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
-        bytes calldata proof
-    ) internal view {
+        bytes32[24] calldata proof
+    ) internal view virtual {
         bytes32 oldStateRoot;
 
         // Use pending state if specified, otherwise use consolidated state
