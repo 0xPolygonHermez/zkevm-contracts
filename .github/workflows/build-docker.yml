@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
 
     steps:
       - name: Use Node.js ${{ matrix.node-version }}
@@ -32,7 +32,6 @@ jobs:
         run: |
           eval "$(ssh-agent -s)"
           ssh-add /tmp/ssh-key
-          npm install -g npm@latest
           npm i
           sudo curl -L "https://github.com/docker/compose/releases/download/1.26.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose

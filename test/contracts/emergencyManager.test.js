@@ -173,7 +173,7 @@ describe('Emergency mode test', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()).toNumber() + 1;
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
         const pendingStateNum = 0;
 
         await expect(
