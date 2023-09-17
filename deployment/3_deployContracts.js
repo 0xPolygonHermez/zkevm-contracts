@@ -309,9 +309,8 @@ async function main() {
         ongoingDeployment.polygonZkEVMGlobalExitRoot = polygonZkEVMGlobalExitRoot.address;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
     } else {
-        // sanity check
-        expect(precalculateGLobalExitRootAddress).to.be.equal(polygonZkEVMGlobalExitRoot.address);
-        // Expect the precalculate address matches de onogin deployment
+        // sanity check. Expect the precalculate address matches de onogin deployment
+        expect(precalculateGLobalExitRootAddress).to.be.equal(ongoingDeployment.polygonZkEVMGlobalExitRoot);
         polygonZkEVMGlobalExitRoot = PolygonZkEVMGlobalExitRootFactory.attach(ongoingDeployment.polygonZkEVMGlobalExitRoot);
 
         console.log('#######################\n');
