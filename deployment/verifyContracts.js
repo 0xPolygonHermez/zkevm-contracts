@@ -10,6 +10,12 @@ const pathDeployParameters = path.join(__dirname, './deploy_parameters.json');
 const deployOutputParameters = require(pathDeployOutputParameters);
 const deployParameters = require(pathDeployParameters);
 
+function sleep(s) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, s * 1000);
+  });
+}
+
 async function main() {
     // load deployer account
     if (typeof process.env.ETHERSCAN_API_KEY === 'undefined') {
@@ -37,6 +43,7 @@ async function main() {
     } catch (error) {
         // expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
+    await sleep(1);
 
     // verify verifier
     try {
@@ -49,6 +56,7 @@ async function main() {
     } catch (error) {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
+    await sleep(1);
 
     const { minDelayTimelock } = deployParameters;
     const { timelockAddress } = deployParameters;
@@ -69,6 +77,7 @@ async function main() {
     } catch (error) {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
+    await sleep(1);
 
     // verify proxy admin
     try {
@@ -81,6 +90,7 @@ async function main() {
     } catch (error) {
         expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
+    await sleep(1);
 
     // verify zkEVM address
     try {
@@ -101,6 +111,7 @@ async function main() {
     } catch (error) {
         expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
+    await sleep(1);
 
     // verify global exit root address
     try {
@@ -117,6 +128,7 @@ async function main() {
     } catch (error) {
         expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
+    await sleep(1);
 
     try {
         await hre.run(
