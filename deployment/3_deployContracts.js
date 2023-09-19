@@ -136,10 +136,12 @@ async function main() {
             const VerifierRollup = await ethers.getContractFactory('FflonkVerifier', deployer);
             verifierContract = await VerifierRollup.deploy();
             await verifierContract.deployed();
+            console.log("Deploying Real Verifier");
         } else {
             const VerifierRollupHelperFactory = await ethers.getContractFactory('VerifierRollupHelperMock', deployer);
             verifierContract = await VerifierRollupHelperFactory.deploy();
             await verifierContract.deployed();
+            console.log("Deploying Fake Verifier");
         }
         console.log('#######################\n');
         console.log('Verifier deployed to:', verifierContract.address);

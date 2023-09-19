@@ -105,6 +105,7 @@ async function main() {
         };
         await deployer.sendTransaction(params);
     }
+    await (await maticTokenContract.transfer(trustedAggregator, tokensBalance)).wait();
 
     deployParameters.maticTokenAddress = maticTokenContract.address;
     fs.writeFileSync(pathDeployParameters, JSON.stringify(deployParameters, null, 1));

@@ -3,7 +3,7 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
-const gasPriceKeylessDeployment = '100'; // 100 gweis
+const gasPriceKeylessDeployment = process.env.GAS_PRICE_KEYLESS_DEPLOYMENT; // 100 gweis
 
 async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
     const PolgonZKEVMDeployerFactory = await ethers.getContractFactory('PolygonZkEVMDeployer', signer);
