@@ -9,6 +9,9 @@
     "reason-string": "off",
     "not-rely-on-time": "off",
     "no-inline-assembly": "off",
-    "check-send-result": "off"
+    "check-send-result": "off",
+    "no-global-import": "off",
+    "max-states-count": "off",
+    "avoid-tx-origin": "off"
   }
 }
