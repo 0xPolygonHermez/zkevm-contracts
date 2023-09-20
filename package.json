@@ -28,7 +28,7 @@
     "url": "https://github.com/0xPolygonHermez/contracts-zkEVM/issues"
   },
   "homepage": "https://github.com/0xPolygonHermez/contracts-zkEVM#readme",
-  "license": "pending",
+  "license": "AGPL-3.0",
   "dependencies": {
     "chai": "^4.3.7",
     "ethers": "^5.7.2"
