@@ -89,6 +89,16 @@
     "gas:report": "REPORT_GAS=true npx hardhat test",
     "gas:report:file": "rm -f .openzeppelin/unknown-31337.json && REPORT_GAS=true REPORT_GAS_FILE=true npx hardhat test",
     "deploy:testnet:ZkEVM:test:goerli": "npm run prepare:testnet:ZkEVM:goerli && npm run deploy:ZkEVM:test:goerli",
-    "deploy:ZkEVM:test:goerli": "node deployment/1_createGenesis.js --test && npx hardhat run deployment/3_deployContracts.js --network goerli && npm run saveDeployment:goerli"
+    "deploy:ZkEVM:test:goerli": "node deployment/1_createGenesis.js --test && npx hardhat run deployment/3_deployContracts.js --network goerli && npm run saveDeployment:goerli",
+    "saveDeployment:sepolia": "mkdir -p deployments/sepolia$(date +%s) && cp -r deployment/deploy_*.json deployments/sepolia_$(date +%s) && cp .openzeppelin/sepolia.json deployments/sepolia_$(date +%s) && cp deployment/genesis.json deployments/sepolia_$(date +%s)",
+    "prepare:testnet:ZkEVM:sepolia": "npx hardhat run deployment/testnet/prepareTestnet.js --network sepolia",
+    "deploy:ZkEVM:sepolia": "node deployment/1_createGenesis.js && npx hardhat run deployment/3_deployContracts.js --network sepolia && npm run saveDeployment:sepolia",
+    "deploy:deployer:ZkEVM:sepolia": "npx hardhat run deployment/2_deployPolygonZKEVMDeployer.js --network sepolia",
+    "verify:deployer:ZkEVM:sepolia": "npx hardhat run deployment/verifyzkEVMDeployer.js --network sepolia",
+    "deploy:testnet:ZkEVM:sepolia": "npm run prepare:testnet:ZkEVM:sepolia && npm run deploy:ZkEVM:sepolia",
+    "upgrade:timelock:sepolia": "npx hardhat run upgrade/timeLockUpgrade.js --network sepolia",
+    "verify:ZkEVM:sepolia": "npx hardhat run deployment/verifyContracts.js --network sepolia",
+    "deploy:testnet:ZkEVM:test:sepolia": "npm run prepare:testnet:ZkEVM:sepolia && npm run deploy:ZkEVM:test:sepolia",
+    "deploy:ZkEVM:test:sepolia": "node deployment/1_createGenesis.js --test && npx hardhat run deployment/3_deployContracts.js --network sepolia && npm run saveDeployment:sepolia"
   }
 }

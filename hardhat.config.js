@@ -93,6 +93,15 @@ module.exports = {
                 count: 20,
             },
         },
+        sepolia: {
+            url: process.env.SEPOLIA_PROVIDER ? process.env.SEPOLIA_PROVIDER : `https://sepolia.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+            accounts: {
+                mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+                path: "m/44'/60'/0'/0",
+                initialIndex: 0,
+                count: 20,
+            },
+        },
         rinkeby: {
             url: process.env.RINKEBY_PROVIDER ? process.env.RINKEBY_PROVIDER : `https://rinkeby.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
             accounts: {
@@ -150,6 +159,7 @@ module.exports = {
         apiKey: {
             polygonZKEVMTestnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
             polygonZKEVMMainnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
+            sepolia: `${process.env.ETHERSCAN_API_KEY}`,
             goerli: `${process.env.ETHERSCAN_API_KEY}`,
             mainnet: `${process.env.ETHERSCAN_API_KEY}`,
         },
