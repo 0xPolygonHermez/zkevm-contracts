@@ -4,115 +4,207 @@ pragma solidity 0.8.20;
 
 interface IPolygonRollupManager {
     /**
+     * @dev Thrown when the pending state timeout exceeds the _HALT_AGGREGATION_TIMEOUT
+     */
+    error PendingStateTimeoutExceedHaltAggregationTimeout();
+
+    /**
+     * @dev Thrown when the trusted aggregator timeout exceeds the _HALT_AGGREGATION_TIMEOUT
+     */
+    error TrustedAggregatorTimeoutExceedHaltAggregationTimeout();
+
+    /**
      * @dev Thrown when sender is not the PolygonZkEVM address
      */
     error OnlyGovernance();
 
     /**
-     * @dev Thrown when the destination network is invalid
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error DestinationNetworkInvalid();
+    error OnlyTrustedAggregator();
 
     /**
-     * @dev Thrown when the amount does not match msg.value
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error AmountDoesNotMatchMsgValue();
+    error ConsensusAlreadyExist();
 
     /**
-     * @dev Thrown when user is bridging tokens and is also sending a value
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error MsgValueNotZero();
+    error VerifierAlreadyExist();
 
     /**
-     * @dev Thrown when the Ether transfer on claimAsset fails
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error EtherTransferFailed();
+    error ConsensusDoesNotExist();
 
     /**
-     * @dev Thrown when the message transaction on claimMessage fails
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error MessageFailed();
+    error VerifierDoesNotExist();
 
     /**
-     * @dev Thrown when the global exit root does not exist
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error GlobalExitRootInvalid();
+    error UpgradeToSameImplementation();
 
     /**
-     * @dev Thrown when the smt proof does not match
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error InvalidSmtProof();
+    error RollupMustExist();
 
     /**
-     * @dev Thrown when an index is already claimed
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error AlreadyClaimed();
+    error VerifierMustBeDifferent();
 
     /**
-     * @dev Thrown when the owner of permit does not match the sender
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error NotValidOwner();
+    error SenderMustBeRollup();
 
     /**
-     * @dev Thrown when the spender of the permit does not match this contract address
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error NotValidSpender();
+    error NewSequencedBatchMustBeBigger();
 
     /**
-     * @dev Thrown when the amount of the permit does not match
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error NotValidAmount();
+    error TrustedAggregatorTimeoutNotExpired();
 
     /**
-     * @dev Thrown when the permit data contains an invalid signature
+     * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error NotValidSignature();
+    error ExceedMaxVerifyBatches();
 
-    function bridgeAsset(
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        address token,
-        bool forceUpdateGlobalExitRoot,
-        bytes calldata permitData
-    ) external payable;
+    /**
+     * @dev Thrown when attempting to access a pending state that does not exist
+     */
+    error PendingStateDoesNotExist();
 
-    function bridgeMessage(
-        uint32 destinationNetwork,
-        address destinationAddress,
-        bool forceUpdateGlobalExitRoot,
-        bytes calldata metadata
-    ) external payable;
+    /**
+     * @dev Thrown when the init num batch does not match with the one in the pending state
+     */
+    error InitNumBatchDoesNotMatchPendingState();
 
-    function claimAsset(
-        bytes32[32] calldata smtProof,
-        uint32 index,
-        bytes32 mainnetExitRoot,
-        bytes32 rollupExitRoot,
-        uint32 originNetwork,
-        address originTokenAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes calldata metadata
-    ) external;
+    /**
+     * @dev Thrown when the old state root of a certain batch does not exist
+     */
+    error OldStateRootDoesNotExist();
 
-    function claimMessage(
-        bytes32[32] calldata smtProof,
-        uint32 index,
-        bytes32 mainnetExitRoot,
-        bytes32 rollupExitRoot,
-        uint32 originNetwork,
-        address originAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes calldata metadata
-    ) external;
+    /**
+     * @dev Thrown when the init verification batch is above the last verification batch
+     */
+    error InitNumBatchAboveLastVerifiedBatch();
 
-    function updateGlobalExitRoot() external;
+    /**
+     * @dev Thrown when the final verification batch is below or equal the last verification batch
+     */
+    error FinalNumBatchBelowLastVerifiedBatch();
 
-    function activateEmergencyState() external;
+    /**
+     * @dev Thrown when the zkproof is not valid
+     */
+    error InvalidProof();
 
-    function deactivateEmergencyState() external;
+    /**
+     * @dev Thrown when attempting to consolidate a pending state not yet consolidable
+     */
+    error PendingStateNotConsolidable();
+
+    /**
+     * @dev Thrown when attempting to consolidate a pending state that is already consolidated or does not exist
+     */
+    error PendingStateInvalid();
+
+    /**
+     * @dev Thrown when the new accumulate input hash does not exist
+     */
+    error NewAccInputHashDoesNotExist();
+
+    /**
+     * @dev Thrown when the new state root is not inside prime
+     */
+    error NewStateRootNotInsidePrime();
+
+    /**
+     * @dev Thrown when force batch is not allowed
+     */
+    error ForceBatchNotAllowed();
+
+    /**
+     * @dev Thrown when try to activate force batches when they are already active
+     */
+    error ForceBatchesAlreadyActive();
+
+    /**
+     * @dev Thrown when try to activate force batches when they are already active
+     */
+    error NotSupportedCurrently();
+
+    /**
+     * @dev Thrown when the final pending state num is not in a valid range
+     */
+    error FinalPendingStateNumInvalid();
+
+    /**
+     * @dev Thrown when the final num batch does not match with the one in the pending state
+     */
+    error FinalNumBatchDoesNotMatchPendingState();
+
+    /**
+     * @dev Thrown when the stored root matches the new root proving a different state
+     */
+    error StoredRootMustBeDifferentThanNewRoot();
+
+    /**
+     * @dev Thrown when the batch is already verified when attempting to activate the emergency state
+     */
+    error BatchAlreadyVerified();
+
+    /**
+     * @dev Thrown when the batch is not sequenced or not at the end of a sequence when attempting to activate the emergency state
+     */
+    error BatchNotSequencedOrNotSequenceEnd();
+
+    /**
+     * @dev Thrown when the halt timeout is not expired when attempting to activate the emergency state
+     */
+    error HaltTimeoutNotExpired();
+
+    /**
+     * @dev Thrown when the old accumulate input hash does not exist
+     */
+    error OldAccInputHashDoesNotExist();
+
+    /**
+     * @dev Thrown when attempting to set a new trusted aggregator timeout equal or bigger than current one
+     */
+    error NewTrustedAggregatorTimeoutMustBeLower();
+
+    /**
+     * @dev Thrown when attempting to set a new pending state timeout equal or bigger than current one
+     */
+    error NewPendingStateTimeoutMustBeLower();
+
+    /**
+     * @dev Thrown when attempting to set a new multiplier batch fee in a invalid range of values
+     */
+    error InvalidRangeMultiplierBatchFee();
+
+    /**
+     * @dev Thrown when attempting to set a batch time target in an invalid range of values
+     */
+    error InvalidRangeBatchTimeTarget();
+
+    /**
+     * @dev Thrown when attempting to set a force batch timeout in an invalid range of values
+     */
+    error InvalidRangeForceBatchTimeout();
+
+    /**
+     * @dev Thrown when the caller is not the pending admin
+     */
+    error OnlyPendingGovernance();
 }
