@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
- 
+
 pragma solidity 0.8.20;
- 
+
 import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "../lib/GlobalExitRootLib.sol";
 import "../lib/DepositContractLib.sol";
- 
+
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
@@ -15,19 +15,22 @@ contract PolygonZkEVMGlobalExitRootV2 is
 {
     // PolygonZkEVMBridge address
     address public immutable bridgeAddress;
- 
+
     // Rollup manager contract address
     address public immutable rollupManager;
- 
+
     // Rollup root, contains all exit roots of all rollups
     bytes32 public lastRollupExitRoot;
- 
+
     // Mainnet exit root, this will be updated every time a deposit is made in mainnet
     bytes32 public lastMainnetExitRoot;
- 
+
     // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
- 
+
+    // Store every global exit root: Root --> timestamp
+    mapping(bytes32 => uint256) public historicGlobalExitRootSnapshots;
+
     /**
      * @dev Emitted when the global exit root is updated
      */
@@ -35,7 +38,15 @@ contract PolygonZkEVMGlobalExitRootV2 is
         bytes32 indexed mainnetExitRoot,
         bytes32 indexed rollupExitRoot
     );
- 
+
+    /**
+     * @dev Emitted when a snapshot of the historic global exit root is taken
+     */
+    event HistoricGlobalExitRootSnapshot(
+        uint256 indexed depositCount,
+        bytes32 indexed historicGlobalExitRoot
+    );
+
     /**
      * @param _rollupManager Rollup contract address
      * @param _bridgeAddress PolygonZkEVMBridge contract address
@@ -44,7 +55,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
         rollupManager = _rollupManager;
         bridgeAddress = _bridgeAddress;
     }
- 
+
     /**
      * @notice Update the exit root of one of the networks and the global exit root
      * @param newRoot new exit tree root
@@ -53,7 +64,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
         // Store storage variables into temporal variables since will be used multiple times
         bytes32 cacheLastRollupExitRoot = lastRollupExitRoot;
         bytes32 cacheLastMainnetExitRoot = lastMainnetExitRoot;
- 
+
         if (msg.sender == bridgeAddress) {
             lastMainnetExitRoot = newRoot;
             cacheLastMainnetExitRoot = newRoot;
@@ -63,12 +74,12 @@ contract PolygonZkEVMGlobalExitRootV2 is
         } else {
             revert OnlyAllowedContracts();
         }
- 
+
         bytes32 newGlobalExitRoot = GlobalExitRootLib.calculateGlobalExitRoot(
             cacheLastMainnetExitRoot,
             cacheLastRollupExitRoot
         );
- 
+
         // If it already exists, do not modify the timestamp
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
             globalExitRootMap[newGlobalExitRoot] = block.timestamp;
@@ -76,12 +87,12 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot
             );
- 
+
             // Update the historical roots
             _addLeaf(newGlobalExitRoot);
         }
     }
- 
+
     /**
      * @notice Return last global exit root
      */
@@ -92,7 +103,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 lastRollupExitRoot
             );
     }
- 
+
     /**
      * @notice Computes and returns the merkle root
      */
@@ -103,5 +114,24 @@ contract PolygonZkEVMGlobalExitRootV2 is
         returns (bytes32)
     {
         return super.getRoot();
+    }
+
+    /**
+     * @notice Computes and returns the merkle root
+     */
+    function makeHistoricGlobalExitRootSnapshot() public {
+        bytes32 currentHistoricGlobalExitRoot = getRoot();
+        if (
+            historicGlobalExitRootSnapshots[currentHistoricGlobalExitRoot] == 0
+        ) {
+            historicGlobalExitRootSnapshots[
+                currentHistoricGlobalExitRoot
+            ] = block.timestamp;
+
+            emit HistoricGlobalExitRootSnapshot(
+                depositCount,
+                currentHistoricGlobalExitRoot
+            );
+        }
     }
 }

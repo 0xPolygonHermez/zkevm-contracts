@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "../lib/TokenWrapped.sol";
 import "../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import "../interfaces/IBridgeMessageReceiver.sol";
-import "../interfaces/IPolygonZkEVMBridge.sol";
+import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "../lib/EmergencyManager.sol";
 import "../lib/GlobalExitRootLib.sol";
@@ -19,7 +19,7 @@ import "../lib/GlobalExitRootLib.sol";
 contract PolygonZkEVMBridgeV2 is
     DepositContract,
     EmergencyManager,
-    IPolygonZkEVMBridge
+    IPolygonZkEVMBridgeV2
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -600,6 +600,8 @@ contract PolygonZkEVMBridgeV2 is
 
         uint32 leafIndex;
         bytes32 claimRoot;
+
+        //TODO
         if (networkID == _MAINNET_NETWORK_ID) {
             // Verify merkle proof using rollup exit root
             claimRoot = rollupExitRoot;
