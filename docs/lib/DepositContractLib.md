@@ -46,3 +46,21 @@ Verify merkle proof
 |`index` | uint32 | Index of the leaf
 |`root` | bytes32 | Merkle root
 
+### calculateRoot
+```solidity
+  function calculateRoot(
+    bytes32 leafHash,
+    bytes32[32] smtProof,
+    uint32 index
+  ) public returns (bytes32)
+```
+calcualte root from merkle proof
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`leafHash` | bytes32 | Leaf hash
+|`smtProof` | bytes32[32] | Smt proof
+|`index` | uint32 | Index of the leaf
+

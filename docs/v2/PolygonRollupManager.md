@@ -179,7 +179,7 @@ get the current rollup exit root
     bytes32 newAccInputHash
   ) external
 ```
-Sequence batches
+Sequence batches, callback called by one of the consensus managed by this contract
 
 
 #### Parameters:
