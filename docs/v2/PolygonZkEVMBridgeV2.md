@@ -69,7 +69,8 @@ Bridge message and send ETH value
 ### claimAsset
 ```solidity
   function claimAsset(
-    bytes32[32] smtProof,
+    bytes32[32] smtProofLocalExitRoot,
+    bytes32[32] smtProofRollupExitRoot,
     uint256 globalIndex,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -87,7 +88,8 @@ Verify merkle proof and withdraw tokens/ether
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[32] | Smt proof
+|`smtProofLocalExitRoot` | bytes32[32] | Smt proof
+|`smtProofRollupExitRoot` | bytes32[32] | Smt proof
 |`globalIndex` | uint256 | Global index: bool(isMainnet)||uint32(indexRollupRoot)||uint32(indexDepositLeaf)
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -101,7 +103,8 @@ Verify merkle proof and withdraw tokens/ether
 ### claimMessage
 ```solidity
   function claimMessage(
-    bytes32[32] smtProof,
+    bytes32[32] smtProofLocalExitRoot,
+    bytes32[32] smtProofRollupExitRoot,
     uint256 globalIndex,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
@@ -122,7 +125,8 @@ will not trigger any execution
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[32] | Smt proof
+|`smtProofLocalExitRoot` | bytes32[32] | Smt proof
+|`smtProofRollupExitRoot` | bytes32[32] | Smt proof
 |`globalIndex` | uint256 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
@@ -197,17 +201,12 @@ Function to deactivate the emergency state
 ### _verifyLeaf
 ```solidity
   function _verifyLeaf(
-    bytes32[32] smtProof,
+    bytes32[32] smtProofLocalExitRoot,
+    bytes32[32] smtProofRollupExitRoot,
     uint256 globalIndex,
     bytes32 mainnetExitRoot,
     bytes32 rollupExitRoot,
-    uint32 originNetwork,
-    address originAddress,
-    uint32 destinationNetwork,
-    address destinationAddress,
-    uint256 amount,
-    bytes metadata,
-    uint8 leafType
+    bytes32 leafValue
   ) internal
 ```
 Verify leaf and checks that it has not been claimed
@@ -216,22 +215,17 @@ Verify leaf and checks that it has not been claimed
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProof` | bytes32[32] | Smt proof
+|`smtProofLocalExitRoot` | bytes32[32] | Smt proof
+|`smtProofRollupExitRoot` | bytes32[32] | Smt proof
 |`globalIndex` | uint256 | Index of the leaf
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
-|`originNetwork` | uint32 | Origin network
-|`originAddress` | address | Origin address
-|`destinationNetwork` | uint32 | Network destination
-|`destinationAddress` | address | Address destination
-|`amount` | uint256 | Amount of tokens
-|`metadata` | bytes | Abi encoded metadata if any, empty otherwise
-|`leafType` | uint8 | Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
+|`leafValue` | bytes32 | leaf value
 
 ### isClaimed
 ```solidity
   function isClaimed(
-    uint32 index,
+    uint32 leafIndex,
     uint32 originNetwork
   ) external returns (bool)
 ```
@@ -241,7 +235,7 @@ Function to check if an index is claimed or not
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`index` | uint32 | Index
+|`leafIndex` | uint32 | Index
 |`originNetwork` | uint32 | origin network
 
 ### updateGlobalExitRoot

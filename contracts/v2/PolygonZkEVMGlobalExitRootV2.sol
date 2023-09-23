@@ -6,6 +6,11 @@ import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "../lib/GlobalExitRootLib.sol";
 import "../lib/DepositContractLib.sol";
 
+// TODO it is requierde a special ugpradbility for this contract since overlap storage slots
+// This means that the lastRollupExitRoot and the lastMainnetExitRoot must be copei using assembly form prv version
+
+// another and seems better approach will be to define a contract base which will contain tthe same slots
+
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */

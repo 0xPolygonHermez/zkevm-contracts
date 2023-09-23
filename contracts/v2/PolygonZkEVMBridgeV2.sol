@@ -157,8 +157,8 @@ contract PolygonZkEVMBridgeV2 is
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState nonReentrant {
         if (
-            destinationNetwork == networkID ||
-            destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS
+            destinationNetwork == networkID
+            // TODO destinationNetwork >= rollupManager.rollupCount() ?¿
         ) {
             revert DestinationNetworkInvalid();
         }
@@ -269,8 +269,7 @@ contract PolygonZkEVMBridgeV2 is
         bytes calldata metadata
     ) external payable ifNotEmergencyState {
         if (
-            destinationNetwork == networkID ||
-            destinationNetwork >= _CURRENT_SUPPORTED_NETWORKS
+            destinationNetwork == networkID // TODO destinationNetwork >= rollupManager.rollupCount() ?¿
         ) {
             revert DestinationNetworkInvalid();
         }
@@ -304,9 +303,11 @@ contract PolygonZkEVMBridgeV2 is
         }
     }
 
+    // Maitain previous approach?¿
     /**
      * @notice Verify merkle proof and withdraw tokens/ether
-     * @param smtProof Smt proof
+     * @param smtProofLocalExitRoot Smt proof
+     * @param smtProofRollupExitRoot Smt proof
      * @param globalIndex Global index: bool(isMainnet)||uint32(indexRollupRoot)||uint32(indexDepositLeaf)
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
@@ -318,7 +319,8 @@ contract PolygonZkEVMBridgeV2 is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimAsset(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -329,19 +331,27 @@ contract PolygonZkEVMBridgeV2 is
         uint256 amount,
         bytes calldata metadata
     ) external ifNotEmergencyState {
+        // Destination network must be this networkID
+        if (destinationNetwork != networkID) {
+            revert DestinationNetworkInvalid();
+        }
+
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
-            smtProof,
+            smtProofLocalExitRoot,
+            smtProofRollupExitRoot,
             globalIndex,
             mainnetExitRoot,
             rollupExitRoot,
-            originNetwork,
-            originTokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata,
-            _LEAF_TYPE_ASSET
+            getLeafValue(
+                _LEAF_TYPE_ASSET,
+                originNetwork,
+                originTokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                keccak256(metadata)
+            )
         );
 
         // Transfer funds
@@ -422,7 +432,8 @@ contract PolygonZkEVMBridgeV2 is
      * If the receiving address is an EOA, the call will result as a success
      * Which means that the amount of ether will be transferred correctly, but the message
      * will not trigger any execution
-     * @param smtProof Smt proof
+     * @param smtProofLocalExitRoot Smt proof
+     * @param smtProofRollupExitRoot Smt proof
      * @param globalIndex Index of the leaf
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
@@ -434,7 +445,8 @@ contract PolygonZkEVMBridgeV2 is
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
     function claimMessage(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
@@ -445,19 +457,27 @@ contract PolygonZkEVMBridgeV2 is
         uint256 amount,
         bytes calldata metadata
     ) external ifNotEmergencyState {
+        // Destination network must be this networkID
+        if (destinationNetwork != networkID) {
+            revert DestinationNetworkInvalid();
+        }
+
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
-            smtProof,
+            smtProofLocalExitRoot,
+            smtProofRollupExitRoot,
             globalIndex,
             mainnetExitRoot,
             rollupExitRoot,
-            originNetwork,
-            originAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata,
-            _LEAF_TYPE_MESSAGE
+            getLeafValue(
+                _LEAF_TYPE_MESSAGE,
+                originNetwork,
+                originAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                keccak256(metadata)
+            )
         );
 
         // Execute message
@@ -555,30 +575,20 @@ contract PolygonZkEVMBridgeV2 is
 
     /**
      * @notice Verify leaf and checks that it has not been claimed
-     * @param smtProof Smt proof
+     * @param smtProofLocalExitRoot Smt proof
+     * @param smtProofRollupExitRoot Smt proof
      * @param globalIndex Index of the leaf
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
-     * @param originNetwork Origin network
-     * @param originAddress Origin address
-     * @param destinationNetwork Network destination
-     * @param destinationAddress Address destination
-     * @param amount Amount of tokens
-     * @param metadata Abi encoded metadata if any, empty otherwise
-     * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
+     * @param leafValue leaf value
      */
     function _verifyLeaf(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
-        uint32 originNetwork,
-        address originAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes calldata metadata,
-        uint8 leafType
+        bytes32 leafValue
     ) internal {
         // Check timestamp where the global exit root was set
         uint256 timestampGlobalExitRoot = globalExitRootManager
@@ -589,73 +599,53 @@ contract PolygonZkEVMBridgeV2 is
                 )
             );
 
+        // check that thi global exit root exist
         if (timestampGlobalExitRoot == 0) {
             revert GlobalExitRootInvalid();
         }
 
-        // Destination network must be networkID
-        if (destinationNetwork != networkID) {
-            revert DestinationNetworkInvalid();
-        }
-
         uint32 leafIndex;
-        bytes32 claimRoot;
+        uint32 originNetwork;
 
-        //TODO
-        if (networkID == _MAINNET_NETWORK_ID) {
-            // Verify merkle proof using rollup exit root
-            claimRoot = rollupExitRoot;
-        } else {
-            // Verify merkle proof using mainnet exit root
-            claimRoot = mainnetExitRoot;
-        }
+        // Get origin network from global index
+        if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {
+            // It's mainnet, therefore origin network is 0
 
-        if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 0) {
-            // Rollup claim
+            // last 32 bits are leafIndex
+            leafIndex = uint32(globalIndex);
 
-            // Verify merkle proof using rollup exit root
-            claimRoot = rollupExitRoot;
             if (
                 !verifyMerkleProof(
-                    getLeafValue(
-                        leafType,
-                        originNetwork,
-                        originAddress,
-                        destinationNetwork,
-                        destinationAddress,
-                        amount,
-                        keccak256(metadata)
-                    ),
-                    smtProof,
-                    leafIndex,
-                    rollupExitRoot
-                )
-            ) {
-                revert InvalidSmtProof();
-            }
-        } else {
-            // mainnet claim
-
-            // verify merkle proof using mainnet exit root
-            if (
-                !verifyMerkleProof(
-                    getLeafValue(
-                        leafType,
-                        originNetwork,
-                        originAddress,
-                        destinationNetwork,
-                        destinationAddress,
-                        amount,
-                        keccak256(metadata)
-                    ),
-                    smtProof,
+                    leafValue,
+                    smtProofLocalExitRoot,
                     leafIndex,
                     mainnetExitRoot
                 )
             ) {
                 revert InvalidSmtProof();
             }
+        } else {
+            // it's a rollup, therefore we have to infer the origin network
+            uint32 indexRollup = uint32(globalIndex >> 32);
+            originNetwork = indexRollup + 1;
+
+            // last 32 bits are leafIndex
+            leafIndex = uint32(globalIndex);
+
+            // verify merkle proof agains rollup exit root
+            if (
+                !verifyMerkleProof(
+                    calculateRoot(leafValue, smtProofLocalExitRoot, leafIndex),
+                    smtProofRollupExitRoot,
+                    indexRollup,
+                    rollupExitRoot
+                )
+            ) {
+                revert InvalidSmtProof();
+            }
         }
+
+        // TODO must calcualte TRUE origin network
 
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, originNetwork);
@@ -663,11 +653,11 @@ contract PolygonZkEVMBridgeV2 is
 
     /**
      * @notice Function to check if an index is claimed or not
-     * @param index Index
+     * @param leafIndex Index
      * @param originNetwork origin network
      */
     function isClaimed(
-        uint32 index,
+        uint32 leafIndex,
         uint32 originNetwork
     ) external view returns (bool) {
         uint256 globalIndex;
@@ -677,10 +667,10 @@ contract PolygonZkEVMBridgeV2 is
             networkID == _MAINNET_NETWORK_ID &&
             originNetwork == _ZKEVM_NETWORK_ID
         ) {
-            globalIndex = uint256(index);
+            globalIndex = uint256(leafIndex);
         } else {
             globalIndex =
-                uint256(index) +
+                uint256(leafIndex) +
                 uint256(originNetwork) *
                 _MAX_LEAFS_PER_NETWORK;
         }
@@ -695,12 +685,23 @@ contract PolygonZkEVMBridgeV2 is
      * @param originNetwork origin network
      */
     function _setAndCheckClaimed(
-        uint256 leafIndex,
-        uint256 originNetwork
+        uint32 leafIndex,
+        uint32 originNetwork
     ) private {
-        uint256 globalIndex = leafIndex +
-            originNetwork *
-            _MAX_LEAFS_PER_NETWORK;
+        uint256 globalIndex;
+
+        // For consistency with the previous setted nullifiers
+        if (
+            networkID == _MAINNET_NETWORK_ID &&
+            originNetwork == _ZKEVM_NETWORK_ID
+        ) {
+            globalIndex = uint256(leafIndex);
+        } else {
+            globalIndex =
+                uint256(leafIndex) +
+                uint256(originNetwork) *
+                _MAX_LEAFS_PER_NETWORK;
+        }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
         uint256 mask = 1 << bitPos;
         uint256 flipped = claimedBitMap[wordPos] ^= mask;

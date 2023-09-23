@@ -648,7 +648,7 @@ abstract contract PolygonRollupManager is
     ////////////////////////////////////
 
     /**
-     * @notice Sequence batches
+     * @notice Sequence batches, callback called by one of the consensus managed by this contract
      * @param newSequencedBatch new sequenced batch
      * @param newAccInputHash new accumualted input hash
      */
@@ -1318,7 +1318,9 @@ abstract contract PolygonRollupManager is
     /**
      * @notice Get the last verified batch
      */
-    function getLastVerifiedBatch(uint64 rollupID) public returns (uint64) {
+    function getLastVerifiedBatch(
+        uint64 rollupID
+    ) public view returns (uint64) {
         return _getLastVerifiedBatch(rollupIDToRollupData[rollupID]);
     }
 
@@ -1327,7 +1329,7 @@ abstract contract PolygonRollupManager is
      */
     function _getLastVerifiedBatch(
         RollupData storage rollup
-    ) internal returns (uint64) {
+    ) internal view returns (uint64) {
         if (rollup.lastPendingState > 0) {
             return
                 rollup

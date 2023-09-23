@@ -602,7 +602,7 @@ contract PolygonZkEVMV2 is
     ) public onlyRollupManager {
         // Get feeToken reward
         feeToken.safeTransfer(
-            msg.sender,
+            beneficiary,
             calculateRewardPerBatch() * (batchesToReward)
         );
     }
@@ -990,7 +990,7 @@ contract PolygonZkEVMV2 is
     /**
      * @notice Function to calculate the reward to verify a single batch
      */
-    function calculateRewardPerBatch() public returns (uint256) {
+    function calculateRewardPerBatch() public view returns (uint256) {
         uint256 currentBalance = feeToken.balanceOf(address(this));
 
         // Total Sequenced Batches = forcedBatches to be sequenced (total forced Batches - sequenced Batches) + sequencedBatches
@@ -1006,7 +1006,7 @@ contract PolygonZkEVMV2 is
     /**
      * @notice Get the last verified batch
      */
-    function getLastVerifiedBatch() public returns (uint64) {
+    function getLastVerifiedBatch() public view returns (uint64) {
         return rollupManager.getLastVerifiedBatch(rollupID);
     }
 }
