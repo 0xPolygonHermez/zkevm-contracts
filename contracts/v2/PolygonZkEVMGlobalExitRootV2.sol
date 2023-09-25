@@ -124,7 +124,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
     /**
      * @notice Computes and returns the merkle root
      */
-    function makeHistoricGlobalExitRootSnapshot() public {
+    function takeHistoricGlobalExitRootSnapshot() public {
         bytes32 currentHistoricGlobalExitRoot = getRoot();
         if (
             historicGlobalExitRootSnapshots[currentHistoricGlobalExitRoot] == 0

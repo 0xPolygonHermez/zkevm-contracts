@@ -625,7 +625,7 @@ contract PolygonZkEVMBridgeV2 is
                 revert InvalidSmtProof();
             }
         } else {
-            // it's a rollup, therefore we have to infer the origin network
+            // it's a rollup, therefore we have to get the origin network
             uint32 indexRollup = uint32(globalIndex >> 32);
             originNetwork = indexRollup + 1;
 
@@ -644,8 +644,6 @@ contract PolygonZkEVMBridgeV2 is
                 revert InvalidSmtProof();
             }
         }
-
-        // TODO must calcualte TRUE origin network
 
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, originNetwork);

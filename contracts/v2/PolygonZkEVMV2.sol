@@ -588,6 +588,7 @@ contract PolygonZkEVMV2 is
             batchFee * nonForcedBatchesSequenced
         );
 
+        rollupManager.onSequenceBatches(currentBatchSequenced,currentAccInputHash);
         emit SequenceBatches(currentBatchSequenced);
     }
 
@@ -857,6 +858,8 @@ contract PolygonZkEVMV2 is
         });
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
+
+        rollupManager.onSequenceBatches(currentBatchSequenced,currentAccInputHash);
 
         emit SequenceForceBatches(currentBatchSequenced);
     }
