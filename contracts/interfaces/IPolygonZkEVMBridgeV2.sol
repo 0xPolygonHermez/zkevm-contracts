@@ -4,9 +4,9 @@ pragma solidity ^0.8.20;
 
 interface IPolygonZkEVMBridgeV2 {
     /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
+     * @dev Thrown when sender is not the rollup manager
      */
-    error OnlyPolygonZkEVM();
+    error OnlyRollupManager();
 
     /**
      * @dev Thrown when the destination network is invalid

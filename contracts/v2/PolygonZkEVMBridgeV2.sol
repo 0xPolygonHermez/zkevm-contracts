@@ -97,9 +97,9 @@ contract PolygonZkEVMBridgeV2 is
         __ReentrancyGuard_init();
     }
 
-    modifier onlyPolygonZkEVM() {
+    modifier onlyRollupManager() {
         if (polygonRollupManager != msg.sender) {
-            revert OnlyPolygonZkEVM();
+            revert OnlyRollupManager();
         }
         _;
     }
@@ -122,7 +122,7 @@ contract PolygonZkEVMBridgeV2 is
      * @dev Emitted when a claim is done from another network
      */
     event ClaimEvent(
-        uint256 index,
+        uint256 globalIndex,
         uint32 originNetwork,
         address originAddress,
         address destinationAddress,
@@ -303,7 +303,6 @@ contract PolygonZkEVMBridgeV2 is
         }
     }
 
-    // Maitain previous approach?¿
     /**
      * @notice Verify merkle proof and withdraw tokens/ether
      * @param smtProofLocalExitRoot Smt proof
@@ -461,7 +460,6 @@ contract PolygonZkEVMBridgeV2 is
         if (destinationNetwork != networkID) {
             revert DestinationNetworkInvalid();
         }
-
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProofLocalExitRoot,
@@ -561,7 +559,7 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Function to activate the emergency state
      " Only can be called by the Polygon ZK-EVM in extreme situations
      */
-    function activateEmergencyState() external onlyPolygonZkEVM {
+    function activateEmergencyState() external onlyRollupManager {
         _activateEmergencyState();
     }
 
@@ -569,7 +567,7 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Function to deactivate the emergency state
      " Only can be called by the Polygon ZK-EVM
      */
-    function deactivateEmergencyState() external onlyPolygonZkEVM {
+    function deactivateEmergencyState() external onlyRollupManager {
         _deactivateEmergencyState();
     }
 
