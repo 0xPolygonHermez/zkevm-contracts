@@ -207,4 +207,9 @@ interface IPolygonRollupManager {
      * @dev Thrown when the caller is not the pending admin
      */
     error OnlyPendingGovernance();
+
+    /**
+     * @dev Thrown when the caller is not the pending admin
+     */
+    error ChainIDAlreadyExist();
 }

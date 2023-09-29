@@ -32,12 +32,28 @@ contract PolygonZkEVMV2 is
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param forcedHistoricGlobalExitRoot Global exit root of the batch
+     * @param globalExitRoot Global exit root of the batch
+     * @param timestamp Sequenced timestamp of the batch
      * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
      */
     struct BatchData {
         bytes transactions;
-        bytes32 forcedHistoricGlobalExitRoot;
+        bytes32 globalExitRoot;
+        uint64 timestamp;
+        uint64 minForcedTimestamp;
+    }
+
+    /**
+     * @notice Struct which will be used to call sequenceForceBatches
+     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
+     * @param globalExitRoot Global exit root of the batch
+     * @param minForcedTimestamp Indicates the minimum sequenced timestamp of the batch
+     */
+    struct ForcedBatchData {
+        bytes transactions;
+        bytes32 globalExitRoot;
         uint64 minForcedTimestamp;
     }
 
@@ -69,19 +85,6 @@ contract PolygonZkEVMV2 is
         uint64 lastVerifiedBatch;
         bytes32 exitRoot;
         bytes32 stateRoot;
-    }
-
-    /**
-     * @notice Struct to call initialize, this saves gas because pack the parameters and avoid stack too deep errors.
-     * @param admin Admin address
-     * @param trustedSequencer Trusted sequencer address
-     * @param trustedAggregator Trusted aggregator
-     * @param trustedAggregatorTimeout Trusted aggregator timeout
-     */
-    struct InitializePackedParameters {
-        address admin;
-        address trustedSequencer;
-        uint64 trustedAggregatorTimeout;
     }
 
     // Modulus zkSNARK
@@ -128,14 +131,8 @@ contract PolygonZkEVMV2 is
     // Max uint64
     uint256 internal constant _MAX_UINT_64 = type(uint64).max; // 0xFFFFFFFFFFFFFFFF
 
-    // Boolena indicating that is a forced batch
-    bool internal constant _IS_FORCED_BATCH = true;
-
-    // Boolena indicating that is not a forced batch
-    bool internal constant _IS_NOT_FORCED_BATCH = false;
-
-    // Fee token address
-    IERC20Upgradeable public feeToken;
+    // MATIC token address // POL?
+    IERC20Upgradeable public immutable matic;
 
     // Rollup verifier interface
     IVerifierRollup public immutable rollupVerifier;
@@ -143,14 +140,8 @@ contract PolygonZkEVMV2 is
     // Global Exit Root interface
     IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
 
-    // // PolygonZkEVM Bridge Address
-    // IPolygonZkEVMBridge public immutable bridgeAddress;
-
-    // L2 chain identifier
-    uint64 public chainID;
-
-    // L2 chain identifier
-    uint64 public forkID;
+    // PolygonZkEVM Bridge Address
+    IPolygonZkEVMBridge public immutable bridgeAddress;
 
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
@@ -162,8 +153,8 @@ contract PolygonZkEVMV2 is
     // Trusted sequencer address
     address public trustedSequencer;
 
-    // Current feeToken fee per batch sequenced
-    uint256 public batchFee;
+    // Gap batch fee
+    uint256 public gapBatchFee;
 
     // Queue of forced batches with their associated data
     // ForceBatchNum --> hashedForcedBatchData
@@ -176,7 +167,7 @@ contract PolygonZkEVMV2 is
     mapping(uint64 => SequencedBatchData) public sequencedBatches;
 
     // Last sequenced timestamp
-    uint64 public gapLastTimestamp;
+    uint64 public lastTimestamp;
 
     // Last batch sent by the sequencers
     uint64 public lastBatchSequenced;
@@ -187,15 +178,15 @@ contract PolygonZkEVMV2 is
     // Last forced batch
     uint64 public lastForceBatch;
 
-    // Last batch verified by the aggregators
-    uint64 public lastVerifiedBatch;
+    // Gap Last batch verified by the aggregators
+    uint64 public gasLastVerifiedBatch;
 
     // Trusted aggregator address
-    address public trustedAggregator;
+    address public gapTrustedAggregator;
 
     // State root mapping
     // BatchNum --> state root
-    mapping(uint64 => bytes32) public batchNumToStateRoot;
+    mapping(uint64 => bytes32) public gapBatchNumToStateRoot;
 
     // Trusted sequencer URL
     string public trustedSequencerURL;
@@ -205,20 +196,20 @@ contract PolygonZkEVMV2 is
 
     // Pending state mapping
     // pendingStateNumber --> PendingState
-    mapping(uint256 => PendingState) public pendingStateTransitions;
+    mapping(uint256 => PendingState) public gapPendingStateTransitions;
 
     // Last pending state
-    uint64 public lastPendingState;
+    uint64 public gapLastPendingState;
 
     // Last pending state consolidated
-    uint64 public lastPendingStateConsolidated;
+    uint64 public gapLastPendingStateConsolidated;
 
     // Once a pending state exceeds this timeout it can be consolidated
-    uint64 public pendingStateTimeout;
+    uint64 public gapPendingStateTimeout;
 
     // Trusted aggregator timeout, if a sequence is not verified in this time frame,
     // everyone can verify that sequence
-    uint64 public trustedAggregatorTimeout;
+    uint64 public gapTrustedAggregatorTimeout;
 
     // Address that will be able to adjust contract parameters or stop the emergency state
     address public admin;
@@ -232,11 +223,27 @@ contract PolygonZkEVMV2 is
     // Indicates if forced batches are disallowed
     bool public isForcedBatchDisallowed;
 
+    // Indicates the current version
+    uint256 public version;
+
+    // Last batch verified before the last upgrade
+    uint256 public lastVerifiedBatchBeforeUpgrade;
+
     // Rollup manager
     PolygonRollupManager public rollupManager;
 
+    // TODO design: this could be immutble/ tgis could let be immutable in current polygonzkEMV but change the upgradabiltiy pattern for our current etnwork
     // Rollup manager
     uint64 public rollupID;
+
+    // L2 chain identifier
+    uint64 public chainID;
+
+    // L2 chain identifier
+    uint64 public forkID;
+
+    // Fee token address
+    IERC20Upgradeable public feeToken;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -363,27 +370,31 @@ contract PolygonZkEVMV2 is
      */
     event UpdateZkEVMVersion(uint64 numBatch, uint64 forkID, string version);
 
-    // General parameters that will have all networks that deploys this contract
+    // General parameters that will have in common all networks that deploys rollup manager
 
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _rollupVerifier Rollup verifier address
+     * @param _bridgeAddress Bridge address
      * @param _rollupManager Global exit root manager address
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IVerifierRollup _rollupVerifier,
+        IPolygonZkEVMBridge _bridgeAddress,
         PolygonRollupManager _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
         rollupVerifier = _rollupVerifier;
+        bridgeAddress = _bridgeAddress;
         rollupManager = _rollupManager;
     }
 
     /**
      * @param _admin Admin address
      * @param _trustedSequencer Trusted sequencer address
-     * @param _feeToken Fee token
+     * @param _rollupID Rollup ID
+     * @param _chainID Chain ID
      * @param _trustedSequencerURL Trusted sequencer URL
      * @param _networkName L2 network name
      * @param _version version
@@ -391,21 +402,24 @@ contract PolygonZkEVMV2 is
     function initialize(
         address _admin,
         address _trustedSequencer,
-        IERC20Upgradeable _feeToken,
+        uint64 _rollupID,
+        uint64 _chainID,
+        uint256 initialFee,
         string memory _trustedSequencerURL,
         string memory _networkName,
-        string calldata _version,
-        uint64 _rollupID
+        string calldata _version
     ) external initializer {
         admin = _admin;
         trustedSequencer = _trustedSequencer;
         feeToken = _feeToken;
+        rollupID = _rollupID;
+        chainID = _chainID;
+
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
-        rollupID = _rollupID;
 
         // Constant deployment variables
-        batchFee = 0.1 ether; // 0.1 feeToken
+        batchFee = initialFee;
         verifyBatchTimeTarget = 30 minutes;
         multiplierBatchFee = 1002;
         forceBatchTimeout = 5 days;
@@ -432,16 +446,16 @@ contract PolygonZkEVMV2 is
         _;
     }
 
-    modifier onlyRollupManager() {
-        if (address(rollupManager) != msg.sender) {
-            revert OnlyRollupManager();
+    modifier isForceBatchAllowed() {
+        if (isForcedBatchDisallowed) {
+            revert ForceBatchNotAllowed();
         }
         _;
     }
 
-    modifier isForceBatchAllowed() {
-        if (isForcedBatchDisallowed) {
-            revert ForceBatchNotAllowed();
+    modifier onlyRollupManager() {
+        if (address(rollupManager) != msg.sender) {
+            revert OnlyRollupManager();
         }
         _;
     }
@@ -465,18 +479,11 @@ contract PolygonZkEVMV2 is
         }
 
         if (batchesNum > _MAX_VERIFY_BATCHES) {
-            // TODO remove?
             revert ExceedMaxVerifyBatches();
         }
 
-        // // Update global exit root if there are new deposits TODO check in rollup manager
-        // bridgeAddress.updateGlobalExitRoot();
-
-        // Get global batch variables
-        bytes32 historicGlobalExitRoot = globalExitRootManager.getRoot();
-        uint64 currentTimestamp = uint64(block.timestamp);
-
         // Store storage variables in memory, to save gas, because will be overrided multiple times
+        uint64 currentTimestamp = lastTimestamp;
         uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
         bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced]
@@ -502,7 +509,7 @@ contract PolygonZkEVMV2 is
                 bytes32 hashedForcedBatchData = keccak256(
                     abi.encodePacked(
                         currentTransactionsHash,
-                        currentBatch.forcedHistoricGlobalExitRoot,
+                        currentBatch.globalExitRoot,
                         currentBatch.minForcedTimestamp
                     )
                 );
@@ -514,41 +521,55 @@ contract PolygonZkEVMV2 is
                     revert ForcedDataDoesNotMatch();
                 }
 
-                // Calculate next accumulated input hash
-                currentAccInputHash = keccak256(
-                    abi.encodePacked(
-                        currentAccInputHash,
-                        currentTransactionsHash,
-                        currentBatch.forcedHistoricGlobalExitRoot,
-                        currentBatch.minForcedTimestamp,
-                        l2Coinbase,
-                        _IS_FORCED_BATCH
-                    )
-                );
-
                 // Delete forceBatch data since won't be used anymore
                 delete forcedBatches[currentLastForceBatchSequenced];
+
+                // Check timestamp is bigger than min timestamp
+                if (currentBatch.timestamp < currentBatch.minForcedTimestamp) {
+                    revert SequencedTimestampBelowForcedTimestamp();
+                }
             } else {
-                // These checks are already done in the forceBatches call
+                // Check global exit root exists with proper batch length. These checks are already done in the forceBatches call
+                // Note that the sequencer can skip setting a global exit root putting zeros
+                if (
+                    currentBatch.globalExitRoot != bytes32(0) &&
+                    globalExitRootManager.globalExitRootMap(
+                        currentBatch.globalExitRoot
+                    ) ==
+                    0
+                ) {
+                    revert GlobalExitRootNotExist();
+                }
+
                 if (
                     currentBatch.transactions.length >
                     _MAX_TRANSACTIONS_BYTE_LENGTH
                 ) {
                     revert TransactionsLengthAboveMax();
                 }
-
-                // Calculate next accumulated input hash
-                currentAccInputHash = keccak256(
-                    abi.encodePacked(
-                        currentAccInputHash,
-                        currentTransactionsHash,
-                        historicGlobalExitRoot,
-                        currentTimestamp,
-                        l2Coinbase,
-                        _IS_NOT_FORCED_BATCH
-                    )
-                );
             }
+
+            // Check Batch timestamps are correct
+            if (
+                currentBatch.timestamp < currentTimestamp ||
+                currentBatch.timestamp > block.timestamp
+            ) {
+                revert SequencedTimestampInvalid();
+            }
+
+            // Calculate next accumulated input hash
+            currentAccInputHash = keccak256(
+                abi.encodePacked(
+                    currentAccInputHash,
+                    currentTransactionsHash,
+                    currentBatch.globalExitRoot,
+                    currentBatch.timestamp,
+                    l2Coinbase
+                )
+            );
+
+            // Update timestamp
+            currentTimestamp = currentBatch.timestamp;
         }
         // Update currentBatchSequenced
         currentBatchSequenced += uint64(batchesNum);
@@ -566,6 +587,7 @@ contract PolygonZkEVMV2 is
         });
 
         // Store back the storage variables
+        lastTimestamp = currentTimestamp;
         lastBatchSequenced = currentBatchSequenced;
 
         uint256 nonForcedBatchesSequenced = batchesNum;
@@ -588,7 +610,14 @@ contract PolygonZkEVMV2 is
             batchFee * nonForcedBatchesSequenced
         );
 
-        rollupManager.onSequenceBatches(currentBatchSequenced,currentAccInputHash);
+        // Update global exit root if there are new deposits TODO check in rollup manager
+        bridgeAddress.updateGlobalExitRoot();
+
+        rollupManager.onSequenceBatches(
+            currentBatchSequenced,
+            currentAccInputHash
+        );
+
         emit SequenceBatches(currentBatchSequenced);
     }
 
@@ -608,6 +637,7 @@ contract PolygonZkEVMV2 is
         );
     }
 
+    // TODO UPDATE FEES
     /**
      * @notice Function to update the batch fee based on the new verified batches
      * The batch fee will not be updated when the trusted aggregator verifies batches
@@ -731,8 +761,9 @@ contract PolygonZkEVMV2 is
 
         feeToken.safeTransferFrom(msg.sender, address(this), feeTokenFee);
 
-        // Get historic global exit root
-        bytes32 historicGlobalExitRoot = globalExitRootManager.getRoot();
+        // Get globalExitRoot global exit root
+        bytes32 lastGlobalExitRoot = globalExitRootManager
+            .getLastGlobalExitRoot();
 
         // Update forcedBatches mapping
         lastForceBatch++;
@@ -740,25 +771,20 @@ contract PolygonZkEVMV2 is
         forcedBatches[lastForceBatch] = keccak256(
             abi.encodePacked(
                 keccak256(transactions),
-                historicGlobalExitRoot,
+                lastGlobalExitRoot,
                 uint64(block.timestamp)
             )
         );
 
         if (msg.sender == tx.origin) {
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
-            emit ForceBatch(
-                lastForceBatch,
-                historicGlobalExitRoot,
-                msg.sender,
-                ""
-            );
+            emit ForceBatch(lastForceBatch, lastGlobalExitRoot, msg.sender, "");
         } else {
             // Getting internal transaction calldata is complicated (because it requires an archive node)
             // Therefore it's worth it to put the `transactions` in the event, which is easy to query
             emit ForceBatch(
                 lastForceBatch,
-                historicGlobalExitRoot,
+                lastGlobalExitRoot,
                 msg.sender,
                 transactions
             );
@@ -770,7 +796,7 @@ contract PolygonZkEVMV2 is
      * @param batches Struct array which holds the necessary data to append force batches
      */
     function sequenceForceBatches(
-        BatchData[] calldata batches
+        ForcedBatchData[] calldata batches
     ) external isForceBatchAllowed ifNotEmergencyState {
         uint256 batchesNum = batches.length;
 
@@ -798,7 +824,7 @@ contract PolygonZkEVMV2 is
         // Sequence force batches
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
-            BatchData memory currentBatch = batches[i];
+            ForcedBatchData memory currentBatch = batches[i];
             currentLastForceBatchSequenced++;
 
             // Store the current transactions hash since it's used more than once for gas saving
@@ -810,7 +836,7 @@ contract PolygonZkEVMV2 is
             bytes32 hashedForcedBatchData = keccak256(
                 abi.encodePacked(
                     currentTransactionsHash,
-                    currentBatch.forcedHistoricGlobalExitRoot,
+                    currentBatch.globalExitRoot,
                     currentBatch.minForcedTimestamp
                 )
             );
@@ -834,21 +860,21 @@ contract PolygonZkEVMV2 is
                     revert ForceBatchTimeoutNotExpired();
                 }
             }
-
             // Calculate next acc input hash
             currentAccInputHash = keccak256(
                 abi.encodePacked(
                     currentAccInputHash,
                     currentTransactionsHash,
-                    currentBatch.forcedHistoricGlobalExitRoot,
-                    currentBatch.minForcedTimestamp, // could be current timestamp
-                    msg.sender,
-                    _IS_FORCED_BATCH
+                    currentBatch.globalExitRoot,
+                    uint64(block.timestamp),
+                    msg.sender
                 )
             );
         }
         // Update currentBatchSequenced
         currentBatchSequenced += uint64(batchesNum);
+
+        lastTimestamp = uint64(block.timestamp);
 
         // Store back the storage variables
         sequencedBatches[currentBatchSequenced] = SequencedBatchData({
@@ -859,7 +885,10 @@ contract PolygonZkEVMV2 is
         lastBatchSequenced = currentBatchSequenced;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
-        rollupManager.onSequenceBatches(currentBatchSequenced,currentAccInputHash);
+        rollupManager.onSequenceBatches(
+            currentBatchSequenced,
+            currentAccInputHash
+        );
 
         emit SequenceForceBatches(currentBatchSequenced);
     }

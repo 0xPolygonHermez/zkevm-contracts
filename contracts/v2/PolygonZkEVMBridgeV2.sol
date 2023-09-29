@@ -237,7 +237,7 @@ contract PolygonZkEVMBridgeV2 is
             uint32(depositCount)
         );
 
-        _addLeaf(
+        _deposit(
             getLeafValue(
                 _LEAF_TYPE_ASSET,
                 originNetwork,
@@ -285,7 +285,7 @@ contract PolygonZkEVMBridgeV2 is
             uint32(depositCount)
         );
 
-        _addLeaf(
+        _deposit(
             getLeafValue(
                 _LEAF_TYPE_MESSAGE,
                 networkID,
@@ -597,7 +597,7 @@ contract PolygonZkEVMBridgeV2 is
                 )
             );
 
-        // check that thi global exit root exist
+        // check that this global exit root exist
         if (timestampGlobalExitRoot == 0) {
             revert GlobalExitRootInvalid();
         }
@@ -720,7 +720,7 @@ contract PolygonZkEVMBridgeV2 is
      */
     function _updateGlobalExitRoot() internal {
         lastUpdatedDepositCount = uint32(depositCount);
-        globalExitRootManager.updateExitRoot(getRoot());
+        globalExitRootManager.updateExitRoot(getDepositRoot());
     }
 
     /**

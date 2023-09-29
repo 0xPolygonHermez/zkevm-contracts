@@ -124,32 +124,31 @@ abstract contract PolygonRollupManager is
     // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridge public immutable bridgeAddress;
 
-    // TODO struct to store consensus metadata?¿ and also for the vierifer
-
     // Number of consensus added, every new consensus will be assigned sequencially a new ID
     uint64 public consensusCount;
 
     // Consensus mapping
-    // consensus address => consensus Implementation
-    mapping(address => ConsensusData) public consensusMap;
+    mapping(address consensusAddress => ConsensusData) public consensusMap;
 
     // Number of verifiers added, every new verifier will be assigned sequencially a new ID
     uint64 public verifierCount;
 
     // Verifiers mapping
-    // verifierID => verifierAddress
-    mapping(address => VerifierData) public verifierMap;
+    mapping(address verifierAddress => VerifierData) public verifierMap;
 
     // Rollup Count
     uint64 public rollupCount;
 
     // Rollups mapping
-    // RollupID => Rollup Data
-    mapping(uint64 => RollupData) public rollupIDToRollupData;
+    mapping(uint64 rollupID => RollupData) public rollupIDToRollupData;
 
     // Rollups mapping
     // RollupAddress => rollupID
-    mapping(address => uint64) public rollupAddressToID;
+    mapping(address rollupAddress => uint64 rollupID) public rollupAddressToID;
+
+    // Rollups mapping
+    // chainID => rollupID
+    mapping(uint64 chainID => uint64 rollupID) public chainIDToRollupID;
 
     // Trusted aggregator for all the Rollups
     address public trustedAggregator;
@@ -366,7 +365,7 @@ abstract contract PolygonRollupManager is
             revert ConsensusAlreadyExist();
         }
 
-        uint64 consensusID = consensusCount++;
+        uint64 consensusID = ++consensusCount;
         consensusMap[newConsensusAddress] = ConsensusData({
             consensusID: consensusID,
             description: description
@@ -385,11 +384,11 @@ abstract contract PolygonRollupManager is
         uint64 forkID,
         string memory description
     ) external onlyGovernance {
-        if (verifierMap[newVerifierAddress].verifierID == 0) {
+        if (verifierMap[newVerifierAddress].verifierID != 0) {
             revert VerifierAlreadyExist();
         }
 
-        uint64 verifierID = verifierCount++;
+        uint64 verifierID = ++verifierCount;
         verifierMap[newVerifierAddress] = VerifierData({
             verifierID: verifierID,
             forkID: forkID,
@@ -419,7 +418,7 @@ abstract contract PolygonRollupManager is
      * @param verifierAddress Verifier address to delete
      */
     function deleteVerifier(address verifierAddress) external onlyGovernance {
-        if (verifierMap[verifierAddress].verifierID != 0) {
+        if (verifierMap[verifierAddress].verifierID == 0) {
             revert VerifierDoesNotExist();
         }
 
@@ -432,10 +431,10 @@ abstract contract PolygonRollupManager is
     /**
      * @notice Create a new rollup
      * @param consensusAddress consensus implementation address
-     * @param verifierAddress chainID
+     * @param verifierAddress verifier address
+     * @param chainID chainID
      * @param _admin admin of the new created rollup
      * @param _trustedSequencer trusted sequencer of the new created rollup
-     * @param _feeToken fee token of the new created rollup
      * @param _trustedSequencerURL trusted sequencer URL of the new created rollup
      * @param _networkName network name of the new created rollup
      * @param _version version string of the new created rollup
@@ -446,7 +445,6 @@ abstract contract PolygonRollupManager is
         uint64 chainID,
         address _admin,
         address _trustedSequencer,
-        IERC20Upgradeable _feeToken,
         string memory _trustedSequencerURL,
         string memory _networkName,
         string calldata _version
@@ -455,11 +453,15 @@ abstract contract PolygonRollupManager is
             revert ConsensusDoesNotExist();
         }
 
-        if (verifierMap[verifierAddress].verifierID != 0) {
+        if (verifierMap[verifierAddress].verifierID == 0) {
             revert VerifierDoesNotExist();
         }
 
-        uint64 rollupID = rollupCount++;
+        if (chainIDToRollupID[chainID] != 0) {
+            revert ChainIDAlreadyExist();
+        }
+
+        uint64 rollupID = ++rollupCount;
 
         // Create a proxy, with the consensus as a implementation, and the governance as admin
         address rollupAddress = address(
@@ -471,7 +473,7 @@ abstract contract PolygonRollupManager is
                     (
                         _admin,
                         _trustedSequencer,
-                        _feeToken,
+                        chainID,
                         _trustedSequencerURL,
                         _networkName,
                         _version,
@@ -509,7 +511,7 @@ abstract contract PolygonRollupManager is
         address verifierAddress,
         uint64 chainID
     ) external onlyGovernance {
-        uint64 rollupID = rollupCount++;
+        uint64 rollupID = ++rollupCount;
 
         rollupAddressToID[rollupAddress] = rollupID;
 
@@ -588,11 +590,6 @@ abstract contract PolygonRollupManager is
             return bytes32(0);
         }
 
-        uint256 levelsToCompute;
-        while ((currentNodes >> levelsToCompute) > 0) {
-            levelsToCompute++;
-        }
-
         // This array will contain the nodes of the current iteration
         bytes32[] memory tmpTree = new bytes32[](currentNodes);
 
@@ -604,8 +601,11 @@ abstract contract PolygonRollupManager is
         // This variable will keep track of the zero hashes
         bytes32 currentZeroHashHeight = 0;
 
+        // This variable will keep track of the reamining levels to compute
+        uint256 remainingLevels = _EXIT_TREE_DEPTH;
+
         // Calculate the root of the sub-tree that contains all the localExitRoots
-        while (tmpTree.length != 1) {
+        while (currentNodes != 1) {
             uint256 nextIterationNodes = currentNodes / 2 + (currentNodes % 2);
             bytes32[] memory nextTmpTree = new bytes32[](nextIterationNodes);
             for (uint256 i = 0; i < nextIterationNodes; i++) {
@@ -621,17 +621,18 @@ abstract contract PolygonRollupManager is
                 }
             }
 
-            // update tmpTrees
+            // update tree bariables
             tmpTree = nextTmpTree;
             currentNodes = nextIterationNodes;
             currentZeroHashHeight = keccak256(
                 abi.encodePacked(currentZeroHashHeight, currentZeroHashHeight)
             );
+            remainingLevels--;
         }
-        bytes32 currentRoot = tmpTree[0];
-        uint256 remainingLevels = _EXIT_TREE_DEPTH - levelsToCompute;
 
-        // Calculate remaining levels, since it's a sequencial merkle tree, the rest of the tree is zeroes
+        bytes32 currentRoot = tmpTree[0];
+
+        // Calculate remaining levels, since it's a sequencial merkle tree, the rest of the tree are zeroes
         for (uint256 i = 0; i < remainingLevels; i++) {
             currentRoot = keccak256(
                 abi.encodePacked(currentRoot, currentZeroHashHeight)
@@ -678,6 +679,11 @@ abstract contract PolygonRollupManager is
 
         emit OnSequenceBatches(newSequencedBatch, newAccInputHash, rollupID);
     }
+
+    // Sequencer always have to pay in POL
+    //  handles fees here!
+    // gas fees can be custom token
+    // seuqnecer is with POL
 
     /**
      * @notice Allows an aggregator to verify multiple batches
@@ -772,6 +778,7 @@ abstract contract PolygonRollupManager is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
+        address beneficiary,
         bytes32[24] calldata proof
     ) external onlyTrustedAggregator {
         RollupData storage rollup = rollupIDToRollupData[rollupID];
@@ -783,6 +790,7 @@ abstract contract PolygonRollupManager is
             finalNewBatch,
             newLocalExitRoot,
             newStateRoot,
+            beneficiary,
             proof
         );
 
@@ -824,6 +832,7 @@ abstract contract PolygonRollupManager is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
+        address beneficiary,
         bytes32[24] calldata proof
     ) internal virtual {
         bytes32 oldStateRoot;
@@ -886,7 +895,7 @@ abstract contract PolygonRollupManager is
         }
 
         PolygonZkEVMV2(rollup.rollupAddress).verifyAndRewardBatches(
-            msg.sender,
+            beneficiary,
             (finalNewBatch - currentLastVerifiedBatch)
         );
     }
@@ -1191,6 +1200,7 @@ abstract contract PolygonRollupManager is
     function activateEmergencyState(uint64 sequencedBatchNum) external {
         if (msg.sender != governance) {
             // TODO
+            // just one it's enough
             revert NotSupportedCurrently();
             // // Only check conditions if is not called by the owner
             // uint64 currentLastVerifiedBatch = getLastVerifiedBatch();

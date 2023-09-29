@@ -4,20 +4,11 @@ pragma solidity 0.8.20;
 
 import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "../lib/GlobalExitRootLib.sol";
-import "../lib/DepositContractLib.sol";
-
-// TODO it is requierde a special ugpradbility for this contract since overlap storage slots
-// This means that the lastRollupExitRoot and the lastMainnetExitRoot must be copei using assembly form prv version
-
-// another and seems better approach will be to define a contract base which will contain tthe same slots
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract PolygonZkEVMGlobalExitRootV2 is
-    IPolygonZkEVMGlobalExitRoot,
-    DepositContractLib
-{
+contract PolygonZkEVMGlobalExitRootV2 is IPolygonZkEVMGlobalExitRoot {
     // PolygonZkEVMBridge address
     address public immutable bridgeAddress;
 
@@ -33,23 +24,12 @@ contract PolygonZkEVMGlobalExitRootV2 is
     // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // Store every global exit root: Root --> timestamp
-    mapping(bytes32 => uint256) public historicGlobalExitRootSnapshots;
-
     /**
      * @dev Emitted when the global exit root is updated
      */
     event UpdateGlobalExitRoot(
         bytes32 indexed mainnetExitRoot,
         bytes32 indexed rollupExitRoot
-    );
-
-    /**
-     * @dev Emitted when a snapshot of the historic global exit root is taken
-     */
-    event HistoricGlobalExitRootSnapshot(
-        uint256 indexed depositCount,
-        bytes32 indexed historicGlobalExitRoot
     );
 
     /**
@@ -92,9 +72,6 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot
             );
-
-            // Update the historical roots
-            _addLeaf(newGlobalExitRoot);
         }
     }
 
@@ -107,36 +84,5 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 lastMainnetExitRoot,
                 lastRollupExitRoot
             );
-    }
-
-    /**
-     * @notice Computes and returns the merkle root
-     */
-    function getRoot()
-        public
-        view
-        override(DepositContractLib, IPolygonZkEVMGlobalExitRoot)
-        returns (bytes32)
-    {
-        return super.getRoot();
-    }
-
-    /**
-     * @notice Computes and returns the merkle root
-     */
-    function takeHistoricGlobalExitRootSnapshot() public {
-        bytes32 currentHistoricGlobalExitRoot = getRoot();
-        if (
-            historicGlobalExitRootSnapshots[currentHistoricGlobalExitRoot] == 0
-        ) {
-            historicGlobalExitRootSnapshots[
-                currentHistoricGlobalExitRoot
-            ] = block.timestamp;
-
-            emit HistoricGlobalExitRootSnapshot(
-                depositCount,
-                currentHistoricGlobalExitRoot
-            );
-        }
     }
 }
