@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IPolygonZkEVMBridge.sol";
 import "../lib/EmergencyManager.sol";
 import "../interfaces/IPolygonZkEVMErrors.sol";
@@ -20,8 +20,7 @@ import "./PolygonRollupManager.sol";
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
 contract PolygonZkEVMV2 is
-    OwnableUpgradeable,
-    EmergencyManager,
+    Initializable,
     IPolygonZkEVMErrors,
     IPolygonZkEVMV2Errors
 {
@@ -143,13 +142,6 @@ contract PolygonZkEVMV2 is
     // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridge public immutable bridgeAddress;
 
-    // Time target of the verification of a batch
-    // Adaptatly the batchFee will be updated to achieve this target
-    uint64 public verifyBatchTimeTarget;
-
-    // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
-    uint16 public multiplierBatchFee;
-
     // Trusted sequencer address
     address public trustedSequencer;
 
@@ -161,10 +153,6 @@ contract PolygonZkEVMV2 is
     // hashedForcedBatchData: hash containing the necessary information to force a batch:
     // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minForcedTimestamp)
     mapping(uint64 => bytes32) public forcedBatches;
-
-    // Queue of batches that defines the virtual state
-    // SequenceBatchNum --> SequencedBatchData
-    mapping(uint64 => SequencedBatchData) public sequencedBatches;
 
     // Last sequenced timestamp
     uint64 public lastTimestamp;
@@ -224,26 +212,13 @@ contract PolygonZkEVMV2 is
     bool public isForcedBatchDisallowed;
 
     // Indicates the current version
-    uint256 public version;
+    uint256 public gapVersion;
 
     // Last batch verified before the last upgrade
-    uint256 public lastVerifiedBatchBeforeUpgrade;
+    uint256 public gapLastVerifiedBatchBeforeUpgrade;
 
     // Rollup manager
     PolygonRollupManager public rollupManager;
-
-    // TODO design: this could be immutble/ tgis could let be immutable in current polygonzkEMV but change the upgradabiltiy pattern for our current etnwork
-    // Rollup manager
-    uint64 public rollupID;
-
-    // L2 chain identifier
-    uint64 public chainID;
-
-    // L2 chain identifier
-    uint64 public forkID;
-
-    // Fee token address
-    IERC20Upgradeable public feeToken;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -374,17 +349,20 @@ contract PolygonZkEVMV2 is
 
     /**
      * @param _globalExitRootManager Global exit root manager address
+     * @param _matic MATIC token address
      * @param _rollupVerifier Rollup verifier address
      * @param _bridgeAddress Bridge address
      * @param _rollupManager Global exit root manager address
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
         PolygonRollupManager _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
+        matic = _matic;
         rollupVerifier = _rollupVerifier;
         bridgeAddress = _bridgeAddress;
         rollupManager = _rollupManager;
@@ -393,8 +371,6 @@ contract PolygonZkEVMV2 is
     /**
      * @param _admin Admin address
      * @param _trustedSequencer Trusted sequencer address
-     * @param _rollupID Rollup ID
-     * @param _chainID Chain ID
      * @param _trustedSequencerURL Trusted sequencer URL
      * @param _networkName L2 network name
      * @param _version version
@@ -402,34 +378,21 @@ contract PolygonZkEVMV2 is
     function initialize(
         address _admin,
         address _trustedSequencer,
-        uint64 _rollupID,
-        uint64 _chainID,
-        uint256 initialFee,
         string memory _trustedSequencerURL,
         string memory _networkName,
         string calldata _version
     ) external initializer {
         admin = _admin;
         trustedSequencer = _trustedSequencer;
-        feeToken = _feeToken;
-        rollupID = _rollupID;
-        chainID = _chainID;
 
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
 
         // Constant deployment variables
-        batchFee = initialFee;
-        verifyBatchTimeTarget = 30 minutes;
-        multiplierBatchFee = 1002;
         forceBatchTimeout = 5 days;
         isForcedBatchDisallowed = true;
 
-        // Initialize OZ contracts
-        __Ownable_init_unchained();
-
-        // emit version event
-        emit UpdateZkEVMVersion(0, forkID, _version);
+        // version events review
     }
 
     modifier onlyAdmin() {
@@ -472,7 +435,7 @@ contract PolygonZkEVMV2 is
     function sequenceBatches(
         BatchData[] calldata batches,
         address l2Coinbase
-    ) external ifNotEmergencyState onlyTrustedSequencer {
+    ) external onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
             revert SequenceZeroBatches();
@@ -602,12 +565,11 @@ contract PolygonZkEVMV2 is
             // Store new last force batch sequenced
             lastForceBatchSequenced = currentLastForceBatchSequenced;
         }
-
         // Pay collateral for every non-forced batch submitted
-        feeToken.safeTransferFrom(
+        matic.safeTransferFrom(
             msg.sender,
             address(this),
-            batchFee * nonForcedBatchesSequenced
+            rollupManager.getBatchFee() * nonForcedBatchesSequenced
         );
 
         // Update global exit root if there are new deposits TODO check in rollup manager
@@ -623,112 +585,14 @@ contract PolygonZkEVMV2 is
 
     /**
      * @notice Reward batches, can only be called by the rollup manager
-     * @param beneficiary Addres htat will receive the fees
-     * @param batchesToReward Batches to reward
+     * @param lastVerifiedBatch Batches to reward
      */
-    function verifyAndRewardBatches(
-        address beneficiary,
-        uint64 batchesToReward
+    function onVerifyBatches(
+        uint64 lastVerifiedBatch,
+        bytes32 stateRoot,
+        address aggregator
     ) public onlyRollupManager {
-        // Get feeToken reward
-        feeToken.safeTransfer(
-            beneficiary,
-            calculateRewardPerBatch() * (batchesToReward)
-        );
-    }
-
-    // TODO UPDATE FEES
-    /**
-     * @notice Function to update the batch fee based on the new verified batches
-     * The batch fee will not be updated when the trusted aggregator verifies batches
-     * @param newLastVerifiedBatch New last verified batch
-     */
-    function _updateBatchFee(uint64 newLastVerifiedBatch) internal {
-        uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
-        uint64 currentBatch = newLastVerifiedBatch;
-
-        uint256 totalBatchesAboveTarget;
-        uint256 newBatchesVerified = newLastVerifiedBatch -
-            currentLastVerifiedBatch;
-
-        uint256 targetTimestamp = block.timestamp - verifyBatchTimeTarget;
-
-        while (currentBatch != currentLastVerifiedBatch) {
-            // Load sequenced batchdata
-            SequencedBatchData
-                storage currentSequencedBatchData = sequencedBatches[
-                    currentBatch
-                ];
-
-            // Check if timestamp is below the verifyBatchTimeTarget
-            if (
-                targetTimestamp < currentSequencedBatchData.sequencedTimestamp
-            ) {
-                // update currentBatch
-                currentBatch = currentSequencedBatchData
-                    .previousLastBatchSequenced;
-            } else {
-                // The rest of batches will be above
-                totalBatchesAboveTarget =
-                    currentBatch -
-                    currentLastVerifiedBatch;
-                break;
-            }
-        }
-
-        uint256 totalBatchesBelowTarget = newBatchesVerified -
-            totalBatchesAboveTarget;
-
-        // _MAX_BATCH_FEE --> (< 70 bits)
-        // multiplierBatchFee --> (< 10 bits)
-        // _MAX_BATCH_MULTIPLIER = 12
-        // multiplierBatchFee ** _MAX_BATCH_MULTIPLIER --> (< 128 bits)
-        // batchFee * (multiplierBatchFee ** _MAX_BATCH_MULTIPLIER)-->
-        // (< 70 bits) * (< 128 bits) = < 256 bits
-
-        // Since all the following operations cannot overflow, we can optimize this operations with unchecked
-        unchecked {
-            if (totalBatchesBelowTarget < totalBatchesAboveTarget) {
-                // There are more batches above target, fee is multiplied
-                uint256 diffBatches = totalBatchesAboveTarget -
-                    totalBatchesBelowTarget;
-
-                diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
-                    ? _MAX_BATCH_MULTIPLIER
-                    : diffBatches;
-
-                // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-                batchFee =
-                    (batchFee * (uint256(multiplierBatchFee) ** diffBatches)) /
-                    (uint256(1000) ** diffBatches);
-            } else {
-                // There are more batches below target, fee is divided
-                uint256 diffBatches = totalBatchesBelowTarget -
-                    totalBatchesAboveTarget;
-
-                diffBatches = diffBatches > _MAX_BATCH_MULTIPLIER
-                    ? _MAX_BATCH_MULTIPLIER
-                    : diffBatches;
-
-                // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-                uint256 accDivisor = (uint256(1 ether) *
-                    (uint256(multiplierBatchFee) ** diffBatches)) /
-                    (uint256(1000) ** diffBatches);
-
-                // multiplyFactor = multiplierBatchFee ** diffBatches / 10 ** (diffBatches * 3)
-                // accDivisor = 1E18 * multiplyFactor
-                // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
-                // < 60 bits * < 70 bits / ~60 bits --> overflow not possible
-                batchFee = (uint256(1 ether) * batchFee) / accDivisor;
-            }
-        }
-
-        // Batch fee must remain inside a range
-        if (batchFee > _MAX_BATCH_FEE) {
-            batchFee = _MAX_BATCH_FEE;
-        } else if (batchFee < _MIN_BATCH_FEE) {
-            batchFee = _MIN_BATCH_FEE;
-        }
+        // emit event?!!
     }
 
     ////////////////////////////
@@ -742,24 +606,24 @@ contract PolygonZkEVMV2 is
      * In order to assure that users force transactions will be processed properly, user must not sign any other transaction
      * with the same nonce
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * @param feeTokenAmount Max amount of feeToken tokens that the sender is willing to pay
+     * @param maticAmount Max amount of matic tokens that the sender is willing to pay
      */
     function forceBatch(
         bytes calldata transactions,
-        uint256 feeTokenAmount
-    ) public isForceBatchAllowed ifNotEmergencyState {
-        // Calculate feeToken collateral
-        uint256 feeTokenFee = getForcedBatchFee();
+        uint256 maticAmount
+    ) public isForceBatchAllowed {
+        // Calculate matic collateral
+        uint256 maticFee = onlyRollupManager.getForcedBatchFee();
 
-        if (feeTokenFee > feeTokenAmount) {
-            revert NotEnoughfeeTokenAmount();
+        if (maticFee > maticAmount) {
+            revert NotEnoughMaticAmount();
         }
 
         if (transactions.length > _MAX_FORCE_BATCH_BYTE_LENGTH) {
             revert TransactionsLengthAboveMax();
         }
 
-        feeToken.safeTransferFrom(msg.sender, address(this), feeTokenFee);
+        matic.safeTransferFrom(msg.sender, address(this), maticFee);
 
         // Get globalExitRoot global exit root
         bytes32 lastGlobalExitRoot = globalExitRootManager
@@ -797,7 +661,7 @@ contract PolygonZkEVMV2 is
      */
     function sequenceForceBatches(
         ForcedBatchData[] calldata batches
-    ) external isForceBatchAllowed ifNotEmergencyState {
+    ) external isForceBatchAllowed {
         uint256 batchesNum = batches.length;
 
         if (batchesNum == 0) {
@@ -887,6 +751,7 @@ contract PolygonZkEVMV2 is
 
         rollupManager.onSequenceBatches(
             currentBatchSequenced,
+            batchesNum,
             currentAccInputHash
         );
 
@@ -922,37 +787,6 @@ contract PolygonZkEVMV2 is
     }
 
     /**
-     * @notice Allow the admin to set a new multiplier batch fee
-     * @param newMultiplierBatchFee multiplier batch fee
-     */
-    function setMultiplierBatchFee(
-        uint16 newMultiplierBatchFee
-    ) external onlyAdmin {
-        if (newMultiplierBatchFee < 1000 || newMultiplierBatchFee > 1023) {
-            revert InvalidRangeMultiplierBatchFee();
-        }
-
-        multiplierBatchFee = newMultiplierBatchFee;
-        emit SetMultiplierBatchFee(newMultiplierBatchFee);
-    }
-
-    /**
-     * @notice Allow the admin to set a new verify batch time target
-     * This value will only be relevant once the aggregation is decentralized, so
-     * the trustedAggregatorTimeout should be zero or very close to zero
-     * @param newVerifyBatchTimeTarget Verify batch time target
-     */
-    function setVerifyBatchTimeTarget(
-        uint64 newVerifyBatchTimeTarget
-    ) external onlyAdmin {
-        if (newVerifyBatchTimeTarget > 1 days) {
-            revert InvalidRangeBatchTimeTarget();
-        }
-        verifyBatchTimeTarget = newVerifyBatchTimeTarget;
-        emit SetVerifyBatchTimeTarget(newVerifyBatchTimeTarget);
-    }
-
-    /**
      * @notice Allow the admin to set the forcedBatchTimeout
      * The new value can only be lower, except if emergency state is active
      * @param newforceBatchTimeout New force batch timeout
@@ -964,7 +798,7 @@ contract PolygonZkEVMV2 is
             revert InvalidRangeForceBatchTimeout();
         }
 
-        if (!isEmergencyState) {
+        if (!rollupManager.isEmergencyState()) {
             if (newforceBatchTimeout >= forceBatchTimeout) {
                 revert InvalidRangeForceBatchTimeout();
             }
@@ -1006,39 +840,5 @@ contract PolygonZkEVMV2 is
 
         admin = pendingAdmin;
         emit AcceptAdminRole(pendingAdmin);
-    }
-
-    ////////////////////////
-    // public/view functions
-    ////////////////////////
-
-    /**
-     * @notice Get forced batch fee
-     */
-    function getForcedBatchFee() public view returns (uint256) {
-        return batchFee * 100; // TODO
-    }
-
-    /**
-     * @notice Function to calculate the reward to verify a single batch
-     */
-    function calculateRewardPerBatch() public view returns (uint256) {
-        uint256 currentBalance = feeToken.balanceOf(address(this));
-
-        // Total Sequenced Batches = forcedBatches to be sequenced (total forced Batches - sequenced Batches) + sequencedBatches
-        // Total Batches to be verified = Total Sequenced Batches - verified Batches
-        uint256 totalBatchesToVerify = ((lastForceBatch -
-            lastForceBatchSequenced) + lastBatchSequenced) -
-            getLastVerifiedBatch();
-
-        if (totalBatchesToVerify == 0) return 0;
-        return currentBalance / totalBatchesToVerify;
-    }
-
-    /**
-     * @notice Get the last verified batch
-     */
-    function getLastVerifiedBatch() public view returns (uint64) {
-        return rollupManager.getLastVerifiedBatch(rollupID);
     }
 }

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-import "../lib/DepositContract.sol";
+import "./lib/DepositContractV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "../lib/TokenWrapped.sol";
 import "../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
@@ -17,7 +17,7 @@ import "../lib/GlobalExitRootLib.sol";
  * Contract responsible to manage the token interactions with other networks
  */
 contract PolygonZkEVMBridgeV2 is
-    DepositContract,
+    DepositContractV2,
     EmergencyManager,
     IPolygonZkEVMBridgeV2
 {
@@ -237,7 +237,7 @@ contract PolygonZkEVMBridgeV2 is
             uint32(depositCount)
         );
 
-        _deposit(
+        _addLeaf(
             getLeafValue(
                 _LEAF_TYPE_ASSET,
                 originNetwork,
@@ -285,7 +285,7 @@ contract PolygonZkEVMBridgeV2 is
             uint32(depositCount)
         );
 
-        _deposit(
+        _addLeaf(
             getLeafValue(
                 _LEAF_TYPE_MESSAGE,
                 networkID,
@@ -720,7 +720,7 @@ contract PolygonZkEVMBridgeV2 is
      */
     function _updateGlobalExitRoot() internal {
         lastUpdatedDepositCount = uint32(depositCount);
-        globalExitRootManager.updateExitRoot(getDepositRoot());
+        globalExitRootManager.updateExitRoot(getRoot());
     }
 
     /**
