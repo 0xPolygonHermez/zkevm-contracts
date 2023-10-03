@@ -212,4 +212,14 @@ interface IPolygonRollupManager {
      * @dev Thrown when the caller is not the pending admin
      */
     error ChainIDAlreadyExist();
+
+    /**
+     * @dev Thrown when the caller is not the pending admin
+     */
+    error VerifiersMustHaveSameGenesis();
+
+    /**
+     * @dev Thrown when the caller is not the pending admin
+     */
+    error MustSequenceSomeBatch();
 }

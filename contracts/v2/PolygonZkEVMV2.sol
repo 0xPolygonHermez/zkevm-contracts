@@ -220,6 +220,8 @@ contract PolygonZkEVMV2 is
     // Rollup manager
     PolygonRollupManager public rollupManager;
 
+    bytes32 public accInputHash;
+
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
@@ -373,14 +375,12 @@ contract PolygonZkEVMV2 is
      * @param _trustedSequencer Trusted sequencer address
      * @param _trustedSequencerURL Trusted sequencer URL
      * @param _networkName L2 network name
-     * @param _version version
      */
     function initialize(
         address _admin,
         address _trustedSequencer,
         string memory _trustedSequencerURL,
-        string memory _networkName,
-        string calldata _version
+        string memory _networkName
     ) external initializer {
         admin = _admin;
         trustedSequencer = _trustedSequencer;
@@ -427,6 +427,8 @@ contract PolygonZkEVMV2 is
     // Sequence/Verify batches functions
     ////////////////////////////////////
 
+    // TODO  add the hashed forced data aswell?¿
+
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
@@ -447,10 +449,8 @@ contract PolygonZkEVMV2 is
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentTimestamp = lastTimestamp;
-        uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
-        bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced]
-            .accInputHash;
+        bytes32 currentAccInputHash = accInputHash;
 
         // Store in a temporal variable, for avoid access again the storage slot
         uint64 initLastForceBatchSequenced = currentLastForceBatchSequenced;
@@ -484,13 +484,13 @@ contract PolygonZkEVMV2 is
                     revert ForcedDataDoesNotMatch();
                 }
 
-                // Delete forceBatch data since won't be used anymore
-                delete forcedBatches[currentLastForceBatchSequenced];
-
                 // Check timestamp is bigger than min timestamp
                 if (currentBatch.timestamp < currentBatch.minForcedTimestamp) {
                     revert SequencedTimestampBelowForcedTimestamp();
                 }
+
+                // Delete forceBatch data since won't be used anymore
+                delete forcedBatches[currentLastForceBatchSequenced];
             } else {
                 // Check global exit root exists with proper batch length. These checks are already done in the forceBatches call
                 // Note that the sequencer can skip setting a global exit root putting zeros
@@ -534,24 +534,15 @@ contract PolygonZkEVMV2 is
             // Update timestamp
             currentTimestamp = currentBatch.timestamp;
         }
-        // Update currentBatchSequenced
-        currentBatchSequenced += uint64(batchesNum);
 
         // Sanity check, should be unreachable
         if (currentLastForceBatchSequenced > lastForceBatch) {
             revert ForceBatchesOverflow();
         }
 
-        // Update sequencedBatches mapping
-        sequencedBatches[currentBatchSequenced] = SequencedBatchData({
-            accInputHash: currentAccInputHash,
-            sequencedTimestamp: uint64(block.timestamp),
-            previousLastBatchSequenced: lastBatchSequenced
-        });
-
         // Store back the storage variables
         lastTimestamp = currentTimestamp;
-        lastBatchSequenced = currentBatchSequenced;
+        accInputHash = currentAccInputHash;
 
         uint256 nonForcedBatchesSequenced = batchesNum;
 
@@ -565,18 +556,20 @@ contract PolygonZkEVMV2 is
             // Store new last force batch sequenced
             lastForceBatchSequenced = currentLastForceBatchSequenced;
         }
+
         // Pay collateral for every non-forced batch submitted
         matic.safeTransferFrom(
             msg.sender,
-            address(this),
+            address(rollupManager),
             rollupManager.getBatchFee() * nonForcedBatchesSequenced
         );
 
-        // Update global exit root if there are new deposits TODO check in rollup manager
+        // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
 
-        rollupManager.onSequenceBatches(
-            currentBatchSequenced,
+        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
+            uint64(batchesNum),
+            uint64(batchesNum - nonForcedBatchesSequenced),
             currentAccInputHash
         );
 
@@ -584,15 +577,17 @@ contract PolygonZkEVMV2 is
     }
 
     /**
-     * @notice Reward batches, can only be called by the rollup manager
-     * @param lastVerifiedBatch Batches to reward
+     * @notice Callback on verify batches, can only be called by the rollup manager
+     * @param lastVerifiedBatch Last verified batch
+     * @param newStateRoot new state root
+     * @param aggregator Aggregator address
      */
     function onVerifyBatches(
         uint64 lastVerifiedBatch,
-        bytes32 stateRoot,
+        bytes32 newStateRoot,
         address aggregator
     ) public onlyRollupManager {
-        // emit event?!!
+        emit VerifyBatches(lastVerifiedBatch, newStateRoot, aggregator);
     }
 
     ////////////////////////////
@@ -613,7 +608,7 @@ contract PolygonZkEVMV2 is
         uint256 maticAmount
     ) public isForceBatchAllowed {
         // Calculate matic collateral
-        uint256 maticFee = onlyRollupManager.getForcedBatchFee();
+        uint256 maticFee = rollupManager.getForcedBatchFee();
 
         if (maticFee > maticAmount) {
             revert NotEnoughMaticAmount();
@@ -680,10 +675,8 @@ contract PolygonZkEVMV2 is
         }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
-        uint64 currentBatchSequenced = lastBatchSequenced;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
-        bytes32 currentAccInputHash = sequencedBatches[currentBatchSequenced]
-            .accInputHash;
+        bytes32 currentAccInputHash = accInputHash;
 
         // Sequence force batches
         for (uint256 i = 0; i < batchesNum; i++) {
@@ -735,23 +728,15 @@ contract PolygonZkEVMV2 is
                 )
             );
         }
-        // Update currentBatchSequenced
-        currentBatchSequenced += uint64(batchesNum);
-
-        lastTimestamp = uint64(block.timestamp);
 
         // Store back the storage variables
-        sequencedBatches[currentBatchSequenced] = SequencedBatchData({
-            accInputHash: currentAccInputHash,
-            sequencedTimestamp: uint64(block.timestamp),
-            previousLastBatchSequenced: lastBatchSequenced
-        });
-        lastBatchSequenced = currentBatchSequenced;
+        accInputHash = currentAccInputHash;
+        lastTimestamp = uint64(block.timestamp);
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
-        rollupManager.onSequenceBatches(
-            currentBatchSequenced,
-            batchesNum,
+        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
+            uint64(batchesNum),
+            uint64(batchesNum),
             currentAccInputHash
         );
 
