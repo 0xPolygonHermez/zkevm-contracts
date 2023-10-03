@@ -13,6 +13,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
+import "../interfaces/IVerifierRollup.sol";
 
 // TODO CHECK STORAGE SLOTS!!
 
@@ -24,6 +25,8 @@ abstract contract PolygonRollupManager is
     EmergencyManager,
     IPolygonRollupManager
 {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+
     /**
      * @notice Struct which will be stored for every batch sequence
      * @param accInputHash Hash chain that contains all the information to process a batch:
@@ -72,7 +75,7 @@ abstract contract PolygonRollupManager is
      */
     struct RollupData {
         address rollupAddress; // TODO base rollup
-        IVeraifierRollup verifierAddress;
+        IVerifierRollup verifierAddress;
         uint64 chainID;
         mapping(uint64 => bytes32) batchNumToStateRoot;
         mapping(uint64 => SequencedBatchData) sequencedBatches;
@@ -154,6 +157,12 @@ abstract contract PolygonRollupManager is
     bytes32 public constant TRUSTED_AGGREGATOR_ROLE =
         keccak256("TRUSTED_AGGREGATOR_ROLE");
 
+    bytes32 public constant TWEAK_PARAMETERS_ROLE =
+        keccak256("TWEAK_PARAMETERS_ROLE");
+
+    // Will be able to set the current batch fee
+    bytes32 public constant SET_FEE_ROLE = keccak256("SET_FEE_ROLE");
+
     bytes32 public constant STOP_EMERGENCY_ROLE =
         keccak256("STOP_EMERGENCY_ROLE");
 
@@ -170,6 +179,9 @@ abstract contract PolygonRollupManager is
 
     // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridge public immutable bridgeAddress;
+
+    // MATIC token address
+    IERC20Upgradeable public immutable matic;
 
     // TODO could be optimized using the storage slot of the emergency mode
 
@@ -292,6 +304,16 @@ abstract contract PolygonRollupManager is
     uint64 public totalVerifiedBatches;
     uint64 public lastAggregationTimestamp;
 
+    uint64 public verifyBatchTimeTarget;
+
+    // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
+    uint16 public multiplierBatchFee;
+
+    // Current matic fee per batch sequenced
+    uint256 public batchFee;
+
+    address public trustedAggregator;
+
     /**
      * @dev Emitted when a new consensus is added
      */
@@ -324,6 +346,7 @@ abstract contract PolygonRollupManager is
      * @dev Emitted when a new verifier is added
      */
     event AddNewRollup(
+        uint64 rollupID,
         address rollupAddress,
         address consensusAddress,
         address verifierAddress,
@@ -333,16 +356,17 @@ abstract contract PolygonRollupManager is
     /**
      * @dev Emitted when a new verifier is added
      */
-    event UpdateRollup(address rollupAddress, address newConsensusAddress);
+    event UpdateRollup(
+        uint64 rollupID,
+        address newConsensusAddress,
+        address newVerifierAddress,
+        uint64 lastVerifiedBatchBeforeUpgrade
+    );
 
     /**
      * @dev Emitted when a new verifier is added
      */
-    event OnSequenceBatches(
-        uint64 newSequencedBatch,
-        bytes32 newAccInputHash,
-        uint64 rollupID
-    );
+    event OnSequenceBatches(uint64 rollupID, uint64 lastBatchSequenced);
 
     /**
      * @dev Emitted when a aggregator verifies batches
@@ -412,14 +436,26 @@ abstract contract PolygonRollupManager is
     event SetVerifyBatchTimeTarget(uint64 newVerifyBatchTimeTarget);
 
     /**
+     * @dev Emitted when the admin updates the trusted aggregator address
+     */
+    event SetTrustedAggregator(address newTrustedAggregator);
+
+    /**
+     * @dev Emitted when the batch fee is set
+     */
+    event SetBatchFee(uint256 newBatchFee);
+
+    /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _bridgeAddress Bridge address
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IERC20Upgradeable _matic,
         IPolygonZkEVMBridge _bridgeAddress
     ) {
         globalExitRootManager = _globalExitRootManager;
+        matic = _matic;
         bridgeAddress = _bridgeAddress;
     }
 
@@ -467,6 +503,11 @@ abstract contract PolygonRollupManager is
         _setupRole(DELETE_VERIFIER_CONSENSUS_ROLE, admin);
         _setupRole(CREATE_ROLLUP_ROLE, admin);
         _setupRole(STOP_EMERGENCY_ROLE, admin);
+        _setupRole(TRUSTED_AGGREGATOR_ROLE, admin);
+        _setupRole(TWEAK_PARAMETERS_ROLE, admin);
+
+        // review Could be another address?¿
+        _setupRole(SET_FEE_ROLE, admin);
 
         // Emergency council roles
         _setupRole(EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
@@ -590,6 +631,8 @@ abstract contract PolygonRollupManager is
         emit DeleteVerifier(verifierAddress);
     }
 
+    //     * @param version version string of the new created rollup
+
     /**
      * @notice Create a new rollup
      * @param consensusAddress consensus implementation address
@@ -599,7 +642,6 @@ abstract contract PolygonRollupManager is
      * @param trustedSequencer trusted sequencer of the new created rollup
      * @param trustedSequencerURL trusted sequencer URL of the new created rollup
      * @param networkName network name of the new created rollup
-     * @param version version string of the new created rollup
      */
     function createNewRollup(
         address consensusAddress,
@@ -608,15 +650,18 @@ abstract contract PolygonRollupManager is
         address admin,
         address trustedSequencer,
         string memory trustedSequencerURL,
-        string memory networkName,
-        string calldata version
-    ) external onlyRole(CREATE_ROLLUP_ROLE) {
+        string memory networkName
+    )
+        external
+        //string calldata version //¿ review
+        onlyRole(CREATE_ROLLUP_ROLE)
+    {
         // Check that consensus and verifier are already added
         if (consensusMap[consensusAddress].consensusID == 0) {
             revert ConsensusDoesNotExist();
         }
 
-        VerifierData verifier = verifierMap[verifierAddress];
+        VerifierData storage verifier = verifierMap[verifierAddress];
         if (verifier.verifierID == 0) {
             revert VerifierDoesNotExist();
         }
@@ -635,15 +680,7 @@ abstract contract PolygonRollupManager is
                 address(this),
                 abi.encodeCall(
                     PolygonZkEVMV2.initialize,
-                    (
-                        admin,
-                        trustedSequencer,
-                        chainID,
-                        trustedSequencerURL,
-                        networkName,
-                        version,
-                        rollupID
-                    ) //  TODO Make lib about, like basePolygonRollup
+                    (admin, trustedSequencer, trustedSequencerURL, networkName) //  TODO Make lib about, like basePolygonRollup
                 )
             )
         );
@@ -680,8 +717,7 @@ abstract contract PolygonRollupManager is
         address rollupAddress,
         address verifierAddress,
         uint64 chainID,
-        bytes32 genesis,
-        uint256 version
+        bytes32 genesis
     ) external onlyRole(ADD_EXISTING_ROLLUP_ROLE) {
         // Check chainID nullifier
         if (chainIDToRollupID[chainID] != 0) {
@@ -720,7 +756,7 @@ abstract contract PolygonRollupManager is
         address newConsensusAddress,
         bytes calldata upgradeData
     ) external onlyRole(UPDATE_ROLLUP_ROLE) {
-        uint64 rollupID = rollupAddressToID[rollupAddress];
+        uint64 rollupID = rollupAddressToID[address(rollupAddress)];
 
         if (rollupID == 0) {
             revert RollupMustExist();
@@ -729,8 +765,10 @@ abstract contract PolygonRollupManager is
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
         // If it's defined a new verifier address, update verifier
-        if (newVerifierAddress != address(0)) {
-            VerifierData newVerifier = verifierMap[address(newVerifierAddress)];
+        if (address(newVerifierAddress) != address(0)) {
+            VerifierData storage newVerifier = verifierMap[
+                address(newVerifierAddress)
+            ];
 
             if (newVerifier.verifierID == 0) {
                 revert VerifierDoesNotExist();
@@ -742,7 +780,7 @@ abstract contract PolygonRollupManager is
 
             if (
                 verifierMap[address(rollup.verifierAddress)].genesis !=
-                newVerifier.verifier
+                newVerifier.genesis
             ) {
                 revert VerifiersMustHaveSameGenesis();
             }
@@ -769,7 +807,7 @@ abstract contract PolygonRollupManager is
         emit UpdateRollup(
             rollupID,
             newConsensusAddress,
-            newVerifierAddress,
+            address(newVerifierAddress),
             rollup.lastVerifiedBatchBeforeUpgrade
         );
     }
@@ -780,14 +818,15 @@ abstract contract PolygonRollupManager is
 
     /**
      * @notice Sequence batches, callback called by one of the consensus managed by this contract
-     * @param newSequencedBatch new sequenced batch
+     * @param newSequencedBatches how many sequenced batches were sequenced
+     * @param forcedSequencedBatches how many forced batches were sequenced
      * @param newAccInputHash new accumualted input hash
      */
     function onSequenceBatches(
-        uint64 newSequencedBatch,
-        uint64 sequencedForcedBatches,
+        uint64 newSequencedBatches,
+        uint64 forcedSequencedBatches,
         bytes32 newAccInputHash
-    ) external ifNotEmergencyState {
+    ) external ifNotEmergencyState returns (uint64) {
         // Check that the msg.sender is an added rollup
         uint64 rollupID = rollupAddressToID[msg.sender];
         if (rollupID == 0) {
@@ -796,39 +835,36 @@ abstract contract PolygonRollupManager is
 
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
-        // Update the total sequenced and pending forced batches
-        uint64 previousLastBatchSequenced = rollup.lastBatchSequenced;
-        if (newSequencedBatch <= previousLastBatchSequenced) {
-            revert NewSequencedBatchMustBeBigger();
+        // Update total sequence parameters
+        if (newSequencedBatches == 0) {
+            revert MustSequenceSomeBatch();
         }
-        unchecked {
-            uint64 sequencedBatches = newSequencedBatch -
-                previousLastBatchSequenced;
-        }
-        totalSequencedBatches += sequencedBatches;
 
-        if (sequencedForcedBatches != 0) {
-            totalPendingForcedBatches -= sequencedForcedBatches;
+        totalSequencedBatches += newSequencedBatches;
+
+        if (forcedSequencedBatches != 0) {
+            totalPendingForcedBatches -= forcedSequencedBatches;
         }
 
         // Update sequenced batches of the current rollup
-        rollup.sequencedBatches[newSequencedBatch] = SequencedBatchData({
+        uint64 previousLastBatchSequenced = rollup.lastBatchSequenced;
+        uint64 newLastBatchSequenced = previousLastBatchSequenced +
+            newSequencedBatches;
+
+        rollup.lastBatchSequenced = newLastBatchSequenced;
+        rollup.sequencedBatches[newLastBatchSequenced] = SequencedBatchData({
             accInputHash: newAccInputHash,
             sequencedTimestamp: uint64(block.timestamp),
             previousLastBatchSequenced: previousLastBatchSequenced
         });
-        rollup.lastBatchSequenced = newSequencedBatch;
 
         // Consolidate pending state if possible
         _tryConsolidatePendingState(rollup);
 
-        emit OnSequenceBatches(rollupID, newSequencedBatch);
-    }
+        emit OnSequenceBatches(rollupID, newLastBatchSequenced);
 
-    // Sequencer always have to pay in POL
-    //  handles fees here!
-    // gas fees can be custom token
-    // seuqnecer is with POL
+        return newLastBatchSequenced;
+    }
 
     /**
      * @notice Allows an aggregator to verify multiple batches
@@ -846,6 +882,7 @@ abstract contract PolygonRollupManager is
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
+        address beneficiary,
         bytes32[24] calldata proof
     ) external ifNotEmergencyState {
         RollupData storage rollup = rollupIDToRollupData[rollupID];
@@ -871,8 +908,13 @@ abstract contract PolygonRollupManager is
             finalNewBatch,
             newLocalExitRoot,
             newStateRoot,
+            beneficiary,
             proof
         );
+
+        // Update batch fees
+        // review, shoudl update awell in the ntrusted aggregation?
+        _updateBatchFee(rollup, finalNewBatch);
 
         if (pendingStateTimeout == 0) {
             // Consolidate state
@@ -1039,10 +1081,23 @@ abstract contract PolygonRollupManager is
             revert InvalidProof();
         }
 
+        // Pay MATIC rewards
+        uint64 newVerifiedBatches = finalNewBatch - currentLastVerifiedBatch;
+
+        matic.safeTransfer(
+            beneficiary,
+            calculateRewardPerBatch() * newVerifiedBatches
+        );
+
+        // Update aggregation parameters
+        totalVerifiedBatches += newVerifiedBatches;
+        lastAggregationTimestamp = uint64(block.timestamp);
+
+        // Callback to the rollup address
         PolygonZkEVMV2(rollup.rollupAddress).onVerifyBatches(
             finalNewBatch,
             newStateRoot,
-            aggregator
+            msg.sender
         );
     }
 
@@ -1338,16 +1393,16 @@ abstract contract PolygonRollupManager is
         }
     }
 
-    // TODO UPDATE FEES
-
-    //
     /**
      * @notice Function to update the batch fee based on the new verified batches
      * The batch fee will not be updated when the trusted aggregator verifies batches
      * @param newLastVerifiedBatch New last verified batch
      */
-    function _updateBatchFee(uint64 newLastVerifiedBatch) internal {
-        uint64 currentLastVerifiedBatch = getLastVerifiedBatch();
+    function _updateBatchFee(
+        RollupData storage rollup,
+        uint64 newLastVerifiedBatch
+    ) internal {
+        uint64 currentLastVerifiedBatch = _getLastVerifiedBatch(rollup);
         uint64 currentBatch = newLastVerifiedBatch;
 
         uint256 totalBatchesAboveTarget;
@@ -1358,10 +1413,8 @@ abstract contract PolygonRollupManager is
 
         while (currentBatch != currentLastVerifiedBatch) {
             // Load sequenced batchdata
-            SequencedBatchData
-                storage currentSequencedBatchData = sequencedBatches[
-                    currentBatch
-                ];
+            SequencedBatchData storage currentSequencedBatchData = rollup
+                .sequencedBatches[currentBatch];
 
             // Check if timestamp is below the verifyBatchTimeTarget
             if (
@@ -1457,7 +1510,7 @@ abstract contract PolygonRollupManager is
     /**
      * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
      */
-    function deactivateEmergencyState() external onlyGovernance {
+    function deactivateEmergencyState() external onlyRole(STOP_EMERGENCY_ROLE) {
         // Deactivate emergency state on PolygonZkEVMBridge
         bridgeAddress.deactivateEmergencyState();
 
@@ -1481,17 +1534,25 @@ abstract contract PolygonRollupManager is
     //////////////////
 
     /**
+     * @notice Allow the admin to set a new trusted aggregator address
+     * @param newTrustedAggregator Address of the new trusted aggregator
+     */
+    function setTrustedAggregator(
+        address newTrustedAggregator
+    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
+        trustedAggregator = newTrustedAggregator;
+
+        emit SetTrustedAggregator(newTrustedAggregator);
+    }
+
+    /**
      * @notice Allow the admin to set a new pending state timeout
      * The timeout can only be lowered, except if emergency state is active
      * @param newTrustedAggregatorTimeout Trusted aggregator timeout
      */
     function setTrustedAggregatorTimeout(
         uint64 newTrustedAggregatorTimeout
-    ) external onlyGovernance {
-        if (newTrustedAggregatorTimeout > _HALT_AGGREGATION_TIMEOUT) {
-            revert TrustedAggregatorTimeoutExceedHaltAggregationTimeout();
-        }
-
+    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
         if (!isEmergencyState) {
             if (newTrustedAggregatorTimeout >= trustedAggregatorTimeout) {
                 revert NewTrustedAggregatorTimeoutMustBeLower();
@@ -1509,11 +1570,7 @@ abstract contract PolygonRollupManager is
      */
     function setPendingStateTimeout(
         uint64 newPendingStateTimeout
-    ) external onlyGovernance {
-        if (newPendingStateTimeout > _HALT_AGGREGATION_TIMEOUT) {
-            revert PendingStateTimeoutExceedHaltAggregationTimeout();
-        }
-
+    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
         if (!isEmergencyState) {
             if (newPendingStateTimeout >= pendingStateTimeout) {
                 revert NewPendingStateTimeoutMustBeLower();
@@ -1524,15 +1581,55 @@ abstract contract PolygonRollupManager is
         emit SetPendingStateTimeout(newPendingStateTimeout);
     }
 
-    ////////////////////////
-    // view/pure functions
-    ////////////////////////
+    /**
+     * @notice Allow the admin to set a new multiplier batch fee
+     * @param newMultiplierBatchFee multiplier batch fee
+     */
+    function setMultiplierBatchFee(
+        uint16 newMultiplierBatchFee
+    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
+        if (newMultiplierBatchFee < 1000 || newMultiplierBatchFee > 1023) {
+            revert InvalidRangeMultiplierBatchFee();
+        }
 
-    // Since it's expected to have no more than 4-5 levels, this approach is good enough
-    // In a future this computation will be done inside the circuit
+        multiplierBatchFee = newMultiplierBatchFee;
+        emit SetMultiplierBatchFee(newMultiplierBatchFee);
+    }
 
     /**
-     * @notice get the current rollup exit root
+     * @notice Allow the admin to set a new verify batch time target
+     * This value will only be relevant once the aggregation is decentralized, so
+     * the trustedAggregatorTimeout should be zero or very close to zero
+     * @param newVerifyBatchTimeTarget Verify batch time target
+     */
+    function setVerifyBatchTimeTarget(
+        uint64 newVerifyBatchTimeTarget
+    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
+        if (newVerifyBatchTimeTarget > 1 days) {
+            revert InvalidRangeBatchTimeTarget();
+        }
+        verifyBatchTimeTarget = newVerifyBatchTimeTarget;
+        emit SetVerifyBatchTimeTarget(newVerifyBatchTimeTarget);
+    }
+
+    /**
+     * @notice Allow to corresponding role to set the current batch fee
+     * @param newBatchFee new batch fee
+     */
+    function setBatchFee(uint256 newBatchFee) external onlyRole(SET_FEE_ROLE) {
+        batchFee = newBatchFee;
+        emit SetBatchFee(newBatchFee);
+    }
+
+    ////////////////////////
+    // view/pure functions
+
+    /**
+     * @notice Get the current rollup exit root
+     * Compute using all the local exit roots of all rollups the rollup exit root
+     * Since it's expected to have no more than 10 rollups in this first version, even if this approach
+     * has a gas consumption that scales linearly with the rollups added, it's ok
+     * In a future versions this computation will be done inside the circuit
      */
     function getRollupExitRoot() public view returns (bytes32) {
         uint256 currentNodes = rollupCount;
@@ -1653,23 +1750,29 @@ abstract contract PolygonRollupManager is
      * @notice Function to calculate the reward to verify a single batch
      */
     function calculateRewardPerBatch() public view returns (uint256) {
-        uint256 currentBalance = feeToken.balanceOf(address(this));
+        uint256 currentBalance = matic.balanceOf(address(this));
 
-        // Total Sequenced Batches = forcedBatches to be sequenced (total forced Batches - sequenced Batches) + sequencedBatches
-        // Total Batches to be verified = Total Sequenced Batches - verified Batches
-        uint256 totalBatchesToVerify = ((lastForceBatch -
-            lastForceBatchSequenced) + lastBatchSequenced) -
-            getLastVerifiedBatch();
+        // Total Sequenced Batches = total forcedBatches to be sequenced + total Sequenced Batches
+        // Total Batches to be verified = total Sequenced Batches - total verified Batches
+        uint256 totalBatchesToVerify = (totalPendingForcedBatches +
+            totalSequencedBatches) - totalVerifiedBatches;
 
         if (totalBatchesToVerify == 0) return 0;
         return currentBalance / totalBatchesToVerify;
     }
 
     /**
+     * @notice Get batch fee
+     */
+    function getBatchFee() public view returns (uint256) {
+        return batchFee; // review
+    }
+
+    /**
      * @notice Get forced batch fee
      */
     function getForcedBatchFee() public view returns (uint256) {
-        return batchFee * 100; // TODO
+        return batchFee * 100; // review, should be a parameter?
     }
 
     /**
