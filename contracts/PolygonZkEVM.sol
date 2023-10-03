@@ -1555,28 +1555,6 @@ contract PolygonZkEVM is
         _activateEmergencyState();
     }
 
-    /**
-     * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
-     */
-    function deactivateEmergencyState() external onlyAdmin {
-        // Deactivate emergency state on PolygonZkEVMBridge
-        bridgeAddress.deactivateEmergencyState();
-
-        // Deactivate emergency state on this contract
-        super._deactivateEmergencyState();
-    }
-
-    /**
-     * @notice Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
-     */
-    function _activateEmergencyState() internal override {
-        // Activate emergency state on PolygonZkEVM Bridge
-        bridgeAddress.activateEmergencyState();
-
-        // Activate emergency state on this contract
-        super._activateEmergencyState();
-    }
-
     ////////////////////////
     // public/view functions
     ////////////////////////
