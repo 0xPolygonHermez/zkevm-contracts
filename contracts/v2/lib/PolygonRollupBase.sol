@@ -2,14 +2,15 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../interfaces/IVerifierRollup.sol";
-import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "../../interfaces/IVerifierRollup.sol";
+import "../../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../interfaces/IPolygonZkEVMBridge.sol";
-import "../lib/EmergencyManager.sol";
-import "../interfaces/IPolygonZkEVMErrors.sol";
+import "../../interfaces/IPolygonZkEVMBridge.sol";
+import "../../lib/EmergencyManager.sol";
+import "../../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMV2Errors.sol";
-import "./PolygonRollupManager.sol";
+import "../PolygonRollupManager.sol";
+import "../interfaces/IPolygonRollupBase.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -19,10 +20,11 @@ import "./PolygonRollupManager.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonZkEVMV2 is
+contract PolygonRollupBase is
     Initializable,
     IPolygonZkEVMErrors,
-    IPolygonZkEVMV2Errors
+    IPolygonZkEVMV2Errors,
+    IPolygonRollupBase
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -69,27 +71,6 @@ contract PolygonZkEVMV2 is
         uint64 previousLastBatchSequenced;
     }
 
-    /**
-     * @notice Struct to store the pending states
-     * Pending state will be an intermediary state, that after a timeout can be consolidated, which means that will be added
-     * to the state root mapping, and the global exit root will be updated
-     * This is a protection mechanism against soundness attacks, that will be turned off in the future
-     * @param timestamp Timestamp where the pending state is added to the queue
-     * @param lastVerifiedBatch Last batch verified batch of this pending state
-     * @param exitRoot Pending exit root
-     * @param stateRoot Pending state root
-     */
-    struct PendingState {
-        uint64 timestamp;
-        uint64 lastVerifiedBatch;
-        bytes32 exitRoot;
-        bytes32 stateRoot;
-    }
-
-    // Modulus zkSNARK
-    uint256 internal constant _RFIELD =
-        21888242871839275222246405745257275088548364400416034343698204186575808495617;
-
     // Max transactions bytes that can be added in a single batch
     // Max keccaks circuit = (2**23 / 155286) * 44 = 2376
     // Bytes per keccak = 136
@@ -115,26 +96,8 @@ contract PolygonZkEVMV2 is
     // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
 
-    // Max batch multiplier per verification
-    uint256 internal constant _MAX_BATCH_MULTIPLIER = 12;
-
-    // Max batch fee value
-    uint256 internal constant _MAX_BATCH_FEE = 1000 ether;
-
-    // Min value batch fee
-    uint256 internal constant _MIN_BATCH_FEE = 1 gwei;
-
-    // Goldilocks prime field
-    uint256 internal constant _GOLDILOCKS_PRIME_FIELD = 0xFFFFFFFF00000001; // 2 ** 64 - 2 ** 32 + 1
-
-    // Max uint64
-    uint256 internal constant _MAX_UINT_64 = type(uint64).max; // 0xFFFFFFFFFFFFFFFF
-
-    // MATIC token address // POL?
+    // MATIC token address // review POL
     IERC20Upgradeable public immutable matic;
-
-    // Rollup verifier interface
-    IVerifierRollup public immutable rollupVerifier;
 
     // Global Exit Root interface
     IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
@@ -142,11 +105,27 @@ contract PolygonZkEVMV2 is
     // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridge public immutable bridgeAddress;
 
+    // Rollup manager
+    PolygonRollupManager public immutable rollupManager;
+
+    // review common variables
+    // Address that will be able to adjust contract parameters or stop the emergency state
+    address public admin;
+
+    // This account will be able to accept the admin role
+    address public pendingAdmin;
+
     // Trusted sequencer address
     address public trustedSequencer;
 
-    // Gap batch fee
-    uint256 public gapBatchFee;
+    // Trusted sequencer URL
+    string public trustedSequencerURL;
+
+    // L2 network name
+    string public networkName;
+
+    // Current accumulate input hash
+    bytes32 public lastAccInputHash;
 
     // Queue of forced batches with their associated data
     // ForceBatchNum --> hashedForcedBatchData
@@ -157,70 +136,17 @@ contract PolygonZkEVMV2 is
     // Last sequenced timestamp
     uint64 public lastTimestamp;
 
-    // Last batch sent by the sequencers
-    uint64 public lastBatchSequenced;
+    // Last forced batch
+    uint64 public lastForceBatch;
 
     // Last forced batch included in the sequence
     uint64 public lastForceBatchSequenced;
 
-    // Last forced batch
-    uint64 public lastForceBatch;
-
-    // Gap Last batch verified by the aggregators
-    uint64 public gasLastVerifiedBatch;
-
-    // Trusted aggregator address
-    address public gapTrustedAggregator;
-
-    // State root mapping
-    // BatchNum --> state root
-    mapping(uint64 => bytes32) public gapBatchNumToStateRoot;
-
-    // Trusted sequencer URL
-    string public trustedSequencerURL;
-
-    // L2 network name
-    string public networkName;
-
-    // Pending state mapping
-    // pendingStateNumber --> PendingState
-    mapping(uint256 => PendingState) public gapPendingStateTransitions;
-
-    // Last pending state
-    uint64 public gapLastPendingState;
-
-    // Last pending state consolidated
-    uint64 public gapLastPendingStateConsolidated;
-
-    // Once a pending state exceeds this timeout it can be consolidated
-    uint64 public gapPendingStateTimeout;
-
-    // Trusted aggregator timeout, if a sequence is not verified in this time frame,
-    // everyone can verify that sequence
-    uint64 public gapTrustedAggregatorTimeout;
-
-    // Address that will be able to adjust contract parameters or stop the emergency state
-    address public admin;
-
-    // This account will be able to accept the admin role
-    address public pendingAdmin;
-
     // Force batch timeout
     uint64 public forceBatchTimeout;
 
-    // Indicates if forced batches are disallowed
-    bool public isForcedBatchDisallowed;
-
-    // Indicates the current version
-    uint256 public gapVersion;
-
-    // Last batch verified before the last upgrade
-    uint256 public gapLastVerifiedBatchBeforeUpgrade;
-
-    // Rollup manager
-    PolygonRollupManager public rollupManager;
-
-    bytes32 public accInputHash;
+    // Indicates if forced batches are allowed
+    bool public isForcedBatchAllowed;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -252,24 +178,6 @@ contract PolygonZkEVMV2 is
     );
 
     /**
-     * @dev Emitted when the trusted aggregator verifies batches
-     */
-    event VerifyBatchesTrustedAggregator(
-        uint64 indexed numBatch,
-        bytes32 stateRoot,
-        address indexed aggregator
-    );
-
-    /**
-     * @dev Emitted when pending state is consolidated
-     */
-    event ConsolidatePendingState(
-        uint64 indexed numBatch,
-        bytes32 stateRoot,
-        uint64 indexed pendingStateNum
-    );
-
-    /**
      * @dev Emitted when the admin updates the trusted sequencer address
      */
     event SetTrustedSequencer(address newTrustedSequencer);
@@ -278,31 +186,6 @@ contract PolygonZkEVMV2 is
      * @dev Emitted when the admin updates the sequencer URL
      */
     event SetTrustedSequencerURL(string newTrustedSequencerURL);
-
-    /**
-     * @dev Emitted when the admin updates the trusted aggregator timeout
-     */
-    event SetTrustedAggregatorTimeout(uint64 newTrustedAggregatorTimeout);
-
-    /**
-     * @dev Emitted when the admin updates the pending state timeout
-     */
-    event SetPendingStateTimeout(uint64 newPendingStateTimeout);
-
-    /**
-     * @dev Emitted when the admin updates the trusted aggregator address
-     */
-    event SetTrustedAggregator(address newTrustedAggregator);
-
-    /**
-     * @dev Emitted when the admin updates the multiplier batch fee
-     */
-    event SetMultiplierBatchFee(uint16 newMultiplierBatchFee);
-
-    /**
-     * @dev Emitted when the admin updates the verify batch timeout
-     */
-    event SetVerifyBatchTimeTarget(uint64 newVerifyBatchTimeTarget);
 
     /**
      * @dev Emitted when the admin update the force batch timeout
@@ -324,23 +207,7 @@ contract PolygonZkEVMV2 is
      */
     event AcceptAdminRole(address newAdmin);
 
-    /**
-     * @dev Emitted when is proved a different state given the same batches
-     */
-    event ProveNonDeterministicPendingState(
-        bytes32 storedStateRoot,
-        bytes32 provedStateRoot
-    );
-
-    /**
-     * @dev Emitted when the trusted aggregator overrides pending state
-     */
-    event OverridePendingState(
-        uint64 indexed numBatch,
-        bytes32 stateRoot,
-        address indexed aggregator
-    );
-
+    // review
     /**
      * @dev Emitted everytime the forkID is updated, this includes the first initialization of the contract
      * This event is intended to be emitted for every upgrade of the contract with relevant changes for the nodes
@@ -352,20 +219,17 @@ contract PolygonZkEVMV2 is
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _matic MATIC token address
-     * @param _rollupVerifier Rollup verifier address
      * @param _bridgeAddress Bridge address
      * @param _rollupManager Global exit root manager address
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _matic,
-        IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
         PolygonRollupManager _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
         matic = _matic;
-        rollupVerifier = _rollupVerifier;
         bridgeAddress = _bridgeAddress;
         rollupManager = _rollupManager;
     }
@@ -381,7 +245,7 @@ contract PolygonZkEVMV2 is
         address _trustedSequencer,
         string memory _trustedSequencerURL,
         string memory _networkName
-    ) external initializer {
+    ) external virtual override initializer {
         admin = _admin;
         trustedSequencer = _trustedSequencer;
 
@@ -390,9 +254,6 @@ contract PolygonZkEVMV2 is
 
         // Constant deployment variables
         forceBatchTimeout = 5 days;
-        isForcedBatchDisallowed = true;
-
-        // version events review
     }
 
     modifier onlyAdmin() {
@@ -409,8 +270,8 @@ contract PolygonZkEVMV2 is
         _;
     }
 
-    modifier isForceBatchAllowed() {
-        if (isForcedBatchDisallowed) {
+    modifier isForceBatchActive() {
+        if (!isForcedBatchAllowed) {
             revert ForceBatchNotAllowed();
         }
         _;
@@ -437,7 +298,7 @@ contract PolygonZkEVMV2 is
     function sequenceBatches(
         BatchData[] calldata batches,
         address l2Coinbase
-    ) external onlyTrustedSequencer {
+    ) external virtual onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
             revert SequenceZeroBatches();
@@ -450,7 +311,7 @@ contract PolygonZkEVMV2 is
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentTimestamp = lastTimestamp;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
-        bytes32 currentAccInputHash = accInputHash;
+        bytes32 currentAccInputHash = lastAccInputHash;
 
         // Store in a temporal variable, for avoid access again the storage slot
         uint64 initLastForceBatchSequenced = currentLastForceBatchSequenced;
@@ -542,7 +403,7 @@ contract PolygonZkEVMV2 is
 
         // Store back the storage variables
         lastTimestamp = currentTimestamp;
-        accInputHash = currentAccInputHash;
+        lastAccInputHash = currentAccInputHash;
 
         uint256 nonForcedBatchesSequenced = batchesNum;
 
@@ -586,7 +447,7 @@ contract PolygonZkEVMV2 is
         uint64 lastVerifiedBatch,
         bytes32 newStateRoot,
         address aggregator
-    ) public onlyRollupManager {
+    ) public virtual override onlyRollupManager {
         emit VerifyBatches(lastVerifiedBatch, newStateRoot, aggregator);
     }
 
@@ -606,7 +467,7 @@ contract PolygonZkEVMV2 is
     function forceBatch(
         bytes calldata transactions,
         uint256 maticAmount
-    ) public isForceBatchAllowed {
+    ) public virtual isForceBatchActive {
         // Calculate matic collateral
         uint256 maticFee = rollupManager.getForcedBatchFee();
 
@@ -618,7 +479,7 @@ contract PolygonZkEVMV2 is
             revert TransactionsLengthAboveMax();
         }
 
-        matic.safeTransferFrom(msg.sender, address(this), maticFee);
+        matic.safeTransferFrom(msg.sender, address(rollupManager), maticFee);
 
         // Get globalExitRoot global exit root
         bytes32 lastGlobalExitRoot = globalExitRootManager
@@ -656,7 +517,7 @@ contract PolygonZkEVMV2 is
      */
     function sequenceForceBatches(
         ForcedBatchData[] calldata batches
-    ) external isForceBatchAllowed {
+    ) external virtual isForceBatchActive {
         uint256 batchesNum = batches.length;
 
         if (batchesNum == 0) {
@@ -676,7 +537,7 @@ contract PolygonZkEVMV2 is
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
-        bytes32 currentAccInputHash = accInputHash;
+        bytes32 currentAccInputHash = lastAccInputHash;
 
         // Sequence force batches
         for (uint256 i = 0; i < batchesNum; i++) {
@@ -730,7 +591,7 @@ contract PolygonZkEVMV2 is
         }
 
         // Store back the storage variables
-        accInputHash = currentAccInputHash;
+        lastAccInputHash = currentAccInputHash;
         lastTimestamp = uint64(block.timestamp);
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
@@ -798,10 +659,10 @@ contract PolygonZkEVMV2 is
      * This action is not reversible
      */
     function activateForceBatches() external onlyAdmin {
-        if (!isForcedBatchDisallowed) {
+        if (isForcedBatchAllowed) {
             revert ForceBatchesAlreadyActive();
         }
-        isForcedBatchDisallowed = false;
+        isForcedBatchAllowed = true;
         emit ActivateForceBatches();
     }
 

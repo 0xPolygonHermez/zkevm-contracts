@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "../lib/TokenWrapped.sol";
 import "../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import "../interfaces/IBridgeMessageReceiver.sol";
-import "../interfaces/IPolygonZkEVMBridgeV2.sol";
+import "./interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "../lib/EmergencyManager.sol";
 import "../lib/GlobalExitRootLib.sol";
