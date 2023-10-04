@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.20;
 
-import "../interfaces/IPolygonRollupManager.sol";
+import "./interfaces/IPolygonRollupManager.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "../interfaces/IPolygonZkEVMBridge.sol";
-import "./PolygonZkEVMV2.sol";
+import "./interfaces/IPolygonRollupBase.sol";
 import "../lib/EmergencyManager.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -15,7 +15,8 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
 
-// TODO CHECK STORAGE SLOTS!!
+// TODO change name to network
+// zkevm type uint8
 
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
@@ -183,7 +184,9 @@ abstract contract PolygonRollupManager is
     // MATIC token address
     IERC20Upgradeable public immutable matic;
 
-    // TODO could be optimized using the storage slot of the emergency mode
+    // since this contract will be an update of the PolygonZkEVM there are legacy variables
+    // This ones would not be used generally,just for reserve the same storage slots, since
+    // this contract will be
 
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
@@ -447,6 +450,7 @@ abstract contract PolygonRollupManager is
 
     /**
      * @param _globalExitRootManager Global exit root manager address
+     * @param _matic MATIC token address
      * @param _bridgeAddress Bridge address
      */
     constructor(
@@ -513,7 +517,11 @@ abstract contract PolygonRollupManager is
         _setupRole(EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
         _setupRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
 
-        // deploy zkEVM
+        // deploy zkEVM probably wont work bc initialize D:
+
+        // TODO consisnten qiwht the bridge, networkCount == networkID, zkEVm MUst be the 1
+
+        // emit version review
     }
 
     ////////////////////////////////////////////////
@@ -651,11 +659,7 @@ abstract contract PolygonRollupManager is
         address trustedSequencer,
         string memory trustedSequencerURL,
         string memory networkName
-    )
-        external
-        //string calldata version //¿ review
-        onlyRole(CREATE_ROLLUP_ROLE)
-    {
+    ) external onlyRole(CREATE_ROLLUP_ROLE) {
         // Check that consensus and verifier are already added
         if (consensusMap[consensusAddress].consensusID == 0) {
             revert ConsensusDoesNotExist();
@@ -679,7 +683,7 @@ abstract contract PolygonRollupManager is
                 consensusAddress,
                 address(this),
                 abi.encodeCall(
-                    PolygonZkEVMV2.initialize,
+                    IPolygonRollupBase.initialize,
                     (admin, trustedSequencer, trustedSequencerURL, networkName) //  TODO Make lib about, like basePolygonRollup
                 )
             )
@@ -1094,7 +1098,7 @@ abstract contract PolygonRollupManager is
         lastAggregationTimestamp = uint64(block.timestamp);
 
         // Callback to the rollup address
-        PolygonZkEVMV2(rollup.rollupAddress).onVerifyBatches(
+        IPolygonRollupBase(rollup.rollupAddress).onVerifyBatches(
             finalNewBatch,
             newStateRoot,
             msg.sender
@@ -1533,6 +1537,8 @@ abstract contract PolygonRollupManager is
     // admin functions
     //////////////////
 
+    // review Role
+
     /**
      * @notice Allow the admin to set a new trusted aggregator address
      * @param newTrustedAggregator Address of the new trusted aggregator
@@ -1623,6 +1629,7 @@ abstract contract PolygonRollupManager is
 
     ////////////////////////
     // view/pure functions
+    ///////////////////////
 
     /**
      * @notice Get the current rollup exit root
