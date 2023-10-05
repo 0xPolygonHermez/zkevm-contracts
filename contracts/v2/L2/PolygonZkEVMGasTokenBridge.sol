@@ -97,6 +97,7 @@ contract PolygonZkEVMGasTokenBridge is
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
 
+        // check native token TODO
         // Set gas token
         gasTokenAddress = _gasTokenAddress;
         gasTokenNetwork = _gasTokenNetwork;
@@ -287,7 +288,7 @@ contract PolygonZkEVMGasTokenBridge is
         bytes calldata metadata
     ) external payable {
         if (
-            destinationNetwork == networkID // TODO
+            destinationNetwork == networkID //  destinationNetwork >= rollupManager.rollupCount() ?¿ TODO
         ) {
             revert DestinationNetworkInvalid();
         }
@@ -623,7 +624,7 @@ contract PolygonZkEVMGasTokenBridge is
                 )
             );
 
-        // check that thi global exit root exist
+        // check that this global exit root exist
         if (timestampGlobalExitRoot == 0) {
             revert GlobalExitRootInvalid();
         }

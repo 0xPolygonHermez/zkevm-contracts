@@ -46,7 +46,7 @@ interface IPolygonRollupManager {
     /**
      * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error UpgradeToSameImplementation();
+    error UpdateToSameRollupTypeID();
 
     /**
      * @dev Thrown when sender is not the PolygonZkEVM address
@@ -222,4 +222,14 @@ interface IPolygonRollupManager {
      * @dev Thrown when the caller is not the pending admin
      */
     error MustSequenceSomeBatch();
+
+    /**
+     * @dev When a rollup type does not exist
+     */
+    error RollupTypeDoesNotExist();
+
+    /**
+     * @dev When a rollup type does not exist
+     */
+    error RollupTypeObsolete();
 }

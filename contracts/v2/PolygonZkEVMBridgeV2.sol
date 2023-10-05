@@ -158,7 +158,7 @@ contract PolygonZkEVMBridgeV2 is
     ) public payable virtual ifNotEmergencyState nonReentrant {
         if (
             destinationNetwork == networkID
-            // TODO destinationNetwork >= rollupManager.rollupCount() ?¿
+            // TODO check desitnation network? destinationNetwork >= rollupManager.rollupCount() ?¿
         ) {
             revert DestinationNetworkInvalid();
         }
@@ -603,7 +603,7 @@ contract PolygonZkEVMBridgeV2 is
         }
 
         uint32 leafIndex;
-        uint32 originNetwork;
+        uint32 originNetwork; // TODO renaming sourceBridgeNetwork
 
         // Get origin network from global index
         if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {

@@ -16,7 +16,6 @@ import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
 
 // TODO change name to network
-// zkevm type uint8
 
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
@@ -42,28 +41,21 @@ abstract contract PolygonRollupManager is
     }
 
     /**
-     * @notice Struct which to store the verifier data
-     * @param accInputHash Hash chain that contains all the information to process a batch:
-     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
-     * @param sequencedTimestamp Sequenced timestamp
-     * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
+     * @notice Struct which to store the rollup type data
+     * @param consensusImplementation Consensus implementation ( contains the consensus logic for the transaparent proxy)
+     * @param verifier verifier
+     * @param forkID fork ID
+     * @param rollupCompatibilityID Rollup compatibility ID, to check upgradability between rollup types
+     * @param genesis Genesis block of the rollup, note that will only be used on creating new rollups, not upgrade them
+     * @param description Previous last batch sequenced before the current one, this is used to properly calculate the fees
      */
-    struct VerifierData {
-        uint64 verifierID;
+    struct RollupType {
+        address consensusImplementation;
+        IVerifierRollup verifier;
         uint64 forkID;
+        uint8 rollupCompatibilityID;
+        bool obsolete;
         bytes32 genesis;
-        string description;
-    }
-
-    /**
-     * @notice Struct which to store the verifier data
-     * @param accInputHash Hash chain that contains all the information to process a batch:
-     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
-     * @param sequencedTimestamp Sequenced timestamp
-     * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
-     */
-    struct ConsensusData {
-        uint64 consensusID;
         string description;
     }
 
@@ -75,9 +67,10 @@ abstract contract PolygonRollupManager is
      * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
      */
     struct RollupData {
-        address rollupAddress; // TODO base rollup
-        IVerifierRollup verifierAddress;
+        IPolygonRollupBase rollupContract;
         uint64 chainID;
+        IVerifierRollup verifier;
+        uint64 forkID;
         mapping(uint64 => bytes32) batchNumToStateRoot;
         mapping(uint64 => SequencedBatchData) sequencedBatches;
         mapping(uint256 => PendingState) pendingStateTransitions;
@@ -86,8 +79,11 @@ abstract contract PolygonRollupManager is
         uint64 lastVerifiedBatch;
         uint64 lastPendingState;
         uint64 lastPendingStateConsolidated;
-        uint64 lastVerifiedBatchBeforeUpgrade;
+        uint64 lastVerifiedBatchBeforeUpgrade; // TODO ADD CHECK when verify
+        uint64 rollupTypeID;
+        uint8 rollupCompatibilityID;
     }
+    // review, description?¿
 
     /**
      * @notice Struct to store the pending states
@@ -138,12 +134,12 @@ abstract contract PolygonRollupManager is
     // Existing roles on rollup manager
 
     // Trusted aggregator will be able to verify batches without extra delau
-    bytes32 public constant ADD_VERIFIER_CONSENSUS_ROLE =
-        keccak256("ADD_VERIFIER_CONSENSUS_ROLE");
+    bytes32 public constant ADD_ROLLUP_TYPE_ROLE =
+        keccak256("ADD_ROLLUP_TYPE_ROLE");
 
     // Trusted aggregator will be able to verify batches without extra delau
-    bytes32 public constant DELETE_VERIFIER_CONSENSUS_ROLE =
-        keccak256("DELETE_VERIFIER_CONSENSUS_ROLE");
+    bytes32 public constant DELETE_ROLLUP_TYPE_ROLE =
+        keccak256("DELETE_ROLLUP_TYPE_ROLE");
 
     bytes32 public constant CREATE_ROLLUP_ROLE =
         keccak256("CREATE_ROLLUP_ROLE");
@@ -227,7 +223,7 @@ abstract contract PolygonRollupManager is
     uint64 internal _legacylastVerifiedBatch;
 
     // Trusted aggregator address
-    address internal _legacyTrustedAggregator; // TODO legacy=?
+    address internal _legacyTrustedAggregator;
 
     // State root mapping
     // BatchNum --> state root
@@ -268,18 +264,11 @@ abstract contract PolygonRollupManager is
     // Indicates if forced batches are disallowed
     bool internal _legacyIsForcedBatchDisallowed;
 
-    // Start current variables
-    // Number of consensus added, every new consensus will be assigned sequencially a new ID
-    uint64 public consensusCount;
+    // Number of rollup types added, every new consensus will be assigned sequencially a new ID
+    uint64 public rollupTypeCount;
 
     // Consensus mapping
-    mapping(address consensusAddress => ConsensusData) public consensusMap;
-
-    // Number of verifiers added, every new verifier will be assigned sequencially a new ID
-    uint64 public verifierCount;
-
-    // Verifiers mapping
-    mapping(address verifierAddress => VerifierData) public verifierMap;
+    mapping(uint64 rollupTypeID => RollupType) public rollupTypeMap;
 
     // Rollup Count
     uint64 public rollupCount;
@@ -318,51 +307,49 @@ abstract contract PolygonRollupManager is
     address public trustedAggregator;
 
     /**
-     * @dev Emitted when a new consensus is added
+     * @dev Emitted when a new rollup type is added
      */
-    event AddNewConsensus(
-        uint256 consensusID,
-        address consensusAddress,
-        string description
-    );
-
-    /**
-     * @dev Emitted when a new consensus is added
-     */
-    event AddNewVerifier(
-        uint256 verifierId,
-        address verifierAddress,
-        string description
-    );
-
-    /**
-     * @dev Emitted when a new verifier is added
-     */
-    event DeleteConsensus(address consensusAddress);
-
-    /**
-     * @dev Emitted when a new verifier is added
-     */
-    event DeleteVerifier(address verifierAddress);
-
-    /**
-     * @dev Emitted when a new verifier is added
-     */
-    event AddNewRollup(
+    event AddNewRollupType(
         uint64 rollupID,
+        address consensusImplementation,
+        address verifier,
+        uint64 forkID,
+        bytes32 genesis,
+        string description
+    );
+
+    /**
+     * @dev Emitted when a a rolup type is deleted
+     */
+    event DeleteRollupType(uint64 rollupID);
+
+    /**
+     * @dev Emitted when a new rollup is created based on a rollupType
+     */
+    event CreateNewRollup(
+        uint64 rollupID,
+        uint64 rollupTypeID,
         address rollupAddress,
-        address consensusAddress,
-        address verifierAddress,
         uint64 chainID
     );
 
     /**
-     * @dev Emitted when a new verifier is added
+     * @dev Emitted when an existing rollup is added
+     */
+    event AddExistingRollup(
+        uint64 rollupID,
+        uint64 forkID,
+        address rollupAddress,
+        uint64 chainID,
+        uint8 rollupCompatibilityID
+    );
+
+    /**
+     * @dev Emitted when a rollup is udpated
      */
     event UpdateRollup(
         uint64 rollupID,
-        address newConsensusAddress,
-        address newVerifierAddress,
+        uint64 newRollupTypeID,
         uint64 lastVerifiedBatchBeforeUpgrade
     );
 
@@ -493,7 +480,7 @@ abstract contract PolygonRollupManager is
 
         // Timelock roles
         _setupRole(DEFAULT_ADMIN_ROLE, timelock);
-        _setupRole(ADD_VERIFIER_CONSENSUS_ROLE, timelock);
+        _setupRole(ADD_ROLLUP_TYPE_ROLE, timelock);
         _setupRole(ADD_EXISTING_ROLLUP_ROLE, timelock);
         // role fees
         // role rst of parameters
@@ -504,7 +491,7 @@ abstract contract PolygonRollupManager is
         _setupRole(UPDATE_ROLLUP_ROLE, timelock);
 
         // Admin roles
-        _setupRole(DELETE_VERIFIER_CONSENSUS_ROLE, admin);
+        _setupRole(DELETE_ROLLUP_TYPE_ROLE, admin);
         _setupRole(CREATE_ROLLUP_ROLE, admin);
         _setupRole(STOP_EMERGENCY_ROLE, admin);
         _setupRole(TRUSTED_AGGREGATOR_ROLE, admin);
@@ -519,7 +506,9 @@ abstract contract PolygonRollupManager is
 
         // deploy zkEVM probably wont work bc initialize D:
 
-        // TODO consisnten qiwht the bridge, networkCount == networkID, zkEVm MUst be the 1
+        // TODO consisnten with the bridge, networkCount == networkID, zkEVm MUst be the 1
+
+        // batchNumToStateRoot copy zkevm aswell,
 
         // emit version review
     }
@@ -529,122 +518,91 @@ abstract contract PolygonRollupManager is
     ///////////////////////////////////////////////
 
     /**
-     * @notice Add a new consensus implementation contract
-     * This contract will be used as base for the new created Rollups
-     * @param newConsensusAddress new exit tree root
-     * @param description description of the consensus
+     * @notice Add a new zkEVM type
+     * @param consensusAddress new consensus implementation
+     * @param verifierAddress new verifier address
+     * @param forkID forkID of the verifier
+     * @param genesis genesis block of the zkEVM
+     * @param description description of the zkEVM type
      */
-    function addNewConsensus(
-        address newConsensusAddress,
-        string memory description
-    ) external onlyRole(ADD_VERIFIER_CONSENSUS_ROLE) {
-        _addNewConsensus(newConsensusAddress, description);
-    }
-
-    /**
-     * @notice Add a new consensus implementation contract
-     * This contract will be used as base for the new created Rollups
-     * @param newConsensusAddress new exit tree root
-     * @param description description of the consensus
-     */
-    function _addNewConsensus(
-        address newConsensusAddress,
-        string memory description
-    ) internal {
-        if (consensusMap[newConsensusAddress].consensusID != 0) {
-            revert ConsensusAlreadyExist();
-        }
-
-        uint64 consensusID = ++consensusCount;
-        consensusMap[newConsensusAddress] = ConsensusData({
-            consensusID: consensusID,
-            description: description
-        });
-        // Check a view on the consensus contract?¿
-
-        emit AddNewConsensus(consensusID, newConsensusAddress, description);
-    }
-
-    /**
-     * @notice Add a new vefifier contract
-     * @param newVerifierAddress new verifier address
-     */
-    function addNewVerifier(
-        address newVerifierAddress,
+    function addNewRollupType(
+        address consensusAddress,
+        IVerifierRollup verifierAddress,
         uint64 forkID,
         bytes32 genesis,
+        uint8 rollupCompatibilityID,
         string memory description
-    ) external onlyRole(ADD_VERIFIER_CONSENSUS_ROLE) {
-        _addNewVerifier(newVerifierAddress, forkID, genesis, description);
+    ) external onlyRole(ADD_ROLLUP_TYPE_ROLE) {
+        _addNewRollupType(
+            consensusAddress,
+            verifierAddress,
+            forkID,
+            genesis,
+            rollupCompatibilityID,
+            description
+        );
     }
 
     /**
-     * @notice Add a new vefifier contract
-     * @param newVerifierAddress new verifier address
+     * @notice Add a new zkEVM type
+     * @param consensusImplementation new consensus implementation
+     * @param verifier new verifier address
+     * @param forkID forkID of the verifier
+     * @param genesis genesis block of the zkEVM
+     * @param description description of the zkEVM type
      */
-    function _addNewVerifier(
-        address newVerifierAddress,
+    function _addNewRollupType(
+        address consensusImplementation,
+        IVerifierRollup verifier,
         uint64 forkID,
         bytes32 genesis,
+        uint8 rollupCompatibilityID,
         string memory description
     ) internal {
-        if (verifierMap[newVerifierAddress].verifierID != 0) {
-            revert VerifierAlreadyExist();
-        }
+        // nullify rollup type?¿ review hash(verifier, implementation, genesis)
+        // review check address are not 0?
 
-        uint64 verifierID = ++verifierCount;
-        verifierMap[newVerifierAddress] = VerifierData({
-            verifierID: verifierID,
+        uint64 rollupTypeID = ++rollupTypeCount;
+
+        rollupTypeMap[rollupTypeID] = RollupType({
+            consensusImplementation: consensusImplementation,
+            verifier: verifier,
             forkID: forkID,
+            rollupCompatibilityID: rollupCompatibilityID,
+            obsolete: false,
             genesis: genesis,
             description: description
         });
 
-        emit AddNewVerifier(verifierID, newVerifierAddress, description);
+        emit AddNewRollupType(
+            rollupTypeID,
+            consensusImplementation,
+            address(verifier),
+            forkID,
+            genesis,
+            description
+        );
     }
 
     /**
-     * @notice Delete Conensus
-     * Note that can be some "holes" in the verifier map
-     * @param consensusAddress Consensus address to delete
+     * @notice Obsolete Rollup type
+     * @param rollupTypeID Consensus address to obsolete
      */
-    function deleteConsensus(
-        address consensusAddress
-    ) external onlyRole(DELETE_VERIFIER_CONSENSUS_ROLE) {
-        if (consensusMap[consensusAddress].consensusID == 0) {
-            revert ConsensusDoesNotExist();
+    function obsoleteRollupType(
+        uint64 rollupTypeID
+    ) external onlyRole(DELETE_ROLLUP_TYPE_ROLE) {
+        if (rollupTypeID == 0 || rollupTypeID > rollupTypeCount) {
+            revert RollupTypeDoesNotExist();
         }
 
-        delete consensusMap[consensusAddress].description;
-        delete consensusMap[consensusAddress];
+        rollupTypeMap[rollupTypeID].obsolete = true;
 
-        emit DeleteConsensus(consensusAddress);
+        emit DeleteRollupType(rollupTypeID);
     }
-
-    /**
-     * @notice Delete Verifier
-     * Note that can be some "holes" in the verifier map
-     * @param verifierAddress Verifier address to delete
-     */
-    function deleteVerifier(
-        address verifierAddress
-    ) external onlyRole(DELETE_VERIFIER_CONSENSUS_ROLE) {
-        if (verifierMap[verifierAddress].verifierID == 0) {
-            revert VerifierDoesNotExist();
-        }
-
-        delete verifierMap[verifierAddress].description;
-        delete verifierMap[verifierAddress];
-
-        emit DeleteVerifier(verifierAddress);
-    }
-
-    //     * @param version version string of the new created rollup
 
     /**
      * @notice Create a new rollup
-     * @param consensusAddress consensus implementation address
-     * @param verifierAddress verifier address
+     * @param rollupTypeID Rollup type to deploy
      * @param chainID chainID
      * @param admin admin of the new created rollup
      * @param trustedSequencer trusted sequencer of the new created rollup
@@ -652,22 +610,22 @@ abstract contract PolygonRollupManager is
      * @param networkName network name of the new created rollup
      */
     function createNewRollup(
-        address consensusAddress,
-        address verifierAddress,
+        uint64 rollupTypeID,
         uint64 chainID,
         address admin,
         address trustedSequencer,
         string memory trustedSequencerURL,
         string memory networkName
     ) external onlyRole(CREATE_ROLLUP_ROLE) {
-        // Check that consensus and verifier are already added
-        if (consensusMap[consensusAddress].consensusID == 0) {
-            revert ConsensusDoesNotExist();
+        // Check that rollup type exists
+        if (rollupTypeID == 0 || rollupTypeID > rollupTypeCount) {
+            revert RollupTypeDoesNotExist();
         }
 
-        VerifierData storage verifier = verifierMap[verifierAddress];
-        if (verifier.verifierID == 0) {
-            revert VerifierDoesNotExist();
+        // Check rollup type is not obsolete
+        RollupType storage rollupType = rollupTypeMap[rollupTypeID];
+        if (rollupType.obsolete == true) {
+            revert RollupTypeObsolete();
         }
 
         // Check chainID nullifier
@@ -680,14 +638,17 @@ abstract contract PolygonRollupManager is
         uint64 rollupID = ++rollupCount;
         address rollupAddress = address(
             new TransparentUpgradeableProxy(
-                consensusAddress,
+                rollupType.consensusImplementation,
                 address(this),
                 abi.encodeCall(
                     IPolygonRollupBase.initialize,
-                    (admin, trustedSequencer, trustedSequencerURL, networkName) //  TODO Make lib about, like basePolygonRollup
+                    (admin, trustedSequencer, trustedSequencerURL, networkName) // review parameters
                 )
             )
         );
+        // TODO GENESIS MUST BE INITIALIZEWD with proper chainID,
+        //initialize(chainID, gasTOken, gasNetwork)
+        //in consensus contract generate proper encoding and singature
 
         // Set chainID nullifier
         chainIDToRollupID[chainID] = rollupID;
@@ -696,32 +657,34 @@ abstract contract PolygonRollupManager is
         rollupAddressToID[rollupAddress] = rollupID;
 
         RollupData storage rollup = rollupIDToRollupData[rollupID];
-        rollup.rollupAddress = rollupAddress;
-        rollup.verifierAddress = IVerifierRollup(verifierAddress);
-        rollup.chainID = chainID;
-        rollup.batchNumToStateRoot[0] = verifier.genesis;
 
-        emit AddNewRollup(
-            rollupID,
-            rollupAddress,
-            consensusAddress,
-            verifierAddress,
-            chainID
-        );
+        rollup.rollupContract = IPolygonRollupBase(rollupAddress);
+        rollup.forkID = rollupType.forkID;
+        rollup.verifier = rollupType.verifier;
+        rollup.chainID = chainID;
+        rollup.batchNumToStateRoot[0] = rollupType.genesis;
+        rollup.rollupTypeID = rollupTypeID;
+        rollup.rollupCompatibilityID = rollupType.rollupCompatibilityID;
+
+        emit CreateNewRollup(rollupID, rollupTypeID, rollupAddress, chainID);
     }
 
     // review, could even delete this?¿
     /**
      * @notice Add an already deployed rollup
      * @param rollupAddress rollup address
-     * @param verifierAddress verifier address, must be added before
+     * @param verifier verifier address, must be added before
+     * @param forkID chain id of the created rollup
      * @param chainID chain id of the created rollup
+     * @param genesis chain id of the created rollup
      */
     function addExistingRollup(
-        address rollupAddress,
-        address verifierAddress,
+        IPolygonRollupBase rollupAddress,
+        IVerifierRollup verifier,
+        uint64 forkID,
         uint64 chainID,
-        bytes32 genesis
+        bytes32 genesis,
+        uint8 rollupCompatibilityID
     ) external onlyRole(ADD_EXISTING_ROLLUP_ROLE) {
         // Check chainID nullifier
         if (chainIDToRollupID[chainID] != 0) {
@@ -730,88 +693,84 @@ abstract contract PolygonRollupManager is
 
         uint64 rollupID = ++rollupCount;
 
-        rollupAddressToID[rollupAddress] = rollupID;
+        // Set chainID nullifier
         chainIDToRollupID[chainID] = rollupID;
 
+        // Store rollup data
+        rollupAddressToID[address(rollupAddress)] = rollupID;
+
         RollupData storage rollup = rollupIDToRollupData[rollupID];
-        rollup.rollupAddress = rollupAddress;
-        rollup.verifierAddress = IVerifierRollup(verifierAddress);
+        rollup.rollupContract = rollupAddress;
+        rollup.forkID = forkID;
+        rollup.verifier = verifier;
         rollup.chainID = chainID;
         rollup.batchNumToStateRoot[0] = genesis;
+        rollup.rollupCompatibilityID = rollupCompatibilityID;
 
-        emit AddNewRollup(
+        emit AddExistingRollup(
             rollupID,
-            rollupAddress,
-            address(0),
-            verifierAddress,
-            chainID
+            forkID,
+            address(rollupAddress),
+            chainID,
+            rollupCompatibilityID
         );
     }
 
+    //review, should cehck that there are not sequenced batches eponding to be verified?¿?
+    //this way no one can break the virtual state, ( but maybe is worth to break it)
+
     /**
      * @notice Upgrade an existing rollup
-     * @param rollupAddress Rollup consensus proxy address
-     * @param newConsensusAddress new implementation of the consensus
+     * @param rollupContract Rollup consensus proxy address
+     * @param newRollupTypeID New rolluptypeID to upgrade to
      * @param upgradeData Upgrade data
      */
     function updateRollup(
-        TransparentUpgradeableProxy rollupAddress,
-        IVerifierRollup newVerifierAddress,
-        address newConsensusAddress,
+        TransparentUpgradeableProxy rollupContract,
+        uint64 newRollupTypeID,
         bytes calldata upgradeData
     ) external onlyRole(UPDATE_ROLLUP_ROLE) {
-        uint64 rollupID = rollupAddressToID[address(rollupAddress)];
+        // TODO Check new rollup type was not deleted? it would be sanity check
+        // Check that rollup type exists
+        if (newRollupTypeID == 0 || newRollupTypeID > rollupTypeCount) {
+            revert RollupTypeDoesNotExist();
+        }
 
+        uint64 rollupID = rollupAddressToID[address(rollupContract)];
         if (rollupID == 0) {
             revert RollupMustExist();
         }
 
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
-        // If it's defined a new verifier address, update verifier
-        if (address(newVerifierAddress) != address(0)) {
-            VerifierData storage newVerifier = verifierMap[
-                address(newVerifierAddress)
-            ];
-
-            if (newVerifier.verifierID == 0) {
-                revert VerifierDoesNotExist();
-            }
-
-            if (rollup.verifierAddress == newVerifierAddress) {
-                revert VerifierMustBeDifferent();
-            }
-
-            if (
-                verifierMap[address(rollup.verifierAddress)].genesis !=
-                newVerifier.genesis
-            ) {
-                revert VerifiersMustHaveSameGenesis();
-            }
-            rollup.verifierAddress = newVerifierAddress;
-            rollup.lastVerifiedBatchBeforeUpgrade = getLastVerifiedBatch(
-                rollupID
-            );
+        if (rollup.rollupTypeID == newRollupTypeID) {
+            revert UpdateToSameRollupTypeID();
         }
 
-        // If it's defined a new implementation address, update implementation
-        if (newConsensusAddress != address(0)) {
-            if (consensusMap[newConsensusAddress].consensusID == 0) {
-                revert ConsensusDoesNotExist();
-            }
+        RollupType storage newRollupType = rollupTypeMap[newRollupTypeID];
 
-            if (rollupAddress.implementation() == newConsensusAddress) {
-                revert UpgradeToSameImplementation();
-            }
-
-            rollupAddress.upgradeToAndCall(newConsensusAddress, upgradeData);
+        // check compatibility of the rollups
+        if (
+            rollup.rollupCompatibilityID != newRollupType.rollupCompatibilityID
+        ) {
+            revert UpdateToSameRollupTypeID();
         }
 
-        // review Should emit forkID aswell?¿
+        // update rollup parameters
+        rollup.verifier = newRollupType.verifier;
+        rollup.forkID = newRollupType.forkID;
+        rollup.rollupTypeID = newRollupTypeID;
+        rollup.lastVerifiedBatchBeforeUpgrade = getLastVerifiedBatch(rollupID);
+
+        // review if it's the same implementation do not upgrade
+        address newConsensusAddress = newRollupType.consensusImplementation;
+        if (rollupContract.implementation() != newConsensusAddress) {
+            rollupContract.upgradeToAndCall(newConsensusAddress, upgradeData);
+        }
+
         emit UpdateRollup(
             rollupID,
-            newConsensusAddress,
-            address(newVerifierAddress),
+            newRollupTypeID,
             rollup.lastVerifiedBatchBeforeUpgrade
         );
     }
@@ -1081,7 +1040,7 @@ abstract contract PolygonRollupManager is
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
-        if (!rollup.verifierAddress.verifyProof(proof, [inputSnark])) {
+        if (!rollup.verifier.verifyProof(proof, [inputSnark])) {
             revert InvalidProof();
         }
 
@@ -1098,7 +1057,7 @@ abstract contract PolygonRollupManager is
         lastAggregationTimestamp = uint64(block.timestamp);
 
         // Callback to the rollup address
-        IPolygonRollupBase(rollup.rollupAddress).onVerifyBatches(
+        rollup.rollupContract.onVerifyBatches(
             finalNewBatch,
             newStateRoot,
             msg.sender
@@ -1188,7 +1147,7 @@ abstract contract PolygonRollupManager is
         globalExitRootManager.updateExitRoot(currentPendingState.exitRoot);
 
         emit ConsolidatePendingState(
-            rollupAddressToID[rollup.rollupAddress],
+            rollupAddressToID[address(rollup.rollupContract)],
             newLastVerifiedBatch,
             currentPendingState.stateRoot,
             pendingStateNum
@@ -1385,7 +1344,7 @@ abstract contract PolygonRollupManager is
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
-        if (!rollup.verifierAddress.verifyProof(proof, [inputSnark])) {
+        if (!rollup.verifier.verifyProof(proof, [inputSnark])) {
             revert InvalidProof();
         }
 
@@ -1537,7 +1496,7 @@ abstract contract PolygonRollupManager is
     // admin functions
     //////////////////
 
-    // review Role
+    // review Role TA
 
     /**
      * @notice Allow the admin to set a new trusted aggregator address
@@ -1772,14 +1731,14 @@ abstract contract PolygonRollupManager is
      * @notice Get batch fee
      */
     function getBatchFee() public view returns (uint256) {
-        return batchFee; // review
+        return batchFee;
     }
 
     /**
      * @notice Get forced batch fee
      */
     function getForcedBatchFee() public view returns (uint256) {
-        return batchFee * 100; // review, should be a parameter?
+        return batchFee * 100;
     }
 
     /**
@@ -1850,12 +1809,12 @@ abstract contract PolygonRollupManager is
 
         return
             abi.encodePacked(
-                msg.sender, // TODO=?¿
+                msg.sender,
                 oldStateRoot,
                 oldAccInputHash,
                 initNumBatch,
                 rollup.chainID,
-                verifierMap[address(rollup.verifierAddress)].forkID,
+                rollup.forkID,
                 newStateRoot,
                 newAccInputHash,
                 newLocalExitRoot,
