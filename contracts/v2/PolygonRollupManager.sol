@@ -20,7 +20,7 @@ import "../interfaces/IVerifierRollup.sol";
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */
-abstract contract PolygonRollupManager is
+contract PolygonRollupManager is
     PolygonAccessControlUpgradeable,
     EmergencyManager,
     IPolygonRollupManager
@@ -291,11 +291,20 @@ abstract contract PolygonRollupManager is
     // everyone can verify that sequence
     uint64 public trustedAggregatorTimeout;
 
+    // Total sequenced batches between all rollups
     uint64 public totalSequencedBatches;
+
+    // Total pending batches between all networks
     uint64 public totalPendingForcedBatches;
+
+    // Total verified batches between all rollups
     uint64 public totalVerifiedBatches;
+
+    // Last timestamp where an aggregation happen
     uint64 public lastAggregationTimestamp;
 
+    // Time target of the verification of a batch
+    // Adaptatly the batchFee will be updated to achieve this target
     uint64 public verifyBatchTimeTarget;
 
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
@@ -304,6 +313,7 @@ abstract contract PolygonRollupManager is
     // Current matic fee per batch sequenced
     uint256 public batchFee;
 
+    // Address that has priority to verify batches, also enables bridges instantly
     address public trustedAggregator;
 
     /**
@@ -510,11 +520,11 @@ abstract contract PolygonRollupManager is
 
         // batchNumToStateRoot copy zkevm aswell,
 
-        // emit version review
+        // emit version review yes here!
     }
 
     ////////////////////////////////////////////////
-    // Consensus-Verifiers-Rollups managment functions
+    // Rollups management functions
     ///////////////////////////////////////////////
 
     /**
@@ -669,7 +679,6 @@ abstract contract PolygonRollupManager is
         emit CreateNewRollup(rollupID, rollupTypeID, rollupAddress, chainID);
     }
 
-    // review, could even delete this?¿
     /**
      * @notice Add an already deployed rollup
      * @param rollupAddress rollup address
@@ -677,6 +686,7 @@ abstract contract PolygonRollupManager is
      * @param forkID chain id of the created rollup
      * @param chainID chain id of the created rollup
      * @param genesis chain id of the created rollup
+     * @param rollupCompatibilityID chain id of the created rollup
      */
     function addExistingRollup(
         IPolygonRollupBase rollupAddress,
@@ -748,6 +758,11 @@ abstract contract PolygonRollupManager is
         }
 
         RollupType storage newRollupType = rollupTypeMap[newRollupTypeID];
+
+        // Check rollup type is not obsolete
+        if (newRollupType.obsolete == true) {
+            revert RollupTypeObsolete();
+        }
 
         // check compatibility of the rollups
         if (
@@ -1496,15 +1511,13 @@ abstract contract PolygonRollupManager is
     // admin functions
     //////////////////
 
-    // review Role TA
-
     /**
      * @notice Allow the admin to set a new trusted aggregator address
      * @param newTrustedAggregator Address of the new trusted aggregator
      */
     function setTrustedAggregator(
         address newTrustedAggregator
-    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
+    ) external onlyRole(TRUSTED_AGGREGATOR_ROLE) {
         trustedAggregator = newTrustedAggregator;
 
         emit SetTrustedAggregator(newTrustedAggregator);
