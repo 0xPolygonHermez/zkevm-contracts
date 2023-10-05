@@ -26,6 +26,7 @@ contract PolygonRollupBase is
     IPolygonZkEVMV2Errors,
     IPolygonRollupBase
 {
+    // INterface cehcks renaming
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
