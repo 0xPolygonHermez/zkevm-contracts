@@ -64,6 +64,17 @@ module.exports = {
                 },
             },
         ],
+        overrides: {
+            "contracts/v2/PolygonRollupManager.sol": {
+                version: '0.8.20',
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 99,
+                    },
+                },
+            }
+        }
     },
     networks: {
         mainnet: {

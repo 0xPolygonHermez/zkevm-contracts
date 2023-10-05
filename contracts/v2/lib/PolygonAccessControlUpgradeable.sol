@@ -14,6 +14,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * - Delete ERC165Upgradeable dependencies, which is not important to our contract and save us the "gap"
  * variables and let us have consistent storage
  * - Add the legacy Owner variable, to be consistent with the previous one
+ * - Add custom errors
  */
 abstract contract PolygonAccessControlUpgradeable is
     Initializable,
@@ -33,6 +34,11 @@ abstract contract PolygonAccessControlUpgradeable is
     mapping(bytes32 => RoleData) private _roles;
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+
+    /**
+     * @dev Thrown when the addres does not have the required role
+     */
+    error AddressDoNotHaveRequiredRole();
 
     /**
      * @dev Modifier that checks that an account has a specific role. Reverts
@@ -80,16 +86,7 @@ abstract contract PolygonAccessControlUpgradeable is
      */
     function _checkRole(bytes32 role, address account) internal view virtual {
         if (!hasRole(role, account)) {
-            revert(
-                string(
-                    abi.encodePacked(
-                        "AccessControl: account ",
-                        StringsUpgradeable.toHexString(account),
-                        " is missing role ",
-                        StringsUpgradeable.toHexString(uint256(role), 32)
-                    )
-                )
-            );
+            revert AddressDoNotHaveRequiredRole();
         }
     }
 

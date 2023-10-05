@@ -16,6 +16,7 @@ import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
 
 // TODO change name to network
+// TODO check contract slots!
 
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
@@ -83,7 +84,6 @@ contract PolygonRollupManager is
         uint64 rollupTypeID;
         uint8 rollupCompatibilityID;
     }
-    // review, description?¿
 
     /**
      * @notice Struct to store the pending states
@@ -493,7 +493,7 @@ contract PolygonRollupManager is
         _setupRole(ADD_ROLLUP_TYPE_ROLE, timelock);
         _setupRole(ADD_EXISTING_ROLLUP_ROLE, timelock);
         // role fees
-        // role rst of parameters
+        // role rest of parameters
 
         // Even this role can only update to an already added verifier/consensus
         // Could break the compatibility of them, changing the virtual state
@@ -529,46 +529,20 @@ contract PolygonRollupManager is
 
     /**
      * @notice Add a new zkEVM type
-     * @param consensusAddress new consensus implementation
-     * @param verifierAddress new verifier address
-     * @param forkID forkID of the verifier
-     * @param genesis genesis block of the zkEVM
-     * @param description description of the zkEVM type
-     */
-    function addNewRollupType(
-        address consensusAddress,
-        IVerifierRollup verifierAddress,
-        uint64 forkID,
-        bytes32 genesis,
-        uint8 rollupCompatibilityID,
-        string memory description
-    ) external onlyRole(ADD_ROLLUP_TYPE_ROLE) {
-        _addNewRollupType(
-            consensusAddress,
-            verifierAddress,
-            forkID,
-            genesis,
-            rollupCompatibilityID,
-            description
-        );
-    }
-
-    /**
-     * @notice Add a new zkEVM type
      * @param consensusImplementation new consensus implementation
      * @param verifier new verifier address
      * @param forkID forkID of the verifier
      * @param genesis genesis block of the zkEVM
      * @param description description of the zkEVM type
      */
-    function _addNewRollupType(
+    function addNewRollupType(
         address consensusImplementation,
         IVerifierRollup verifier,
         uint64 forkID,
         bytes32 genesis,
         uint8 rollupCompatibilityID,
         string memory description
-    ) internal {
+    ) external onlyRole(ADD_ROLLUP_TYPE_ROLE) {
         // nullify rollup type?¿ review hash(verifier, implementation, genesis)
         // review check address are not 0?
 
