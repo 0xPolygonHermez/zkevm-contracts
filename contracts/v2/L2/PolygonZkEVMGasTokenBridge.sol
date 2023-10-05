@@ -11,6 +11,10 @@ import "../interfaces/IPolygonZkEVMGasTokenBridge.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "../../lib/GlobalExitRootLib.sol";
 
+// review this implementation DOES not take care the storage slots of bridge
+// this means that if the bridge on mainnet or zkEVM should be updated in a future, should be done by
+// the other contract
+
 /**
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
@@ -58,7 +62,10 @@ contract PolygonZkEVMGasTokenBridge is
     uint32 public networkID;
 
     // Global Exit Root address
-    IBasePolygonZkEVMGlobalExitRoot public globalExitRootManager;
+    IBasePolygonZkEVMGlobalExitRoot public constant globalExitRootManager =
+        IBasePolygonZkEVMGlobalExitRoot(
+            0xa40D5f56745a118D0906a34E69aeC8C0Db1cB8fA
+        );
 
     // Last updated deposit count to the global exit root manager
     uint32 public lastUpdatedDepositCount;
@@ -83,27 +90,35 @@ contract PolygonZkEVMGasTokenBridge is
 
     /**
      * @param _networkID networkID
-     * @param _globalExitRootManager global exit root manager address
+     * @param _gasTokenAddress networkID
+     * @param _gasTokenNetwork networkID
      * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
      * emergency state is not possible for the L2 deployment of the bridge, intentionally
      */
     function initialize(
         uint32 _networkID,
-        IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _gasTokenAddress,
-        uint32 _gasTokenNetwork,
-        TokenWrapped _WETHToken
+        uint32 _gasTokenNetwork
     ) external virtual initializer {
         networkID = _networkID;
-        globalExitRootManager = _globalExitRootManager;
 
         // check native token TODO
         // Set gas token
-        gasTokenAddress = _gasTokenAddress;
-        gasTokenNetwork = _gasTokenNetwork;
-
-        // set WETH
-        WETHToken = _WETHToken;
+        if (gasTokenAddress == address(0)) {
+            if (gasTokenNetwork != 0) {
+                revert();
+            }
+            //WETHToken, gasTokenAddress and gasTokenNetwork will be address 0
+        } else {
+            // Gas token
+            gasTokenAddress = _gasTokenAddress;
+            gasTokenNetwork = _gasTokenNetwork; // review check same network!!
+            WETHToken = (new TokenWrapped){salt: bytes32(0)}(
+                "Wrapped Ether",
+                "WETH",
+                18
+            );
+        }
 
         // Initialize OZ contracts
         __ReentrancyGuard_init();
