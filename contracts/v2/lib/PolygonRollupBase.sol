@@ -244,9 +244,12 @@ contract PolygonRollupBase is
     function initialize(
         address _admin,
         address _trustedSequencer,
+        uint32 networkID,
+        address gasTokenAddress,
+        uint32 gasTokenNetwork,
         string memory _trustedSequencerURL,
         string memory _networkName
-    ) external virtual override initializer {
+    ) external virtual onlyRollupManager initializer {
         admin = _admin;
         trustedSequencer = _trustedSequencer;
 
@@ -255,6 +258,8 @@ contract PolygonRollupBase is
 
         // Constant deployment variables
         forceBatchTimeout = 5 days;
+
+        // TODO sequence
     }
 
     modifier onlyAdmin() {

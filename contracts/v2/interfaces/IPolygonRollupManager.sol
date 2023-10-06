@@ -232,4 +232,9 @@ interface IPolygonRollupManager {
      * @dev When a rollup type does not exist
      */
     error RollupTypeObsolete();
+
+    /**
+     * @dev When a rollup type does not exist
+     */
+    error InitBatchMustMatchCurrentForkID();
 }

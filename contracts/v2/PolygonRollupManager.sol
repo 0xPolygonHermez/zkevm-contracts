@@ -14,8 +14,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
+import "./consensus/zkEVM/PolygonZkEVMV2Upgraded.sol";
 
-// TODO change name to network
+// TODO change name to network, networkID consistent
 // TODO check contract slots!
 
 /**
@@ -131,44 +132,50 @@ contract PolygonRollupManager is
     // Exit merkle tree levels
     uint256 internal constant _EXIT_TREE_DEPTH = 32;
 
+    // L2 chain identifier
+    uint64 internal constant _ZKEVM_CHAINID = 1101;
+
+    // zkEVM FORK ID
+    uint64 internal immutable _ZKEVM_FORKID = 5;
+
     // Existing roles on rollup manager
 
     // Trusted aggregator will be able to verify batches without extra delau
-    bytes32 public constant ADD_ROLLUP_TYPE_ROLE =
+    bytes32 internal constant _ADD_ROLLUP_TYPE_ROLE =
         keccak256("ADD_ROLLUP_TYPE_ROLE");
 
     // Trusted aggregator will be able to verify batches without extra delau
-    bytes32 public constant DELETE_ROLLUP_TYPE_ROLE =
+    bytes32 internal constant _DELETE_ROLLUP_TYPE_ROLE =
         keccak256("DELETE_ROLLUP_TYPE_ROLE");
 
-    bytes32 public constant CREATE_ROLLUP_ROLE =
+    bytes32 internal constant _CREATE_ROLLUP_ROLE =
         keccak256("CREATE_ROLLUP_ROLE");
 
-    bytes32 public constant ADD_EXISTING_ROLLUP_ROLE =
+    bytes32 internal constant _ADD_EXISTING_ROLLUP_ROLE =
         keccak256("ADD_EXISTING_ROLLUP_ROLE");
 
-    bytes32 public constant UPDATE_ROLLUP_ROLE =
+    bytes32 internal constant _UPDATE_ROLLUP_ROLE =
         keccak256("UPDATE_ROLLUP_ROLE");
 
     // Trusted aggregator will be able to verify batches without extra delau
-    bytes32 public constant TRUSTED_AGGREGATOR_ROLE =
+    bytes32 internal constant _TRUSTED_AGGREGATOR_ROLE =
         keccak256("TRUSTED_AGGREGATOR_ROLE");
 
-    bytes32 public constant TWEAK_PARAMETERS_ROLE =
+    bytes32 internal constant _TWEAK_PARAMETERS_ROLE =
         keccak256("TWEAK_PARAMETERS_ROLE");
 
     // Will be able to set the current batch fee
-    bytes32 public constant SET_FEE_ROLE = keccak256("SET_FEE_ROLE");
+    bytes32 internal constant _SET_FEE_ROLE = keccak256("SET_FEE_ROLE");
 
-    bytes32 public constant STOP_EMERGENCY_ROLE =
+    bytes32 internal constant _STOP_EMERGENCY_ROLE =
         keccak256("STOP_EMERGENCY_ROLE");
 
     // Trusted aggregator will be able to verify batches without extra delau
-    bytes32 public constant EMERGENCY_COUNCIL_ROLE =
+    bytes32 internal constant _EMERGENCY_COUNCIL_ROLE =
         keccak256("EMERGENCY_COUNCIL_ROLE");
 
     // Will be able to update the emergency council
-    bytes32 public constant EMERGENCY_COUNCIL_ADMIN =
+    bytes32 internal constant _EMERGENCY_COUNCIL_ADMIN =
         keccak256("EMERGENCY_COUNCIL_ADMIN");
 
     // Global Exit Root interface
@@ -214,20 +221,20 @@ contract PolygonRollupManager is
     uint64 internal _legacylastBatchSequenced;
 
     // Last forced batch included in the sequence
-    uint64 internal _legacylastForceBatchSequenced;
+    uint64 internal _legacyLastForceBatchSequenced;
 
     // Last forced batch
-    uint64 internal _legacylastForceBatch;
+    uint64 internal _legacyLastForceBatch;
 
     // Last batch verified by the aggregators
-    uint64 internal _legacylastVerifiedBatch;
+    uint64 internal _legacyLastVerifiedBatch;
 
     // Trusted aggregator address
     address internal _legacyTrustedAggregator;
 
     // State root mapping
     // BatchNum --> state root
-    mapping(uint64 => bytes32) internal _legacybatchNumToStateRoot;
+    mapping(uint64 => bytes32) internal _legacyBatchNumToStateRoot;
 
     // Trusted sequencer URL
     string internal _legacyTrustedSequencerURL;
@@ -264,25 +271,31 @@ contract PolygonRollupManager is
     // Indicates if forced batches are disallowed
     bool internal _legacyIsForcedBatchDisallowed;
 
+    // Indicates the current version
+    uint256 internal _legacyVersion;
+
+    // Last batch verified before the last upgrade
+    uint256 internal _legacyLastVerifiedBatchBeforeUpgrade;
+
     // Number of rollup types added, every new consensus will be assigned sequencially a new ID
-    uint64 public rollupTypeCount;
+    uint32 public rollupTypeCount;
 
     // Consensus mapping
     mapping(uint64 rollupTypeID => RollupType) public rollupTypeMap;
 
     // Rollup Count
-    uint64 public rollupCount;
+    uint32 public rollupCount;
 
     // Rollups mapping
-    mapping(uint64 rollupID => RollupData) public rollupIDToRollupData;
+    mapping(uint32 rollupID => RollupData) public rollupIDToRollupData;
 
     // Rollups mapping
     // RollupAddress => rollupID
-    mapping(address rollupAddress => uint64 rollupID) public rollupAddressToID;
+    mapping(address rollupAddress => uint32 rollupID) public rollupAddressToID;
 
     // Rollups mapping
     // chainID => rollupID
-    mapping(uint64 chainID => uint64 rollupID) public chainIDToRollupID;
+    mapping(uint64 chainID => uint32 rollupID) public chainIDToRollupID;
 
     // Once a pending state exceeds this timeout it can be consolidated
     uint64 public pendingStateTimeout;
@@ -320,7 +333,7 @@ contract PolygonRollupManager is
      * @dev Emitted when a new rollup type is added
      */
     event AddNewRollupType(
-        uint64 rollupID,
+        uint32 rollupTypeID,
         address consensusImplementation,
         address verifier,
         uint64 forkID,
@@ -331,14 +344,14 @@ contract PolygonRollupManager is
     /**
      * @dev Emitted when a a rolup type is deleted
      */
-    event DeleteRollupType(uint64 rollupID);
+    event DeleteRollupType(uint32 rollupTypeID);
 
     /**
      * @dev Emitted when a new rollup is created based on a rollupType
      */
     event CreateNewRollup(
-        uint64 rollupID,
-        uint64 rollupTypeID,
+        uint32 rollupID,
+        uint32 rollupTypeID,
         address rollupAddress,
         uint64 chainID
     );
@@ -347,7 +360,7 @@ contract PolygonRollupManager is
      * @dev Emitted when an existing rollup is added
      */
     event AddExistingRollup(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 forkID,
         address rollupAddress,
         uint64 chainID,
@@ -358,21 +371,21 @@ contract PolygonRollupManager is
      * @dev Emitted when a rollup is udpated
      */
     event UpdateRollup(
-        uint64 rollupID,
-        uint64 newRollupTypeID,
+        uint32 rollupID,
+        uint32 newRollupTypeID,
         uint64 lastVerifiedBatchBeforeUpgrade
     );
 
     /**
      * @dev Emitted when a new verifier is added
      */
-    event OnSequenceBatches(uint64 rollupID, uint64 lastBatchSequenced);
+    event OnSequenceBatches(uint32 rollupID, uint64 lastBatchSequenced);
 
     /**
      * @dev Emitted when a aggregator verifies batches
      */
     event VerifyBatches(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 indexed numBatch,
         bytes32 stateRoot,
         address indexed aggregator
@@ -382,7 +395,7 @@ contract PolygonRollupManager is
      * @dev Emitted when a aggregator verifies batches
      */
     event VerifyBatchesTrustedAggregator(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 indexed numBatch,
         bytes32 stateRoot,
         address indexed aggregator
@@ -392,7 +405,7 @@ contract PolygonRollupManager is
      * @dev Emitted when pending state is consolidated
      */
     event ConsolidatePendingState(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 indexed numBatch,
         bytes32 stateRoot,
         uint64 indexed pendingStateNum
@@ -462,25 +475,17 @@ contract PolygonRollupManager is
 
     // TODO Add array fo consensus and verifiers and deploy zkEVM with legacy information
     function initialize(
-        uint64 _pendingStateTimeout,
         address _trustedAggregator,
+        uint64 _pendingStateTimeout,
         uint64 _trustedAggregatorTimeout,
         address admin,
         address timelock,
-        address emergencyCouncil
+        address emergencyCouncil,
+        PolygonZkEVMV2Upgraded polygonZkEVM,
+        IVerifierRollup zkEVMVerifier
     ) external initializer {
         trustedAggregator = _trustedAggregator;
-
-        // Check initialize parameters
-        if (_pendingStateTimeout > _HALT_AGGREGATION_TIMEOUT) {
-            revert PendingStateTimeoutExceedHaltAggregationTimeout();
-        }
         pendingStateTimeout = _pendingStateTimeout;
-
-        if (_trustedAggregatorTimeout > _HALT_AGGREGATION_TIMEOUT) {
-            revert TrustedAggregatorTimeoutExceedHaltAggregationTimeout();
-        }
-
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
         // Initialize OZ contracts
@@ -490,37 +495,68 @@ contract PolygonRollupManager is
 
         // Timelock roles
         _setupRole(DEFAULT_ADMIN_ROLE, timelock);
-        _setupRole(ADD_ROLLUP_TYPE_ROLE, timelock);
-        _setupRole(ADD_EXISTING_ROLLUP_ROLE, timelock);
+        _setupRole(_ADD_ROLLUP_TYPE_ROLE, timelock);
+        _setupRole(_ADD_EXISTING_ROLLUP_ROLE, timelock);
         // role fees
         // role rest of parameters
 
         // Even this role can only update to an already added verifier/consensus
         // Could break the compatibility of them, changing the virtual state
         // review
-        _setupRole(UPDATE_ROLLUP_ROLE, timelock);
+        _setupRole(_UPDATE_ROLLUP_ROLE, timelock);
 
         // Admin roles
-        _setupRole(DELETE_ROLLUP_TYPE_ROLE, admin);
-        _setupRole(CREATE_ROLLUP_ROLE, admin);
-        _setupRole(STOP_EMERGENCY_ROLE, admin);
-        _setupRole(TRUSTED_AGGREGATOR_ROLE, admin);
-        _setupRole(TWEAK_PARAMETERS_ROLE, admin);
+        _setupRole(_DELETE_ROLLUP_TYPE_ROLE, admin);
+        _setupRole(_CREATE_ROLLUP_ROLE, admin);
+        _setupRole(_STOP_EMERGENCY_ROLE, admin);
+        _setupRole(_TRUSTED_AGGREGATOR_ROLE, admin);
+        _setupRole(_TWEAK_PARAMETERS_ROLE, admin);
 
         // review Could be another address?¿
-        _setupRole(SET_FEE_ROLE, admin);
+        _setupRole(_SET_FEE_ROLE, admin);
 
         // Emergency council roles
-        _setupRole(EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
-        _setupRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
+        _setupRole(_EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
+        _setupRole(_EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
 
-        // deploy zkEVM probably wont work bc initialize D:
+        // Initialize current zkEVM
+        RollupData storage currentZkEVM = _addExistingRollup(
+            IPolygonRollupBase(polygonZkEVM),
+            zkEVMVerifier,
+            _ZKEVM_FORKID,
+            _ZKEVM_CHAINID,
+            0 // Rollup compatibility ID is 0
+        );
 
-        // TODO consisnten with the bridge, networkCount == networkID, zkEVm MUst be the 1
+        uint64 zkEVMLastBatchSequenced = _legacylastBatchSequenced;
+        uint64 zkEVMLastVerifiedBatch = _legacyLastVerifiedBatch;
+        if (zkEVMLastBatchSequenced != zkEVMLastVerifiedBatch) {
+            revert();
+        }
 
-        // batchNumToStateRoot copy zkevm aswell,
+        // Copy variables from legacy
+        currentZkEVM.batchNumToStateRoot[
+            zkEVMLastVerifiedBatch
+        ] = _legacyBatchNumToStateRoot[zkEVMLastVerifiedBatch];
 
-        // emit version review yes here!
+        currentZkEVM.sequencedBatches[
+            zkEVMLastBatchSequenced
+        ] = _legacySequencedBatches[zkEVMLastBatchSequenced];
+
+        currentZkEVM.lastBatchSequenced = zkEVMLastBatchSequenced;
+        currentZkEVM.lastVerifiedBatch = zkEVMLastVerifiedBatch;
+        currentZkEVM.lastVerifiedBatchBeforeUpgrade = zkEVMLastVerifiedBatch;
+        // rollupType and rollupCompatibilityID will be both 0
+
+        // Initialize polygon zkevm
+        polygonZkEVM.initializeUpgrade(
+            _legacyAdmin,
+            _legacyTrustedSequencer,
+            _legacyTrustedSequencerURL,
+            _legacyNetworkName,
+            _legacySequencedBatches[zkEVMLastBatchSequenced].accInputHash,
+            _legacyLastTimestamp
+        );
     }
 
     ////////////////////////////////////////////////
@@ -542,11 +578,11 @@ contract PolygonRollupManager is
         bytes32 genesis,
         uint8 rollupCompatibilityID,
         string memory description
-    ) external onlyRole(ADD_ROLLUP_TYPE_ROLE) {
+    ) external onlyRole(_ADD_ROLLUP_TYPE_ROLE) {
         // nullify rollup type?¿ review hash(verifier, implementation, genesis)
         // review check address are not 0?
 
-        uint64 rollupTypeID = ++rollupTypeCount;
+        uint32 rollupTypeID = ++rollupTypeCount;
 
         rollupTypeMap[rollupTypeID] = RollupType({
             consensusImplementation: consensusImplementation,
@@ -573,8 +609,8 @@ contract PolygonRollupManager is
      * @param rollupTypeID Consensus address to obsolete
      */
     function obsoleteRollupType(
-        uint64 rollupTypeID
-    ) external onlyRole(DELETE_ROLLUP_TYPE_ROLE) {
+        uint32 rollupTypeID
+    ) external onlyRole(_DELETE_ROLLUP_TYPE_ROLE) {
         if (rollupTypeID == 0 || rollupTypeID > rollupTypeCount) {
             revert RollupTypeDoesNotExist();
         }
@@ -594,13 +630,15 @@ contract PolygonRollupManager is
      * @param networkName network name of the new created rollup
      */
     function createNewRollup(
-        uint64 rollupTypeID,
+        uint32 rollupTypeID,
         uint64 chainID,
         address admin,
         address trustedSequencer,
+        address gasTokenAddress,
+        uint32 gasTokenNetwork,
         string memory trustedSequencerURL,
         string memory networkName
-    ) external onlyRole(CREATE_ROLLUP_ROLE) {
+    ) external onlyRole(_CREATE_ROLLUP_ROLE) {
         // Check that rollup type exists
         if (rollupTypeID == 0 || rollupTypeID > rollupTypeCount) {
             revert RollupTypeDoesNotExist();
@@ -619,20 +657,25 @@ contract PolygonRollupManager is
 
         // Create a new Rollup, using a transparent proxy pattern
         // Consensus will be the implementation, and this contract the admin
-        uint64 rollupID = ++rollupCount;
+        uint32 rollupID = ++rollupCount;
         address rollupAddress = address(
             new TransparentUpgradeableProxy(
                 rollupType.consensusImplementation,
                 address(this),
                 abi.encodeCall(
                     IPolygonRollupBase.initialize,
-                    (admin, trustedSequencer, trustedSequencerURL, networkName) // review parameters
+                    (
+                        admin,
+                        trustedSequencer,
+                        rollupID,
+                        gasTokenAddress,
+                        gasTokenNetwork,
+                        trustedSequencerURL,
+                        networkName
+                    )
                 )
             )
         );
-        // TODO GENESIS MUST BE INITIALIZEWD with proper chainID,
-        //initialize(chainID, gasTOken, gasNetwork)
-        //in consensus contract generate proper encoding and singature
 
         // Set chainID nullifier
         chainIDToRollupID[chainID] = rollupID;
@@ -669,13 +712,38 @@ contract PolygonRollupManager is
         uint64 chainID,
         bytes32 genesis,
         uint8 rollupCompatibilityID
-    ) external onlyRole(ADD_EXISTING_ROLLUP_ROLE) {
+    ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
         // Check chainID nullifier
         if (chainIDToRollupID[chainID] != 0) {
             revert ChainIDAlreadyExist();
         }
 
-        uint64 rollupID = ++rollupCount;
+        RollupData storage rollup = _addExistingRollup(
+            rollupAddress,
+            verifier,
+            forkID,
+            chainID,
+            rollupCompatibilityID
+        );
+        rollup.batchNumToStateRoot[0] = genesis;
+    }
+
+    /**
+     * @notice Add an already deployed rollup
+     * @param rollupAddress rollup address
+     * @param verifier verifier address, must be added before
+     * @param forkID chain id of the created rollup
+     * @param chainID chain id of the created rollup
+     * @param rollupCompatibilityID chain id of the created rollup
+     */
+    function _addExistingRollup(
+        IPolygonRollupBase rollupAddress,
+        IVerifierRollup verifier,
+        uint64 forkID,
+        uint64 chainID,
+        uint8 rollupCompatibilityID
+    ) internal returns (RollupData storage rollup) {
+        uint32 rollupID = ++rollupCount;
 
         // Set chainID nullifier
         chainIDToRollupID[chainID] = rollupID;
@@ -683,12 +751,11 @@ contract PolygonRollupManager is
         // Store rollup data
         rollupAddressToID[address(rollupAddress)] = rollupID;
 
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        rollup = rollupIDToRollupData[rollupID];
         rollup.rollupContract = rollupAddress;
         rollup.forkID = forkID;
         rollup.verifier = verifier;
         rollup.chainID = chainID;
-        rollup.batchNumToStateRoot[0] = genesis;
         rollup.rollupCompatibilityID = rollupCompatibilityID;
 
         emit AddExistingRollup(
@@ -711,16 +778,16 @@ contract PolygonRollupManager is
      */
     function updateRollup(
         TransparentUpgradeableProxy rollupContract,
-        uint64 newRollupTypeID,
+        uint32 newRollupTypeID,
         bytes calldata upgradeData
-    ) external onlyRole(UPDATE_ROLLUP_ROLE) {
+    ) external onlyRole(_UPDATE_ROLLUP_ROLE) {
         // TODO Check new rollup type was not deleted? it would be sanity check
         // Check that rollup type exists
         if (newRollupTypeID == 0 || newRollupTypeID > rollupTypeCount) {
             revert RollupTypeDoesNotExist();
         }
 
-        uint64 rollupID = rollupAddressToID[address(rollupContract)];
+        uint32 rollupID = rollupAddressToID[address(rollupContract)];
         if (rollupID == 0) {
             revert RollupMustExist();
         }
@@ -780,7 +847,7 @@ contract PolygonRollupManager is
         bytes32 newAccInputHash
     ) external ifNotEmergencyState returns (uint64) {
         // Check that the msg.sender is an added rollup
-        uint64 rollupID = rollupAddressToID[msg.sender];
+        uint32 rollupID = rollupAddressToID[msg.sender];
         if (rollupID == 0) {
             revert SenderMustBeRollup();
         }
@@ -828,7 +895,7 @@ contract PolygonRollupManager is
      * @param proof fflonk proof
      */
     function verifyBatches(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
@@ -911,7 +978,7 @@ contract PolygonRollupManager is
      * @param proof fflonk proof
      */
     function verifyBatchesTrustedAggregator(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
@@ -919,7 +986,7 @@ contract PolygonRollupManager is
         bytes32 newStateRoot,
         address beneficiary,
         bytes32[24] calldata proof
-    ) external onlyRole(TRUSTED_AGGREGATOR_ROLE) {
+    ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
         _verifyAndRewardBatches(
@@ -976,6 +1043,10 @@ contract PolygonRollupManager is
     ) internal virtual {
         bytes32 oldStateRoot;
         uint64 currentLastVerifiedBatch = _getLastVerifiedBatch(rollup);
+
+        if (initNumBatch < rollup.lastVerifiedBatchBeforeUpgrade) {
+            revert InitBatchMustMatchCurrentForkID();
+        }
 
         // Use pending state if specified, otherwise use consolidated state
         if (pendingStateNum != 0) {
@@ -1084,13 +1155,13 @@ contract PolygonRollupManager is
      * @param pendingStateNum Pending state to consolidate
      */
     function consolidatePendingState(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 pendingStateNum
     ) external {
         RollupData storage rollup = rollupIDToRollupData[rollupID];
         // Check if pending state can be consolidated
         // If trusted aggregator is the sender, do not check the timeout or the emergency state
-        if (!hasRole(TRUSTED_AGGREGATOR_ROLE, msg.sender)) {
+        if (!hasRole(_TRUSTED_AGGREGATOR_ROLE, msg.sender)) {
             if (isEmergencyState) {
                 revert OnlyNotEmergencyState();
             }
@@ -1159,7 +1230,7 @@ contract PolygonRollupManager is
      * @param proof fflonk proof
      */
     function overridePendingState(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 initPendingStateNum,
         uint64 finalPendingStateNum,
         uint64 initNumBatch,
@@ -1167,7 +1238,7 @@ contract PolygonRollupManager is
         bytes32 newLocalExitRoot,
         bytes32 newStateRoot,
         bytes32[24] calldata proof
-    ) external onlyRole(TRUSTED_AGGREGATOR_ROLE) {
+    ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
         _proveDistinctPendingState(
@@ -1212,7 +1283,7 @@ contract PolygonRollupManager is
      * @param proof fflonk proof
      */
     function proveNonDeterministicPendingState(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 initPendingStateNum,
         uint64 finalPendingStateNum,
         uint64 initNumBatch,
@@ -1264,6 +1335,10 @@ contract PolygonRollupManager is
         bytes32[24] calldata proof
     ) internal view virtual {
         bytes32 oldStateRoot;
+
+        if (initNumBatch < rollup.lastVerifiedBatchBeforeUpgrade) {
+            revert InitBatchMustMatchCurrentForkID();
+        }
 
         // Use pending state if specified, otherwise use consolidated state
         if (initPendingStateNum != 0) {
@@ -1448,7 +1523,7 @@ contract PolygonRollupManager is
      * If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
      */
     function activateEmergencyState() external {
-        if (!hasRole(EMERGENCY_COUNCIL_ROLE, msg.sender)) {
+        if (!hasRole(_EMERGENCY_COUNCIL_ROLE, msg.sender)) {
             if (
                 lastAggregationTimestamp + _HALT_AGGREGATION_TIMEOUT >
                 block.timestamp
@@ -1462,7 +1537,10 @@ contract PolygonRollupManager is
     /**
      * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
      */
-    function deactivateEmergencyState() external onlyRole(STOP_EMERGENCY_ROLE) {
+    function deactivateEmergencyState()
+        external
+        onlyRole(_STOP_EMERGENCY_ROLE)
+    {
         // Deactivate emergency state on PolygonZkEVMBridge
         bridgeAddress.deactivateEmergencyState();
 
@@ -1491,7 +1569,7 @@ contract PolygonRollupManager is
      */
     function setTrustedAggregator(
         address newTrustedAggregator
-    ) external onlyRole(TRUSTED_AGGREGATOR_ROLE) {
+    ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
         trustedAggregator = newTrustedAggregator;
 
         emit SetTrustedAggregator(newTrustedAggregator);
@@ -1504,7 +1582,7 @@ contract PolygonRollupManager is
      */
     function setTrustedAggregatorTimeout(
         uint64 newTrustedAggregatorTimeout
-    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
+    ) external onlyRole(_TWEAK_PARAMETERS_ROLE) {
         if (!isEmergencyState) {
             if (newTrustedAggregatorTimeout >= trustedAggregatorTimeout) {
                 revert NewTrustedAggregatorTimeoutMustBeLower();
@@ -1522,7 +1600,7 @@ contract PolygonRollupManager is
      */
     function setPendingStateTimeout(
         uint64 newPendingStateTimeout
-    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
+    ) external onlyRole(_TWEAK_PARAMETERS_ROLE) {
         if (!isEmergencyState) {
             if (newPendingStateTimeout >= pendingStateTimeout) {
                 revert NewPendingStateTimeoutMustBeLower();
@@ -1539,7 +1617,7 @@ contract PolygonRollupManager is
      */
     function setMultiplierBatchFee(
         uint16 newMultiplierBatchFee
-    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
+    ) external onlyRole(_TWEAK_PARAMETERS_ROLE) {
         if (newMultiplierBatchFee < 1000 || newMultiplierBatchFee > 1023) {
             revert InvalidRangeMultiplierBatchFee();
         }
@@ -1556,7 +1634,7 @@ contract PolygonRollupManager is
      */
     function setVerifyBatchTimeTarget(
         uint64 newVerifyBatchTimeTarget
-    ) external onlyRole(TWEAK_PARAMETERS_ROLE) {
+    ) external onlyRole(_TWEAK_PARAMETERS_ROLE) {
         if (newVerifyBatchTimeTarget > 1 days) {
             revert InvalidRangeBatchTimeTarget();
         }
@@ -1568,7 +1646,7 @@ contract PolygonRollupManager is
      * @notice Allow to corresponding role to set the current batch fee
      * @param newBatchFee new batch fee
      */
-    function setBatchFee(uint256 newBatchFee) external onlyRole(SET_FEE_ROLE) {
+    function setBatchFee(uint256 newBatchFee) external onlyRole(_SET_FEE_ROLE) {
         batchFee = newBatchFee;
         emit SetBatchFee(newBatchFee);
     }
@@ -1597,7 +1675,7 @@ contract PolygonRollupManager is
 
         // In the first iteration the nodes will be the leafs which are the local exit roots of each network
         for (uint256 i = 0; i < currentNodes; i++) {
-            tmpTree[i] = rollupIDToRollupData[uint64(i)].lastLocalExitRoot;
+            tmpTree[i] = rollupIDToRollupData[uint32(i)].lastLocalExitRoot;
         }
 
         // This variable will keep track of the zero hashes
@@ -1650,7 +1728,7 @@ contract PolygonRollupManager is
      * @notice Get the last verified batch
      */
     function getLastVerifiedBatch(
-        uint64 rollupID
+        uint32 rollupID
     ) public view returns (uint64) {
         return _getLastVerifiedBatch(rollupIDToRollupData[rollupID]);
     }
@@ -1676,7 +1754,7 @@ contract PolygonRollupManager is
      * Note that his function does not check if the pending state currently exists, or if it's consolidated already
      */
     function isPendingStateConsolidable(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 pendingStateNum
     ) public view returns (bool) {
         return
@@ -1737,7 +1815,7 @@ contract PolygonRollupManager is
      * @param newStateRoot New State root once the batch is processed
      */
     function getInputSnarkBytes(
-        uint64 rollupID,
+        uint32 rollupID,
         uint64 initNumBatch,
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
@@ -1790,7 +1868,7 @@ contract PolygonRollupManager is
         }
 
         // Check that new state root is inside goldilocks field
-        if (!checkStateRootInsidePrime(uint256(newStateRoot))) {
+        if (!_checkStateRootInsidePrime(uint256(newStateRoot))) {
             revert NewStateRootNotInsidePrime();
         }
 
@@ -1809,9 +1887,9 @@ contract PolygonRollupManager is
             );
     }
 
-    function checkStateRootInsidePrime(
+    function _checkStateRootInsidePrime(
         uint256 newStateRoot
-    ) public pure returns (bool) {
+    ) internal pure returns (bool) {
         if (
             ((newStateRoot & _MAX_UINT_64) < _GOLDILOCKS_PRIME_FIELD) &&
             (((newStateRoot >> 64) & _MAX_UINT_64) < _GOLDILOCKS_PRIME_FIELD) &&
