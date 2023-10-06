@@ -109,7 +109,7 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
         } else {
             // Gas token will be an erc20
             gasTokenAddress = _gasTokenAddress;
-            gasTokenNetwork = _gasTokenNetwork; // review check same network!!
+            gasTokenNetwork = _gasTokenNetwork;
             WETHToken = (new TokenWrapped){salt: bytes32(0)}(
                 "Wrapped Ether",
                 "WETH",

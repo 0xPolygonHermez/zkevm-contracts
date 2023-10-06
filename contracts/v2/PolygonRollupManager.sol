@@ -61,6 +61,7 @@ contract PolygonRollupManager is
         string description;
     }
 
+    // review POssible optimization rto reduce bytecode, put maps on another struct or double mapping
     /**
      * @notice Struct which to store the rollup data of each chain
      * @param accInputHash Hash chain that contains all the information to process a batch:
@@ -81,7 +82,7 @@ contract PolygonRollupManager is
         uint64 lastVerifiedBatch;
         uint64 lastPendingState;
         uint64 lastPendingStateConsolidated;
-        uint64 lastVerifiedBatchBeforeUpgrade; // TODO ADD CHECK when verify
+        uint64 lastVerifiedBatchBeforeUpgrade;
         uint64 rollupTypeID;
         uint8 rollupCompatibilityID;
     }
@@ -473,7 +474,6 @@ contract PolygonRollupManager is
         bridgeAddress = _bridgeAddress;
     }
 
-    // TODO Add array fo consensus and verifiers and deploy zkEVM with legacy information
     function initialize(
         address _trustedAggregator,
         uint64 _pendingStateTimeout,
@@ -626,6 +626,8 @@ contract PolygonRollupManager is
      * @param chainID chainID
      * @param admin admin of the new created rollup
      * @param trustedSequencer trusted sequencer of the new created rollup
+     * @param gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
+     * @param gasTokenNetwork Indicates the native network of the token address
      * @param trustedSequencerURL trusted sequencer URL of the new created rollup
      * @param networkName network name of the new created rollup
      */
@@ -767,7 +769,7 @@ contract PolygonRollupManager is
         );
     }
 
-    //review, should cehck that there are not sequenced batches eponding to be verified?¿?
+    //review, should check that there are not sequenced batches pending to be verified?¿?
     //this way no one can break the virtual state, ( but maybe is worth to break it)
 
     /**
