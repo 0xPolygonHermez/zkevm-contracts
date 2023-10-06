@@ -6,6 +6,9 @@ interface IPolygonRollupBase {
     function initialize(
         address _admin,
         address _trustedSequencer,
+        uint32 networkID,
+        address gasTokenAddress,
+        uint32 gasTokenNetwork,
         string memory _trustedSequencerURL,
         string memory _networkName
     ) external;

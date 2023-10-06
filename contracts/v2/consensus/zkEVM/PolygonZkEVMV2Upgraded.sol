@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: AGPL-3.0
+pragma solidity ^0.8.20;
+
+import "../../lib/PolygonRollupBase.sol";
+
+/**
+ * Contract responsible for managing the states and the updates of L2 network.
+ * There will be a trusted sequencer, which is able to send transactions.
+ * Any user can force some transaction and the sequencer will have a timeout to add them in the queue.
+ * The sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof.
+ * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
+ * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
+ */
+contract PolygonZkEVMV2Upgraded is PolygonRollupBase {
+    /**
+     * @param _globalExitRootManager Global exit root manager address
+     * @param _matic MATIC token address
+     * @param _bridgeAddress Bridge address
+     * @param _rollupManager Global exit root manager address
+     */
+    constructor(
+        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IERC20Upgradeable _matic,
+        IPolygonZkEVMBridge _bridgeAddress,
+        PolygonRollupManager _rollupManager
+    )
+        PolygonRollupBase(
+            _globalExitRootManager,
+            _matic,
+            _bridgeAddress,
+            _rollupManager
+        )
+    {}
+
+    /**
+     * @param _admin Admin address
+     * @param _trustedSequencer Trusted sequencer address
+     * @param _trustedSequencerURL Trusted sequencer URL
+     * @param _networkName L2 network name
+     * @param _lastAccInputHash Acc input hash
+     * @param _lastTimestamp Timestamp
+     */
+    function initializeUpgrade(
+        address _admin,
+        address _trustedSequencer,
+        string memory _trustedSequencerURL,
+        string memory _networkName,
+        bytes32 _lastAccInputHash,
+        uint64 _lastTimestamp
+    ) external onlyRollupManager initializer {
+        admin = _admin;
+        trustedSequencer = _trustedSequencer;
+
+        trustedSequencerURL = _trustedSequencerURL;
+        networkName = _networkName;
+
+        // zkEVM Upgraded variables
+        lastAccInputHash = _lastAccInputHash;
+        lastTimestamp = _lastTimestamp;
+
+        // Constant deployment variables
+        forceBatchTimeout = 5 days;
+    }
+}
