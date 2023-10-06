@@ -237,4 +237,9 @@ interface IPolygonRollupManager {
      * @dev When a rollup type does not exist
      */
     error UpdateNotCompatible();
+
+    /**
+     * @dev When a rollup type does not exist
+     */
+    error BatchFeeOutOfRange();
 }
