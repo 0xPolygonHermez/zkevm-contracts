@@ -163,7 +163,7 @@ async function main() {
         await WETHToken.deployed();
 
         // Deploy implementation PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMGasTokenBridge', deployer);
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeL2', deployer);
         const deployTransactionBridge = (polygonZkEVMBridgeFactory.getDeployTransaction()).data;
         // Mandatory to override the gasLimit since the estimation with create are mess up D:
         const overrideGasLimit = ethers.BigNumber.from(5500000);
