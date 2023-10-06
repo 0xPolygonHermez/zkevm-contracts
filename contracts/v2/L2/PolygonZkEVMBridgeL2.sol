@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "../../lib/TokenWrapped.sol";
 import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import "../../interfaces/IBridgeMessageReceiver.sol";
-import "../interfaces/IPolygonZkEVMGasTokenBridge.sol";
+import "../interfaces/IPolygonZkEVMBridgeL2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "../../lib/GlobalExitRootLib.sol";
 
@@ -19,10 +19,7 @@ import "../../lib/GlobalExitRootLib.sol";
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
  */
-contract PolygonZkEVMGasTokenBridge is
-    DepositContractV2,
-    IPolygonZkEVMGasTokenBridge
-{
+contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Wrapped Token information struct
@@ -102,15 +99,15 @@ contract PolygonZkEVMGasTokenBridge is
     ) external virtual initializer {
         networkID = _networkID;
 
-        // check native token TODO
         // Set gas token
         if (gasTokenAddress == address(0)) {
+            // gas token will be ether
             if (gasTokenNetwork != 0) {
-                revert();
+                revert GasTokenNetworkMustBeZeroOnEther();
             }
-            //WETHToken, gasTokenAddress and gasTokenNetwork will be address 0
+            //WETHToken, gasTokenAddress and gasTokenNetwork will be 0
         } else {
-            // Gas token
+            // Gas token will be an erc20
             gasTokenAddress = _gasTokenAddress;
             gasTokenNetwork = _gasTokenNetwork; // review check same network!!
             WETHToken = (new TokenWrapped){salt: bytes32(0)}(
@@ -187,7 +184,6 @@ contract PolygonZkEVMGasTokenBridge is
         bytes memory metadata;
         uint256 leafAmount = amount;
 
-        // Check if it's gas token
         if (token == address(0)) {
             // Check gas token transfer
             if (msg.value != amount) {
@@ -204,12 +200,12 @@ contract PolygonZkEVMGasTokenBridge is
             }
 
             // Check if it's WETH
+            // In case ether is the native token, WETHToken will be 0, and the address 0 is already checked
             if (token == address(WETHToken)) {
                 // Burn tokens
                 TokenWrapped(token).burn(msg.sender, amount);
 
-                originNetwork = _MAINNET_NETWORK_ID;
-                originTokenAddress = address(0);
+                // Both origin network and originTokenAddress will be 0
             } else {
                 TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
                     token
@@ -291,30 +287,81 @@ contract PolygonZkEVMGasTokenBridge is
      * @notice Bridge message and send ETH value
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
-     * @param amountWETH Amount of WETH tokens
      * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
      * @param metadata Message metadata
      */
     function bridgeMessage(
         uint32 destinationNetwork,
         address destinationAddress,
-        uint256 amountWETH,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) external payable {
-        if (
-            destinationNetwork == networkID //  destinationNetwork >= rollupManager.rollupCount() ?¿ TODO
-        ) {
-            revert DestinationNetworkInvalid();
+        // If exist a gas token, only let call this function without value
+        if (address(WETHToken) != address(0) && msg.value != 0) {
+            revert NoValueInMessagesOnGasTokenNetworks();
         }
 
-        // Check msg.value is 0 for messages
-        if (msg.value != 0) {
-            revert MsgValueNotZero();
+        _bridgeMessage(
+            destinationNetwork,
+            destinationAddress,
+            msg.value,
+            forceUpdateGlobalExitRoot,
+            metadata
+        );
+    }
+
+    /**
+     * @notice Bridge message and send ETH value
+     * @param destinationNetwork Network destination
+     * @param destinationAddress Address destination
+     * @param amountWETH Amount of WETH tokens
+     * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
+     * @param metadata Message metadata
+     */
+    function bridgeMessageWETH(
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amountWETH,
+        bool forceUpdateGlobalExitRoot,
+        bytes calldata metadata
+    ) external {
+        // if native token is ether, disable this function
+        if (address(WETHToken) == address(0)) {
+            revert NativeTokenIsEther();
         }
 
         // Burn wETH tokens
         WETHToken.burn(msg.sender, amountWETH);
+
+        _bridgeMessage(
+            destinationNetwork,
+            destinationAddress,
+            amountWETH,
+            forceUpdateGlobalExitRoot,
+            metadata
+        );
+    }
+
+    /**
+     * @notice Bridge message and send ETH value
+     * @param destinationNetwork Network destination
+     * @param destinationAddress Address destination
+     * @param amountEther Amount of ether along with the message
+     * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
+     * @param metadata Message metadata
+     */
+    function _bridgeMessage(
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amountEther,
+        bool forceUpdateGlobalExitRoot,
+        bytes calldata metadata
+    ) internal {
+        if (
+            destinationNetwork == networkID // TODO destinationNetwork >= rollupManager.rollupCount() ?¿
+        ) {
+            revert DestinationNetworkInvalid();
+        }
 
         emit BridgeEvent(
             _LEAF_TYPE_MESSAGE,
@@ -322,7 +369,7 @@ contract PolygonZkEVMGasTokenBridge is
             msg.sender,
             destinationNetwork,
             destinationAddress,
-            amountWETH,
+            amountEther,
             metadata,
             uint32(depositCount)
         );
@@ -334,7 +381,7 @@ contract PolygonZkEVMGasTokenBridge is
                 msg.sender,
                 destinationNetwork,
                 destinationAddress,
-                amountWETH,
+                amountEther,
                 keccak256(metadata)
             )
         );
@@ -397,8 +444,19 @@ contract PolygonZkEVMGasTokenBridge is
 
         // Transfer funds
         if (originTokenAddress == address(0)) {
-            // Claim wETH
-            WETHToken.mint(destinationAddress, amount);
+            if (address(WETHToken) == address(0)) {
+                // Ether is the native token
+                /* solhint-disable avoid-low-level-calls */
+                (bool success, ) = destinationAddress.call{value: amount}(
+                    new bytes(0)
+                );
+                if (!success) {
+                    revert EtherTransferFailed();
+                }
+            } else {
+                // Claim wETH
+                WETHToken.mint(destinationAddress, amount);
+            }
         } else {
             // Check if it's gas token
             if (
@@ -534,17 +592,32 @@ contract PolygonZkEVMGasTokenBridge is
             )
         );
 
-        // mint wETH tokens
-        WETHToken.mint(destinationAddress, amount);
-
         // Execute message
-        /* solhint-disable avoid-low-level-calls */
-        (bool success, ) = destinationAddress.call(
-            abi.encodeCall(
-                IBridgeMessageReceiver.onMessageReceived,
-                (originAddress, originNetwork, metadata)
-            )
-        );
+        bool success;
+        if (address(WETHToken) == address(0)) {
+            // Native token is ether
+            // Transfer ether
+            /* solhint-disable avoid-low-level-calls */
+            (success, ) = destinationAddress.call{value: amount}(
+                abi.encodeCall(
+                    IBridgeMessageReceiver.onMessageReceived,
+                    (originAddress, originNetwork, metadata)
+                )
+            );
+        } else {
+            // mint wETH tokens
+            WETHToken.mint(destinationAddress, amount);
+
+            // Execute message
+            /* solhint-disable avoid-low-level-calls */
+            (success, ) = destinationAddress.call(
+                abi.encodeCall(
+                    IBridgeMessageReceiver.onMessageReceived,
+                    (originAddress, originNetwork, metadata)
+                )
+            );
+        }
+
         if (!success) {
             revert MessageFailed();
         }
@@ -645,7 +718,7 @@ contract PolygonZkEVMGasTokenBridge is
         }
 
         uint32 leafIndex;
-        uint32 originNetwork;
+        uint32 sourceBridgeNetwork;
 
         // Get origin network from global index
         if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {
@@ -667,7 +740,7 @@ contract PolygonZkEVMGasTokenBridge is
         } else {
             // it's a rollup, therefore we have to get the origin network
             uint32 indexRollup = uint32(globalIndex >> 32);
-            originNetwork = indexRollup + 1;
+            sourceBridgeNetwork = indexRollup + 1;
 
             // last 32 bits are leafIndex
             leafIndex = uint32(globalIndex);
@@ -686,30 +759,30 @@ contract PolygonZkEVMGasTokenBridge is
         }
 
         // Set and check nullifier
-        _setAndCheckClaimed(leafIndex, originNetwork);
+        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
     }
 
     /**
      * @notice Function to check if an index is claimed or not
      * @param leafIndex Index
-     * @param originNetwork origin network
+     * @param sourceBridgeNetwork origin network
      */
     function isClaimed(
         uint32 leafIndex,
-        uint32 originNetwork
+        uint32 sourceBridgeNetwork
     ) external view returns (bool) {
         uint256 globalIndex;
 
         // For consistency with the previous setted nullifiers
         if (
             networkID == _MAINNET_NETWORK_ID &&
-            originNetwork == _ZKEVM_NETWORK_ID
+            sourceBridgeNetwork == _ZKEVM_NETWORK_ID
         ) {
             globalIndex = uint256(leafIndex);
         } else {
             globalIndex =
                 uint256(leafIndex) +
-                uint256(originNetwork) *
+                uint256(sourceBridgeNetwork) *
                 _MAX_LEAFS_PER_NETWORK;
         }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
@@ -720,24 +793,24 @@ contract PolygonZkEVMGasTokenBridge is
     /**
      * @notice Function to check that an index is not claimed and set it as claimed
      * @param leafIndex Index
-     * @param originNetwork origin network
+     * @param sourceBridgeNetwork origin network
      */
     function _setAndCheckClaimed(
         uint32 leafIndex,
-        uint32 originNetwork
+        uint32 sourceBridgeNetwork
     ) private {
         uint256 globalIndex;
 
         // For consistency with the previous setted nullifiers
         if (
             networkID == _MAINNET_NETWORK_ID &&
-            originNetwork == _ZKEVM_NETWORK_ID
+            sourceBridgeNetwork == _ZKEVM_NETWORK_ID
         ) {
             globalIndex = uint256(leafIndex);
         } else {
             globalIndex =
                 uint256(leafIndex) +
-                uint256(originNetwork) *
+                uint256(sourceBridgeNetwork) *
                 _MAX_LEAFS_PER_NETWORK;
         }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);

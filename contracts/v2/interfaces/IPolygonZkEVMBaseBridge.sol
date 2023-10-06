@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
-interface IPolygonZkEVMGasTokenBridge {
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
-    error OnlyPolygonZkEVM();
-
+interface IPolygonZkEVMBaseBridge {
     /**
      * @dev Thrown when the destination network is invalid
      */
@@ -80,7 +75,6 @@ interface IPolygonZkEVMGasTokenBridge {
     function bridgeMessage(
         uint32 destinationNetwork,
         address destinationAddress,
-        uint256 amountWETH,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) external payable;
