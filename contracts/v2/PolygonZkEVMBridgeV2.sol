@@ -603,7 +603,7 @@ contract PolygonZkEVMBridgeV2 is
         }
 
         uint32 leafIndex;
-        uint32 originNetwork; // TODO renaming sourceBridgeNetwork
+        uint32 sourceBridgeNetwork;
 
         // Get origin network from global index
         if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {
@@ -625,7 +625,7 @@ contract PolygonZkEVMBridgeV2 is
         } else {
             // it's a rollup, therefore we have to get the origin network
             uint32 indexRollup = uint32(globalIndex >> 32);
-            originNetwork = indexRollup + 1;
+            sourceBridgeNetwork = indexRollup + 1;
 
             // last 32 bits are leafIndex
             leafIndex = uint32(globalIndex);
@@ -644,30 +644,30 @@ contract PolygonZkEVMBridgeV2 is
         }
 
         // Set and check nullifier
-        _setAndCheckClaimed(leafIndex, originNetwork);
+        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
     }
 
     /**
      * @notice Function to check if an index is claimed or not
      * @param leafIndex Index
-     * @param originNetwork origin network
+     * @param sourceBridgeNetwork origin network
      */
     function isClaimed(
         uint32 leafIndex,
-        uint32 originNetwork
+        uint32 sourceBridgeNetwork
     ) external view returns (bool) {
         uint256 globalIndex;
 
         // For consistency with the previous setted nullifiers
         if (
             networkID == _MAINNET_NETWORK_ID &&
-            originNetwork == _ZKEVM_NETWORK_ID
+            sourceBridgeNetwork == _ZKEVM_NETWORK_ID
         ) {
             globalIndex = uint256(leafIndex);
         } else {
             globalIndex =
                 uint256(leafIndex) +
-                uint256(originNetwork) *
+                uint256(sourceBridgeNetwork) *
                 _MAX_LEAFS_PER_NETWORK;
         }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
@@ -678,24 +678,24 @@ contract PolygonZkEVMBridgeV2 is
     /**
      * @notice Function to check that an index is not claimed and set it as claimed
      * @param leafIndex Index
-     * @param originNetwork origin network
+     * @param sourceBridgeNetwork origin network
      */
     function _setAndCheckClaimed(
         uint32 leafIndex,
-        uint32 originNetwork
+        uint32 sourceBridgeNetwork
     ) private {
         uint256 globalIndex;
 
         // For consistency with the previous setted nullifiers
         if (
             networkID == _MAINNET_NETWORK_ID &&
-            originNetwork == _ZKEVM_NETWORK_ID
+            sourceBridgeNetwork == _ZKEVM_NETWORK_ID
         ) {
             globalIndex = uint256(leafIndex);
         } else {
             globalIndex =
                 uint256(leafIndex) +
-                uint256(originNetwork) *
+                uint256(sourceBridgeNetwork) *
                 _MAX_LEAFS_PER_NETWORK;
         }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
