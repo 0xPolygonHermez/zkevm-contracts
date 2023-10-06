@@ -12,4 +12,9 @@ interface IPolygonZkEVMV2Errors {
      * @dev Thrown when the caller is not the trusted sequencer
      */
     error NotEnoughfeeTokenAmount();
+
+    /**
+     * @dev Thrown when the caller is not the trusted sequencer
+     */
+    error InvalidInitializeTransaction();
 }
