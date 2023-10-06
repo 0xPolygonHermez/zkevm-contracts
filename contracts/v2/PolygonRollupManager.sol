@@ -137,7 +137,7 @@ contract PolygonRollupManager is
     uint64 internal constant _ZKEVM_CHAINID = 1101;
 
     // zkEVM FORK ID
-    uint64 internal immutable _ZKEVM_FORKID = 5;
+    uint64 internal constant _ZKEVM_FORKID = 5;
 
     // Existing roles on rollup manager
 
@@ -327,7 +327,7 @@ contract PolygonRollupManager is
     // Current matic fee per batch sequenced
     uint256 public batchFee;
 
-    // Address that has priority to verify batches, also enables bridges instantly
+    // Address that has priority to verify batches, also consolidates the state instantly
     address public trustedAggregator;
 
     /**
@@ -345,7 +345,7 @@ contract PolygonRollupManager is
     /**
      * @dev Emitted when a a rolup type is deleted
      */
-    event DeleteRollupType(uint32 rollupTypeID);
+    event ObsoleteRollupType(uint32 rollupTypeID);
 
     /**
      * @dev Emitted when a new rollup is created based on a rollupType
@@ -497,8 +497,6 @@ contract PolygonRollupManager is
         _setupRole(DEFAULT_ADMIN_ROLE, timelock);
         _setupRole(_ADD_ROLLUP_TYPE_ROLE, timelock);
         _setupRole(_ADD_EXISTING_ROLLUP_ROLE, timelock);
-        // role fees
-        // role rest of parameters
 
         // Even this role can only update to an already added verifier/consensus
         // Could break the compatibility of them, changing the virtual state
@@ -615,9 +613,13 @@ contract PolygonRollupManager is
             revert RollupTypeDoesNotExist();
         }
 
+        if (rollupTypeMap[rollupTypeID].obsolete == true) {
+            revert RollupTypeObsolete();
+        }
+
         rollupTypeMap[rollupTypeID].obsolete = true;
 
-        emit DeleteRollupType(rollupTypeID);
+        emit ObsoleteRollupType(rollupTypeID);
     }
 
     /**
@@ -934,7 +936,6 @@ contract PolygonRollupManager is
         );
 
         // Update batch fees
-        // review, shoudl update awell in the ntrusted aggregation?
         _updateBatchFee(rollup, finalNewBatch);
 
         if (pendingStateTimeout == 0) {
@@ -1649,6 +1650,10 @@ contract PolygonRollupManager is
      * @param newBatchFee new batch fee
      */
     function setBatchFee(uint256 newBatchFee) external onlyRole(_SET_FEE_ROLE) {
+        // check fees min and max
+        if (newBatchFee > _MAX_BATCH_FEE || newBatchFee < _MIN_BATCH_FEE) {
+            revert();
+        }
         batchFee = newBatchFee;
         emit SetBatchFee(newBatchFee);
     }
