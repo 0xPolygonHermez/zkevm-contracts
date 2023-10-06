@@ -7,19 +7,19 @@ Contract responsible to manage the token interactions with other networks
 ```solidity
   function initialize(
     uint32 _networkID,
-    contract IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
-    address _polygonRollupManager
+    address _gasTokenAddress,
+    uint32 _gasTokenNetwork
   ) external
 ```
-The value of `_polygonRollupManager` on the L2 deployment of the contract will be address(0), so
+The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
 emergency state is not possible for the L2 deployment of the bridge, intentionally
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkID` | uint32 | networkID
-|`_globalExitRootManager` | contract IBasePolygonZkEVMGlobalExitRoot | global exit root manager address
-|`_polygonRollupManager` | address | polygonZkEVM address
+|`_gasTokenAddress` | address | native gas token address
+|`_gasTokenNetwork` | uint32 | native gas token network
 
 
 ### bridgeAsset
@@ -55,6 +55,49 @@ Deposit add a new leaf to the merkle tree
     bytes metadata
   ) external
 ```
+Bridge message and send ETH value (if native token is ETH)
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`destinationNetwork` | uint32 | Network destination
+|`destinationAddress` | address | Address destination
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
+|`metadata` | bytes | Message metadata
+
+### bridgeMessageWETH
+```solidity
+  function bridgeMessageWETH(
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amountWETH,
+    bool forceUpdateGlobalExitRoot,
+    bytes metadata
+  ) external
+```
+Bridge message and send Native token value (if native token is not Ether)
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`destinationNetwork` | uint32 | Network destination
+|`destinationAddress` | address | Address destination
+|`amountWETH` | uint256 | Amount of WETH tokens
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
+|`metadata` | bytes | Message metadata
+
+### _bridgeMessage
+```solidity
+  function _bridgeMessage(
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amountEther,
+    bool forceUpdateGlobalExitRoot,
+    bytes metadata
+  ) internal
+```
 Bridge message and send ETH value
 
 
@@ -63,6 +106,7 @@ Bridge message and send ETH value
 | :--- | :--- | :------------------------------------------------------------------- |
 |`destinationNetwork` | uint32 | Network destination
 |`destinationAddress` | address | Address destination
+|`amountEther` | uint256 | Amount of ether along with the message
 |`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
 |`metadata` | bytes | Message metadata
 
@@ -177,26 +221,6 @@ Returns the address of a wrapper using the token information if already exist
 | :--- | :--- | :------------------------------------------------------------------- |
 |`originNetwork` | uint32 | Origin network
 |`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
-
-### activateEmergencyState
-```solidity
-  function activateEmergencyState(
-  ) external
-```
-Function to activate the emergency state
-     " Only can be called by the Polygon ZK-EVM in extreme situations
-
-
-
-### deactivateEmergencyState
-```solidity
-  function deactivateEmergencyState(
-  ) external
-```
-Function to deactivate the emergency state
-     " Only can be called by the Polygon ZK-EVM
-
-
 
 ### _verifyLeaf
 ```solidity

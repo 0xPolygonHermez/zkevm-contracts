@@ -40,24 +40,6 @@ Return last global exit root
 
 
 
-### getRoot
-```solidity
-  function getRoot(
-  ) public returns (bytes32)
-```
-Computes and returns the merkle root
-
-
-
-### makeHistoricGlobalExitRootSnapshot
-```solidity
-  function makeHistoricGlobalExitRootSnapshot(
-  ) public
-```
-Computes and returns the merkle root
-
-
-
 ## Events
 ### UpdateGlobalExitRoot
 ```solidity
@@ -66,12 +48,4 @@ Computes and returns the merkle root
 ```
 
 Emitted when the global exit root is updated
-
-### HistoricGlobalExitRootSnapshot
-```solidity
-  event HistoricGlobalExitRootSnapshot(
-  )
-```
-
-Emitted when a snapshot of the historic global exit root is taken
 

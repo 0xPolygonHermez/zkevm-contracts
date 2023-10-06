@@ -76,10 +76,10 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
-    // Native address
+    // Native token address
     address public gasTokenAddress;
 
-    // Native address
+    // Native token network
     uint32 public gasTokenNetwork;
 
     // WETH address
@@ -87,8 +87,8 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
 
     /**
      * @param _networkID networkID
-     * @param _gasTokenAddress networkID
-     * @param _gasTokenNetwork networkID
+     * @param _gasTokenAddress native gas token address
+     * @param _gasTokenNetwork native gas token network
      * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
      * emergency state is not possible for the L2 deployment of the bridge, intentionally
      */
@@ -102,6 +102,7 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
         // Set gas token
         if (gasTokenAddress == address(0)) {
             // gas token will be ether
+            // COMMENT: the following check will never be hitten
             if (gasTokenNetwork != 0) {
                 revert GasTokenNetworkMustBeZeroOnEther();
             }
@@ -284,7 +285,7 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
     }
 
     /**
-     * @notice Bridge message and send ETH value
+     * @notice Bridge message and send ETH value (if native token is ETH)
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
@@ -311,7 +312,7 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
     }
 
     /**
-     * @notice Bridge message and send ETH value
+     * @notice Bridge message and send Native token value (if native token is not Ether)
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amountWETH Amount of WETH tokens

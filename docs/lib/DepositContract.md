@@ -3,6 +3,67 @@ Based on the implementation of the deposit eth2.0 contract https://github.com/et
 
 
 ## Functions
+### getDepositRoot
+```solidity
+  function getDepositRoot(
+  ) public returns (bytes32)
+```
+Computes and returns the merkle root
+
+
+
+### _deposit
+```solidity
+  function _deposit(
+    bytes32 leafHash
+  ) internal
+```
+Add a new leaf to the merkle tree
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`leafHash` | bytes32 | Leaf hash
+
+### verifyMerkleProof
+```solidity
+  function verifyMerkleProof(
+    bytes32 leafHash,
+    bytes32[32] smtProof,
+    uint32 index,
+    bytes32 root
+  ) public returns (bool)
+```
+Verify merkle proof
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`leafHash` | bytes32 | Leaf hash
+|`smtProof` | bytes32[32] | Smt proof
+|`index` | uint32 | Index of the leaf
+|`root` | bytes32 | Merkle root
+
+### calculateRoot
+```solidity
+  function calculateRoot(
+    bytes32 leafHash,
+    bytes32[32] smtProof,
+    uint32 index
+  ) public returns (bytes32)
+```
+calcualte root from merkle proof
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`leafHash` | bytes32 | Leaf hash
+|`smtProof` | bytes32[32] | Smt proof
+|`index` | uint32 | Index of the leaf
+
 ### getLeafValue
 ```solidity
   function getLeafValue(

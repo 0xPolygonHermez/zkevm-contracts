@@ -214,7 +214,7 @@ with the same nonce
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
-    struct PolygonZkEVM.BatchData[] batches
+    struct PolygonZkEVM.ForcedBatchData[] batches
   ) external
 ```
 Allows anyone to sequence forced Batches if the trusted sequencer has not done so in the timeout period
@@ -223,7 +223,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer has not done s
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonZkEVM.BatchData[] | Struct array which holds the necessary data to append force batches
+|`batches` | struct PolygonZkEVM.ForcedBatchData[] | Struct array which holds the necessary data to append force batches
 
 ### setTrustedSequencer
 ```solidity
@@ -469,24 +469,6 @@ If not called by the owner must be provided a batcnNum that does not have been a
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`sequencedBatchNum` | uint64 | Sequenced batch number that has not been aggreagated in _HALT_AGGREGATION_TIMEOUT
-
-### deactivateEmergencyState
-```solidity
-  function deactivateEmergencyState(
-  ) external
-```
-Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
-
-
-
-### _activateEmergencyState
-```solidity
-  function _activateEmergencyState(
-  ) internal
-```
-Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
-
-
 
 ### getForcedBatchFee
 ```solidity
