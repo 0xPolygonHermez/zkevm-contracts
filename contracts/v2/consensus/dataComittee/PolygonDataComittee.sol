@@ -46,20 +46,20 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
 
     /**
      * @param _globalExitRootManager Global exit root manager address
-     * @param _matic MATIC token address
+     * @param _pol POL token address
      * @param _bridgeAddress Bridge address
      * @param _rollupManager Global exit root manager address
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        IERC20Upgradeable _matic,
+        IERC20Upgradeable _pol,
         IPolygonZkEVMBridge _bridgeAddress,
         PolygonRollupManager _rollupManager,
         ICDKDataCommittee _dataCommittee
     )
         PolygonRollupBase(
             _globalExitRootManager,
-            _matic,
+            _pol,
             _bridgeAddress,
             _rollupManager
         )
@@ -71,16 +71,15 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
     // Sequence/Verify batches functions
     ////////////////////////////////////
 
-    // function sequenceBatches(
-    //     BatchData[] calldata batches,
-    //     address l2Coinbase
-    // ) external override {
-    //     if (!isSequenceWithDataAvailabilityAllowed) {
-    //         revert SequenceWithDataAvailabilityNotAllowed();
-    //     } else {
-    //         super.sequenceBatches(batches, l2Coinbase);
-    //     }
-    // }
+    function sequenceBatches(
+        BatchData[] calldata batches,
+        address l2Coinbase
+    ) public override {
+        if (!isSequenceWithDataAvailabilityAllowed) {
+            revert SequenceWithDataAvailabilityNotAllowed();
+        }
+        super.sequenceBatches(batches, l2Coinbase);
+    }
 
     /**
      * @notice Allows a sequencer to send multiple batches
@@ -212,7 +211,7 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
         }
 
         // Pay collateral for every non-forced batch submitted
-        matic.safeTransferFrom(
+        pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
             rollupManager.getBatchFee() * nonForcedBatchesSequenced

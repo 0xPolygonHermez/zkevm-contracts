@@ -15,6 +15,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * variables and let us have consistent storage
  * - Add the legacy Owner variable, to be consistent with the previous one
  * - Add custom errors
+ * - Replace _msgSender() with msg.sender
  */
 abstract contract PolygonAccessControlUpgradeable is
     Initializable,
@@ -39,6 +40,11 @@ abstract contract PolygonAccessControlUpgradeable is
      * @dev Thrown when the addres does not have the required role
      */
     error AddressDoNotHaveRequiredRole();
+
+    /**
+     * @dev Thrown when the renounce address is not the message sender
+     */
+    error AccessControlOnlyCanRenounceRolesForSelf();
 
     /**
      * @dev Modifier that checks that an account has a specific role. Reverts
@@ -66,7 +72,7 @@ abstract contract PolygonAccessControlUpgradeable is
     }
 
     /**
-     * @dev Revert with a standard message if `_msgSender()` is missing `role`.
+     * @dev Revert with a standard message if `msg.sender` is missing `role`.
      * Overriding this function changes the behavior of the {onlyRole} modifier.
      *
      * Format of the revert message is described in {_checkRole}.
@@ -74,7 +80,7 @@ abstract contract PolygonAccessControlUpgradeable is
      * _Available since v4.6._
      */
     function _checkRole(bytes32 role) internal view virtual {
-        _checkRole(role, _msgSender());
+        _checkRole(role, msg.sender);
     }
 
     /**
@@ -159,10 +165,9 @@ abstract contract PolygonAccessControlUpgradeable is
         bytes32 role,
         address account
     ) public virtual override {
-        require(
-            account == _msgSender(),
-            "AccessControl: can only renounce roles for self"
-        );
+        if (account != msg.sender) {
+            revert AccessControlOnlyCanRenounceRolesForSelf();
+        }
 
         _revokeRole(role, account);
     }
@@ -212,7 +217,7 @@ abstract contract PolygonAccessControlUpgradeable is
     function _grantRole(bytes32 role, address account) internal virtual {
         if (!hasRole(role, account)) {
             _roles[role].members[account] = true;
-            emit RoleGranted(role, account, _msgSender());
+            emit RoleGranted(role, account, msg.sender);
         }
     }
 
@@ -226,7 +231,7 @@ abstract contract PolygonAccessControlUpgradeable is
     function _revokeRole(bytes32 role, address account) internal virtual {
         if (hasRole(role, account)) {
             _roles[role].members[account] = false;
-            emit RoleRevoked(role, account, _msgSender());
+            emit RoleRevoked(role, account, msg.sender);
         }
     }
 

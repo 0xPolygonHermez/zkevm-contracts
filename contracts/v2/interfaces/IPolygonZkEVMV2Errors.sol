@@ -11,7 +11,7 @@ interface IPolygonZkEVMV2Errors {
     /**
      * @dev Thrown when the caller is not the trusted sequencer
      */
-    error NotEnoughfeeTokenAmount();
+    error NotEnoughPOLAmount();
 
     /**
      * @dev Thrown when the caller is not the trusted sequencer

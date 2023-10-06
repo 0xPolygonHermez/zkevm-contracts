@@ -185,8 +185,8 @@ contract PolygonRollupManager is
     // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridge public immutable bridgeAddress;
 
-    // MATIC token address
-    IERC20Upgradeable public immutable matic;
+    // POL token address
+    IERC20Upgradeable public immutable pol;
 
     // since this contract will be an update of the PolygonZkEVM there are legacy variables
     // This ones would not be used generally,just for reserve the same storage slots, since
@@ -325,7 +325,7 @@ contract PolygonRollupManager is
     uint16 public multiplierBatchFee;
 
     // Current matic fee per batch sequenced
-    uint256 public batchFee; // TODO internal?¿
+    uint256 internal _batchFee; // TODO internal?¿
 
     // Address that has priority to verify batches, also consolidates the state instantly
     address public trustedAggregator;
@@ -461,16 +461,16 @@ contract PolygonRollupManager is
 
     /**
      * @param _globalExitRootManager Global exit root manager address
-     * @param _matic MATIC token address
+     * @param _pol MATIC token address
      * @param _bridgeAddress Bridge address
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        IERC20Upgradeable _matic,
+        IERC20Upgradeable _pol,
         IPolygonZkEVMBridge _bridgeAddress
     ) {
         globalExitRootManager = _globalExitRootManager;
-        matic = _matic;
+        pol = _pol;
         bridgeAddress = _bridgeAddress;
     }
 
@@ -537,6 +537,10 @@ contract PolygonRollupManager is
             zkEVMLastVerifiedBatch
         ] = _legacyBatchNumToStateRoot[zkEVMLastVerifiedBatch];
 
+        // previousLastBatchSequenced will be inconsistent, since there will not be
+        // a sequence stored in that batch.
+        // However since lastVerifiedBatch is equal to the lastBatchSequenced
+        // won't affect in any case
         currentZkEVM.sequencedBatches[
             zkEVMLastBatchSequenced
         ] = _legacySequencedBatches[zkEVMLastBatchSequenced];
@@ -611,11 +615,12 @@ contract PolygonRollupManager is
             revert RollupTypeDoesNotExist();
         }
 
-        if (rollupTypeMap[rollupTypeID].obsolete == true) {
+        RollupType storage currentRollupType = rollupTypeMap[rollupTypeID];
+        if (currentRollupType.obsolete == true) {
             revert RollupTypeObsolete();
         }
 
-        rollupTypeMap[rollupTypeID].obsolete = true;
+        currentRollupType.obsolete = true;
 
         emit ObsoleteRollupType(rollupTypeID);
     }
@@ -806,11 +811,11 @@ contract PolygonRollupManager is
             revert RollupTypeObsolete();
         }
 
-        // check compatibility of the rollups
+        // review check compatibility of the rollups
         if (
             rollup.rollupCompatibilityID != newRollupType.rollupCompatibilityID
         ) {
-            revert UpdateToSameRollupTypeID();
+            revert UpdateNotCompatible();
         }
 
         // update rollup parameters
@@ -819,7 +824,6 @@ contract PolygonRollupManager is
         rollup.rollupTypeID = newRollupTypeID;
         rollup.lastVerifiedBatchBeforeUpgrade = getLastVerifiedBatch(rollupID);
 
-        // review if it's the same implementation do not upgrade
         address newConsensusAddress = newRollupType.consensusImplementation;
         if (rollupContract.implementation() != newConsensusAddress) {
             rollupContract.upgradeToAndCall(newConsensusAddress, upgradeData);
@@ -1107,7 +1111,7 @@ contract PolygonRollupManager is
         // Pay MATIC rewards
         uint64 newVerifiedBatches = finalNewBatch - currentLastVerifiedBatch;
 
-        matic.safeTransfer(
+        pol.safeTransfer(
             beneficiary,
             calculateRewardPerBatch() * newVerifiedBatches
         );
@@ -1204,7 +1208,7 @@ contract PolygonRollupManager is
         rollup.lastPendingStateConsolidated = pendingStateNum;
 
         // Interact with globalExitRootManager
-        globalExitRootManager.updateExitRoot(currentPendingState.exitRoot);
+        globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
         emit ConsolidatePendingState(
             rollupAddressToID[address(rollup.rollupContract)],
@@ -1481,8 +1485,8 @@ contract PolygonRollupManager is
                     : diffBatches;
 
                 // For every multiplierBatchFee multiplication we must shift 3 zeroes since we have 3 decimals
-                batchFee =
-                    (batchFee * (uint256(multiplierBatchFee) ** diffBatches)) /
+                _batchFee =
+                    (_batchFee * (uint256(multiplierBatchFee) ** diffBatches)) /
                     (uint256(1000) ** diffBatches);
             } else {
                 // There are more batches below target, fee is divided
@@ -1502,15 +1506,15 @@ contract PolygonRollupManager is
                 // accDivisor = 1E18 * multiplyFactor
                 // 1E18 * batchFee / accDivisor = batchFee / multiplyFactor
                 // < 60 bits * < 70 bits / ~60 bits --> overflow not possible
-                batchFee = (uint256(1 ether) * batchFee) / accDivisor;
+                _batchFee = (uint256(1 ether) * _batchFee) / accDivisor;
             }
         }
 
         // Batch fee must remain inside a range
-        if (batchFee > _MAX_BATCH_FEE) {
-            batchFee = _MAX_BATCH_FEE;
-        } else if (batchFee < _MIN_BATCH_FEE) {
-            batchFee = _MIN_BATCH_FEE;
+        if (_batchFee > _MAX_BATCH_FEE) {
+            _batchFee = _MAX_BATCH_FEE;
+        } else if (_batchFee < _MIN_BATCH_FEE) {
+            _batchFee = _MIN_BATCH_FEE;
         }
     }
 
@@ -1651,7 +1655,7 @@ contract PolygonRollupManager is
         if (newBatchFee > _MAX_BATCH_FEE || newBatchFee < _MIN_BATCH_FEE) {
             revert();
         }
-        batchFee = newBatchFee;
+        _batchFee = newBatchFee;
         emit SetBatchFee(newBatchFee);
     }
 
@@ -1785,7 +1789,7 @@ contract PolygonRollupManager is
      * @notice Function to calculate the reward to verify a single batch
      */
     function calculateRewardPerBatch() public view returns (uint256) {
-        uint256 currentBalance = matic.balanceOf(address(this));
+        uint256 currentBalance = pol.balanceOf(address(this));
 
         // Total Sequenced Batches = total forcedBatches to be sequenced + total Sequenced Batches
         // Total Batches to be verified = total Sequenced Batches - total verified Batches
@@ -1800,14 +1804,14 @@ contract PolygonRollupManager is
      * @notice Get batch fee
      */
     function getBatchFee() public view returns (uint256) {
-        return batchFee;
+        return _batchFee;
     }
 
     /**
      * @notice Get forced batch fee
      */
     function getForcedBatchFee() public view returns (uint256) {
-        return batchFee * 100;
+        return _batchFee * 100;
     }
 
     /**
