@@ -27,7 +27,7 @@ contract PolygonRollupBase is
     IPolygonZkEVMV2Errors,
     IPolygonRollupBase
 {
-    // INterface cehcks renaming
+    // Interface cehcks renaming
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -120,8 +120,8 @@ contract PolygonRollupBase is
     // S parameter of the initialize signature
     bytes1 public constant INITIALIZE_TX_EFFECTIVE_PERCENTAGE = 0xFF;
 
-    // MATIC token address // review POL
-    IERC20Upgradeable public immutable matic;
+    // POL token address
+    IERC20Upgradeable public immutable pol;
 
     // Global Exit Root interface
     IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
@@ -242,18 +242,18 @@ contract PolygonRollupBase is
 
     /**
      * @param _globalExitRootManager Global exit root manager address
-     * @param _matic MATIC token address
+     * @param _pol POL token address
      * @param _bridgeAddress Bridge address
      * @param _rollupManager Global exit root manager address
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        IERC20Upgradeable _matic,
+        IERC20Upgradeable _pol,
         IPolygonZkEVMBridge _bridgeAddress,
         PolygonRollupManager _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
-        matic = _matic;
+        pol = _pol;
         bridgeAddress = _bridgeAddress;
         rollupManager = _rollupManager;
     }
@@ -292,6 +292,8 @@ contract PolygonRollupBase is
         );
 
         bytes32 currentTransactionsHash = keccak256(transaction);
+
+        // should be deterministic or easier deployment, TODO test 0
         uint64 currentTimestamp = uint64(block.timestamp);
 
         bytes32 newAccInputHash = keccak256(
@@ -357,7 +359,7 @@ contract PolygonRollupBase is
     function sequenceBatches(
         BatchData[] calldata batches,
         address l2Coinbase
-    ) external virtual onlyTrustedSequencer {
+    ) public virtual onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
             revert SequenceZeroBatches();
@@ -478,7 +480,7 @@ contract PolygonRollupBase is
         }
 
         // Pay collateral for every non-forced batch submitted
-        matic.safeTransferFrom(
+        pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
             rollupManager.getBatchFee() * nonForcedBatchesSequenced
@@ -521,24 +523,24 @@ contract PolygonRollupBase is
      * In order to assure that users force transactions will be processed properly, user must not sign any other transaction
      * with the same nonce
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * @param maticAmount Max amount of matic tokens that the sender is willing to pay
+     * @param polAmount Max amount of pol tokens that the sender is willing to pay
      */
     function forceBatch(
         bytes calldata transactions,
-        uint256 maticAmount
+        uint256 polAmount
     ) public virtual isForceBatchActive {
-        // Calculate matic collateral
-        uint256 maticFee = rollupManager.getForcedBatchFee();
+        // Calculate pol collateral
+        uint256 polFee = rollupManager.getForcedBatchFee();
 
-        if (maticFee > maticAmount) {
-            revert NotEnoughMaticAmount();
+        if (polFee > polAmount) {
+            revert NotEnoughPOLAmount();
         }
 
         if (transactions.length > _MAX_FORCE_BATCH_BYTE_LENGTH) {
             revert TransactionsLengthAboveMax();
         }
 
-        matic.safeTransferFrom(msg.sender, address(rollupManager), maticFee);
+        pol.safeTransferFrom(msg.sender, address(rollupManager), polFee);
 
         // Get globalExitRoot global exit root
         bytes32 lastGlobalExitRoot = globalExitRootManager

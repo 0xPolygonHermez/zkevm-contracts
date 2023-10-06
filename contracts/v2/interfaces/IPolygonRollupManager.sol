@@ -16,11 +16,6 @@ interface IPolygonRollupManager {
     /**
      * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error OnlyGovernance();
-
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
     error OnlyTrustedAggregator();
 
     /**
@@ -237,4 +232,9 @@ interface IPolygonRollupManager {
      * @dev When a rollup type does not exist
      */
     error InitBatchMustMatchCurrentForkID();
+
+    /**
+     * @dev When a rollup type does not exist
+     */
+    error UpdateNotCompatible();
 }
