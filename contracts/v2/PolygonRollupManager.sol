@@ -325,7 +325,7 @@ contract PolygonRollupManager is
     uint16 public multiplierBatchFee;
 
     // Current matic fee per batch sequenced
-    uint256 public batchFee;
+    uint256 public batchFee; // TODO internal?¿
 
     // Address that has priority to verify batches, also consolidates the state instantly
     address public trustedAggregator;
@@ -578,8 +578,6 @@ contract PolygonRollupManager is
         string memory description
     ) external onlyRole(_ADD_ROLLUP_TYPE_ROLE) {
         // nullify rollup type?¿ review hash(verifier, implementation, genesis)
-        // review check address are not 0?
-
         uint32 rollupTypeID = ++rollupTypeCount;
 
         rollupTypeMap[rollupTypeID] = RollupType({
@@ -785,7 +783,6 @@ contract PolygonRollupManager is
         uint32 newRollupTypeID,
         bytes calldata upgradeData
     ) external onlyRole(_UPDATE_ROLLUP_ROLE) {
-        // TODO Check new rollup type was not deleted? it would be sanity check
         // Check that rollup type exists
         if (newRollupTypeID == 0 || newRollupTypeID > rollupTypeCount) {
             revert RollupTypeDoesNotExist();
