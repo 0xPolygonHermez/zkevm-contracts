@@ -146,8 +146,8 @@ contract PolygonRollupManager is
         keccak256("ADD_ROLLUP_TYPE_ROLE");
 
     // Trusted aggregator will be able to verify batches without extra delau
-    bytes32 internal constant _DELETE_ROLLUP_TYPE_ROLE =
-        keccak256("DELETE_ROLLUP_TYPE_ROLE");
+    bytes32 internal constant _OBSOLETE_ROLLUP_TYPE_ROLE =
+        keccak256("OBSOLETE_ROLLUP_TYPE_ROLE");
 
     bytes32 internal constant _CREATE_ROLLUP_ROLE =
         keccak256("CREATE_ROLLUP_ROLE");
@@ -506,7 +506,7 @@ contract PolygonRollupManager is
         _setupRole(_UPDATE_ROLLUP_ROLE, timelock);
 
         // Admin roles
-        _setupRole(_DELETE_ROLLUP_TYPE_ROLE, admin);
+        _setupRole(_OBSOLETE_ROLLUP_TYPE_ROLE, admin);
         _setupRole(_CREATE_ROLLUP_ROLE, admin);
         _setupRole(_STOP_EMERGENCY_ROLE, admin);
         _setupRole(_TRUSTED_AGGREGATOR_ROLE, admin);
@@ -610,7 +610,7 @@ contract PolygonRollupManager is
      */
     function obsoleteRollupType(
         uint32 rollupTypeID
-    ) external onlyRole(_DELETE_ROLLUP_TYPE_ROLE) {
+    ) external onlyRole(_OBSOLETE_ROLLUP_TYPE_ROLE) {
         if (rollupTypeID == 0 || rollupTypeID > rollupTypeCount) {
             revert RollupTypeDoesNotExist();
         }
@@ -856,11 +856,11 @@ contract PolygonRollupManager is
 
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
-        // Update total sequence parameters
         if (newSequencedBatches == 0) {
             revert MustSequenceSomeBatch();
         }
 
+        // Update total sequence parameters
         totalSequencedBatches += newSequencedBatches;
 
         if (forcedSequencedBatches != 0) {
