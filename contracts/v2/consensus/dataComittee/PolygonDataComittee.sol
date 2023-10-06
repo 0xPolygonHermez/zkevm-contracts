@@ -217,12 +217,18 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
             rollupManager.getBatchFee() * nonForcedBatchesSequenced
         );
 
+        // Transfer pol for every forced batch submitted
+        pol.safeTransfer(
+            address(rollupManager),
+            calculatePolPerForceBatch() *
+                (batchesNum - nonForcedBatchesSequenced)
+        );
+
         // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(batchesNum),
-            uint64(batchesNum - nonForcedBatchesSequenced),
             currentAccInputHash
         );
 

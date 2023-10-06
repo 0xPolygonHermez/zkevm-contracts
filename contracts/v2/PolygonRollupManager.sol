@@ -308,9 +308,6 @@ contract PolygonRollupManager is
     // Total sequenced batches between all rollups
     uint64 public totalSequencedBatches;
 
-    // Total pending batches between all networks
-    uint64 public totalPendingForcedBatches;
-
     // Total verified batches between all rollups
     uint64 public totalVerifiedBatches;
 
@@ -843,12 +840,10 @@ contract PolygonRollupManager is
     /**
      * @notice Sequence batches, callback called by one of the consensus managed by this contract
      * @param newSequencedBatches how many sequenced batches were sequenced
-     * @param forcedSequencedBatches how many forced batches were sequenced
      * @param newAccInputHash new accumualted input hash
      */
     function onSequenceBatches(
         uint64 newSequencedBatches,
-        uint64 forcedSequencedBatches,
         bytes32 newAccInputHash
     ) external ifNotEmergencyState returns (uint64) {
         // Check that the msg.sender is an added rollup
@@ -865,10 +860,6 @@ contract PolygonRollupManager is
 
         // Update total sequence parameters
         totalSequencedBatches += newSequencedBatches;
-
-        if (forcedSequencedBatches != 0) {
-            totalPendingForcedBatches -= forcedSequencedBatches;
-        }
 
         // Update sequenced batches of the current rollup
         uint64 previousLastBatchSequenced = rollup.lastBatchSequenced;
@@ -888,20 +879,6 @@ contract PolygonRollupManager is
         emit OnSequenceBatches(rollupID, newLastBatchSequenced);
 
         return newLastBatchSequenced;
-    }
-
-    // review
-    /**
-     * @notice callback called by one of the consensus managed by this contract, when forced a batch
-     */
-    function onForcedBatch() external ifNotEmergencyState {
-        // Check that the msg.sender is an added rollup
-        uint32 rollupID = rollupAddressToID[msg.sender];
-        if (rollupID == 0) {
-            revert SenderMustBeRollup();
-        }
-
-        totalPendingForcedBatches++;
     }
 
     /**
@@ -1806,10 +1783,9 @@ contract PolygonRollupManager is
     function calculateRewardPerBatch() public view returns (uint256) {
         uint256 currentBalance = pol.balanceOf(address(this));
 
-        // Total Sequenced Batches = total forcedBatches to be sequenced + total Sequenced Batches
         // Total Batches to be verified = total Sequenced Batches - total verified Batches
-        uint256 totalBatchesToVerify = (totalPendingForcedBatches +
-            totalSequencedBatches) - totalVerifiedBatches;
+        uint256 totalBatchesToVerify = totalSequencedBatches -
+            totalVerifiedBatches;
 
         if (totalBatchesToVerify == 0) return 0;
         return currentBalance / totalBatchesToVerify;
