@@ -626,6 +626,8 @@ contract PolygonRollupManager is
      * @param chainID chainID
      * @param admin admin of the new created rollup
      * @param trustedSequencer trusted sequencer of the new created rollup
+     * @param gasTokenAddress native token address
+     * @param gasTokenNetwork native token network
      * @param trustedSequencerURL trusted sequencer URL of the new created rollup
      * @param networkName network name of the new created rollup
      */
@@ -882,6 +884,7 @@ contract PolygonRollupManager is
 
         emit OnSequenceBatches(rollupID, newLastBatchSequenced);
 
+        // COMMENT: Is this return needed ?
         return newLastBatchSequenced;
     }
 

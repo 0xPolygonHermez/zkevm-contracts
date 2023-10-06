@@ -71,8 +71,10 @@ Obsolete Rollup type
     uint64 chainID,
     address admin,
     address trustedSequencer,
-    address trustedSequencerURL,
-    uint32 networkName
+    address gasTokenAddress,
+    uint32 gasTokenNetwork,
+    string trustedSequencerURL,
+    string networkName
   ) external
 ```
 Create a new rollup
@@ -85,8 +87,10 @@ Create a new rollup
 |`chainID` | uint64 | chainID
 |`admin` | address | admin of the new created rollup
 |`trustedSequencer` | address | trusted sequencer of the new created rollup
-|`trustedSequencerURL` | address | trusted sequencer URL of the new created rollup
-|`networkName` | uint32 | network name of the new created rollup
+|`gasTokenAddress` | address | native token address
+|`gasTokenNetwork` | uint32 | native token network
+|`trustedSequencerURL` | string | trusted sequencer URL of the new created rollup
+|`networkName` | string | network name of the new created rollup
 
 ### addExistingRollup
 ```solidity
