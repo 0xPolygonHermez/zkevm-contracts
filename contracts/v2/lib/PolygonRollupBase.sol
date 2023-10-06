@@ -11,6 +11,7 @@ import "../../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMV2Errors.sol";
 import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
+import "../L2/PolygonZkEVMBridgeL2.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -96,6 +97,25 @@ contract PolygonRollupBase is
     // Maximum batches that can be verified in one call. It depends on our current metrics
     // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
+
+    // List rlp: 1 listLenLen "0xf8" (0xf7 + 1), + listLen 1 "0x83"
+    // 1 nonce "0x80" + 1 gasPrice "0x80" + 5 gasLimit "0x8401c9c380" + 21 to "0x942a3dd3eb832af982ec71669e178424b10dca2ede"
+    // + 1 value "0x80" + 1 stringLenLen "0xb8" (0xb7 + 1) + stringLen 1 "0x64" + 100 bytes data ( signature 4 bytes + 3parameters*32bytes) = 131 bytes  (0x83)
+    bytes public constant BASE_INITIALIZE_TX_BRIDGE =
+        "0xf88380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b864";
+
+    // Signature used to initialize the bridge
+
+    // V parameter of the initialize signature
+    uint8 public constant SIGNATURE_INITIALIZE_TX_V = 27;
+
+    // R parameter of the initialize signature
+    bytes32 public constant SIGNATURE_INITIALIZE_TX_R =
+        0x00000000000000000000000000000000000000000000000000000005ca1ab1e0;
+
+    // S parameter of the initialize signature
+    bytes32 public constant SIGNATURE_INITIALIZE_TX_S =
+        0x000000000000000000000000000000000000000000000000000000005ca1ab1e;
 
     // MATIC token address // review POL
     IERC20Upgradeable public immutable matic;
@@ -259,7 +279,37 @@ contract PolygonRollupBase is
         // Constant deployment variables
         forceBatchTimeout = 5 days;
 
-        // TODO sequence
+        // Sequence transaction to initilize the bridge
+
+        // Calculate transaction to initialize the bridge
+        bytes memory transaction = generateInitializeTransaction(
+            networkID,
+            gasTokenAddress,
+            gasTokenNetwork
+        );
+
+        bytes32 currentTransactionsHash = keccak256(transaction);
+        uint64 currentTimestamp = uint64(block.timestamp);
+
+        bytes32 newAccInputHash = keccak256(
+            abi.encodePacked(
+                bytes32(0), // current acc Input hash
+                currentTransactionsHash,
+                bytes32(0), // Global exit root
+                currentTimestamp,
+                trustedSequencer
+            )
+        );
+        lastTimestamp = currentTimestamp;
+        lastAccInputHash = newAccInputHash;
+
+        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
+            uint64(1), // num total batches
+            uint64(0), // num forced batches
+            newAccInputHash
+        );
+
+        emit SequenceBatches(currentBatchSequenced);
     }
 
     modifier onlyAdmin() {
@@ -692,5 +742,47 @@ contract PolygonRollupBase is
 
         admin = pendingAdmin;
         emit AcceptAdminRole(pendingAdmin);
+    }
+
+    //////////////////
+    // view/pure functions
+    //////////////////
+
+    /**
+     * @notice Get forced batch fee
+     */
+    function generateInitializeTransaction(
+        uint32 networkID,
+        address gasTokenAddress,
+        uint32 gasTokenNetwork
+    ) public pure returns (bytes memory) {
+        // Check the ecrecover, as a sanity check, to not allow invalid transactions
+        bytes memory bytesToSign = abi.encodePacked(
+            BASE_INITIALIZE_TX_BRIDGE,
+            abi.encodeCall(
+                PolygonZkEVMBridgeL2.initialize,
+                (networkID, gasTokenAddress, gasTokenNetwork)
+            )
+        );
+
+        address signer = ecrecover(
+            keccak256(bytesToSign),
+            SIGNATURE_INITIALIZE_TX_V,
+            SIGNATURE_INITIALIZE_TX_R,
+            SIGNATURE_INITIALIZE_TX_S
+        );
+
+        if (signer == address(0)) {
+            revert InvalidInitializeTransaction();
+        }
+
+        bytes memory transaction = abi.encodePacked(
+            bytesToSign,
+            SIGNATURE_INITIALIZE_TX_V,
+            SIGNATURE_INITIALIZE_TX_R,
+            SIGNATURE_INITIALIZE_TX_S
+        );
+
+        return transaction;
     }
 }
