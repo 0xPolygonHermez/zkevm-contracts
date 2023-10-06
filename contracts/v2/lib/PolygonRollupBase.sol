@@ -310,7 +310,6 @@ contract PolygonRollupBase is
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(1), // num total batches
-            uint64(0), // num forced batches
             newAccInputHash
         );
 
@@ -486,12 +485,18 @@ contract PolygonRollupBase is
             rollupManager.getBatchFee() * nonForcedBatchesSequenced
         );
 
+        // Transfer pol for every forced batch submitted
+        pol.safeTransfer(
+            address(rollupManager),
+            calculatePolPerForceBatch() *
+                (batchesNum - nonForcedBatchesSequenced)
+        );
+
         // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(batchesNum),
-            uint64(batchesNum - nonForcedBatchesSequenced),
             currentAccInputHash
         );
 
@@ -540,7 +545,8 @@ contract PolygonRollupBase is
             revert TransactionsLengthAboveMax();
         }
 
-        pol.safeTransferFrom(msg.sender, address(rollupManager), polFee);
+        // keep the pol fees on this contract until forced it's sequenced
+        pol.safeTransferFrom(msg.sender, address(this), polFee);
 
         // Get globalExitRoot global exit root
         bytes32 lastGlobalExitRoot = globalExitRootManager
@@ -556,9 +562,6 @@ contract PolygonRollupBase is
                 uint64(block.timestamp)
             )
         );
-
-        //review
-        rollupManager.onForcedBatch();
 
         if (msg.sender == tx.origin) {
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
@@ -659,8 +662,13 @@ contract PolygonRollupBase is
         lastTimestamp = uint64(block.timestamp);
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
+        // Transfer pol for every forced batch submitted
+        pol.safeTransfer(
+            address(rollupManager),
+            calculatePolPerForceBatch() * (batchesNum)
+        );
+
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
-            uint64(batchesNum),
             uint64(batchesNum),
             currentAccInputHash
         );
@@ -755,6 +763,19 @@ contract PolygonRollupBase is
     //////////////////
     // view/pure functions
     //////////////////
+
+    /**
+     * @notice Function to calculate the reward for a forced batch
+     */
+    function calculatePolPerForceBatch() public view returns (uint256) {
+        uint256 currentBalance = pol.balanceOf(address(this));
+
+        // Pending forced Batches = last forced batch added - last forced batch sequenced
+        uint256 pendingForcedBatches = lastForceBatch - lastForceBatchSequenced;
+
+        if (pendingForcedBatches == 0) return 0;
+        return currentBalance / pendingForcedBatches;
+    }
 
     /**
      * @notice Get forced batch fee
