@@ -485,6 +485,11 @@ contract PolygonRollupManager is
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
+        // Constant deployment variables
+        _batchFee = 0.1 ether; // 0.1 Matic
+        verifyBatchTimeTarget = 30 minutes;
+        multiplierBatchFee = 1002;
+
         // Initialize OZ contracts
         __AccessControl_init();
 
