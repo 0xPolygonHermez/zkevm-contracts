@@ -537,7 +537,7 @@ contract PolygonRollupManager is
             zkEVMLastVerifiedBatch
         ] = _legacyBatchNumToStateRoot[zkEVMLastVerifiedBatch];
 
-        // previousLastBatchSequenced will be inconsistent, since there will not be
+        // note previousLastBatchSequenced will be inconsistent, since there will not be
         // a sequence stored in that batch.
         // However since lastVerifiedBatch is equal to the lastBatchSequenced
         // won't affect in any case
@@ -890,6 +890,20 @@ contract PolygonRollupManager is
         return newLastBatchSequenced;
     }
 
+    // review
+    /**
+     * @notice callback called by one of the consensus managed by this contract, when forced a batch
+     */
+    function onForcedBatch() external ifNotEmergencyState {
+        // Check that the msg.sender is an added rollup
+        uint32 rollupID = rollupAddressToID[msg.sender];
+        if (rollupID == 0) {
+            revert SenderMustBeRollup();
+        }
+
+        totalPendingForcedBatches++;
+    }
+
     /**
      * @notice Allows an aggregator to verify multiple batches
      * @param pendingStateNum Init pending state, 0 if consolidated state is used
@@ -1203,6 +1217,7 @@ contract PolygonRollupManager is
         rollup.lastVerifiedBatch = newLastVerifiedBatch;
         rollup.batchNumToStateRoot[newLastVerifiedBatch] = currentPendingState
             .stateRoot;
+        rollup.lastLocalExitRoot = currentPendingState.exitRoot;
 
         // Update pending state
         rollup.lastPendingStateConsolidated = pendingStateNum;
@@ -1653,7 +1668,7 @@ contract PolygonRollupManager is
     function setBatchFee(uint256 newBatchFee) external onlyRole(_SET_FEE_ROLE) {
         // check fees min and max
         if (newBatchFee > _MAX_BATCH_FEE || newBatchFee < _MIN_BATCH_FEE) {
-            revert();
+            revert BatchFeeOutOfRange();
         }
         _batchFee = newBatchFee;
         emit SetBatchFee(newBatchFee);

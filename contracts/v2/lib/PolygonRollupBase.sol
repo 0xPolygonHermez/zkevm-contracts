@@ -557,6 +557,9 @@ contract PolygonRollupBase is
             )
         );
 
+        //review
+        rollupManager.onForcedBatch();
+
         if (msg.sender == tx.origin) {
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
             emit ForceBatch(lastForceBatch, lastGlobalExitRoot, msg.sender, "");
