@@ -117,6 +117,9 @@ contract PolygonRollupBase is
     bytes32 public constant SIGNATURE_INITIALIZE_TX_S =
         0x000000000000000000000000000000000000000000000000000000005ca1ab1e;
 
+    // S parameter of the initialize signature
+    bytes1 public constant INITIALIZE_TX_EFFECTIVE_PERCENTAGE = 0xFF;
+
     // MATIC token address // review POL
     IERC20Upgradeable public immutable matic;
 
@@ -293,7 +296,7 @@ contract PolygonRollupBase is
 
         bytes32 newAccInputHash = keccak256(
             abi.encodePacked(
-                bytes32(0), // current acc Input hash
+                bytes32(0), // Current acc Input hash
                 currentTransactionsHash,
                 bytes32(0), // Global exit root
                 currentTimestamp,
@@ -765,6 +768,8 @@ contract PolygonRollupBase is
             )
         );
 
+        // Sanity check that the ecrecover will work
+        // should never happen giving a valid signature, "break" ecrecover
         address signer = ecrecover(
             keccak256(bytesToSign),
             SIGNATURE_INITIALIZE_TX_V,
@@ -780,7 +785,8 @@ contract PolygonRollupBase is
             bytesToSign,
             SIGNATURE_INITIALIZE_TX_V,
             SIGNATURE_INITIALIZE_TX_R,
-            SIGNATURE_INITIALIZE_TX_S
+            SIGNATURE_INITIALIZE_TX_S,
+            INITIALIZE_TX_EFFECTIVE_PERCENTAGE
         );
 
         return transaction;
