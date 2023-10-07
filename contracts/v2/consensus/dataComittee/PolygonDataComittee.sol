@@ -201,10 +201,15 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
 
         // Check if there has been forced batches
         if (currentLastForceBatchSequenced != initLastForceBatchSequenced) {
-            // substract forced batches
-            nonForcedBatchesSequenced -=
-                currentLastForceBatchSequenced -
+            uint64 forcedBatchesSequenced = currentLastForceBatchSequenced -
                 initLastForceBatchSequenced;
+            // substract forced batches
+            nonForcedBatchesSequenced -= forcedBatchesSequenced;
+
+            pol.safeTransfer( // Transfer pol for every forced batch submitted
+                address(rollupManager),
+                calculatePolPerForceBatch() * (forcedBatchesSequenced)
+            );
 
             // Store new last force batch sequenced
             lastForceBatchSequenced = currentLastForceBatchSequenced;
@@ -215,13 +220,6 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
             msg.sender,
             address(rollupManager),
             rollupManager.getBatchFee() * nonForcedBatchesSequenced
-        );
-
-        // Transfer pol for every forced batch submitted
-        pol.safeTransfer(
-            address(rollupManager),
-            calculatePolPerForceBatch() *
-                (batchesNum - nonForcedBatchesSequenced)
         );
 
         // Update global exit root if there are new deposits

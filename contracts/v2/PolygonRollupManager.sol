@@ -16,9 +16,8 @@ import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
 import "./consensus/zkEVM/PolygonZkEVMV2Upgraded.sol";
 
-// TODO change name to network, networkID consistent
 // TODO check contract slots!
-
+// Update OZ libs, new transaparent proxy is cheaper, but admin immutable
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */
@@ -298,13 +297,6 @@ contract PolygonRollupManager is
     // chainID => rollupID
     mapping(uint64 chainID => uint32 rollupID) public chainIDToRollupID;
 
-    // Once a pending state exceeds this timeout it can be consolidated
-    uint64 public pendingStateTimeout;
-
-    // Trusted aggregator timeout, if a sequence is not verified in this time frame,
-    // everyone can verify that sequence
-    uint64 public trustedAggregatorTimeout;
-
     // Total sequenced batches between all rollups
     uint64 public totalSequencedBatches;
 
@@ -314,6 +306,13 @@ contract PolygonRollupManager is
     // Last timestamp where an aggregation happen
     uint64 public lastAggregationTimestamp;
 
+    // Trusted aggregator timeout, if a sequence is not verified in this time frame,
+    // everyone can verify that sequence
+    uint64 public trustedAggregatorTimeout;
+
+    // Once a pending state exceeds this timeout it can be consolidated
+    uint64 public pendingStateTimeout;
+
     // Time target of the verification of a batch
     // Adaptatly the batchFee will be updated to achieve this target
     uint64 public verifyBatchTimeTarget;
@@ -322,7 +321,7 @@ contract PolygonRollupManager is
     uint16 public multiplierBatchFee;
 
     // Current matic fee per batch sequenced
-    uint256 internal _batchFee; // TODO internal?¿
+    uint256 internal _batchFee;
 
     // Address that has priority to verify batches, also consolidates the state instantly
     address public trustedAggregator;
@@ -540,7 +539,7 @@ contract PolygonRollupManager is
         ] = _legacyBatchNumToStateRoot[zkEVMLastVerifiedBatch];
 
         // note previousLastBatchSequenced will be inconsistent, since there will not be
-        // a sequence stored in that batch.
+        // a sequence stored in the sequence mapping.
         // However since lastVerifiedBatch is equal to the lastBatchSequenced
         // won't affect in any case
         currentZkEVM.sequencedBatches[
@@ -613,10 +612,12 @@ contract PolygonRollupManager is
     function obsoleteRollupType(
         uint32 rollupTypeID
     ) external onlyRole(_OBSOLETE_ROLLUP_TYPE_ROLE) {
+        // Check that rollup type exists
         if (rollupTypeID == 0 || rollupTypeID > rollupTypeCount) {
             revert RollupTypeDoesNotExist();
         }
 
+        // Check rollup type is not obsolete
         RollupType storage currentRollupType = rollupTypeMap[rollupTypeID];
         if (currentRollupType.obsolete == true) {
             revert RollupTypeObsolete();
@@ -826,6 +827,7 @@ contract PolygonRollupManager is
         rollup.rollupTypeID = newRollupTypeID;
         rollup.lastVerifiedBatchBeforeUpgrade = getLastVerifiedBatch(rollupID);
 
+        // Upgrade rollup if the consensus implementation it's different
         address newConsensusAddress = newRollupType.consensusImplementation;
         if (rollupContract.implementation() != newConsensusAddress) {
             rollupContract.upgradeToAndCall(newConsensusAddress, upgradeData);

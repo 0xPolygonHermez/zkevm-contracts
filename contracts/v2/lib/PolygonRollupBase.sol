@@ -469,10 +469,15 @@ contract PolygonRollupBase is
 
         // Check if there has been forced batches
         if (currentLastForceBatchSequenced != initLastForceBatchSequenced) {
-            // substract forced batches
-            nonForcedBatchesSequenced -=
-                currentLastForceBatchSequenced -
+            uint64 forcedBatchesSequenced = currentLastForceBatchSequenced -
                 initLastForceBatchSequenced;
+            // substract forced batches
+            nonForcedBatchesSequenced -= forcedBatchesSequenced;
+
+            pol.safeTransfer( // Transfer pol for every forced batch submitted
+                address(rollupManager),
+                calculatePolPerForceBatch() * (forcedBatchesSequenced)
+            );
 
             // Store new last force batch sequenced
             lastForceBatchSequenced = currentLastForceBatchSequenced;
@@ -483,13 +488,6 @@ contract PolygonRollupBase is
             msg.sender,
             address(rollupManager),
             rollupManager.getBatchFee() * nonForcedBatchesSequenced
-        );
-
-        // Transfer pol for every forced batch submitted
-        pol.safeTransfer(
-            address(rollupManager),
-            calculatePolPerForceBatch() *
-                (batchesNum - nonForcedBatchesSequenced)
         );
 
         // Update global exit root if there are new deposits
@@ -657,16 +655,16 @@ contract PolygonRollupBase is
             );
         }
 
-        // Store back the storage variables
-        lastAccInputHash = currentAccInputHash;
-        lastTimestamp = uint64(block.timestamp);
-        lastForceBatchSequenced = currentLastForceBatchSequenced;
-
         // Transfer pol for every forced batch submitted
         pol.safeTransfer(
             address(rollupManager),
             calculatePolPerForceBatch() * (batchesNum)
         );
+
+        // Store back the storage variables
+        lastAccInputHash = currentAccInputHash;
+        lastTimestamp = uint64(block.timestamp);
+        lastForceBatchSequenced = currentLastForceBatchSequenced;
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(batchesNum),
