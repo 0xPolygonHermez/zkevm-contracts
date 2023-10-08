@@ -10,7 +10,7 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeabl
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
- * @dev Contrac AccessControlUpgradeable from Openzeppelin with the following modifications:
+ * @dev Contract AccessControlUpgradeable from Openzeppelin with the following modifications:
  * - Delete ERC165Upgradeable dependencies, which is not important to our contract and save us the "gap"
  * variables and let us have consistent storage
  * - Add the legacy Owner variable, to be consistent with the previous one
