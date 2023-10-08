@@ -3,21 +3,18 @@
 pragma solidity 0.8.20;
 
 import "./interfaces/IPolygonRollupManager.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "../interfaces/IPolygonZkEVMBridge.sol";
 import "./interfaces/IPolygonRollupBase.sol";
 import "../lib/EmergencyManager.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
 import "./consensus/zkEVM/PolygonZkEVMV2Upgraded.sol";
 
 // review check contract slots!
-// Update OZ libs, new transaparent proxy is cheaper, but admin immutable
+// review Update OZ libs, new transaparent proxy is cheaper, but admin immutable
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */

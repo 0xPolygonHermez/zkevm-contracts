@@ -9,7 +9,7 @@ describe('Polygon ZK-EVM Deployer', () => {
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.parseEther('20000000');
 
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
@@ -34,7 +34,7 @@ describe('Polygon ZK-EVM Deployer', () => {
             'ERC20PresetFixedSupply',
         );
 
-        const salt = ethers.constants.HashZero;
+        const salt = ethers.HashZero;
 
         // Encode deploy transaction
         const deployTransactionERC20 = (OZERC20PresetFactory.getDeployTransaction(
@@ -43,10 +43,10 @@ describe('Polygon ZK-EVM Deployer', () => {
             maticTokenInitialBalance,
             owner.address,
         )).data;
-        const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransactionERC20]);
+        const hashInitCode = ethers.solidityPackedKeccak256(['bytes'], [deployTransactionERC20]);
 
         // Precalculate create2 address
-        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
+        const precalculateTokenDeployed = await ethers.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
         expect(await polgonZKEVMDeployerContract.predictDeterministicAddress(
             salt,
             hashInitCode,
@@ -66,7 +66,7 @@ describe('Polygon ZK-EVM Deployer', () => {
             deployTransactionERC20,
         )).to.emit(polgonZKEVMDeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
 
-        const dataCall = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.utils.parseEther('1')]);
+        const dataCall = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.parseEther('1')]);
         // Check deployed contract
         const instanceToken = OZERC20PresetFactory.attach(precalculateTokenDeployed);
         expect(await instanceToken.balanceOf(owner.address)).to.be.equal(maticTokenInitialBalance);
@@ -97,7 +97,7 @@ describe('Polygon ZK-EVM Deployer', () => {
         )).to.be.revertedWith('ERC20: transfer amount exceeds balance');
 
         // Transfer tokens first
-        await instanceToken.connect(owner).transfer(polgonZKEVMDeployerContract.address, ethers.utils.parseEther('1'));
+        await instanceToken.connect(owner).transfer(polgonZKEVMDeployerContract.address, ethers.parseEther('1'));
         await expect(polgonZKEVMDeployerContract.connect(owner).functionCall(
             precalculateTokenDeployed,
             dataCall,
@@ -110,7 +110,7 @@ describe('Polygon ZK-EVM Deployer', () => {
             'ERC20PresetFixedSupply',
         );
 
-        const salt = ethers.constants.HashZero;
+        const salt = ethers.HashZero;
 
         // Encode deploy transaction
         const deployTransactionERC20 = (OZERC20PresetFactory.getDeployTransaction(
@@ -120,14 +120,14 @@ describe('Polygon ZK-EVM Deployer', () => {
             polgonZKEVMDeployerContract.address,
         )).data;
 
-        const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransactionERC20]);
+        const hashInitCode = ethers.solidityPackedKeccak256(['bytes'], [deployTransactionERC20]);
 
         // Precalculate create2 address
-        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
-        const dataCall = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.utils.parseEther('1')]);
+        const precalculateTokenDeployed = await ethers.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
+        const dataCall = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.parseEther('1')]);
         const amount = 0;
 
-        const dataCallFail = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.utils.parseEther('20000001')]);
+        const dataCallFail = OZERC20PresetFactory.interface.encodeFunctionData('transfer', [owner.address, ethers.parseEther('20000001')]);
 
         // Cannot fails internal call, contract not deployed
         await expect(polgonZKEVMDeployerContract.connect(owner).deployDeterministicAndCall(
@@ -146,7 +146,7 @@ describe('Polygon ZK-EVM Deployer', () => {
         )).to.emit(polgonZKEVMDeployerContract, 'NewDeterministicDeployment').withArgs(precalculateTokenDeployed);
 
         const instanceToken = OZERC20PresetFactory.attach(precalculateTokenDeployed);
-        expect(await instanceToken.balanceOf(owner.address)).to.be.equal(ethers.utils.parseEther('1'));
+        expect(await instanceToken.balanceOf(owner.address)).to.be.equal(ethers.parseEther('1'));
 
         // Cannot create 2 times the same contract
         await expect(polgonZKEVMDeployerContract.connect(owner).deployDeterministicAndCall(
@@ -167,7 +167,7 @@ describe('Polygon ZK-EVM Deployer', () => {
         )).data;
 
         const gasLimit = ethers.BigNumber.from(1000000); // Put 1 Million, aprox 650k are necessary
-        const gasPrice = ethers.BigNumber.from(ethers.utils.parseUnits('100', 'gwei')); // just in case to be able to use always the transaction
+        const gasPrice = ethers.BigNumber.from(ethers.parseUnits('100', 'gwei')); // just in case to be able to use always the transaction
         const to = '0x'; // deployment transaction, to is 0
         const tx = {
             to,
@@ -183,8 +183,8 @@ describe('Polygon ZK-EVM Deployer', () => {
             r: '0x247000', // Equals 0x0000000000000000000000000000000000000000000000000000000000247000
             s: '0x2470', // Equals 0x0000000000000000000000000000000000000000000000000000000000002470
         };
-        const serializedTransaction = ethers.utils.serializeTransaction(tx, signature);
-        const resultTransaction = ethers.utils.parseTransaction(serializedTransaction);
+        const serializedTransaction = ethers.serializeTransaction(tx, signature);
+        const resultTransaction = ethers.parseTransaction(serializedTransaction);
         const totalEther = gasLimit.mul(gasPrice); // 0.1 ether
 
         // Fund keyless deployment
@@ -192,7 +192,7 @@ describe('Polygon ZK-EVM Deployer', () => {
             to: resultTransaction.from,
             value: totalEther.toHexString(),
         };
-        const zkEVMDeployerAddress = ethers.utils.getContractAddress(resultTransaction);
+        const zkEVMDeployerAddress = ethers.getContractAddress(resultTransaction);
 
         await deployer.sendTransaction(params);
         await ethers.provider.sendTransaction(serializedTransaction);
@@ -205,14 +205,14 @@ describe('Polygon ZK-EVM Deployer', () => {
             'PolygonZkEVMBridge',
         );
 
-        const salt = ethers.constants.HashZero;
+        const salt = ethers.HashZero;
 
         // Encode deploy transaction
         const deployTransactionBridge = (bridgeFactory.getDeployTransaction()).data;
-        const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransactionBridge]);
+        const hashInitCode = ethers.solidityPackedKeccak256(['bytes'], [deployTransactionBridge]);
 
         // Precalculate create2 address
-        const precalculateTokenDeployed = await ethers.utils.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
+        const precalculateTokenDeployed = await ethers.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
         expect(await polgonZKEVMDeployerContract.predictDeterministicAddress(
             salt,
             hashInitCode,

@@ -19,7 +19,7 @@ async function main() {
     // verify maticToken
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.parseEther('20000000');
     try {
         // verify governance
         await hre.run(

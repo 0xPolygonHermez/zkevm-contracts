@@ -43,7 +43,7 @@ async function main() {
     // Constant variables
     const attemptsDeployProxy = 20;
     const networkIDL2 = 1;
-    const zkevmAddressL2 = ethers.constants.AddressZero;
+    const zkevmAddressL2 = ethers.ZeroAddress;
 
     const timelockAddress = mainnetMultisig;
     const initialZkEVMDeployerOwner = mainnetInitialZkEVMDeployerOwner;
@@ -190,8 +190,8 @@ async function main() {
     const bridgeProxyInfo = await getAddressInfo(proxyBridgeAddress);
 
     // Override admin and implementation slots:
-    bridgeProxyInfo.storage[_ADMIN_SLOT] = ethers.utils.hexZeroPad(mainnetProxyAdminAddress, 32);
-    bridgeProxyInfo.storage[_IMPLEMENTATION_SLOT] = ethers.utils.hexZeroPad(mainnetZkEVMBridgeImplementationAddress, 32);
+    bridgeProxyInfo.storage[_ADMIN_SLOT] = ethers.hexZeroPad(mainnetProxyAdminAddress, 32);
+    bridgeProxyInfo.storage[_IMPLEMENTATION_SLOT] = ethers.hexZeroPad(mainnetZkEVMBridgeImplementationAddress, 32);
 
     // update proxy storage
     genesis.push({
@@ -219,8 +219,8 @@ async function main() {
     const proxyGlobalExitRootL2Info = await getAddressInfo(polygonZkEVMGlobalExitRootL2.address);
 
     // Override admin and implementation slots:
-    proxyGlobalExitRootL2Info.storage[_ADMIN_SLOT] = ethers.utils.hexZeroPad(mainnetProxyAdminAddress, 32);
-    proxyGlobalExitRootL2Info.storage[_IMPLEMENTATION_SLOT] = ethers.utils.hexZeroPad(mainnetGlobalExitRootL2ImplementationAddress, 32);
+    proxyGlobalExitRootL2Info.storage[_ADMIN_SLOT] = ethers.hexZeroPad(mainnetProxyAdminAddress, 32);
+    proxyGlobalExitRootL2Info.storage[_IMPLEMENTATION_SLOT] = ethers.hexZeroPad(mainnetGlobalExitRootL2ImplementationAddress, 32);
 
     genesis.push({
         contractName: 'PolygonZkEVMGlobalExitRootL2 proxy',
@@ -242,26 +242,26 @@ async function main() {
      * bytes32 public constant CANCELLER_ROLE = keccak256("CANCELLER_ROLE");
      */
     const timelockRolesHash = [
-        ethers.utils.id('TIMELOCK_ADMIN_ROLE'),
-        ethers.utils.id('PROPOSER_ROLE'),
-        ethers.utils.id('EXECUTOR_ROLE'),
-        ethers.utils.id('CANCELLER_ROLE'),
+        ethers.id('TIMELOCK_ADMIN_ROLE'),
+        ethers.id('PROPOSER_ROLE'),
+        ethers.id('EXECUTOR_ROLE'),
+        ethers.id('CANCELLER_ROLE'),
     ];
 
     for (let i = 0; i < timelockRolesHash.length; i++) {
         const rolesMappingStoragePositionStruct = 0;
-        const storagePosition = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [timelockRolesHash[i], rolesMappingStoragePositionStruct]);
+        const storagePosition = ethers.solidityPackedKeccak256(['uint256', 'uint256'], [timelockRolesHash[i], rolesMappingStoragePositionStruct]);
 
         // check timelock address manager, and timelock address itself
         const addressArray = [timelockAddress, timelockContract.address];
         for (let j = 0; j < addressArray.length; j++) {
-            const storagePositionRole = ethers.utils.solidityKeccak256(['uint256', 'uint256'], [addressArray[j], storagePosition]);
+            const storagePositionRole = ethers.solidityPackedKeccak256(['uint256', 'uint256'], [addressArray[j], storagePosition]);
             const valueRole = await ethers.provider.getStorageAt(timelockContract.address, storagePositionRole);
             if (valueRole !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
                 timelockInfo.storage[storagePositionRole] = valueRole;
             }
         }
-        const roleAdminSlot = ethers.utils.hexZeroPad((ethers.BigNumber.from(storagePosition).add(1)).toHexString(), 32);
+        const roleAdminSlot = ethers.hexZeroPad((ethers.BigNumber.from(storagePosition).add(1)).toHexString(), 32);
         const valueRoleAdminSlot = await ethers.provider.getStorageAt(timelockContract.address, roleAdminSlot);
         if (valueRoleAdminSlot !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
             timelockInfo.storage[roleAdminSlot] = valueRoleAdminSlot;
@@ -326,7 +326,7 @@ async function getAddressInfo(address) {
     for (let i = 0; i < 120; i++) {
         const storageValue = await ethers.provider.getStorageAt(address, i);
         if (storageValue !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-            storage[ethers.utils.hexZeroPad(ethers.utils.hexlify(i), 32)] = storageValue;
+            storage[ethers.hexZeroPad(ethers.hexlify(i), 32)] = storageValue;
         }
     }
 
