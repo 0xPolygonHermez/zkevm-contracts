@@ -10,7 +10,11 @@ import {
     PolygonZkEVMV2,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
-import {processorUtils} from "@0xpolygonhermez/zkevm-commonjs";
+import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
+const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
+
+const MerkleTreeBridge = MTBridge;
+const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
 
 describe("Polygon ZK-EVM TestnetV2", () => {
     let deployer;
@@ -358,17 +362,13 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             .withArgs(newCreatedRollupID, newSequencedBatch);
 
         // Assert new rollup created
+        const timestampCreatedRollup = (await ethers.provider.getBlock("latest"))?.timestamp;
         expect(await newZkEVMContract.admin()).to.be.equal(admin.address);
         expect(await newZkEVMContract.trustedSequencer()).to.be.equal(trustedSequencer.address);
         expect(await newZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
         expect(await newZkEVMContract.networkName()).to.be.equal(networkName);
         expect(await newZkEVMContract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
-        expect(await newZkEVMContract.lastTimestamp()).to.be.equal(
-            (await ethers.provider.getBlock("latest"))?.timestamp
-        );
-
-        // calcualte accINputHash
-        expect(await newZkEVMContract.lastAccInputHash()).to.be.equal(FORCE_BATCH_TIMEOUT);
+        expect(await newZkEVMContract.lastTimestamp()).to.be.equal(timestampCreatedRollup);
 
         // Cannot create 2 chains with the same chainID
         await expect(
@@ -410,6 +410,40 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(tx.gasLimit).to.be.equal(30000000);
         expect(tx.nonce).to.be.equal(0);
         expect(tx.chainId).to.be.equal(0);
+
+        const expectedAccInputHash = calculateAccInputHash(
+            ethers.ZeroHash,
+            ethers.keccak256(transaction),
+            ethers.ZeroHash,
+            timestampCreatedRollup,
+            trustedSequencer.address
+        );
+        // calcualte accINputHash
+        expect(await newZkEVMContract.lastAccInputHash()).to.be.equal(expectedAccInputHash);
+
+        // Check mapping on rollup Manager
+        const rollupData = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        expect(rollupData.rollupContract).to.be.equal(newZKEVMAddress);
+        expect(rollupData.chainID).to.be.equal(chainID);
+        expect(rollupData.verifier).to.be.equal(verifierContract.target);
+        expect(rollupData.forkID).to.be.equal(forkID);
+        expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
+        expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
+        expect(rollupData.lastVerifiedBatch).to.be.equal(0);
+        expect(rollupData.lastPendingState).to.be.equal(0);
+        expect(rollupData.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
+        expect(rollupData.rollupTypeID).to.be.equal(1);
+        expect(rollupData.rollupCompatibilityID).to.be.equal(0);
+
+        const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
+            newCreatedRollupID,
+            newSequencedBatch
+        );
+
+        expect(sequencedBatchData.accInputHash).to.be.equal(expectedAccInputHash);
+        expect(sequencedBatchData.sequencedTimestamp).to.be.equal(timestampCreatedRollup);
+        expect(sequencedBatchData.previousLastBatchSequenced).to.be.equal(0);
     });
 
     it("Should test obsolete rollup", async () => {
@@ -494,5 +528,35 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         await expect(
             rollupManagerContract.connect(admin).obsoleteRollupType(newRollupTypeID)
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeObsolete");
+    });
+
+    it("Should test global exit root", async () => {
+        const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
+        const genesisRandom2 = "0x0000000000000000000000000000000000000000000000000000000000000001";
+
+        // In order to create a new rollup type, create an implementation of the contract
+
+        async function testRollupExitRoot(rollupsRootsArray: any) {
+            const height = 32;
+            const merkleTree = new MerkleTreeBridge(height);
+
+            await rollupManagerContract.prepareMockCalculateRoot(rollupsRootsArray);
+            for (let i = 0; i < rollupsRootsArray.length; i++) {
+                merkleTree.add(rollupsRootsArray[i]);
+            }
+            const rootSC = await rollupManagerContract.getRollupExitRoot();
+            const rootJS = merkleTree.getRoot();
+            console.log(rootSC, rootJS);
+            expect(rootSC).to.be.equal(rootJS);
+        }
+
+        for (let i = 1; i < 100; i++) {
+            const newRootsArray = [];
+            for (let j = 0; j < i; j++) {
+                newRootsArray.push(ethers.toBeHex(ethers.toQuantity(ethers.randomBytes(32)), 32));
+            }
+            console.log(newRootsArray);
+            await testRollupExitRoot(newRootsArray);
+        }
     });
 });
