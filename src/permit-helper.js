@@ -43,8 +43,8 @@ async function createPermitSignature(tokenContractInstance, wallet, spenderAddre
     };
 
     const rawSignature = await wallet._signTypedData(domain, types, values);
-    const signature = ethers.utils.splitSignature(rawSignature);
-    const recoveredAddressTyped = ethers.utils.verifyTypedData(domain, types, values, rawSignature);
+    const signature = ethers.splitSignature(rawSignature);
+    const recoveredAddressTyped = ethers.verifyTypedData(domain, types, values, rawSignature);
     expect(recoveredAddressTyped).to.be.equal(wallet.address);
 
     return signature;
@@ -94,8 +94,8 @@ async function createPermitSignatureDaiType(tokenContractInstance, wallet, spend
     };
 
     const rawSignature = await wallet._signTypedData(domain, types, values);
-    const signature = ethers.utils.splitSignature(rawSignature);
-    const recoveredAddressTyped = ethers.utils.verifyTypedData(domain, types, values, rawSignature);
+    const signature = ethers.splitSignature(rawSignature);
+    const recoveredAddressTyped = ethers.verifyTypedData(domain, types, values, rawSignature);
 
     expect(recoveredAddressTyped).to.be.equal(wallet.address);
 
@@ -144,8 +144,8 @@ async function createPermitSignatureUniType(tokenContractInstance, wallet, spend
     };
 
     const rawSignature = await wallet._signTypedData(domain, types, values);
-    const signature = ethers.utils.splitSignature(rawSignature);
-    const recoveredAddressTyped = ethers.utils.verifyTypedData(domain, types, values, rawSignature);
+    const signature = ethers.splitSignature(rawSignature);
+    const recoveredAddressTyped = ethers.verifyTypedData(domain, types, values, rawSignature);
     expect(recoveredAddressTyped).to.be.equal(wallet.address);
 
     return signature;
@@ -154,12 +154,12 @@ async function createPermitSignatureUniType(tokenContractInstance, wallet, spend
 /**
  * Permit interface
  */
-const ifacePermit = new ethers.utils.Interface(['function permit(address,address,uint256,uint256,uint8,bytes32,bytes32)']);
+const ifacePermit = new ethers.Interface(['function permit(address,address,uint256,uint256,uint8,bytes32,bytes32)']);
 
 /**
  * Permit interface DAI
  */
-const ifacePermitDAI = new ethers.utils.Interface(['function permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)']);
+const ifacePermitDAI = new ethers.Interface(['function permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)']);
 
 module.exports = {
     createPermitSignature,

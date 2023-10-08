@@ -77,7 +77,7 @@ async function main() {
         }
 
         // Use timelock
-        const salt = upgradeParameters.timelockSalt || ethers.constants.HashZero;
+        const salt = upgradeParameters.timelockSalt || ethers.HashZero;
 
         let operation;
         if (upgrade.callAfterUpgrade) {
@@ -95,7 +95,7 @@ async function main() {
                         ),
                     ],
                 ),
-                ethers.constants.HashZero, // predecesoor
+                ethers.HashZero, // predecesoor
                 salt, // salt
             );
         } else {
@@ -107,7 +107,7 @@ async function main() {
                     [proxyPolygonAddress,
                         newImplPolygonAddress],
                 ),
-                ethers.constants.HashZero, // predecesoor
+                ethers.HashZero, // predecesoor
                 salt, // salt
             );
         }
@@ -160,7 +160,7 @@ main()
 
 // OZ test functions
 function genOperation(target, value, data, predecessor, salt) {
-    const id = ethers.utils.solidityKeccak256([
+    const id = ethers.solidityPackedKeccak256([
         'address',
         'uint256',
         'bytes',

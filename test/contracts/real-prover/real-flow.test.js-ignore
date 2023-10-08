@@ -27,7 +27,7 @@ describe('Real flow test', () => {
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.parseEther('20000000');
 
     const genesisRoot = inputJson.oldStateRoot;
 
@@ -54,7 +54,7 @@ describe('Real flow test', () => {
         trustedSequencer = await ethers.getSigner(trustedSequencerAddress);
         await deployer.sendTransaction({
             to: trustedSequencerAddress,
-            value: ethers.utils.parseEther('4'),
+            value: ethers.parseEther('4'),
         });
 
         // deploy mock verifier
@@ -85,8 +85,8 @@ describe('Real flow test', () => {
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
         const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
 
-        const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
-        const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        const precalculateBridgeAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
+        const precalculateZkevmAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
         firstDeployment = false;
 
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootMock');
@@ -134,7 +134,7 @@ describe('Real flow test', () => {
         );
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('1000'));
+        await maticTokenContract.transfer(trustedSequencer.address, ethers.parseEther('1000'));
     });
 
     it('Test real prover', async () => {
@@ -188,12 +188,12 @@ describe('Real flow test', () => {
                 trustedSequencer = await ethers.getSigner(trustedSequencerAddress);
                 await deployer.sendTransaction({
                     to: trustedSequencerAddress,
-                    value: ethers.utils.parseEther('4'),
+                    value: ethers.parseEther('4'),
                 });
                 await expect(
                     maticTokenContract.connect(trustedSequencer).approve(polygonZkEVMContract.address, maticAmount.mul(batchesNum)),
                 ).to.emit(maticTokenContract, 'Approval');
-                await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('100'));
+                await maticTokenContract.transfer(trustedSequencer.address, ethers.parseEther('100'));
             }
 
             // Sequence Batches
@@ -210,7 +210,7 @@ describe('Real flow test', () => {
         const aggregator = await ethers.getSigner(aggregatorAddress);
         await deployer.sendTransaction({
             to: aggregatorAddress,
-            value: ethers.utils.parseEther('4'),
+            value: ethers.parseEther('4'),
         });
         await polygonZkEVMContract.connect(admin).setTrustedAggregator(aggregatorAddress);
 

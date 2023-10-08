@@ -19,8 +19,8 @@ async function main() {
             if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
                 console.log(`Hardcoded gas used: MaxPriority${deployParameters.maxPriorityFeePerGas} gwei, MaxFee${deployParameters.maxFeePerGas} gwei`);
                 const FEE_DATA = {
-                    maxFeePerGas: ethers.utils.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
-                    maxPriorityFeePerGas: ethers.utils.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
+                    maxFeePerGas: ethers.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
+                    maxPriorityFeePerGas: ethers.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
                 };
                 currentProvider.getFeeData = async () => FEE_DATA;
             } else {
@@ -58,7 +58,7 @@ async function main() {
 
     // Deploy PolygonZkEVMDeployer if is not deployed already using keyless deployment
     const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(initialZkEVMDeployerOwner, deployer);
-    if (keylessDeployer === ethers.constants.AddressZero) {
+    if (keylessDeployer === ethers.ZeroAddress) {
         console.log('#######################\n');
         console.log('polygonZkEVMDeployer already deployed on: ', zkEVMDeployerContract.address);
     } else {

@@ -3,21 +3,18 @@
 pragma solidity 0.8.20;
 
 import "./interfaces/IPolygonRollupManager.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "../interfaces/IPolygonZkEVMBridge.sol";
 import "./interfaces/IPolygonRollupBase.sol";
 import "../lib/EmergencyManager.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "./lib/PolygonTransparentProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
 import "./consensus/zkEVM/PolygonZkEVMV2Upgraded.sol";
 
 // review check contract slots!
-// Update OZ libs, new transaparent proxy is cheaper, but admin immutable
+// review Update OZ libs, new transaparent proxy is cheaper, but admin immutable
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */
@@ -333,6 +330,7 @@ contract PolygonRollupManager is
         address verifier,
         uint64 forkID,
         bytes32 genesis,
+        uint8 rollupCompatibilityID,
         string description
     );
 
@@ -600,6 +598,7 @@ contract PolygonRollupManager is
             address(verifier),
             forkID,
             genesis,
+            rollupCompatibilityID,
             description
         );
     }
@@ -668,21 +667,10 @@ contract PolygonRollupManager is
         // Consensus will be the implementation, and this contract the admin
         uint32 rollupID = ++rollupCount;
         address rollupAddress = address(
-            new TransparentUpgradeableProxy(
+            new PolygonTransparentProxy(
                 rollupType.consensusImplementation,
                 address(this),
-                abi.encodeCall(
-                    IPolygonRollupBase.initialize,
-                    (
-                        admin,
-                        trustedSequencer,
-                        rollupID,
-                        gasTokenAddress,
-                        gasTokenNetwork,
-                        trustedSequencerURL,
-                        networkName
-                    )
-                )
+                new bytes(0)
             )
         );
 
@@ -703,6 +691,17 @@ contract PolygonRollupManager is
         rollup.rollupCompatibilityID = rollupType.rollupCompatibilityID;
 
         emit CreateNewRollup(rollupID, rollupTypeID, rollupAddress, chainID);
+
+        // Initialize new rollup
+        IPolygonRollupBase(rollupAddress).initialize(
+            admin,
+            trustedSequencer,
+            rollupID,
+            gasTokenAddress,
+            gasTokenNetwork,
+            trustedSequencerURL,
+            networkName
+        );
     }
 
     /**
@@ -781,7 +780,8 @@ contract PolygonRollupManager is
 
     //review, should check that there are not sequenced batches pending to be verified?¿?
     //this way no one can break the virtual state, ( but maybe is worth to break it)
-
+    // Also upgrade address can send `upgradeData` to the proxy, being able to call `onVerifyBathes` maliciously
+    // To avoid attacks, should data be empty, or should check that does not call `onVerifyBatches`
     /**
      * @notice Upgrade an existing rollup
      * @param rollupContract Rollup consensus proxy address
@@ -789,7 +789,7 @@ contract PolygonRollupManager is
      * @param upgradeData Upgrade data
      */
     function updateRollup(
-        TransparentUpgradeableProxy rollupContract,
+        ITransparentUpgradeableProxy rollupContract,
         uint32 newRollupTypeID,
         bytes calldata upgradeData
     ) external onlyRole(_UPDATE_ROLLUP_ROLE) {
@@ -831,11 +831,11 @@ contract PolygonRollupManager is
         rollup.rollupTypeID = newRollupTypeID;
         rollup.lastVerifiedBatchBeforeUpgrade = getLastVerifiedBatch(rollupID);
 
-        // Upgrade rollup if the consensus implementation it's different
-        address newConsensusAddress = newRollupType.consensusImplementation;
-        if (rollupContract.implementation() != newConsensusAddress) {
-            rollupContract.upgradeToAndCall(newConsensusAddress, upgradeData);
-        }
+        // Upgrade rollup
+        rollupContract.upgradeToAndCall(
+            newRollupType.consensusImplementation,
+            upgradeData
+        );
 
         emit UpdateRollup(
             rollupID,

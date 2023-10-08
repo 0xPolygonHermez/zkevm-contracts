@@ -17,8 +17,8 @@ async function main() {
             if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
                 console.log(`Hardcoded gas used: MaxPriority${deployParameters.maxPriorityFeePerGas} gwei, MaxFee${deployParameters.maxFeePerGas} gwei`);
                 const FEE_DATA = {
-                    maxFeePerGas: ethers.utils.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
-                    maxPriorityFeePerGas: ethers.utils.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
+                    maxFeePerGas: ethers.parseUnits(deployParameters.maxFeePerGas, 'gwei'),
+                    maxPriorityFeePerGas: ethers.parseUnits(deployParameters.maxPriorityFeePerGas, 'gwei'),
                 };
                 currentProvider.getFeeData = async () => FEE_DATA;
             } else {
@@ -69,7 +69,7 @@ async function main() {
      */
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.parseEther('20000000');
 
     const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock', deployer);
     const maticTokenContract = await maticTokenFactory.deploy(
@@ -85,7 +85,7 @@ async function main() {
 
     // fund sequencer account with tokens and ether if it have less than 0.1 ether.
     const balanceEther = await ethers.provider.getBalance(trustedSequencer);
-    const minEtherBalance = ethers.utils.parseEther('0.1');
+    const minEtherBalance = ethers.parseEther('0.1');
     if (balanceEther < minEtherBalance) {
         const params = {
             to: trustedSequencer,
@@ -93,7 +93,7 @@ async function main() {
         };
         await deployer.sendTransaction(params);
     }
-    const tokensBalance = ethers.utils.parseEther('100000');
+    const tokensBalance = ethers.parseEther('100000');
     await (await maticTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
 
     // fund aggregator account with ether if it have less than 0.1 ether.
