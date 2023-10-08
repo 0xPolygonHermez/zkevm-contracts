@@ -102,7 +102,7 @@ contract PolygonRollupBase is
     // 1 nonce "0x80" + 1 gasPrice "0x80" + 5 gasLimit "0x8401c9c380" + 21 to "0x942a3dd3eb832af982ec71669e178424b10dca2ede"
     // + 1 value "0x80" + 1 stringLenLen "0xb8" (0xb7 + 1) + stringLen 1 "0x64" + 100 bytes data ( signature 4 bytes + 3parameters*32bytes) = 131 bytes  (0x83)
     bytes public constant BASE_INITIALIZE_TX_BRIDGE =
-        "0xf88380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b864";
+        hex"f88380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b864";
 
     // Signature used to initialize the bridge
 
@@ -807,9 +807,9 @@ contract PolygonRollupBase is
 
         bytes memory transaction = abi.encodePacked(
             bytesToSign,
-            SIGNATURE_INITIALIZE_TX_V,
             SIGNATURE_INITIALIZE_TX_R,
             SIGNATURE_INITIALIZE_TX_S,
+            SIGNATURE_INITIALIZE_TX_V,
             INITIALIZE_TX_EFFECTIVE_PERCENTAGE
         );
 

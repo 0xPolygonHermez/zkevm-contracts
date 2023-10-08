@@ -832,6 +832,7 @@ contract PolygonRollupManager is
         rollup.lastVerifiedBatchBeforeUpgrade = getLastVerifiedBatch(rollupID);
 
         // Upgrade rollup
+        // review could check previosu implementatio through rollup prev type and avoid upgrade
         rollupContract.upgradeToAndCall(
             newRollupType.consensusImplementation,
             upgradeData
