@@ -451,8 +451,8 @@ describe('PolygonZkEVMBridge Contract', () => {
         );
 
         // Add 2 leafs
-        merkleTreeRollup.add(leafValue);
-        merkleTreeRollup.add(leafValue);
+        merkleTreeRollup + (leafValue);
+        merkleTreeRollup + (leafValue);
 
         // check merkle root with SC
         const rootJSRollup = merkleTreeRollup.getRoot();
@@ -637,7 +637,7 @@ describe('PolygonZkEVMBridge Contract', () => {
         );
 
         expect(leafValueMainnet).to.be.equal(leafValueMainnetSC);
-        merkleTreeMainnet.add(leafValueMainnet);
+        merkleTreeMainnet + (leafValueMainnet);
         const rootJSMainnet = merkleTreeMainnet.getRoot();
 
         // Tokens are burnt
