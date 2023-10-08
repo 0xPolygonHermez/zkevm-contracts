@@ -33,6 +33,8 @@ contract PolygonZkEVMV2Upgraded is PolygonRollupBase {
     {}
 
     /**
+     * note This initializer will be called instead of the PolygonRollupBase
+     * This is a especial initializer since the zkEVM it's an already created network
      * @param _admin Admin address
      * @param _trustedSequencer Trusted sequencer address
      * @param _trustedSequencerURL Trusted sequencer URL

@@ -242,4 +242,9 @@ interface IPolygonRollupManager {
      * @dev When a rollup type does not exist
      */
     error BatchFeeOutOfRange();
+
+    /**
+     * @dev When a rollup type does not exist
+     */
+    error AllzkEVMSequencedBatchesMustBeVerified();
 }

@@ -131,13 +131,14 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
         for (uint256 i = 0; i < requiredAmountOfSignatures; i++) {
             uint256 currentSignatureStartingByte = i * _SIGNATURE_SIZE;
 
+            // Recover currnet signer from the signature
             address currentSigner = ECDSA.recover(
                 signedHash,
                 signaturesAndAddrs[currentSignatureStartingByte:currentSignatureStartingByte +
                     _SIGNATURE_SIZE]
             );
 
-            // Search inside the address array, the signer
+            // Search the recovered signer inside the address array
             bool currentSignerIsPartOfCommittee = false;
             for (uint256 j = lastAddrIndexUsed; j < addrsLen; j++) {
                 uint256 currentAddresStartingByte = splitByte + j * _ADDR_SIZE;
@@ -153,6 +154,9 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
                     break;
                 }
             }
+
+            // If an address is not on the comittee, or not enough required signatures are provided
+            // This verification reverts
             if (!currentSignerIsPartOfCommittee) {
                 revert CommitteeAddressDoesntExist();
             }
