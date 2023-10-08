@@ -722,7 +722,7 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
 
         // Get origin network from global index
         if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {
-            // It's mainnet, therefore origin network is 0
+            // It's mainnet, therefore sourceBridgeNetwork is 0
 
             // last 32 bits are leafIndex
             leafIndex = uint32(globalIndex);
@@ -771,20 +771,11 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
         uint32 leafIndex,
         uint32 sourceBridgeNetwork
     ) external view returns (bool) {
-        uint256 globalIndex;
+        // Since this is not a mainnet bridge, we can skip the previous nullifiers check (see PolygonZkEVMBridgeV2)
+        uint256 globalIndex = uint256(leafIndex) +
+            uint256(sourceBridgeNetwork) *
+            _MAX_LEAFS_PER_NETWORK;
 
-        // For consistency with the previous setted nullifiers
-        if (
-            networkID == _MAINNET_NETWORK_ID &&
-            sourceBridgeNetwork == _ZKEVM_NETWORK_ID
-        ) {
-            globalIndex = uint256(leafIndex);
-        } else {
-            globalIndex =
-                uint256(leafIndex) +
-                uint256(sourceBridgeNetwork) *
-                _MAX_LEAFS_PER_NETWORK;
-        }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
         uint256 mask = (1 << bitPos);
         return (claimedBitMap[wordPos] & mask) == mask;
@@ -799,20 +790,11 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
         uint32 leafIndex,
         uint32 sourceBridgeNetwork
     ) private {
-        uint256 globalIndex;
+        // Since this is not a mainnet bridge, we can skip the previous nullifiers check (see PolygonZkEVMBridgeV2)
+        uint256 globalIndex = uint256(leafIndex) +
+            uint256(sourceBridgeNetwork) *
+            _MAX_LEAFS_PER_NETWORK;
 
-        // For consistency with the previous setted nullifiers
-        if (
-            networkID == _MAINNET_NETWORK_ID &&
-            sourceBridgeNetwork == _ZKEVM_NETWORK_ID
-        ) {
-            globalIndex = uint256(leafIndex);
-        } else {
-            globalIndex =
-                uint256(leafIndex) +
-                uint256(sourceBridgeNetwork) *
-                _MAX_LEAFS_PER_NETWORK;
-        }
         (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
         uint256 mask = 1 << bitPos;
         uint256 flipped = claimedBitMap[wordPos] ^= mask;

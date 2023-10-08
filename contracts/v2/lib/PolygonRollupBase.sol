@@ -293,7 +293,7 @@ contract PolygonRollupBase is
 
         bytes32 currentTransactionsHash = keccak256(transaction);
 
-        // should be deterministic or easier deployment, TODO test 0
+        // should be deterministic for easier deployment, TODO test 0
         uint64 currentTimestamp = uint64(block.timestamp);
 
         bytes32 newAccInputHash = keccak256(

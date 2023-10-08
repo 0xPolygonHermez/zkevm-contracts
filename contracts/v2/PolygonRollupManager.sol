@@ -515,6 +515,7 @@ contract PolygonRollupManager is
         _setupRole(_SET_FEE_ROLE, admin);
 
         // Emergency council roles
+        _setRoleAdmin(_EMERGENCY_COUNCIL_ROLE, _EMERGENCY_COUNCIL_ADMIN);
         _setupRole(_EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
         _setupRole(_EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
 
@@ -530,7 +531,7 @@ contract PolygonRollupManager is
         uint64 zkEVMLastBatchSequenced = _legacylastBatchSequenced;
         uint64 zkEVMLastVerifiedBatch = _legacyLastVerifiedBatch;
         if (zkEVMLastBatchSequenced != zkEVMLastVerifiedBatch) {
-            revert();
+            revert AllzkEVMSequencedBatchesMustBeVerified();
         }
 
         // Copy variables from legacy
@@ -567,12 +568,12 @@ contract PolygonRollupManager is
     ///////////////////////////////////////////////
 
     /**
-     * @notice Add a new zkEVM type
-     * @param consensusImplementation new consensus implementation
-     * @param verifier new verifier address
+     * @notice Add a new rollup type
+     * @param consensusImplementation consensus implementation
+     * @param verifier verifier address
      * @param forkID forkID of the verifier
-     * @param genesis genesis block of the zkEVM
-     * @param description description of the zkEVM type
+     * @param genesis genesis block of the rollup
+     * @param description description of the rollup type
      */
     function addNewRollupType(
         address consensusImplementation,
@@ -607,7 +608,7 @@ contract PolygonRollupManager is
 
     /**
      * @notice Obsolete Rollup type
-     * @param rollupTypeID Consensus address to obsolete
+     * @param rollupTypeID Rollup type to obsolete
      */
     function obsoleteRollupType(
         uint32 rollupTypeID
@@ -631,7 +632,7 @@ contract PolygonRollupManager is
     /**
      * @notice Create a new rollup
      * @param rollupTypeID Rollup type to deploy
-     * @param chainID chainID
+     * @param chainID chainID of the rollup, must be a new one
      * @param admin admin of the new created rollup
      * @param trustedSequencer trusted sequencer of the new created rollup
      * @param gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
@@ -767,6 +768,7 @@ contract PolygonRollupManager is
         rollup.verifier = verifier;
         rollup.chainID = chainID;
         rollup.rollupCompatibilityID = rollupCompatibilityID;
+        // rollup type is 0, since it does not follow any rollup type
 
         emit AddExistingRollup(
             rollupID,
@@ -859,11 +861,11 @@ contract PolygonRollupManager is
             revert SenderMustBeRollup();
         }
 
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
-
         if (newSequencedBatches == 0) {
             revert MustSequenceSomeBatch();
         }
+
+        RollupData storage rollup = rollupIDToRollupData[rollupID];
 
         // Update total sequence parameters
         totalSequencedBatches += newSequencedBatches;
@@ -890,11 +892,13 @@ contract PolygonRollupManager is
 
     /**
      * @notice Allows an aggregator to verify multiple batches
+     * @param rollupID Rollup identifier
      * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
+     * @param beneficiary Address that will receive the verification reward
      * @param proof fflonk proof
      */
     function verifyBatches(
@@ -972,11 +976,13 @@ contract PolygonRollupManager is
 
     /**
      * @notice Allows an aggregator to verify multiple batches
+     * @param rollupID Rollup identifier
      * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot  New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
+     * @param beneficiary Address that will receive the verification reward
      * @param proof fflonk proof
      */
     function verifyBatchesTrustedAggregator(
@@ -1026,6 +1032,7 @@ contract PolygonRollupManager is
 
     /**
      * @notice Verify and reward batches internal function
+     * @param rollup Rollup Data struct that will be used to the verification
      * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
@@ -1224,6 +1231,7 @@ contract PolygonRollupManager is
     /**
      * @notice Allows the trusted aggregator to override the pending state
      * if it's possible to prove a different state root given the same batches
+     * @param rollupID Rollup identifier
      * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -1277,6 +1285,7 @@ contract PolygonRollupManager is
 
     /**
      * @notice Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
+     * @param rollupID Rollup identifier
      * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -1319,6 +1328,7 @@ contract PolygonRollupManager is
 
     /**
      * @notice Internal function that proves a different state root given the same batches to verify
+     * @param rollup Rollup Data struct that will be checked
      * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
      * @param initNumBatch Batch which the aggregator starts the verification
