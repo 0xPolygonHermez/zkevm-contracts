@@ -48,7 +48,6 @@ contract PolygonRollupManager is
      * @param forkID fork ID
      * @param rollupCompatibilityID Rollup compatibility ID, to check upgradability between rollup types
      * @param genesis Genesis block of the rollup, note that will only be used on creating new rollups, not upgrade them
-     * @param description Previous last batch sequenced before the current one, this is used to properly calculate the fees
      */
     struct RollupType {
         address consensusImplementation;
@@ -57,7 +56,6 @@ contract PolygonRollupManager is
         uint8 rollupCompatibilityID;
         bool obsolete;
         bytes32 genesis;
-        string description;
     }
 
     // review POssible optimization rto reduce bytecode, put maps on another struct or double mapping
@@ -330,7 +328,7 @@ contract PolygonRollupManager is
      * @dev Emitted when a new rollup type is added
      */
     event AddNewRollupType(
-        uint32 rollupTypeID,
+        uint32 indexed rollupTypeID,
         address consensusImplementation,
         address verifier,
         uint64 forkID,
@@ -347,7 +345,7 @@ contract PolygonRollupManager is
      * @dev Emitted when a new rollup is created based on a rollupType
      */
     event CreateNewRollup(
-        uint32 rollupID,
+        uint32 indexed rollupID,
         uint32 rollupTypeID,
         address rollupAddress,
         uint64 chainID
@@ -357,7 +355,7 @@ contract PolygonRollupManager is
      * @dev Emitted when an existing rollup is added
      */
     event AddExistingRollup(
-        uint32 rollupID,
+        uint32 indexed rollupID,
         uint64 forkID,
         address rollupAddress,
         uint64 chainID,
@@ -368,7 +366,7 @@ contract PolygonRollupManager is
      * @dev Emitted when a rollup is udpated
      */
     event UpdateRollup(
-        uint32 rollupID,
+        uint32 indexed rollupID,
         uint32 newRollupTypeID,
         uint64 lastVerifiedBatchBeforeUpgrade
     );
@@ -376,14 +374,14 @@ contract PolygonRollupManager is
     /**
      * @dev Emitted when a new verifier is added
      */
-    event OnSequenceBatches(uint32 rollupID, uint64 lastBatchSequenced);
+    event OnSequenceBatches(uint32 indexed rollupID, uint64 lastBatchSequenced);
 
     /**
      * @dev Emitted when a aggregator verifies batches
      */
     event VerifyBatches(
-        uint32 rollupID,
-        uint64 indexed numBatch,
+        uint32 indexed rollupID,
+        uint64 numBatch,
         bytes32 stateRoot,
         address indexed aggregator
     );
@@ -392,8 +390,8 @@ contract PolygonRollupManager is
      * @dev Emitted when a aggregator verifies batches
      */
     event VerifyBatchesTrustedAggregator(
-        uint32 rollupID,
-        uint64 indexed numBatch,
+        uint32 indexed rollupID,
+        uint64 numBatch,
         bytes32 stateRoot,
         address indexed aggregator
     );
@@ -402,10 +400,10 @@ contract PolygonRollupManager is
      * @dev Emitted when pending state is consolidated
      */
     event ConsolidatePendingState(
-        uint32 rollupID,
-        uint64 indexed numBatch,
+        uint32 indexed rollupID,
+        uint64 numBatch,
         bytes32 stateRoot,
-        uint64 indexed pendingStateNum
+        uint64 pendingStateNum
     );
 
     /**
@@ -420,9 +418,10 @@ contract PolygonRollupManager is
      * @dev Emitted when the trusted aggregator overrides pending state
      */
     event OverridePendingState(
-        uint64 indexed numBatch,
+        uint32 indexed rollupID,
+        uint64 numBatch,
         bytes32 stateRoot,
-        address indexed aggregator
+        address aggregator
     );
 
     /**
@@ -592,8 +591,7 @@ contract PolygonRollupManager is
             forkID: forkID,
             rollupCompatibilityID: rollupCompatibilityID,
             obsolete: false,
-            genesis: genesis,
-            description: description
+            genesis: genesis
         });
 
         emit AddNewRollupType(
@@ -1284,7 +1282,12 @@ contract PolygonRollupManager is
         // Update trusted aggregator timeout to max
         trustedAggregatorTimeout = _HALT_AGGREGATION_TIMEOUT;
 
-        emit OverridePendingState(finalNewBatch, newStateRoot, msg.sender);
+        emit OverridePendingState(
+            rollupID,
+            finalNewBatch,
+            newStateRoot,
+            msg.sender
+        );
     }
 
     /**
@@ -1812,10 +1815,9 @@ contract PolygonRollupManager is
         return currentBalance / totalBatchesToVerify;
     }
 
-    
     /**
      * @notice Get batch fee
-     * This function is used instad of the automatic public view one, 
+     * This function is used instad of the automatic public view one,
      * because in a future might change the behaviour and we will be able to mantain the interface
      */
     function getBatchFee() public view returns (uint256) {
