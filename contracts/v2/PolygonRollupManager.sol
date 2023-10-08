@@ -16,7 +16,7 @@ import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
 import "./consensus/zkEVM/PolygonZkEVMV2Upgraded.sol";
 
-// TODO check contract slots!
+// review check contract slots!
 // Update OZ libs, new transaparent proxy is cheaper, but admin immutable
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
@@ -709,12 +709,13 @@ contract PolygonRollupManager is
 
     /**
      * @notice Add an already deployed rollup
+     * note that this rollup does not follow any rollupType
      * @param rollupAddress rollup address
      * @param verifier verifier address, must be added before
-     * @param forkID chain id of the created rollup
-     * @param chainID chain id of the created rollup
-     * @param genesis chain id of the created rollup
-     * @param rollupCompatibilityID chain id of the created rollup
+     * @param forkID fork id of the added rollup
+     * @param chainID chain id of the added rollup
+     * @param genesis genesis block for this rollup
+     * @param rollupCompatibilityID compatibility ID for the added rollup
      */
     function addExistingRollup(
         IPolygonRollupBase rollupAddress,
@@ -741,11 +742,12 @@ contract PolygonRollupManager is
 
     /**
      * @notice Add an already deployed rollup
+     * note that this rollup does not follow any rollupType
      * @param rollupAddress rollup address
      * @param verifier verifier address, must be added before
-     * @param forkID chain id of the created rollup
-     * @param chainID chain id of the created rollup
-     * @param rollupCompatibilityID chain id of the created rollup
+     * @param forkID fork id of the added rollup
+     * @param chainID chain id of the added rollup
+     * @param rollupCompatibilityID compatibility ID for the added rollup
      */
     function _addExistingRollup(
         IPolygonRollupBase rollupAddress,
@@ -798,6 +800,7 @@ contract PolygonRollupManager is
             revert RollupTypeDoesNotExist();
         }
 
+        // check the rollup exists
         uint32 rollupID = rollupAddressToID[address(rollupContract)];
         if (rollupID == 0) {
             revert RollupMustExist();
@@ -805,6 +808,7 @@ contract PolygonRollupManager is
 
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
+        // The update must be to a new rollup type
         if (rollup.rollupTypeID == newRollupTypeID) {
             revert UpdateToSameRollupTypeID();
         }
@@ -1808,8 +1812,11 @@ contract PolygonRollupManager is
         return currentBalance / totalBatchesToVerify;
     }
 
+    
     /**
      * @notice Get batch fee
+     * This function is used instad of the automatic public view one, 
+     * because in a future might change the behaviour and we will be able to mantain the interface
      */
     function getBatchFee() public view returns (uint256) {
         return _batchFee;
