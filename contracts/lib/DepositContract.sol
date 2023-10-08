@@ -118,33 +118,6 @@ contract DepositContract is ReentrancyGuardUpgradeable {
     }
 
     /**
-     * @notice calcualte root from merkle proof
-     * @param leafHash Leaf hash
-     * @param smtProof Smt proof
-     * @param index Index of the leaf
-     */
-    function calculateRoot(
-        bytes32 leafHash,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
-        uint32 index
-    ) public pure returns (bytes32) {
-        bytes32 node = leafHash;
-
-        // Check merkle proof
-        for (
-            uint256 height = 0;
-            height < _DEPOSIT_CONTRACT_TREE_DEPTH;
-            height++
-        ) {
-            if (((index >> height) & 1) == 1)
-                node = keccak256(abi.encodePacked(smtProof[height], node));
-            else node = keccak256(abi.encodePacked(node, smtProof[height]));
-        }
-
-        return node;
-    }
-
-    /**
      * @notice Given the leaf data returns the leaf value
      * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
      * @param originNetwork Origin Network
