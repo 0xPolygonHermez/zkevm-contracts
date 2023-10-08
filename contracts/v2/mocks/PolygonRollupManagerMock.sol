@@ -64,4 +64,15 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         _setupRole(_EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
         _setupRole(_EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
     }
+
+    function prepareMockCalculateRoot(bytes32[] memory localExitRoots) public {
+        rollupCount = uint32(localExitRoots.length);
+
+        // Add local Exit roots;
+        for (uint256 i = 0; i < localExitRoots.length; i++) {
+            rollupIDToRollupData[uint32(i)].lastLocalExitRoot = localExitRoots[
+                i
+            ];
+        }
+    }
 }

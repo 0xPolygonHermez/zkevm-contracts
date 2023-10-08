@@ -1928,4 +1928,34 @@ contract PolygonRollupManager is
             return false;
         }
     }
+
+    /**
+     * @notice Get the last verified batch
+     */
+    function getRollupBatchNumToStateRoot(
+        uint32 rollupID,
+        uint64 batchNum
+    ) public view returns (bytes32) {
+        return rollupIDToRollupData[rollupID].batchNumToStateRoot[batchNum];
+    }
+
+    /**
+     * @notice Get the last verified batch
+     */
+    function getRollupSequencedBatches(
+        uint32 rollupID,
+        uint64 batchNum
+    ) public view returns (SequencedBatchData memory) {
+        return rollupIDToRollupData[rollupID].sequencedBatches[batchNum];
+    }
+
+    /**
+     * @notice Get the last verified batch
+     */
+    function getRollupPendingStateTransitions(
+        uint32 rollupID,
+        uint64 batchNum
+    ) public view returns (PendingState memory) {
+        return rollupIDToRollupData[rollupID].pendingStateTransitions[batchNum];
+    }
 }
