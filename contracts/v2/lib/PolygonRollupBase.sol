@@ -348,7 +348,7 @@ contract PolygonRollupBase is
     // Sequence/Verify batches functions
     ////////////////////////////////////
 
-    // TODO  add the hashed forced data aswell?¿
+    // TODO add the hashed forced data aswell?¿
 
     /**
      * @notice Allows a sequencer to send multiple batches
