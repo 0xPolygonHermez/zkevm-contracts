@@ -13,7 +13,7 @@ async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
     )).data;
 
     const gasLimit = ethers.BigNumber.from(1000000); // Put 1 Million, aprox 650k are necessary
-    const gasPrice = ethers.BigNumber.from(ethers.utils.parseUnits(gasPriceKeylessDeployment, 'gwei'));
+    const gasPrice = ethers.BigNumber.from(ethers.parseUnits(gasPriceKeylessDeployment, 'gwei'));
     const to = '0x'; // bc deployment transaction, "to" is "0x"
     const tx = {
         to,
@@ -29,16 +29,16 @@ async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
         r: '0x5ca1ab1e0', // Equals 0x00000000000000000000000000000000000000000000000000000005ca1ab1e0
         s: '0x5ca1ab1e', // Equals 0x000000000000000000000000000000000000000000000000000000005ca1ab1e
     };
-    const serializedTransaction = ethers.utils.serializeTransaction(tx, signature);
-    const resultTransaction = ethers.utils.parseTransaction(serializedTransaction);
+    const serializedTransaction = ethers.serializeTransaction(tx, signature);
+    const resultTransaction = ethers.parseTransaction(serializedTransaction);
     const totalEther = gasLimit.mul(gasPrice); // 0.1 ether
 
     // Check if it's already deployed
-    const zkEVMDeployerAddress = ethers.utils.getContractAddress(resultTransaction);
+    const zkEVMDeployerAddress = ethers.getContractAddress(resultTransaction);
     if (await signer.provider.getCode(zkEVMDeployerAddress) !== '0x') {
         const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress);
         expect(await zkEVMDeployerContract.owner()).to.be.equal(signer.address);
-        return [zkEVMDeployerContract, ethers.constants.AddressZero];
+        return [zkEVMDeployerContract, ethers.ZeroAddress];
     }
 
     // Fund keyless deployment
@@ -58,10 +58,10 @@ async function deployPolygonZkEVMDeployer(deployerAddress, signer) {
 
 async function create2Deployment(polgonZKEVMDeployerContract, salt, deployTransaction, dataCall, deployer, hardcodedGasLimit) {
     // Encode deploy transaction
-    const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransaction]);
+    const hashInitCode = ethers.solidityPackedKeccak256(['bytes'], [deployTransaction]);
 
     // Precalculate create2 address
-    const precalculatedAddressDeployed = ethers.utils.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
+    const precalculatedAddressDeployed = ethers.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
     const amount = 0;
 
     if (await deployer.provider.getCode(precalculatedAddressDeployed) !== '0x') {
@@ -101,10 +101,10 @@ async function create2Deployment(polgonZKEVMDeployerContract, salt, deployTransa
 
 function getCreate2Address(polgonZKEVMDeployerContract, salt, deployTransaction) {
     // Encode deploy transaction
-    const hashInitCode = ethers.utils.solidityKeccak256(['bytes'], [deployTransaction]);
+    const hashInitCode = ethers.solidityPackedKeccak256(['bytes'], [deployTransaction]);
 
     // Precalculate create2 address
-    return ethers.utils.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
+    return ethers.getCreate2Address(polgonZKEVMDeployerContract.address, salt, hashInitCode);
 }
 
 module.exports = {

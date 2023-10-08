@@ -99,7 +99,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
         const aggregator = await ethers.getSigner(aggregatorAddress);
         await randomSigner.sendTransaction({
             to: aggregatorAddress,
-            value: ethers.utils.parseEther('4'),
+            value: ethers.parseEther('4'),
         });
 
         // Compute SC input

@@ -18,3 +18,4 @@ deployments
 upgrade_parameters.json
 docker/gethData/
 *.ignore/
+typechain-types/
