@@ -54,6 +54,7 @@ module.exports = {
                         runs: 999999,
                     },
                 },
+
             },
             {
                 version: '0.5.16',
@@ -73,6 +74,17 @@ module.exports = {
                         enabled: true,
                         runs: 99,
                     },
+                    evmVersion: "shanghai",
+                },// try yul optimizer
+            },
+            "contracts/v2/L2/PolygonZkEVMBridgeL2.sol": {
+                version: '0.8.20',
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 9999,
+                    },
+                    evmVersion: "shanghai",
                 },
             }
         }
