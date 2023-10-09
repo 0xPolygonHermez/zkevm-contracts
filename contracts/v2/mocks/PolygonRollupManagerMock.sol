@@ -73,9 +73,8 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
 
         // Add local Exit roots;
         for (uint256 i = 0; i < localExitRoots.length; i++) {
-            rollupIDToRollupData[uint32(i)].lastLocalExitRoot = localExitRoots[
-                i
-            ];
+            rollupIDToRollupData[uint32(i + 1)]
+                .lastLocalExitRoot = localExitRoots[i];
         }
     }
 }
