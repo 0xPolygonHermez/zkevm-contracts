@@ -18,14 +18,13 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
     ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}
 
     function initializeMock(
-        address _trustedAggregator,
+        address trustedAggregator,
         uint64 _pendingStateTimeout,
         uint64 _trustedAggregatorTimeout,
         address admin,
         address timelock,
         address emergencyCouncil
     ) external initializer {
-        trustedAggregator = _trustedAggregator;
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
@@ -38,6 +37,9 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         __AccessControl_init();
 
         // setup roles
+
+        // trusted aggregator role
+        _setupRole(_TRUSTED_AGGREGATOR_ROLE, trustedAggregator);
 
         // Timelock roles
         _setupRole(DEFAULT_ADMIN_ROLE, timelock);
@@ -53,8 +55,9 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         _setupRole(_OBSOLETE_ROLLUP_TYPE_ROLE, admin);
         _setupRole(_CREATE_ROLLUP_ROLE, admin);
         _setupRole(_STOP_EMERGENCY_ROLE, admin);
-        _setupRole(_TRUSTED_AGGREGATOR_ROLE, admin);
         _setupRole(_TWEAK_PARAMETERS_ROLE, admin);
+        _setRoleAdmin(_TRUSTED_AGGREGATOR_ROLE, _TRUSTED_AGGREGATOR_ROLE_ADMIN);
+        _setupRole(_TRUSTED_AGGREGATOR_ROLE_ADMIN, admin);
 
         // review Could be another address?¿
         _setupRole(_SET_FEE_ROLE, admin);
