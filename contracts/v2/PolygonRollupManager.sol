@@ -1692,7 +1692,7 @@ contract PolygonRollupManager is
 
         // In the first iteration the nodes will be the leafs which are the local exit roots of each network
         for (uint256 i = 0; i < currentNodes; i++) {
-            tmpTree[i] = rollupIDToRollupData[uint32(i)].lastLocalExitRoot;
+            tmpTree[i] = rollupIDToRollupData[uint32(i + 1)].lastLocalExitRoot;
         }
 
         // This variable will keep track of the zero hashes
