@@ -11,10 +11,12 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./lib/PolygonTransparentProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "../interfaces/IVerifierRollup.sol";
-import "./consensus/zkEVM/PolygonZkEVMV2Upgraded.sol";
+import "./consensus/zkEVM/PolygonZkEVMV2Existent.sol";
 
 // review check contract slots!
 // review Update OZ libs, new transaparent proxy is cheaper, but admin immutable
+
+// legacy storage slots base
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */
@@ -347,7 +349,9 @@ contract PolygonRollupManager is
         uint32 indexed rollupID,
         uint32 rollupTypeID,
         address rollupAddress,
-        uint64 chainID
+        uint64 chainID,
+        address gasTokenAddress,
+        uint32 gasTokenNetwork
     );
 
     /**
@@ -382,6 +386,7 @@ contract PolygonRollupManager is
         uint32 indexed rollupID,
         uint64 numBatch,
         bytes32 stateRoot,
+        bytes32 exitRoot,
         address indexed aggregator
     );
 
@@ -392,6 +397,7 @@ contract PolygonRollupManager is
         uint32 indexed rollupID,
         uint64 numBatch,
         bytes32 stateRoot,
+        bytes32 exitRoot,
         address indexed aggregator
     );
 
@@ -402,6 +408,7 @@ contract PolygonRollupManager is
         uint32 indexed rollupID,
         uint64 numBatch,
         bytes32 stateRoot,
+        bytes32 exitRoot,
         uint64 pendingStateNum
     );
 
@@ -420,6 +427,7 @@ contract PolygonRollupManager is
         uint32 indexed rollupID,
         uint64 numBatch,
         bytes32 stateRoot,
+        bytes32 exitRoot,
         address aggregator
     );
 
@@ -475,7 +483,7 @@ contract PolygonRollupManager is
         address admin,
         address timelock,
         address emergencyCouncil,
-        PolygonZkEVMV2Upgraded polygonZkEVM,
+        PolygonZkEVMV2Existent polygonZkEVM,
         IVerifierRollup zkEVMVerifier
     ) external initializer {
         pendingStateTimeout = _pendingStateTimeout;
@@ -635,20 +643,20 @@ contract PolygonRollupManager is
      * @param rollupTypeID Rollup type to deploy
      * @param chainID chainID of the rollup, must be a new one
      * @param admin admin of the new created rollup
-     * @param trustedSequencer trusted sequencer of the new created rollup
+     * @param sequencer sequencer of the new created rollup
      * @param gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
      * @param gasTokenNetwork Indicates the native network of the token address
-     * @param trustedSequencerURL trusted sequencer URL of the new created rollup
+     * @param sequencerURL sequencer URL of the new created rollup
      * @param networkName network name of the new created rollup
      */
     function createNewRollup(
         uint32 rollupTypeID,
         uint64 chainID,
         address admin,
-        address trustedSequencer,
+        address sequencer,
         address gasTokenAddress,
         uint32 gasTokenNetwork,
-        string memory trustedSequencerURL,
+        string memory sequencerURL,
         string memory networkName
     ) external onlyRole(_CREATE_ROLLUP_ROLE) {
         // Check that rollup type exists
@@ -694,16 +702,23 @@ contract PolygonRollupManager is
         rollup.rollupTypeID = rollupTypeID;
         rollup.rollupCompatibilityID = rollupType.rollupCompatibilityID;
 
-        emit CreateNewRollup(rollupID, rollupTypeID, rollupAddress, chainID);
+        emit CreateNewRollup(
+            rollupID,
+            rollupTypeID,
+            rollupAddress,
+            chainID,
+            gasTokenAddress,
+            gasTokenNetwork
+        );
 
         // Initialize new rollup
         IPolygonRollupBase(rollupAddress).initialize(
             admin,
-            trustedSequencer,
+            sequencer,
             rollupID,
             gasTokenAddress,
             gasTokenNetwork,
-            trustedSequencerURL,
+            sequencerURL,
             networkName
         );
     }
@@ -978,7 +993,13 @@ contract PolygonRollupManager is
             });
         }
 
-        emit VerifyBatches(rollupID, finalNewBatch, newStateRoot, msg.sender);
+        emit VerifyBatches(
+            rollupID,
+            finalNewBatch,
+            newStateRoot,
+            newLocalExitRoot,
+            msg.sender
+        );
     }
 
     /**
@@ -1033,6 +1054,7 @@ contract PolygonRollupManager is
             rollupID,
             finalNewBatch,
             newStateRoot,
+            newLocalExitRoot,
             msg.sender
         );
     }
@@ -1227,6 +1249,7 @@ contract PolygonRollupManager is
             rollupAddressToID[address(rollup.rollupContract)],
             newLastVerifiedBatch,
             currentPendingState.stateRoot,
+            currentPendingState.exitRoot,
             pendingStateNum
         );
     }
@@ -1291,6 +1314,7 @@ contract PolygonRollupManager is
             rollupID,
             finalNewBatch,
             newStateRoot,
+            newLocalExitRoot,
             msg.sender
         );
     }

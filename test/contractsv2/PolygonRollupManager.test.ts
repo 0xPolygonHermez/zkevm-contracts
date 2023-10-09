@@ -375,7 +375,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 )
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
-            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID)
+            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress, gasTokenNetwork)
             .to.emit(newZkEVMContract, "SequenceBatches")
             .withArgs(newSequencedBatch)
             .to.emit(rollupManagerContract, "OnSequenceBatches")
@@ -611,7 +611,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 )
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
-            .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, trustedAggregator.address)
+            .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
             .withArgs(ethers.ZeroHash, rootRollups);
 

@@ -5,11 +5,11 @@ pragma solidity 0.8.20;
 interface IPolygonRollupBase {
     function initialize(
         address _admin,
-        address _trustedSequencer,
+        address sequencer,
         uint32 networkID,
         address gasTokenAddress,
         uint32 gasTokenNetwork,
-        string memory _trustedSequencerURL,
+        string memory sequencerURL,
         string memory _networkName
     ) external;
 

@@ -41,9 +41,6 @@ contract PolygonZkEVMBridgeV2 is
     // ZkEVM identifier
     uint32 private constant _ZKEVM_NETWORK_ID = 1;
 
-    // Number of networks supported by the bridge
-    uint32 private constant _CURRENT_SUPPORTED_NETWORKS = 2;
-
     // Leaf type asset
     uint8 private constant _LEAF_TYPE_ASSET = 0;
 

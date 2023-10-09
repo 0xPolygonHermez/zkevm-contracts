@@ -40,9 +40,6 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
     // ZkEVM identifier
     uint32 private constant _ZKEVM_NETWORK_ID = 1;
 
-    // Number of networks supported by the bridge
-    uint32 private constant _CURRENT_SUPPORTED_NETWORKS = 2;
-
     // Leaf type asset
     uint8 private constant _LEAF_TYPE_ASSET = 0;
 
@@ -87,10 +84,10 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
 
     /**
      * @param _networkID networkID
-     * @param _gasTokenAddress networkID
-     * @param _gasTokenNetwork networkID
-     * @notice The value of `_polygonZkEVMaddress` on the L2 deployment of the contract will be address(0), so
-     * emergency state is not possible for the L2 deployment of the bridge, intentionally
+     * @param _gasTokenAddress gas token address
+     * @param _gasTokenNetwork gas token network
+     * @notice This function will be called in the first batch of the zkEVM, the inicialize transaction
+     * must be sequenced by the consensus smart contract
      */
     function initialize(
         uint32 _networkID,
