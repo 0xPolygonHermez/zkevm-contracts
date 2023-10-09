@@ -11,7 +11,7 @@ import "../../lib/PolygonRollupBase.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonZkEVMV2Upgraded is PolygonRollupBase {
+contract PolygonZkEVMV2Existent is PolygonRollupBase {
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol POL token address
@@ -62,5 +62,7 @@ contract PolygonZkEVMV2Upgraded is PolygonRollupBase {
 
         // Constant deployment variables
         forceBatchTimeout = 5 days;
+
+        // Both gasTokenAddress and gasTokenNetwork are 0, since it uses ether
     }
 }

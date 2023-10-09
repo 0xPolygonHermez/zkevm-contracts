@@ -17,4 +17,9 @@ interface IPolygonZkEVMV2Errors {
      * @dev Thrown when the caller is not the trusted sequencer
      */
     error InvalidInitializeTransaction();
+
+    /**
+     * @dev Thrown when the caller is not the trusted sequencer
+     */
+    error GasTokenNetworkMustBeZeroOnEther();
 }

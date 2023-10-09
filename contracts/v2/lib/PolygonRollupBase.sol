@@ -172,6 +172,12 @@ contract PolygonRollupBase is
     // Indicates if forced batches are allowed
     bool public isForcedBatchAllowed;
 
+    // Token address that will be used to pay gas fees in this rollup. This variable it's just for read purposes
+    address public gasTokenAddress;
+
+    // Native network of the token address of the gas tokena address. This variable it's just for read purposes
+    uint32 public gasTokenNetwork;
+
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
@@ -260,40 +266,54 @@ contract PolygonRollupBase is
 
     /**
      * @param _admin Admin address
-     * @param _trustedSequencer Trusted sequencer address
-     * @param _trustedSequencerURL Trusted sequencer URL
+     * @param sequencer Trusted sequencer address
+     * @param networkID Indicates the network identifier that will be used in the bridge
+     * @param _gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
+     * @param _gasTokenNetwork Indicates the native network of the token address
+     * @param sequencerURL Trusted sequencer URL
      * @param _networkName L2 network name
      */
     function initialize(
         address _admin,
-        address _trustedSequencer,
+        address sequencer,
         uint32 networkID,
-        address gasTokenAddress,
-        uint32 gasTokenNetwork,
-        string memory _trustedSequencerURL,
+        address _gasTokenAddress,
+        uint32 _gasTokenNetwork,
+        string memory sequencerURL,
         string memory _networkName
     ) external virtual onlyRollupManager initializer {
         admin = _admin;
-        trustedSequencer = _trustedSequencer;
+        trustedSequencer = sequencer;
 
-        trustedSequencerURL = _trustedSequencerURL;
+        trustedSequencerURL = sequencerURL;
         networkName = _networkName;
 
         // Constant deployment variables
         forceBatchTimeout = 5 days;
+
+        if (_gasTokenAddress == address(0)) {
+            // gas token will be ether
+            if (_gasTokenNetwork != 0) {
+                revert GasTokenNetworkMustBeZeroOnEther();
+            }
+        }
+
+        // set gas token variables
+        gasTokenAddress = _gasTokenAddress;
+        gasTokenNetwork = _gasTokenNetwork;
 
         // Sequence transaction to initilize the bridge
 
         // Calculate transaction to initialize the bridge
         bytes memory transaction = generateInitializeTransaction(
             networkID,
-            gasTokenAddress,
-            gasTokenNetwork
+            _gasTokenAddress,
+            _gasTokenNetwork
         );
 
         bytes32 currentTransactionsHash = keccak256(transaction);
 
-        // should be deterministic for easier deployment, TODO test 0
+        // should be deterministic for easier deployment
         uint64 currentTimestamp = uint64(block.timestamp);
 
         bytes32 newAccInputHash = keccak256(
@@ -302,7 +322,7 @@ contract PolygonRollupBase is
                 currentTransactionsHash,
                 bytes32(0), // Global exit root
                 currentTimestamp,
-                trustedSequencer
+                sequencer
             )
         );
         lastTimestamp = currentTimestamp;
@@ -313,6 +333,7 @@ contract PolygonRollupBase is
             newAccInputHash
         );
 
+        // review initialize events?¿
         emit SequenceBatches(currentBatchSequenced);
     }
 
@@ -780,15 +801,15 @@ contract PolygonRollupBase is
      */
     function generateInitializeTransaction(
         uint32 networkID,
-        address gasTokenAddress,
-        uint32 gasTokenNetwork
+        address _gasTokenAddress,
+        uint32 _gasTokenNetwork
     ) public pure returns (bytes memory) {
         // Check the ecrecover, as a sanity check, to not allow invalid transactions
         bytes memory bytesToSign = abi.encodePacked(
             BASE_INITIALIZE_TX_BRIDGE,
             abi.encodeCall(
                 PolygonZkEVMBridgeL2.initialize,
-                (networkID, gasTokenAddress, gasTokenNetwork)
+                (networkID, _gasTokenAddress, _gasTokenNetwork)
             )
         );
 
