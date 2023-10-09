@@ -152,9 +152,13 @@ contract PolygonRollupManager is
     bytes32 internal constant _UPDATE_ROLLUP_ROLE =
         keccak256("UPDATE_ROLLUP_ROLE");
 
-    // Trusted aggregator will be able to verify batches without extra delau
+    // Role that has priority to verify batches, also consolidates the state instantly
     bytes32 internal constant _TRUSTED_AGGREGATOR_ROLE =
         keccak256("TRUSTED_AGGREGATOR_ROLE");
+
+    // Role to Set the Trusted aggregator
+    bytes32 internal constant _TRUSTED_AGGREGATOR_ROLE_ADMIN =
+        keccak256("TRUSTED_AGGREGATOR_ROLE_ADMIN");
 
     bytes32 internal constant _TWEAK_PARAMETERS_ROLE =
         keccak256("TWEAK_PARAMETERS_ROLE");
@@ -318,9 +322,6 @@ contract PolygonRollupManager is
     // Current matic fee per batch sequenced
     uint256 internal _batchFee;
 
-    // Address that has priority to verify batches, also consolidates the state instantly
-    address public trustedAggregator;
-
     /**
      * @dev Emitted when a new rollup type is added
      */
@@ -468,7 +469,7 @@ contract PolygonRollupManager is
     }
 
     function initialize(
-        address _trustedAggregator,
+        address trustedAggregator,
         uint64 _pendingStateTimeout,
         uint64 _trustedAggregatorTimeout,
         address admin,
@@ -477,7 +478,6 @@ contract PolygonRollupManager is
         PolygonZkEVMV2Upgraded polygonZkEVM,
         IVerifierRollup zkEVMVerifier
     ) external initializer {
-        trustedAggregator = _trustedAggregator;
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
@@ -490,6 +490,9 @@ contract PolygonRollupManager is
         __AccessControl_init();
 
         // setup roles
+
+        // trusted aggregator role
+        _setupRole(_TRUSTED_AGGREGATOR_ROLE, trustedAggregator);
 
         // Timelock roles
         _setupRole(DEFAULT_ADMIN_ROLE, timelock);
@@ -505,8 +508,9 @@ contract PolygonRollupManager is
         _setupRole(_OBSOLETE_ROLLUP_TYPE_ROLE, admin);
         _setupRole(_CREATE_ROLLUP_ROLE, admin);
         _setupRole(_STOP_EMERGENCY_ROLE, admin);
-        _setupRole(_TRUSTED_AGGREGATOR_ROLE, admin);
         _setupRole(_TWEAK_PARAMETERS_ROLE, admin);
+        _setRoleAdmin(_TRUSTED_AGGREGATOR_ROLE, _TRUSTED_AGGREGATOR_ROLE_ADMIN);
+        _setupRole(_TRUSTED_AGGREGATOR_ROLE_ADMIN, admin);
 
         // review Could be another address?¿
         _setupRole(_SET_FEE_ROLE, admin);
@@ -1583,18 +1587,6 @@ contract PolygonRollupManager is
     //////////////////
     // admin functions
     //////////////////
-
-    /**
-     * @notice Allow the admin to set a new trusted aggregator address
-     * @param newTrustedAggregator Address of the new trusted aggregator
-     */
-    function setTrustedAggregator(
-        address newTrustedAggregator
-    ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
-        trustedAggregator = newTrustedAggregator;
-
-        emit SetTrustedAggregator(newTrustedAggregator);
-    }
 
     /**
      * @notice Allow the admin to set a new pending state timeout

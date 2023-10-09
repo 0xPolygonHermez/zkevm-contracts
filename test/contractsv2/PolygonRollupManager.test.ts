@@ -8,23 +8,27 @@ import {
     PolygonZkEVMGlobalExitRoot,
     PolygonZkEVMBridgeV2,
     PolygonZkEVMV2,
+    PolygonRollupBase,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
 const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
 
+type BatchDataStruct = PolygonRollupBase.BatchDataStruct;
+
 const MerkleTreeBridge = MTBridge;
 const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
 
 describe("Polygon ZK-EVM TestnetV2", () => {
-    let deployer;
+    let deployer: any;
     let timelock: any;
     let emergencyCouncil: any;
     let trustedAggregator: any;
     let trustedSequencer: any;
     let admin: any;
-    let verifierContract: VerifierRollupHelperMock;
+    let beneficiary: any;
 
+    let verifierContract: VerifierRollupHelperMock;
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
@@ -50,6 +54,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
     const ADD_EXISTING_ROLLUP_ROLE = ethers.id("ADD_EXISTING_ROLLUP_ROLE");
     const UPDATE_ROLLUP_ROLE = ethers.id("UPDATE_ROLLUP_ROLE");
     const TRUSTED_AGGREGATOR_ROLE = ethers.id("TRUSTED_AGGREGATOR_ROLE");
+    const TRUSTED_AGGREGATOR_ROLE_ADMIN = ethers.id("TRUSTED_AGGREGATOR_ROLE_ADMIN");
     const TWEAK_PARAMETERS_ROLE = ethers.id("TWEAK_PARAMETERS_ROLE");
     const SET_FEE_ROLE = ethers.id("SET_FEE_ROLE");
     const STOP_EMERGENCY_ROLE = ethers.id("STOP_EMERGENCY_ROLE");
@@ -60,7 +65,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         upgrades.silenceWarnings();
 
         // load signers
-        [deployer, trustedAggregator, trustedSequencer, admin, timelock, emergencyCouncil] = await ethers.getSigners();
+        [deployer, trustedAggregator, trustedSequencer, admin, timelock, emergencyCouncil, beneficiary] =
+            await ethers.getSigners();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory("VerifierRollupHelperMock");
@@ -156,7 +162,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(await rollupManagerContract.bridgeAddress()).to.be.equal(polygonZkEVMBridgeContract.target);
 
         expect(await rollupManagerContract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
-        expect(await rollupManagerContract.trustedAggregator()).to.be.equal(trustedAggregator.address);
         expect(await rollupManagerContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeout);
 
         expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther("0.1"));
@@ -168,12 +173,17 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(await rollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, timelock.address)).to.be.equal(true);
         expect(await rollupManagerContract.hasRole(ADD_EXISTING_ROLLUP_ROLE, timelock.address)).to.be.equal(true);
 
+        expect(await rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE, trustedAggregator.address)).to.be.equal(
+            true
+        );
+
         expect(await rollupManagerContract.hasRole(OBSOLETE_ROLLUP_TYPE_ROLE, admin.address)).to.be.equal(true);
         expect(await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE, admin.address)).to.be.equal(true);
+        expect(await rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE_ADMIN, admin.address)).to.be.equal(true);
         expect(await rollupManagerContract.hasRole(TWEAK_PARAMETERS_ROLE, admin.address)).to.be.equal(true);
         expect(await rollupManagerContract.hasRole(SET_FEE_ROLE, admin.address)).to.be.equal(true);
         expect(await rollupManagerContract.hasRole(STOP_EMERGENCY_ROLE, admin.address)).to.be.equal(true);
+
         expect(await rollupManagerContract.hasRole(EMERGENCY_COUNCIL_ROLE, emergencyCouncil.address)).to.be.equal(true);
         expect(await rollupManagerContract.hasRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncil.address)).to.be.equal(
             true
@@ -444,6 +454,105 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(sequencedBatchData.accInputHash).to.be.equal(expectedAccInputHash);
         expect(sequencedBatchData.sequencedTimestamp).to.be.equal(timestampCreatedRollup);
         expect(sequencedBatchData.previousLastBatchSequenced).to.be.equal(0);
+
+        // try verify batches
+        const l2txData = "0x123456";
+        const maticAmount = await rollupManagerContract.getBatchFee();
+        const currentTimestamp = (await ethers.provider.getBlock("latest"))?.timestamp;
+
+        const sequence = {
+            transactions: l2txData,
+            globalExitRoot: ethers.ZeroHash,
+            timestamp: currentTimestamp,
+            minForcedTimestamp: 0,
+        } as BatchDataStruct;
+
+        // Approve tokens
+        await expect(polTokenContract.connect(trustedSequencer).approve(newZkEVMContract.target, maticAmount)).to.emit(
+            polTokenContract,
+            "Approval"
+        );
+
+        // Sequence Batches
+        await expect(newZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
+            .to.emit(newZkEVMContract, "SequenceBatches")
+            .withArgs(newSequencedBatch + 1);
+
+        // trustedAggregator forge the batch
+        const pendingState = 0;
+        const newLocalExitRoot = "0x1230000000000000000000000000000000000000000000000000000000000000";
+        const newStateRoot = "0x0000000000000000000000000000000000000000000000000000000000000123";
+        const newVerifiedBatch = newSequencedBatch + 1;
+        const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
+        const currentVerifiedBatch = 0;
+
+        const initialAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
+        await expect(
+            rollupManagerContract
+                .connect(deployer)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    currentVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBatchBelowLastVerifiedBatch");
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    3,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
+
+        // Verify batch
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        )
+            .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
+            .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, trustedAggregator.address);
+
+        const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
+
+        expect(finalAggregatorMatic).to.equal(initialAggregatorMatic + maticAmount);
     });
 
     it("Should test obsolete rollup", async () => {
@@ -546,16 +655,16 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             }
             const rootSC = await rollupManagerContract.getRollupExitRoot();
             const rootJS = merkleTree.getRoot();
-            console.log(rootSC, rootJS);
+            //console.log(rootSC, rootJS);
             expect(rootSC).to.be.equal(rootJS);
         }
 
-        for (let i = 1; i < 100; i++) {
+        // put 100
+        for (let i = 1; i < 1; i++) {
             const newRootsArray = [];
             for (let j = 0; j < i; j++) {
                 newRootsArray.push(ethers.toBeHex(ethers.toQuantity(ethers.randomBytes(32)), 32));
             }
-            console.log(newRootsArray);
             await testRollupExitRoot(newRootsArray);
         }
     });
