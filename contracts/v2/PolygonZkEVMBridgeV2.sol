@@ -74,8 +74,19 @@ contract PolygonZkEVMBridgeV2 is
     // PolygonZkEVM address
     address public polygonRollupManager;
 
+    // Native address
+    address public gasTokenAddress;
+
+    // Native address
+    uint32 public gasTokenNetwork;
+
+    // WETH address
+    TokenWrapped public WETHToken;
+
     /**
      * @param _networkID networkID
+     * @param _gasTokenAddress gas token address
+     * @param _gasTokenNetwork gas token network
      * @param _globalExitRootManager global exit root manager address
      * @param _polygonRollupManager polygonZkEVM address
      * @notice The value of `_polygonRollupManager` on the L2 deployment of the contract will be address(0), so
@@ -83,12 +94,32 @@ contract PolygonZkEVMBridgeV2 is
      */
     function initialize(
         uint32 _networkID,
+        address _gasTokenAddress,
+        uint32 _gasTokenNetwork,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager
     ) external virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonRollupManager = _polygonRollupManager;
+
+        // Set gas token
+        if (gasTokenAddress == address(0)) {
+            // gas token will be ether
+            if (gasTokenNetwork != 0) {
+                revert GasTokenNetworkMustBeZeroOnEther();
+            }
+            //WETHToken, gasTokenAddress and gasTokenNetwork will be 0
+        } else {
+            // Gas token will be an erc20
+            gasTokenAddress = _gasTokenAddress;
+            gasTokenNetwork = _gasTokenNetwork;
+            WETHToken = (new TokenWrapped){salt: bytes32(0)}(
+                "Wrapped Ether",
+                "WETH",
+                18
+            );
+        }
 
         // Initialize OZ contracts
         __ReentrancyGuard_init();
@@ -157,10 +188,8 @@ contract PolygonZkEVMBridgeV2 is
         bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState nonReentrant {
-        if (
-            destinationNetwork == networkID
-            // TODO check desitnation network? destinationNetwork >= rollupManager.rollupCount() ?¿
-        ) {
+        // User/UI must be aware of the existing/available networks
+        if (destinationNetwork == networkID) {
             revert DestinationNetworkInvalid();
         }
 
@@ -170,60 +199,72 @@ contract PolygonZkEVMBridgeV2 is
         uint256 leafAmount = amount;
 
         if (token == address(0)) {
-            // Ether transfer
+            // Check gas token transfer
             if (msg.value != amount) {
                 revert AmountDoesNotMatchMsgValue();
             }
 
-            // Ether is treated as ether from mainnet
-            originNetwork = _MAINNET_NETWORK_ID;
+            // Set gas token parameters
+            originNetwork = gasTokenNetwork;
+            originTokenAddress = gasTokenAddress;
         } else {
             // Check msg.value is 0 if tokens are bridged
             if (msg.value != 0) {
                 revert MsgValueNotZero();
             }
 
-            TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[token];
-
-            if (tokenInfo.originTokenAddress != address(0)) {
-                // The token is a wrapped token from another network
-
+            // Check if it's WETH, this only applies on L2 networks with gasTokens
+            // In case ether is the native token, WETHToken will be 0, and the address 0 is already checked
+            if (token == address(WETHToken)) {
                 // Burn tokens
                 TokenWrapped(token).burn(msg.sender, amount);
 
-                originTokenAddress = tokenInfo.originTokenAddress;
-                originNetwork = tokenInfo.originNetwork;
+                // Both origin network and originTokenAddress will be 0
             } else {
-                // Use permit if any
-                if (permitData.length != 0) {
-                    _permit(token, amount, permitData);
+                TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
+                    token
+                ];
+
+                if (tokenInfo.originTokenAddress != address(0)) {
+                    // The token is a wrapped token from another network
+
+                    // Burn tokens
+                    TokenWrapped(token).burn(msg.sender, amount);
+
+                    originTokenAddress = tokenInfo.originTokenAddress;
+                    originNetwork = tokenInfo.originNetwork;
+                } else {
+                    // Use permit if any
+                    if (permitData.length != 0) {
+                        _permit(token, amount, permitData);
+                    }
+
+                    // In order to support fee tokens check the amount received, not the transferred
+                    uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(
+                        address(this)
+                    );
+                    IERC20Upgradeable(token).safeTransferFrom(
+                        msg.sender,
+                        address(this),
+                        amount
+                    );
+                    uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(
+                        address(this)
+                    );
+
+                    // Override leafAmount with the received amount
+                    leafAmount = balanceAfter - balanceBefore;
+
+                    originTokenAddress = token;
+                    originNetwork = networkID;
+
+                    // Encode metadata
+                    metadata = abi.encode(
+                        _safeName(token),
+                        _safeSymbol(token),
+                        _safeDecimals(token)
+                    );
                 }
-
-                // In order to support fee tokens check the amount received, not the transferred
-                uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(
-                    address(this)
-                );
-                IERC20Upgradeable(token).safeTransferFrom(
-                    msg.sender,
-                    address(this),
-                    amount
-                );
-                uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(
-                    address(this)
-                );
-
-                // Override leafAmount with the received amount
-                leafAmount = balanceAfter - balanceBefore;
-
-                originTokenAddress = token;
-                originNetwork = networkID;
-
-                // Encode metadata
-                metadata = abi.encode(
-                    _safeName(token),
-                    _safeSymbol(token),
-                    _safeDecimals(token)
-                );
             }
         }
 
@@ -268,10 +309,70 @@ contract PolygonZkEVMBridgeV2 is
         address destinationAddress,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
-    ) external payable ifNotEmergencyState {
-        if (
-            destinationNetwork == networkID // TODO destinationNetwork >= rollupManager.rollupCount() ?¿
-        ) {
+    ) external payable {
+        // If exist a gas token, only let call this function without value
+        if (msg.value != 0 && address(WETHToken) != address(0)) {
+            revert NoValueInMessagesOnGasTokenNetworks();
+        }
+
+        _bridgeMessage(
+            destinationNetwork,
+            destinationAddress,
+            msg.value,
+            forceUpdateGlobalExitRoot,
+            metadata
+        );
+    }
+
+    /**
+     * @notice Bridge message and send ETH value
+     * @param destinationNetwork Network destination
+     * @param destinationAddress Address destination
+     * @param amountWETH Amount of WETH tokens
+     * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
+     * @param metadata Message metadata
+     */
+    function bridgeMessageWETH(
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amountWETH,
+        bool forceUpdateGlobalExitRoot,
+        bytes calldata metadata
+    ) external {
+        // if native token is ether, disable this function
+        if (address(WETHToken) == address(0)) {
+            revert NativeTokenIsEther();
+        }
+
+        // Burn wETH tokens
+        WETHToken.burn(msg.sender, amountWETH);
+
+        _bridgeMessage(
+            destinationNetwork,
+            destinationAddress,
+            amountWETH,
+            forceUpdateGlobalExitRoot,
+            metadata
+        );
+    }
+
+    /**
+     * @notice Bridge message and send ETH value
+     * @param destinationNetwork Network destination
+     * @param destinationAddress Address destination
+     * @param amountEther Amount of ether along with the message
+     * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
+     * @param metadata Message metadata
+     */
+    function _bridgeMessage(
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amountEther,
+        bool forceUpdateGlobalExitRoot,
+        bytes calldata metadata
+    ) internal {
+        // User/UI must be aware of the existing/available networks
+        if (destinationNetwork == networkID) {
             revert DestinationNetworkInvalid();
         }
 
@@ -281,7 +382,7 @@ contract PolygonZkEVMBridgeV2 is
             msg.sender,
             destinationNetwork,
             destinationAddress,
-            msg.value,
+            amountEther,
             metadata,
             uint32(depositCount)
         );
@@ -293,7 +394,7 @@ contract PolygonZkEVMBridgeV2 is
                 msg.sender,
                 destinationNetwork,
                 destinationAddress,
-                msg.value,
+                amountEther,
                 keccak256(metadata)
             )
         );
@@ -356,64 +457,89 @@ contract PolygonZkEVMBridgeV2 is
 
         // Transfer funds
         if (originTokenAddress == address(0)) {
-            // Transfer ether
-            /* solhint-disable avoid-low-level-calls */
-            (bool success, ) = destinationAddress.call{value: amount}(
-                new bytes(0)
-            );
-            if (!success) {
-                revert EtherTransferFailed();
+            if (address(WETHToken) == address(0)) {
+                // Ether is the native token
+                /* solhint-disable avoid-low-level-calls */
+                (bool success, ) = destinationAddress.call{value: amount}(
+                    new bytes(0)
+                );
+                if (!success) {
+                    revert EtherTransferFailed();
+                }
+            } else {
+                // Claim wETH
+                WETHToken.mint(destinationAddress, amount);
             }
         } else {
-            // Transfer tokens
-            if (originNetwork == networkID) {
-                // The token is an ERC20 from this network
-                IERC20Upgradeable(originTokenAddress).safeTransfer(
-                    destinationAddress,
-                    amount
+            // Check if it's gas token
+            if (
+                originTokenAddress == gasTokenAddress &&
+                gasTokenNetwork == originNetwork
+            ) {
+                // Transfer gas token
+                /* solhint-disable avoid-low-level-calls */
+                (bool success, ) = destinationAddress.call{value: amount}(
+                    new bytes(0)
                 );
+                if (!success) {
+                    revert EtherTransferFailed();
+                }
             } else {
-                // The tokens is not from this network
-                // Create a wrapper for the token if not exist yet
-                bytes32 tokenInfoHash = keccak256(
-                    abi.encodePacked(originNetwork, originTokenAddress)
-                );
-                address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
-
-                if (wrappedToken == address(0)) {
-                    // Get ERC20 metadata
-                    (
-                        string memory name,
-                        string memory symbol,
-                        uint8 decimals
-                    ) = abi.decode(metadata, (string, string, uint8));
-
-                    // Create a new wrapped erc20 using create2
-                    TokenWrapped newWrappedToken = (new TokenWrapped){
-                        salt: tokenInfoHash
-                    }(name, symbol, decimals);
-
-                    // Mint tokens for the destination address
-                    newWrappedToken.mint(destinationAddress, amount);
-
-                    // Create mappings
-                    tokenInfoToWrappedToken[tokenInfoHash] = address(
-                        newWrappedToken
-                    );
-
-                    wrappedTokenToTokenInfo[
-                        address(newWrappedToken)
-                    ] = TokenInformation(originNetwork, originTokenAddress);
-
-                    emit NewWrappedToken(
-                        originNetwork,
-                        originTokenAddress,
-                        address(newWrappedToken),
-                        metadata
+                // Transfer tokens
+                if (originNetwork == networkID) {
+                    // The token is an ERC20 from this network
+                    IERC20Upgradeable(originTokenAddress).safeTransfer(
+                        destinationAddress,
+                        amount
                     );
                 } else {
-                    // Use the existing wrapped erc20
-                    TokenWrapped(wrappedToken).mint(destinationAddress, amount);
+                    // The tokens is not from this network
+                    // Create a wrapper for the token if not exist yet
+                    bytes32 tokenInfoHash = keccak256(
+                        abi.encodePacked(originNetwork, originTokenAddress)
+                    );
+                    address wrappedToken = tokenInfoToWrappedToken[
+                        tokenInfoHash
+                    ];
+
+                    if (wrappedToken == address(0)) {
+                        // Get ERC20 metadata
+                        (
+                            string memory name,
+                            string memory symbol,
+                            uint8 decimals
+                        ) = abi.decode(metadata, (string, string, uint8));
+
+                        // Create a new wrapped erc20 using create2
+                        TokenWrapped newWrappedToken = (new TokenWrapped){
+                            salt: tokenInfoHash
+                        }(name, symbol, decimals);
+
+                        // Mint tokens for the destination address
+                        newWrappedToken.mint(destinationAddress, amount);
+
+                        // Create mappings
+                        tokenInfoToWrappedToken[tokenInfoHash] = address(
+                            newWrappedToken
+                        );
+
+                        wrappedTokenToTokenInfo[
+                            address(newWrappedToken)
+                        ] = TokenInformation(originNetwork, originTokenAddress);
+
+                        emit NewWrappedToken(
+                            originNetwork,
+                            originTokenAddress,
+                            address(newWrappedToken),
+                            metadata
+                        );
+                    } else {
+                        // Use the existing wrapped erc20
+                        TokenWrapped(wrappedToken).mint(
+                            destinationAddress,
+                            amount
+                        );
+                    }
                 }
             }
         }
@@ -480,14 +606,31 @@ contract PolygonZkEVMBridgeV2 is
         );
 
         // Execute message
-        // Transfer ether
-        /* solhint-disable avoid-low-level-calls */
-        (bool success, ) = destinationAddress.call{value: amount}(
-            abi.encodeCall(
-                IBridgeMessageReceiver.onMessageReceived,
-                (originAddress, originNetwork, metadata)
-            )
-        );
+        bool success;
+        if (address(WETHToken) == address(0)) {
+            // Native token is ether
+            // Transfer ether
+            /* solhint-disable avoid-low-level-calls */
+            (success, ) = destinationAddress.call{value: amount}(
+                abi.encodeCall(
+                    IBridgeMessageReceiver.onMessageReceived,
+                    (originAddress, originNetwork, metadata)
+                )
+            );
+        } else {
+            // mint wETH tokens
+            WETHToken.mint(destinationAddress, amount);
+
+            // Execute message
+            /* solhint-disable avoid-low-level-calls */
+            (success, ) = destinationAddress.call(
+                abi.encodeCall(
+                    IBridgeMessageReceiver.onMessageReceived,
+                    (originAddress, originNetwork, metadata)
+                )
+            );
+        }
+
         if (!success) {
             revert MessageFailed();
         }

@@ -25,11 +25,11 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
     if (isMainnet === true) {
         return BigInt(indexLocal) + _GLOBAL_INDEX_MAINNET_FLAG;
     } else {
-        BigInt(indexLocal) + BigInt(indexRollup) * 2n ** 32n;
+        return BigInt(indexLocal) + BigInt(indexRollup) * 2n ** 32n;
     }
 }
 
-// 1 bit (isMainnet)  (32 bits) indicesd del rollup  (32 bits) indice de la hoja LOcal
+// 1 bit (isMainnet)  (32 bits) indices del rollup  (32 bits) indice de la hoja LOcal
 //       X            XXXXXXXXXXXXXXXXXXXXXXXXXXXX   XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 describe("PolygonZkEVMBridge Contract", () => {
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
@@ -76,6 +76,8 @@ describe("PolygonZkEVMBridge Contract", () => {
 
         await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,
+            ethers.ZeroAddress, // zero for ether
+            ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
             rollupManager.address
         );
@@ -449,7 +451,6 @@ describe("PolygonZkEVMBridge Contract", () => {
          * claim
          * Can't claim without tokens
          */
-        console.log("Hi");
         await expect(
             polygonZkEVMBridgeContract.claimAsset(
                 proofLocal,
@@ -465,7 +466,6 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata
             )
         ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
-        console.log("Hi");
 
         // transfer tokens, then claim
         await expect(polTokenContract.transfer(polygonZkEVMBridgeContract.target, amount))
@@ -473,7 +473,6 @@ describe("PolygonZkEVMBridge Contract", () => {
             .withArgs(deployer.address, polygonZkEVMBridgeContract.target, amount);
 
         expect(false).to.be.equal(await polygonZkEVMBridgeContract.isClaimed(indexLocal, indexRollup + 1));
-        console.log("Hi");
 
         await expect(
             polygonZkEVMBridgeContract.claimAsset(
@@ -494,14 +493,13 @@ describe("PolygonZkEVMBridge Contract", () => {
             .withArgs(globalIndex, originNetwork, tokenAddress, destinationAddress, amount)
             .to.emit(polTokenContract, "Transfer")
             .withArgs(polygonZkEVMBridgeContract.target, acc1.address, amount);
-        console.log("Hi");
 
         // Can't claim because nullifier
         await expect(
             polygonZkEVMBridgeContract.claimAsset(
                 proofLocal,
                 proofRollup,
-                Number(globalIndex),
+                globalIndex,
                 mainnetExitRoot,
                 rollupExitRootSC,
                 originNetwork,

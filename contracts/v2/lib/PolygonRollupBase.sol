@@ -237,13 +237,6 @@ contract PolygonRollupBase is
      */
     event AcceptAdminRole(address newAdmin);
 
-    // review
-    /**
-     * @dev Emitted everytime the forkID is updated, this includes the first initialization of the contract
-     * This event is intended to be emitted for every upgrade of the contract with relevant changes for the nodes
-     */
-    event UpdateZkEVMVersion(uint64 numBatch, uint64 forkID, string version);
-
     // General parameters that will have in common all networks that deploys rollup manager
 
     /**
@@ -368,8 +361,6 @@ contract PolygonRollupBase is
     /////////////////////////////////////
     // Sequence/Verify batches functions
     ////////////////////////////////////
-
-    // TODO add the hashed forced data aswell?¿
 
     /**
      * @notice Allows a sequencer to send multiple batches

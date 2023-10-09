@@ -11,6 +11,8 @@ import "../interfaces/IPolygonZkEVMBridgeL2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "../../lib/GlobalExitRootLib.sol";
 
+// unify bridges TODO
+
 // review this implementation DOES not take care the storage slots of bridge
 // this means that if the bridge on mainnet or zkEVM should be updated in a future, should be done by
 // the other contract
@@ -170,9 +172,7 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
         bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
     ) public payable virtual nonReentrant {
-        if (
-            destinationNetwork == networkID // TODO
-        ) {
+        if (destinationNetwork == networkID) {
             revert DestinationNetworkInvalid();
         }
 
@@ -354,9 +354,7 @@ contract PolygonZkEVMBridgeL2 is DepositContractV2, IPolygonZkEVMBridgeL2 {
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) internal {
-        if (
-            destinationNetwork == networkID // TODO destinationNetwork >= rollupManager.rollupCount() ?¿
-        ) {
+        if (destinationNetwork == networkID) {
             revert DestinationNetworkInvalid();
         }
 
