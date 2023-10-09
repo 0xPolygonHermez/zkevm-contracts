@@ -10,6 +10,7 @@ import {
     PolygonZkEVMV2,
     PolygonRollupBase,
     TokenWrapped,
+    Address,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
@@ -53,6 +54,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
     const LEAF_TYPE_ASSET = 0;
     const LEAF_TYPE_MESSAGE = 1;
+
+    const globalExitRootL2Address = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa" as unknown as Address;
 
     let firstDeployment = true;
 
@@ -416,11 +419,13 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const txBase = await newZkEVMContract.BASE_INITIALIZE_TX_BRIDGE();
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory("PolygonZkEVMBridgeL2");
+        const bridgeL2Factory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
         const encodedData = bridgeL2Factory.interface.encodeFunctionData("initialize", [
             newCreatedRollupID,
             gasTokenAddress,
             gasTokenNetwork,
+            globalExitRootL2Address,
+            ethers.ZeroAddress,
         ]);
 
         const rawTx = processorUtils.customRawTxToRawTx(transaction);

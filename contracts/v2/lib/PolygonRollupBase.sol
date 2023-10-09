@@ -11,7 +11,8 @@ import "../../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMV2Errors.sol";
 import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
-import "../L2/PolygonZkEVMBridgeL2.sol";
+import "../PolygonZkEVMBridgeV2.sol";
+import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -98,11 +99,11 @@ contract PolygonRollupBase is
     // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
 
-    // List rlp: 1 listLenLen "0xf8" (0xf7 + 1), + listLen 1 "0x83"
+    // List rlp: 1 listLenLen "0xf8" (0xf7 + 1), + listLen 1 "0xc3"
     // 1 nonce "0x80" + 1 gasPrice "0x80" + 5 gasLimit "0x8401c9c380" + 21 to "0x942a3dd3eb832af982ec71669e178424b10dca2ede"
-    // + 1 value "0x80" + 1 stringLenLen "0xb8" (0xb7 + 1) + stringLen 1 "0x64" + 100 bytes data ( signature 4 bytes + 3parameters*32bytes) = 131 bytes  (0x83)
+    // + 1 value "0x80" + 1 stringLenLen "0xb8" (0xb7 + 1) + stringLen 1 "0xa4" + 164 bytes data ( signature 4 bytes + 5parameters*32bytes) = 195 bytes  (0xc3)
     bytes public constant BASE_INITIALIZE_TX_BRIDGE =
-        hex"f88380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b864";
+        hex"f8c380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b8a4";
 
     // Signature used to initialize the bridge
 
@@ -119,6 +120,13 @@ contract PolygonRollupBase is
 
     // S parameter of the initialize signature
     bytes1 public constant INITIALIZE_TX_EFFECTIVE_PERCENTAGE = 0xFF;
+
+    // Global Exit Root address L2
+    IBasePolygonZkEVMGlobalExitRoot
+        public constant GLOBAL_EXIT_ROOT_MANAGER_L2 =
+        IBasePolygonZkEVMGlobalExitRoot(
+            0xa40D5f56745a118D0906a34E69aeC8C0Db1cB8fA
+        );
 
     // POL token address
     IERC20Upgradeable public immutable pol;
@@ -799,8 +807,14 @@ contract PolygonRollupBase is
         bytes memory bytesToSign = abi.encodePacked(
             BASE_INITIALIZE_TX_BRIDGE,
             abi.encodeCall(
-                PolygonZkEVMBridgeL2.initialize,
-                (networkID, _gasTokenAddress, _gasTokenNetwork)
+                PolygonZkEVMBridgeV2.initialize,
+                (
+                    networkID,
+                    _gasTokenAddress,
+                    _gasTokenNetwork,
+                    GLOBAL_EXIT_ROOT_MANAGER_L2,
+                    address(0) // Rollup manager on L2 does not exist
+                )
             )
         );
 
