@@ -572,15 +572,17 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
             .withArgs(ethers.ZeroHash, rootJS);
 
-        expect(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot()).to.be.equal(
-            calculateGlobalExitRoot(ethers.ZeroHash, rootJS)
-        );
-
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
 
         expect(finalAggregatorMatic).to.equal(initialAggregatorMatic + maticAmount);
 
         // Assert global exit root
+        expect(await polygonZkEVMGlobalExitRoot.lastRollupExitRoot()).to.be.equal(rootJS);
+        expect(await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot()).to.be.equal(ethers.ZeroHash);
+
+        expect(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot()).to.be.equal(
+            calculateGlobalExitRoot(ethers.ZeroHash, rootJS)
+        );
     });
 
     it("Should test obsolete rollup", async () => {
@@ -669,7 +671,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
     it("Should test global exit root", async () => {
         // In order to create a new rollup type, create an implementation of the contract
-
         async function testRollupExitRoot(rollupsRootsArray: any) {
             const height = 32;
             const merkleTree = new MerkleTreeBridge(height);
@@ -680,12 +681,11 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             }
             const rootSC = await rollupManagerContract.getRollupExitRoot();
             const rootJS = merkleTree.getRoot();
-            //console.log(rootSC, rootJS);
             expect(rootSC).to.be.equal(rootJS);
         }
 
         // put 100
-        for (let i = 1; i < 1; i++) {
+        for (let i = 1; i < 100; i++) {
             const newRootsArray = [];
             for (let j = 0; j < i; j++) {
                 newRootsArray.push(ethers.toBeHex(ethers.toQuantity(ethers.randomBytes(32)), 32));
