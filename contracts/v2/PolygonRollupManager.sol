@@ -836,7 +836,7 @@ contract PolygonRollupManager is
         rollup.lastVerifiedBatchBeforeUpgrade = getLastVerifiedBatch(rollupID);
 
         // Upgrade rollup
-        // review could check previosu implementatio through rollup prev type and avoid upgrade
+        // review could check previous implementatio through rollup prev type and avoid upgrade
         rollupContract.upgradeToAndCall(
             newRollupType.consensusImplementation,
             upgradeData
@@ -1270,7 +1270,7 @@ contract PolygonRollupManager is
             proof
         );
 
-        // Consolidate state state
+        // Consolidate state
         rollup.lastVerifiedBatch = finalNewBatch;
         rollup.batchNumToStateRoot[finalNewBatch] = newStateRoot;
         rollup.lastLocalExitRoot = newLocalExitRoot;

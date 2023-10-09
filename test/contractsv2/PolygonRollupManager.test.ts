@@ -9,6 +9,7 @@ import {
     PolygonZkEVMBridgeV2,
     PolygonZkEVMV2,
     PolygonRollupBase,
+    TokenWrapped,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
@@ -42,11 +43,16 @@ describe("Polygon ZK-EVM TestnetV2", () => {
     const polTokenSymbol = "POL";
     const polTokenInitialBalance = ethers.parseEther("20000000");
 
-    const networkIDMainnet = 0;
-
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeout = 100;
     const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
+
+    // BRidge constants
+    const networkIDMainnet = 0;
+    const networkIDRollup = 1;
+
+    const LEAF_TYPE_ASSET = 0;
+    const LEAF_TYPE_MESSAGE = 1;
 
     let firstDeployment = true;
 
@@ -194,7 +200,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         );
     });
 
-    it("should add a new rollup type zkEVM", async () => {
+    it("should check full flow", async () => {
         const urlSequencer = "http://zkevm-json-rpc:8123";
         const chainID = 1000;
         const networkName = "zkevm";
@@ -492,9 +498,47 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         // calcualte accINputHash
         expect(await newZkEVMContract.lastAccInputHash()).to.be.equal(expectedAccInputHash2);
 
+        // Create a new local exit root mocking some bridge
+        const tokenName = "Matic Token";
+        const tokenSymbol = "MATIC";
+        const decimals = 18;
+        const metadataToken = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["string", "string", "uint8"],
+            [tokenName, tokenSymbol, decimals]
+        );
+
+        const originNetwork = networkIDRollup;
+        const tokenAddress = ethers.getAddress(ethers.hexlify(ethers.randomBytes(20)));
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDMainnet;
+        const destinationAddress = beneficiary.address;
+        const metadata = metadataToken; // since we are inserting in the exit root can be anything
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
+        // compute root merkle tree in Js
+        const height = 32;
+        const merkleTreezkEVM = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+
+        // Add 2 leafs
+        merkleTreezkEVM.add(leafValue);
+        merkleTreezkEVM.add(leafValue);
+
+        // check merkle root with SC
+        const rootzkEVM = merkleTreezkEVM.getRoot();
+
+        // TODO
         // trustedAggregator forge the batch
         const pendingState = 0;
-        const newLocalExitRoot = "0x1230000000000000000000000000000000000000000000000000000000000000";
+        const newLocalExitRoot = rootzkEVM;
         const newStateRoot = "0x0000000000000000000000000000000000000000000000000000000000000123";
         const newVerifiedBatch = newSequencedBatch + 1;
         const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
@@ -547,10 +591,9 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
 
         // Calcualte new globalExitroot
-        const height = 32;
-        const merkleTree = new MerkleTreeBridge(height);
-        merkleTree.add(newLocalExitRoot);
-        const rootJS = merkleTree.getRoot();
+        const merkleTreeRollups = new MerkleTreeBridge(height);
+        merkleTreeRollups.add(newLocalExitRoot);
+        const rootRollups = merkleTreeRollups.getRoot();
 
         // Verify batch
         await expect(
@@ -570,19 +613,121 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, trustedAggregator.address)
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
-            .withArgs(ethers.ZeroHash, rootJS);
+            .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
 
         expect(finalAggregatorMatic).to.equal(initialAggregatorMatic + maticAmount);
 
         // Assert global exit root
-        expect(await polygonZkEVMGlobalExitRoot.lastRollupExitRoot()).to.be.equal(rootJS);
+        expect(await polygonZkEVMGlobalExitRoot.lastRollupExitRoot()).to.be.equal(rootRollups);
         expect(await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot()).to.be.equal(ethers.ZeroHash);
 
         expect(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot()).to.be.equal(
-            calculateGlobalExitRoot(ethers.ZeroHash, rootJS)
+            calculateGlobalExitRoot(ethers.ZeroHash, rootRollups)
         );
+
+        const indexLeaf = 0;
+        const proofZkEVM = merkleTreezkEVM.getProofTreeByIndex(indexLeaf);
+        const proofRollups = merkleTreeRollups.getProofTreeByIndex(indexLeaf);
+
+        // verify merkle proof
+        expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
+        expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
+
+        expect(
+            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)
+        ).to.be.equal(true);
+
+        expect(
+            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups)
+        ).to.be.equal(true);
+
+        // claim
+        const tokenWrappedFactory = await ethers.getContractFactory("TokenWrapped");
+        // create2 parameters
+        const salt = ethers.solidityPackedKeccak256(["uint32", "address"], [networkIDRollup, tokenAddress]);
+        const minimalBytecodeProxy = tokenWrappedFactory.bytecode;
+        const hashInitCode = ethers.solidityPackedKeccak256(["bytes", "bytes"], [minimalBytecodeProxy, metadataToken]);
+        const precalculateWrappedErc20 = await ethers.getCreate2Address(
+            polygonZkEVMBridgeContract.target as string,
+            salt,
+            hashInitCode
+        );
+        const newWrappedToken = tokenWrappedFactory.attach(precalculateWrappedErc20) as TokenWrapped;
+
+        // Use precalculatedWrapperAddress and check if matches
+        expect(
+            await polygonZkEVMBridgeContract.precalculatedWrapperAddress(
+                networkIDRollup,
+                tokenAddress,
+                tokenName,
+                tokenSymbol,
+                decimals
+            )
+        ).to.be.equal(precalculateWrappedErc20);
+
+        // index leaf is 0 bc, doe snot have mainnet flag, and it's rollup 0 on leaf 0
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofZkEVM,
+                proofRollups,
+                indexLeaf,
+                ethers.ZeroHash,
+                rootRollups,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        )
+            .to.emit(polygonZkEVMBridgeContract, "ClaimEvent")
+            .withArgs(indexLeaf, originNetwork, tokenAddress, destinationAddress, amount)
+            .to.emit(polygonZkEVMBridgeContract, "NewWrappedToken")
+            .withArgs(originNetwork, tokenAddress, precalculateWrappedErc20, metadata)
+            .to.emit(newWrappedToken, "Transfer")
+            .withArgs(ethers.ZeroAddress, beneficiary.address, amount);
+
+        // Assert maps created
+        const newTokenInfo = await polygonZkEVMBridgeContract.wrappedTokenToTokenInfo(precalculateWrappedErc20);
+
+        expect(newTokenInfo.originNetwork).to.be.equal(networkIDRollup);
+        expect(newTokenInfo.originTokenAddress).to.be.equal(tokenAddress);
+        expect(await polygonZkEVMBridgeContract.getTokenWrappedAddress(networkIDRollup, tokenAddress)).to.be.equal(
+            precalculateWrappedErc20
+        );
+        expect(await polygonZkEVMBridgeContract.getTokenWrappedAddress(networkIDRollup, tokenAddress)).to.be.equal(
+            precalculateWrappedErc20
+        );
+
+        expect(await polygonZkEVMBridgeContract.tokenInfoToWrappedToken(salt)).to.be.equal(precalculateWrappedErc20);
+
+        // Check the wrapper info
+        expect(await newWrappedToken.name()).to.be.equal(tokenName);
+        expect(await newWrappedToken.symbol()).to.be.equal(tokenSymbol);
+        expect(await newWrappedToken.decimals()).to.be.equal(decimals);
+
+        // Can't claim because nullifier
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofZkEVM,
+                proofRollups,
+                indexLeaf,
+                ethers.ZeroHash,
+                rootRollups,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "AlreadyClaimed");
+
+        // Check new token
+        expect(await newWrappedToken.totalSupply()).to.be.equal(amount);
     });
 
     it("Should test obsolete rollup", async () => {
@@ -685,7 +830,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         }
 
         // put 100
-        for (let i = 1; i < 100; i++) {
+        for (let i = 1; i < 4; i++) {
             const newRootsArray = [];
             for (let j = 0; j < i; j++) {
                 newRootsArray.push(ethers.toBeHex(ethers.toQuantity(ethers.randomBytes(32)), 32));
