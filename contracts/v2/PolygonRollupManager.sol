@@ -14,9 +14,7 @@ import "../interfaces/IVerifierRollup.sol";
 import "./consensus/zkEVM/PolygonZkEVMV2Existent.sol";
 
 // review check contract slots!
-// review Update OZ libs, new transaparent proxy is cheaper, but admin immutable
-
-// legacy storage slots base
+// review legacy storage slots base
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */
@@ -837,7 +835,7 @@ contract PolygonRollupManager is
             revert RollupTypeObsolete();
         }
 
-        // review check compatibility of the rollups
+        // check compatibility of the rollups
         if (
             rollup.rollupCompatibilityID != newRollupType.rollupCompatibilityID
         ) {

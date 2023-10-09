@@ -148,6 +148,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,
+            ethers.ZeroAddress, // zero for ether
+            ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
             rollupManagerContract.target
         );
