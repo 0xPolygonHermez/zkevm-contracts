@@ -76,12 +76,12 @@ const config: HardhatUserConfig = {
                     evmVersion: "shanghai",
                 }, // try yul optimizer
             },
-            "contracts/v2/L2/PolygonZkEVMBridgeL2.sol": {
+            "contracts/v2/PolygonZkEVMBridgeV2.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 9999,
+                        runs: 999999,
                     },
                     evmVersion: "shanghai",
                 },
