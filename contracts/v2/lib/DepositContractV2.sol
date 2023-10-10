@@ -2,13 +2,13 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "./DepositContractLib.sol";
+import "./DepositContractBase.sol";
 
 /**
  * This contract will be used as a helper for all the sparse merkle tree related functions
  * Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
  */
-contract DepositContractV2 is ReentrancyGuardUpgradeable, DepositContractLib {
+contract DepositContractV2 is ReentrancyGuardUpgradeable, DepositContractBase {
     /**
      * @notice Given the leaf data returns the leaf value
      * @param leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
