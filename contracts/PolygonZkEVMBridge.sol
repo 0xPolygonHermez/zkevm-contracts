@@ -575,7 +575,7 @@ contract PolygonZkEVMBridge is
         _setAndCheckClaimed(index);
 
         // Check timestamp where the global exit root was set
-        uint256 timestampGlobalExitRoot = globalExitRootManager
+        uint256 blockHashGlobalExitRoot = globalExitRootManager
             .globalExitRootMap(
                 GlobalExitRootLib.calculateGlobalExitRoot(
                     mainnetExitRoot,
@@ -583,7 +583,7 @@ contract PolygonZkEVMBridge is
                 )
             );
 
-        if (timestampGlobalExitRoot == 0) {
+        if (blockHashGlobalExitRoot == 0) {
             revert GlobalExitRootInvalid();
         }
 

@@ -68,6 +68,7 @@ describe('Deposit Contract', () => {
         merkleTree.add(leafValueJs);
 
         const rootSC = await depositContractMock.getRoot();
+
         const rootJS = merkleTree.getRoot();
 
         expect(rootSC).to.be.equal(rootJS);

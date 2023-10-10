@@ -56,7 +56,8 @@ describe('Polygon ZK-EVM snark stark input test', () => {
         const globalExitRoot = '0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9';
         const timestamp = 1944498031;
         const sequencerAddr = '0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D';
-        const expectedStarkHashExecutor = '0xef046bcaca930591f7c941cad928406dd1402a4e33b4dc704c519d130a05dd9f';
+        const forcedBlockHash = '0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3';
+        const expectedStarkHashExecutor = '0xb7101adddf6f2ce7afa7c1f142f736927fb81bce5051b0f24bbc9eab617f249c';
 
         const batchL2DataHash = contractUtils.calculateBatchHashData(batchL2Data);
         const accumulateInputHashJs = await contractUtils.calculateAccInputHash(
@@ -65,7 +66,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
             globalExitRoot,
             timestamp,
             sequencerAddr,
-            '0x00',
+            forcedBlockHash,
         );
         const accumulateInputHashSC = await polygonZkEVMContract.calculateAccInputHash(
             oldAccInputHash,
@@ -73,7 +74,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
             globalExitRoot,
             timestamp,
             sequencerAddr,
-            false,
+            forcedBlockHash,
         );
         expect(accumulateInputHashJs).to.be.equal(accumulateInputHashSC);
         expect(accumulateInputHashSC).to.be.equal(expectedStarkHashExecutor);

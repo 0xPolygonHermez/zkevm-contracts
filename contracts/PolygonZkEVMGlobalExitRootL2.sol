@@ -12,7 +12,7 @@ contract PolygonZkEVMGlobalExitRootL2 is IBasePolygonZkEVMGlobalExitRoot {
     // Special zkRom variables
     ////////////////////////////
 
-    // Store every global exit root: Root --> timestamp
+    // Store every global exit root: Root --> blockhash
     // Note this variable is updated only by the zkRom
     mapping(bytes32 => uint256) public globalExitRootMap;
 

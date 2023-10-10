@@ -19,20 +19,20 @@ contract PolygonZkEVMGlobalExitRootMock is PolygonZkEVMGlobalExitRoot {
 
     /**
      * @notice Set last global exit root
-     * @param timestamp timestamp
+     * @param blockHash blockHash
      */
-    function setLastGlobalExitRoot(uint256 timestamp) public {
-        globalExitRootMap[getLastGlobalExitRoot()] = timestamp;
+    function setLastGlobalExitRoot(uint256 blockHash) public {
+        globalExitRootMap[getLastGlobalExitRoot()] = blockHash;
     }
 
     /**
      * @notice Set last global exit root
-     * @param timestamp timestamp
+     * @param blockHash blockHash
      */
     function setGlobalExitRoot(
         bytes32 globalExitRoot,
-        uint256 timestamp
+        uint256 blockHash
     ) public {
-        globalExitRootMap[globalExitRoot] = timestamp;
+        globalExitRootMap[globalExitRoot] = blockHash;
     }
 }

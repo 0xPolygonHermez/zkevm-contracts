@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "./lib/GlobalExitRootLib.sol";
 import "./lib/DepositContractLib.sol";
+import "hardhat/console.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
@@ -25,7 +26,7 @@ contract PolygonZkEVMGlobalExitRoot is
     // Mainnet exit root, this will be updated every time a deposit is made in mainnet
     bytes32 public lastMainnetExitRoot;
 
-    // Store every global exit root: Root --> timestamp
+    // Store every global exit root: Root --> blockhash
     mapping(bytes32 => uint256) public globalExitRootMap;
 
     /**
@@ -69,16 +70,20 @@ contract PolygonZkEVMGlobalExitRoot is
             cacheLastRollupExitRoot
         );
 
-        // If it already exists, do not modify the timestamp
+        // If it already exists, do not modify the blockhash
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
-            globalExitRootMap[newGlobalExitRoot] = block.timestamp;
+            globalExitRootMap[newGlobalExitRoot] = uint256(blockhash(block.number - 1));
             emit UpdateGlobalExitRoot(
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot
             );
 
-            // Update the historical roots
-            _addLeaf(newGlobalExitRoot);
+            // save new leaf in L1InfoTree
+            _addLeaf(keccak256(abi.encodePacked(
+                newGlobalExitRoot,
+                blockhash(block.number - 1),
+                uint64(block.timestamp)
+            )));
         }
     }
 
@@ -94,7 +99,7 @@ contract PolygonZkEVMGlobalExitRoot is
     }
 
     /**
-     * @notice Computes and returns the merkle root
+     * @notice Computes and returns the merkle root of the L1InfoTree
      */
     function getRoot()
         public

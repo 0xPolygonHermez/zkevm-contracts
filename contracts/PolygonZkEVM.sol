@@ -29,13 +29,15 @@ contract PolygonZkEVM is
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param forcedHistoricGlobalExitRoot Global exit root of the batch
+     * @param lastGlobalExitRoot last Global exit root
      * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
+     * @param forcedBlockHashL1 blockHash snapshot of the force batch data, empty when non forced batch
      */
     struct BatchData {
         bytes transactions;
-        bytes32 forcedHistoricGlobalExitRoot;
+        bytes32 lastGlobalExitRoot;
         uint64 minForcedTimestamp;
+        bytes32 forcedBlockHashL1;
     }
 
     /**
@@ -127,12 +129,6 @@ contract PolygonZkEVM is
 
     // Max uint64
     uint256 internal constant _MAX_UINT_64 = type(uint64).max; // 0xFFFFFFFFFFFFFFFF
-
-    // Boolena indicating that is a forced batch
-    bool internal constant _IS_FORCED_BATCH = true;
-
-    // Boolena indicating that is not a forced batch
-    bool internal constant _IS_NOT_FORCED_BATCH = false;
 
     // MATIC token address
     IERC20Upgradeable public immutable matic;
@@ -489,7 +485,7 @@ contract PolygonZkEVM is
         bridgeAddress.updateGlobalExitRoot();
 
         // Get global batch variables
-        bytes32 historicGlobalExitRoot = globalExitRootManager.getRoot();
+        bytes32 l1InfoRoot = globalExitRootManager.getRoot();
         uint64 currentTimestamp = uint64(block.timestamp);
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
@@ -518,8 +514,9 @@ contract PolygonZkEVM is
                 bytes32 hashedForcedBatchData = keccak256(
                     abi.encodePacked(
                         currentTransactionsHash,
-                        currentBatch.forcedHistoricGlobalExitRoot,
-                        currentBatch.minForcedTimestamp
+                        currentBatch.lastGlobalExitRoot,
+                        currentBatch.minForcedTimestamp,
+                        currentBatch.forcedBlockHashL1
                     )
                 );
 
@@ -535,10 +532,10 @@ contract PolygonZkEVM is
                     abi.encodePacked(
                         currentAccInputHash,
                         currentTransactionsHash,
-                        currentBatch.forcedHistoricGlobalExitRoot,
+                        currentBatch.lastGlobalExitRoot,
                         currentBatch.minForcedTimestamp,
                         l2Coinbase,
-                        _IS_FORCED_BATCH
+                        currentBatch.forcedBlockHashL1
                     )
                 );
 
@@ -558,10 +555,10 @@ contract PolygonZkEVM is
                     abi.encodePacked(
                         currentAccInputHash,
                         currentTransactionsHash,
-                        historicGlobalExitRoot,
+                        l1InfoRoot,
                         currentTimestamp,
                         l2Coinbase,
-                        _IS_NOT_FORCED_BATCH
+                        bytes32(0)
                     )
                 );
             }
@@ -1018,8 +1015,11 @@ contract PolygonZkEVM is
 
         matic.safeTransferFrom(msg.sender, address(this), maticFee);
 
-        // Get historic global exit root
-        bytes32 historicGlobalExitRoot = globalExitRootManager.getRoot();
+        // Update global exit root if there are new deposits
+        bridgeAddress.updateGlobalExitRoot();
+
+        // Get last global exit root
+        bytes32 lastGlobalExitRoot = globalExitRootManager.getLastGlobalExitRoot();
 
         // Update forcedBatches mapping
         lastForceBatch++;
@@ -1027,8 +1027,9 @@ contract PolygonZkEVM is
         forcedBatches[lastForceBatch] = keccak256(
             abi.encodePacked(
                 keccak256(transactions),
-                historicGlobalExitRoot,
-                uint64(block.timestamp)
+                lastGlobalExitRoot,
+                uint64(block.timestamp),
+                blockhash(block.number - 1)
             )
         );
 
@@ -1036,7 +1037,7 @@ contract PolygonZkEVM is
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
             emit ForceBatch(
                 lastForceBatch,
-                historicGlobalExitRoot,
+                lastGlobalExitRoot,
                 msg.sender,
                 ""
             );
@@ -1045,7 +1046,7 @@ contract PolygonZkEVM is
             // Therefore it's worth it to put the `transactions` in the event, which is easy to query
             emit ForceBatch(
                 lastForceBatch,
-                historicGlobalExitRoot,
+                lastGlobalExitRoot,
                 msg.sender,
                 transactions
             );
@@ -1097,8 +1098,9 @@ contract PolygonZkEVM is
             bytes32 hashedForcedBatchData = keccak256(
                 abi.encodePacked(
                     currentTransactionsHash,
-                    currentBatch.forcedHistoricGlobalExitRoot,
-                    currentBatch.minForcedTimestamp
+                    currentBatch.lastGlobalExitRoot,
+                    currentBatch.minForcedTimestamp,
+                    currentBatch.forcedBlockHashL1
                 )
             );
 
@@ -1127,10 +1129,10 @@ contract PolygonZkEVM is
                 abi.encodePacked(
                     currentAccInputHash,
                     currentTransactionsHash,
-                    currentBatch.forcedHistoricGlobalExitRoot,
+                    currentBatch.lastGlobalExitRoot,
                     currentBatch.minForcedTimestamp, // could be current timestamp
                     msg.sender,
-                    _IS_FORCED_BATCH
+                    currentBatch.forcedBlockHashL1
                 )
             );
         }

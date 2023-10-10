@@ -10,6 +10,8 @@ const {
     verifyMerkleProof,
 } = require('@0xpolygonhermez/zkevm-commonjs').mtBridgeUtils;
 
+const { getL1InfoTreeValue } = require('@0xpolygonhermez/zkevm-commonjs').l1InfoTreeUtils;
+
 describe('Global Exit Root', () => {
     let rollup;
     let PolygonZkEVMBridge;
@@ -49,14 +51,24 @@ describe('Global Exit Root', () => {
             .to.emit(polygonZkEVMGlobalExitRoot, 'UpdateGlobalExitRoot')
             .withArgs(zero32bytes, newRootRollup);
 
+        // get block info to fulfill MT L1InfoRoot
+        const blockInfo = await ethers.provider.getBlock('latest');
+
         expect(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot())
             .to.be.equal(newRootGlobalExitRoot);
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
-        merkleTree.add(newRootGlobalExitRoot);
 
+        // compute value leaf l1InfoTree
+        const valueLeaf = getL1InfoTreeValue(
+            newRootGlobalExitRoot,
+            blockInfo.parentHash,
+            blockInfo.timestamp,
+        );
+
+        merkleTree.add(valueLeaf);
         const rootSC = await polygonZkEVMGlobalExitRoot.getRoot();
         const rootJS = merkleTree.getRoot();
 
@@ -67,10 +79,10 @@ describe('Global Exit Root', () => {
         const proof = merkleTree.getProofTreeByIndex(index);
 
         // verify merkle proof
-        expect(verifyMerkleProof(newRootGlobalExitRoot, proof, index, rootSC)).to.be.equal(true);
+        expect(verifyMerkleProof(valueLeaf, proof, index, rootSC)).to.be.equal(true);
 
         expect(await polygonZkEVMGlobalExitRoot.verifyMerkleProof(
-            newRootGlobalExitRoot,
+            valueLeaf,
             proof,
             index,
             rootSC,
@@ -82,13 +94,25 @@ describe('Global Exit Root', () => {
             .to.emit(polygonZkEVMGlobalExitRoot, 'UpdateGlobalExitRoot')
             .withArgs(newRootBridge, newRootRollup);
 
+        // get block info to fulfull MT L1InfoRoot
+        const blockInfo2 = await ethers.provider.send('eth_getBlockByNumber', [
+            ethers.utils.hexValue(((await ethers.provider.getBlock('latest')).number)),
+            false,
+        ]);
+
         expect(await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot()).to.be.equal(newRootBridge);
         const newRootGlobalExitRoot2 = calculateGlobalExitRoot(newRootBridge, newRootRollup);
         expect(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot())
             .to.be.equal(newRootGlobalExitRoot2);
 
-        // compute root merkle tree in Js
-        merkleTree.add(newRootGlobalExitRoot2);
+        // compute value leaf l1InfoTree
+        const valueLeaf2 = getL1InfoTreeValue(
+            newRootGlobalExitRoot2,
+            blockInfo2.parentHash,
+            blockInfo2.timestamp,
+        );
+
+        merkleTree.add(valueLeaf2);
         const rootSC2 = await polygonZkEVMGlobalExitRoot.getRoot();
         const rootJS2 = merkleTree.getRoot();
         expect(rootSC2).to.be.equal(rootJS2);
@@ -98,10 +122,10 @@ describe('Global Exit Root', () => {
         const proof2 = merkleTree.getProofTreeByIndex(index2);
 
         // verify merkle proof
-        expect(verifyMerkleProof(newRootGlobalExitRoot2, proof2, index2, rootSC2)).to.be.equal(true);
+        expect(verifyMerkleProof(valueLeaf2, proof2, index2, rootSC2)).to.be.equal(true);
 
         expect(await polygonZkEVMGlobalExitRoot.verifyMerkleProof(
-            newRootGlobalExitRoot2,
+            valueLeaf2,
             proof2,
             index2,
             rootSC2,
