@@ -404,11 +404,16 @@ describe("PolygonZkEVMBridge Contract", () => {
         merkleTreeLocal.add(leafValue);
 
         const rootLocalRollup = merkleTreeLocal.getRoot();
+        const indexRollup = 5;
 
         // Try claim with 10 rollup leafs
         const merkleTreeRollup = new MerkleTreeBridge(height);
         for (let i = 0; i < 10; i++) {
-            merkleTreeRollup.add(rootLocalRollup);
+            if (i == indexRollup) {
+                merkleTreeRollup.add(rootLocalRollup);
+            } else {
+                merkleTreeRollup.add(ethers.toBeHex(ethers.toQuantity(ethers.randomBytes(32)), 32));
+            }
         }
 
         const rootRollup = merkleTreeRollup.getRoot();
@@ -438,7 +443,6 @@ describe("PolygonZkEVMBridge Contract", () => {
         const proofLocal = merkleTreeLocal.getProofTreeByIndex(indexLocal);
 
         // Merkle proof local
-        const indexRollup = 5;
         const proofRollup = merkleTreeRollup.getProofTreeByIndex(indexRollup);
 
         // verify merkle proof

@@ -14,7 +14,7 @@ import "../interfaces/IVerifierRollup.sol";
 import "./consensus/zkEVM/PolygonZkEVMV2Existent.sol";
 
 // review check contract slots!
-// review legacy storage slots base
+// TODO legacy storage slots base
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */
@@ -1715,6 +1715,7 @@ contract PolygonRollupManager is
 
         // In the first iteration the nodes will be the leafs which are the local exit roots of each network
         for (uint256 i = 0; i < currentNodes; i++) {
+            // The first rollup ID starts on 1
             tmpTree[i] = rollupIDToRollupData[uint32(i + 1)].lastLocalExitRoot;
         }
 
@@ -1741,7 +1742,7 @@ contract PolygonRollupManager is
                 }
             }
 
-            // update tree bariables
+            // update tree variables
             tmpTree = nextTmpTree;
             currentNodes = nextIterationNodes;
             currentZeroHashHeight = keccak256(
