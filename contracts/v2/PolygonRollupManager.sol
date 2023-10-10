@@ -294,6 +294,7 @@ contract PolygonRollupManager is
 
     // Rollups mapping
     // chainID => rollupID
+    // review, should we reserve some ChainIDs?
     mapping(uint64 chainID => uint32 rollupID) public chainIDToRollupID;
 
     // Total sequenced batches between all rollups
