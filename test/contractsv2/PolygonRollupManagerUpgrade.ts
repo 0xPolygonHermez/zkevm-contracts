@@ -11,6 +11,8 @@ import {
     PolygonRollupBase,
     TokenWrapped,
     Address,
+    PolygonZkEVM,
+    PolygonZkEVMV2Existent,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
@@ -34,6 +36,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
     let admin: any;
     let beneficiary: any;
 
+    let polygonZkEVMContract: PolygonZkEVM;
     let verifierContract: VerifierRollupHelperMock;
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;
@@ -43,6 +46,13 @@ describe("Polygon ZK-EVM TestnetV2", () => {
     const polTokenName = "POL Token";
     const polTokenSymbol = "POL";
     const polTokenInitialBalance = ethers.parseEther("20000000");
+
+    const urlSequencer = "http://zkevm-json-rpc:8123";
+    const chainID = 1000;
+    const networkName = "zkevm";
+    const version = "0.0.1";
+    const forkID = 0;
+    const genesisRoot = "0x0000000000000000000000000000000000000000000000000000000000000001";
 
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeout = 100;
@@ -112,7 +122,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             from: deployer.address,
             nonce: nonceProxyBridge,
         });
-        const precalculateRollupManagerAddress = ethers.getCreateAddress({
+        const precalculatezkEVM = ethers.getCreateAddress({
             from: deployer.address,
             nonce: nonceProxyZkevm,
         });
@@ -120,34 +130,51 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         // deploy globalExitRoot
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRoot");
-        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+        polygonZkEVMGlobalExitRoot = (await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             initializer: false,
-            constructorArgs: [precalculateRollupManagerAddress, precalculateBridgeAddress],
+            constructorArgs: [precalculatezkEVM, precalculateBridgeAddress],
             unsafeAllow: ["constructor", "state-variable-immutable"],
-        });
+        })) as any;
 
         // deploy PolygonZkEVMBridge
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
-        polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {initializer: false});
+        polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
+            initializer: false,
+        })) as any;
 
-        // deploy mock verifier
-        const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManagerMock");
-
-        rollupManagerContract = (await upgrades.deployProxy(PolygonRollupManagerFactory, [], {
+        // deploy PolygonZkEVM
+        const PolygonZkEVMFactory = await ethers.getContractFactory("PolygonZkEVM");
+        polygonZkEVMContract = (await upgrades.deployProxy(PolygonZkEVMFactory, [], {
             initializer: false,
             constructorArgs: [
                 polygonZkEVMGlobalExitRoot.target,
                 polTokenContract.target,
+                verifierContract.target,
                 polygonZkEVMBridgeContract.target,
+                chainID,
+                forkID,
             ],
             unsafeAllow: ["constructor", "state-variable-immutable"],
-        })) as unknown as PolygonRollupManagerMock;
-
-        await rollupManagerContract.waitForDeployment();
-
-        // check precalculated address
+        })) as any;
         expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.target);
-        expect(precalculateRollupManagerAddress).to.be.equal(rollupManagerContract.target);
+        expect(precalculatezkEVM).to.be.equal(polygonZkEVMContract.target);
+
+        const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager");
+        rollupManagerContract = PolygonRollupManagerFactory.attach(polygonZkEVMContract.target) as any;
+
+        await polygonZkEVMContract.initialize(
+            {
+                admin: admin.address,
+                trustedSequencer: trustedSequencer.address,
+                pendingStateTimeout: pendingStateTimeoutDefault,
+                trustedAggregator: trustedAggregator.address,
+                trustedAggregatorTimeout: trustedAggregatorTimeout,
+            },
+            genesisRoot,
+            urlSequencer,
+            networkName,
+            version
+        );
 
         await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,
@@ -157,52 +184,48 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             rollupManagerContract.target
         );
 
-        // Initialize Mock
-        await rollupManagerContract.initializeMock(
-            trustedAggregator.address,
-            pendingStateTimeoutDefault,
-            trustedAggregatorTimeout,
-            admin.address,
-            timelock.address,
-            emergencyCouncil.address
-        );
-
         // fund sequencer address with Matic tokens
         await polTokenContract.transfer(trustedSequencer.address, ethers.parseEther("1000"));
     });
 
     it("should check the initalized parameters", async () => {
-        expect(await rollupManagerContract.globalExitRootManager()).to.be.equal(polygonZkEVMGlobalExitRoot.target);
-        expect(await rollupManagerContract.pol()).to.be.equal(polTokenContract.target);
-        expect(await rollupManagerContract.bridgeAddress()).to.be.equal(polygonZkEVMBridgeContract.target);
+        // DEploy new zkEVM
+        const PolygonZkEVMV2ExistentFactory = await ethers.getContractFactory("PolygonZkEVMV2Existent");
 
-        expect(await rollupManagerContract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
-        expect(await rollupManagerContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeout);
+        const newPolygonZkEVMContract = (await upgrades.deployProxy(PolygonZkEVMV2ExistentFactory, [], {
+            initializer: false,
+            constructorArgs: [
+                polygonZkEVMGlobalExitRoot.target,
+                polTokenContract.target,
+                polygonZkEVMBridgeContract.target,
+                rollupManagerContract.target,
+            ],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        })) as any as PolygonZkEVMV2Existent;
 
-        expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther("0.1"));
-        expect(await rollupManagerContract.getForcedBatchFee()).to.be.equal(ethers.parseEther("10"));
-
-        // Check roles
-        expect(await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelock.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, timelock.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, timelock.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(ADD_EXISTING_ROLLUP_ROLE, timelock.address)).to.be.equal(true);
-
-        expect(await rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE, trustedAggregator.address)).to.be.equal(
-            true
-        );
-
-        expect(await rollupManagerContract.hasRole(OBSOLETE_ROLLUP_TYPE_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE_ADMIN, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(TWEAK_PARAMETERS_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(SET_FEE_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(STOP_EMERGENCY_ROLE, admin.address)).to.be.equal(true);
-
-        expect(await rollupManagerContract.hasRole(EMERGENCY_COUNCIL_ROLE, emergencyCouncil.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncil.address)).to.be.equal(
-            true
-        );
+        const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager");
+        const txRollupManager = await upgrades.upgradeProxy(polygonZkEVMContract.target, PolygonRollupManagerFactory, {
+            constructorArgs: [
+                polygonZkEVMGlobalExitRoot.target,
+                polTokenContract.target,
+                polygonZkEVMBridgeContract.target,
+            ],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+            unsafeAllowRenames: true,
+            call: {
+                fn: "initialize",
+                args: [
+                    trustedAggregator.address,
+                    pendingStateTimeoutDefault,
+                    trustedAggregatorTimeout,
+                    admin.address,
+                    timelock.address,
+                    emergencyCouncil.address,
+                    newPolygonZkEVMContract.target,
+                    verifierContract.target,
+                ],
+            },
+        });
     });
 
     it("should check full flow", async () => {

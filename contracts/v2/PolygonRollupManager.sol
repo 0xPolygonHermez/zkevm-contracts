@@ -368,6 +368,8 @@ contract PolygonRollupManager is
         bridgeAddress = _bridgeAddress;
     }
 
+    // TODO natspec
+    // TODO review reinitializer
     function initialize(
         address trustedAggregator,
         uint64 _pendingStateTimeout,
@@ -377,7 +379,7 @@ contract PolygonRollupManager is
         address emergencyCouncil,
         PolygonZkEVMV2Existent polygonZkEVM,
         IVerifierRollup zkEVMVerifier
-    ) external initializer {
+    ) external reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
