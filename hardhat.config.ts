@@ -86,6 +86,16 @@ const config: HardhatUserConfig = {
                     evmVersion: "shanghai",
                 },
             },
+            "contracts/lib/TokenWrapped.sol": {
+                version: "0.8.20",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 9999, // must be the same as bridge, for testing porpuses
+                    },
+                    evmVersion: "shanghai",
+                },
+            },
         },
     },
     networks: {
