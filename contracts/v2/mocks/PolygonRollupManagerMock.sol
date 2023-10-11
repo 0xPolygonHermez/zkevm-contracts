@@ -24,7 +24,7 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         address admin,
         address timelock,
         address emergencyCouncil
-    ) external initializer {
+    ) external reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
