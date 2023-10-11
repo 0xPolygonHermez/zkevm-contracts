@@ -63,6 +63,7 @@ contract PolygonZkEVMV2Existent is PolygonRollupBase {
         // Constant deployment variables
         forceBatchTimeout = 5 days;
 
-        // Both gasTokenAddress and gasTokenNetwork are 0, since it uses ether
+        // Both gasTokenAddress and gasTokenNetwork are 0, since it uses ether as gas token
+        // Therefore is not necessary to set the variables
     }
 }

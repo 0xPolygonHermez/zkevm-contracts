@@ -409,7 +409,12 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Verify merkle proof and withdraw tokens/ether
      * @param smtProofLocalExitRoot Smt proof
      * @param smtProofRollupExitRoot Smt proof
-     * @param globalIndex Global index: bool(isMainnet)||uint32(indexRollupRoot)||uint32(indexDepositLeaf)
+     * @param globalIndex Global index is defined as:
+     * [0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex[224, 255]
+     * note that only the rollup index will be used only in case the mainnet flag is 0
+     * note that global index do not assert the unused bits to 0.
+     * This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
+     * To avoid possible synch attacks
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
@@ -560,7 +565,12 @@ contract PolygonZkEVMBridgeV2 is
      * will not trigger any execution
      * @param smtProofLocalExitRoot Smt proof
      * @param smtProofRollupExitRoot Smt proof
-     * @param globalIndex Index of the leaf
+     * @param globalIndex Global index is defined as:
+     * [0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex [224, 255]
+     * note that only the rollup index will be used only in case the mainnet flag is 0
+     * note that global index do not assert the unused bits to 0.
+     * This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
+     * To avoid possible synch attacks
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
@@ -587,6 +597,7 @@ contract PolygonZkEVMBridgeV2 is
         if (destinationNetwork != networkID) {
             revert DestinationNetworkInvalid();
         }
+
         // Verify leaf exist and it does not have been claimed
         _verifyLeaf(
             smtProofLocalExitRoot,
@@ -750,7 +761,6 @@ contract PolygonZkEVMBridgeV2 is
         uint32 sourceBridgeNetwork;
 
         // Get origin network from global index
-        // review globalINdex, should assert the rest of unused bits to 0
         if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {
             // It's mainnet, therefore sourceBridgeNetwork is 0
 

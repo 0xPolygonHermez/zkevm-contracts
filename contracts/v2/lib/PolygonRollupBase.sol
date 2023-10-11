@@ -140,7 +140,6 @@ contract PolygonRollupBase is
     // Rollup manager
     PolygonRollupManager public immutable rollupManager;
 
-    // review common variables
     // Address that will be able to adjust contract parameters or stop the emergency state
     address public admin;
 
@@ -334,7 +333,6 @@ contract PolygonRollupBase is
             newAccInputHash
         );
 
-        // review initialize events?¿
         emit SequenceBatches(currentBatchSequenced);
     }
 

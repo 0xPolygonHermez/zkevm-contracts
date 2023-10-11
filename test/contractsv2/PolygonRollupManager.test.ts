@@ -542,7 +542,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         // check merkle root with SC
         const rootzkEVM = merkleTreezkEVM.getRoot();
 
-        // TODO
         // trustedAggregator forge the batch
         const pendingState = 0;
         const newLocalExitRoot = rootzkEVM;
