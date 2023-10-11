@@ -29,8 +29,6 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
     }
 }
 
-// 1 bit (isMainnet)  (32 bits) indices del rollup  (32 bits) indice de la hoja LOcal
-//       X            XXXXXXXXXXXXXXXXXXXXXXXXXXXX   XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 describe("PolygonZkEVMBridge Contract", () => {
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;

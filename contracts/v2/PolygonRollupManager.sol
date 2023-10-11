@@ -47,19 +47,30 @@ contract PolygonRollupManager is
     // review POssible optimization rto reduce bytecode, put maps on another struct or double mapping
     /**
      * @notice Struct which to store the rollup data of each chain
-     * @param accInputHash Hash chain that contains all the information to process a batch:
-     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
-     * @param sequencedTimestamp Sequenced timestamp
-     * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
+     * @param rollupContract Rollup consensus contract, which manages everything
+     * related to sequencing transactions
+     * @param chainID Chain ID of the rollup
+     * @param verifier Verifier contract
+     * @param forkID ForkID of the rollup
+     * @param batchNumToStateRoot State root mapping
+     * @param sequencedBatches Queue of batches that defines the virtual state
+     * @param pendingStateTransitions Pending state mapping
+     * @param lastLocalExitRoot Last exit root verified, used for compute the rollupExitRoot
+     * @param lastBatchSequenced Last batch sent by the consensus contract
+     * @param lastPendingState Last pending state
+     * @param lastPendingStateConsolidated Last pending state consolidated
+     * @param lastVerifiedBatchBeforeUpgrade Last batch verified before the last upgrade
+     * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
+     * @param rollupCompatibilityID Rollup ID used for compatibility checks when upgrading
      */
     struct RollupData {
         IPolygonRollupBase rollupContract;
         uint64 chainID;
         IVerifierRollup verifier;
         uint64 forkID;
-        mapping(uint64 => bytes32) batchNumToStateRoot;
-        mapping(uint64 => SequencedBatchData) sequencedBatches;
-        mapping(uint256 => PendingState) pendingStateTransitions;
+        mapping(uint64 batchNum => bytes32) batchNumToStateRoot;
+        mapping(uint64 batchNum => SequencedBatchData) sequencedBatches;
+        mapping(uint256 pendingStateNum => PendingState) pendingStateTransitions;
         bytes32 lastLocalExitRoot;
         uint64 lastBatchSequenced;
         uint64 lastVerifiedBatch;

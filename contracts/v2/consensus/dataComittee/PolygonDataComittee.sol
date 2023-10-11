@@ -35,7 +35,7 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
     // CDK Data Committee Address
     ICDKDataCommittee public immutable dataCommittee;
 
-    // Indicates if sequence with data avialabiility is allowed
+    // Indicates if sequence with data avialability is allowed
     // This allow the sequencer to post the data and skip the Data comittee
     bool public isSequenceWithDataAvailabilityAllowed;
 
