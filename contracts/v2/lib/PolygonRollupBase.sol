@@ -794,7 +794,10 @@ contract PolygonRollupBase is
     }
 
     /**
-     * @notice Get forced batch fee
+     * @notice Generate Initialize transaction for hte bridge on L2
+     * @param networkID Indicates the network identifier that will be used in the bridge
+     * @param _gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
+     * @param _gasTokenNetwork Indicates the native network of the token address
      */
     function generateInitializeTransaction(
         uint32 networkID,
