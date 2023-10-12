@@ -368,8 +368,18 @@ contract PolygonRollupManager is
         bridgeAddress = _bridgeAddress;
     }
 
-    // TODO natspec
     // TODO review reinitializer
+
+    /**
+     * @param trustedAggregator Trusted aggregatot address
+     * @param _pendingStateTimeout Pending state timeout
+     * @param _trustedAggregatorTimeout Trusted aggregator timeout
+     * @param admin Admin of the rollup manager
+     * @param timelock Timelock address
+     * @param emergencyCouncil Emergency council address
+     * @param polygonZkEVM New deployed Polygon zkEVM which will be initialized wiht previous values
+     * @param zkEVMVerifier Verifier of the new zkEVM deployed
+     */
     function initialize(
         address trustedAggregator,
         uint64 _pendingStateTimeout,
