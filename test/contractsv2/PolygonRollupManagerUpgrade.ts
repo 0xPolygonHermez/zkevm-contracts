@@ -219,7 +219,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 polygonZkEVMBridgeContract.target,
             ],
             unsafeAllow: ["constructor", "state-variable-immutable"],
-            unsafeAllowRenames: true, // i think the remapping on OZ goes wrong D:
+            unsafeAllowRenames: false,
             call: {
                 fn: "initialize",
                 args: [
