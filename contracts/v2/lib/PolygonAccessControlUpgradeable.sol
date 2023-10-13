@@ -25,6 +25,7 @@ abstract contract PolygonAccessControlUpgradeable is
     function __AccessControl_init() internal onlyInitializing {}
 
     // Legacy variable
+    /// @custom:oz-renamed-from _owner
     address internal _legacyOwner;
 
     struct RoleData {
