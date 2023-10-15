@@ -235,8 +235,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                genesisRandom,
                 rollupCompatibilityID,
+                genesisRandom,
                 descirption
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
@@ -250,8 +250,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                     PolygonZKEVMV2Contract.target,
                     verifierContract.target,
                     forkID,
-                    genesisRandom,
                     rollupCompatibilityID,
+                    genesisRandom,
                     descirption
                 )
         )
@@ -261,8 +261,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                genesisRandom,
                 rollupCompatibilityID,
+                genesisRandom,
                 descirption
             );
 
@@ -763,8 +763,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                     PolygonZKEVMV2Contract.target,
                     verifierContract.target,
                     forkID,
-                    genesisRandom,
                     rollupCompatibilityID,
+                    genesisRandom,
                     descirption
                 )
         )
@@ -774,8 +774,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                genesisRandom,
                 rollupCompatibilityID,
+                genesisRandom,
                 descirption
             );
 

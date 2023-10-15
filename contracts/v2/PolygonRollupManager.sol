@@ -14,8 +14,6 @@ import "./lib/PolygonAccessControlUpgradeable.sol";
 import "./lib/LegacyZKEVMStateVariables.sol";
 import "./consensus/zkEVM/PolygonZkEVMV2Existent.sol";
 
-// review check contract slots!
-
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */
@@ -182,11 +180,9 @@ contract PolygonRollupManager is
     mapping(uint32 rollupID => RollupData) public rollupIDToRollupData;
 
     // Rollups mapping
-    // RollupAddress => rollupID
     mapping(address rollupAddress => uint32 rollupID) public rollupAddressToID;
 
     // Rollups mapping
-    // chainID => rollupID
     // review, should we reserve some ChainIDs?
     mapping(uint64 chainID => uint32 rollupID) public chainIDToRollupID;
 
@@ -214,6 +210,7 @@ contract PolygonRollupManager is
     uint16 public multiplierBatchFee;
 
     // Current matic fee per batch sequenced
+    // note This variable is internal, since the view function getBatchFee is likely to be ugpraded
     uint256 internal _batchFee;
 
     /**
@@ -224,15 +221,15 @@ contract PolygonRollupManager is
         address consensusImplementation,
         address verifier,
         uint64 forkID,
-        bytes32 genesis,
         uint8 rollupCompatibilityID,
+        bytes32 genesis,
         string description
     );
 
     /**
      * @dev Emitted when a a rolup type is deleted
      */
-    event ObsoleteRollupType(uint32 rollupTypeID);
+    event ObsoleteRollupType(uint32 indexed rollupTypeID);
 
     /**
      * @dev Emitted when a new rollup is created based on a rollupType
@@ -368,8 +365,6 @@ contract PolygonRollupManager is
         bridgeAddress = _bridgeAddress;
     }
 
-    // TODO review reinitializer
-
     /**
      * @param trustedAggregator Trusted aggregatot address
      * @param _pendingStateTimeout Pending state timeout
@@ -421,6 +416,8 @@ contract PolygonRollupManager is
         _setupRole(_CREATE_ROLLUP_ROLE, admin);
         _setupRole(_STOP_EMERGENCY_ROLE, admin);
         _setupRole(_TWEAK_PARAMETERS_ROLE, admin);
+
+        // admin should be able to update the timelock address
         _setRoleAdmin(_TRUSTED_AGGREGATOR_ROLE, _TRUSTED_AGGREGATOR_ROLE_ADMIN);
         _setupRole(_TRUSTED_AGGREGATOR_ROLE_ADMIN, admin);
 
@@ -452,8 +449,8 @@ contract PolygonRollupManager is
             zkEVMLastVerifiedBatch
         ] = _legacyBatchNumToStateRoot[zkEVMLastVerifiedBatch];
 
-        // note previousLastBatchSequenced will be inconsistent, since there will not be
-        // a sequence stored in the sequence mapping.
+        // note previousLastBatchSequenced of the SequencedBatchData will be inconsistent,
+        // since there will not be a previous sequence stored in the sequence mapping.
         // However since lastVerifiedBatch is equal to the lastBatchSequenced
         // won't affect in any case
         currentZkEVM.sequencedBatches[
@@ -476,9 +473,9 @@ contract PolygonRollupManager is
         );
     }
 
-    ////////////////////////////////////////////////
+    ///////////////////////////////////////
     // Rollups management functions
-    ///////////////////////////////////////////////
+    ///////////////////////////////////////
 
     /**
      * @notice Add a new rollup type
@@ -492,8 +489,8 @@ contract PolygonRollupManager is
         address consensusImplementation,
         IVerifierRollup verifier,
         uint64 forkID,
-        bytes32 genesis,
         uint8 rollupCompatibilityID,
+        bytes32 genesis,
         string memory description
     ) external onlyRole(_ADD_ROLLUP_TYPE_ROLE) {
         // nullify rollup type?¿ review hash(verifier, implementation, genesis)
@@ -513,8 +510,8 @@ contract PolygonRollupManager is
             consensusImplementation,
             address(verifier),
             forkID,
-            genesis,
             rollupCompatibilityID,
+            genesis,
             description
         );
     }
@@ -752,20 +749,18 @@ contract PolygonRollupManager is
         rollup.verifier = newRollupType.verifier;
         rollup.forkID = newRollupType.forkID;
         rollup.rollupTypeID = newRollupTypeID;
-        rollup.lastVerifiedBatchBeforeUpgrade = getLastVerifiedBatch(rollupID);
+
+        uint64 lastVerifiedBatch = getLastVerifiedBatch(rollupID);
+        rollup.lastVerifiedBatchBeforeUpgrade = lastVerifiedBatch;
 
         // Upgrade rollup
-        // review could check previous implementatio through rollup prev type and avoid upgrade
+        // review could check previous implementation through rollup prev type and avoid upgrade
         rollupContract.upgradeToAndCall(
             newRollupType.consensusImplementation,
             upgradeData
         );
 
-        emit UpdateRollup(
-            rollupID,
-            newRollupTypeID,
-            rollup.lastVerifiedBatchBeforeUpgrade
-        );
+        emit UpdateRollup(rollupID, newRollupTypeID, lastVerifiedBatch);
     }
 
     /////////////////////////////////////
@@ -787,6 +782,7 @@ contract PolygonRollupManager is
             revert SenderMustBeRollup();
         }
 
+        // This prevents overwritting sequencedBatches
         if (newSequencedBatches == 0) {
             revert MustSequenceSomeBatch();
         }

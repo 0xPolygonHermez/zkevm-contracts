@@ -71,7 +71,8 @@ contract PolygonZkEVMBridgeV2 is
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
-    // PolygonZkEVM address
+    // Rollup manager address, previously PolygonZkEVM
+    /// @custom:oz-renamed-from polygonZkEVMaddress
     address public polygonRollupManager;
 
     // Native address
@@ -407,8 +408,8 @@ contract PolygonZkEVMBridgeV2 is
 
     /**
      * @notice Verify merkle proof and withdraw tokens/ether
-     * @param smtProofLocalExitRoot Smt proof
-     * @param smtProofRollupExitRoot Smt proof
+     * @param smtProofLocalExitRoot Smt proof to proof the leaf agains the exit root
+     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
      * @param globalIndex Global index is defined as:
      * [0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex[224, 255]
      * note that only the rollup index will be used only in case the mainnet flag is 0
@@ -563,8 +564,8 @@ contract PolygonZkEVMBridgeV2 is
      * If the receiving address is an EOA, the call will result as a success
      * Which means that the amount of ether will be transferred correctly, but the message
      * will not trigger any execution
-     * @param smtProofLocalExitRoot Smt proof
-     * @param smtProofRollupExitRoot Smt proof
+     * @param smtProofLocalExitRoot Smt proof to proof the leaf agains the exit root
+     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
      * @param globalIndex Global index is defined as:
      * [0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex [224, 255]
      * note that only the rollup index will be used only in case the mainnet flag is 0
