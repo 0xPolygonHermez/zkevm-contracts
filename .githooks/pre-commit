@@ -22,6 +22,16 @@ if npm run lint; then
     cp artifacts/@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
     cp artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json compiled-contracts/
+    
+    cp artifacts/contracts/v2/PolygonRollupManager.sol/PolygonRollupManager.json compiled-contracts/
+    cp artifacts/contracts/v2/PolygonZkEVMBridgeV2.sol/PolygonZkEVMBridgeV2.json compiled-contracts/
+    cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
+
+    cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMV2.sol/PolygonZkEVMV2.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMV2Existent.sol/PolygonZkEVMV2Existent.json compiled-contracts/
+
+    cp artifacts/contracts/v2/consensus/dataComittee/PolygonDataComittee.sol/PolygonDataComittee.json compiled-contracts/
     git add compiled-contracts
     exit 0
 else

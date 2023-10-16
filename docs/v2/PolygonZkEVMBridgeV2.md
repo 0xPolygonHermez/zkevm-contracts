@@ -7,6 +7,8 @@ Contract responsible to manage the token interactions with other networks
 ```solidity
   function initialize(
     uint32 _networkID,
+    address _gasTokenAddress,
+    uint32 _gasTokenNetwork,
     contract IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
     address _polygonRollupManager
   ) external
@@ -18,6 +20,8 @@ emergency state is not possible for the L2 deployment of the bridge, intentional
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`_networkID` | uint32 | networkID
+|`_gasTokenAddress` | address | gas token address
+|`_gasTokenNetwork` | uint32 | gas token network
 |`_globalExitRootManager` | contract IBasePolygonZkEVMGlobalExitRoot | global exit root manager address
 |`_polygonRollupManager` | address | polygonZkEVM address
 
@@ -34,6 +38,10 @@ emergency state is not possible for the L2 deployment of the bridge, intentional
   ) public
 ```
 Deposit add a new leaf to the merkle tree
+note If this function is called with a reentrant token, it would be possible to `claimTokens` in the same call
+Reducing the supply of tokens on this contract, and actually locking tokens in the contract.
+Therefore we recommend to third parties bridges that if they do implement reentrant call of `beforeTransfer` of some reentrant tokens
+do not call any external address in that case
 
 
 #### Parameters:
@@ -66,6 +74,50 @@ Bridge message and send ETH value
 |`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
 |`metadata` | bytes | Message metadata
 
+### bridgeMessageWETH
+```solidity
+  function bridgeMessageWETH(
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amountWETH,
+    bool forceUpdateGlobalExitRoot,
+    bytes metadata
+  ) external
+```
+Bridge message and send ETH value
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`destinationNetwork` | uint32 | Network destination
+|`destinationAddress` | address | Address destination
+|`amountWETH` | uint256 | Amount of WETH tokens
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
+|`metadata` | bytes | Message metadata
+
+### _bridgeMessage
+```solidity
+  function _bridgeMessage(
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amountEther,
+    bool forceUpdateGlobalExitRoot,
+    bytes metadata
+  ) internal
+```
+Bridge message and send ETH value
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`destinationNetwork` | uint32 | Network destination
+|`destinationAddress` | address | Address destination
+|`amountEther` | uint256 | Amount of ether along with the message
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
+|`metadata` | bytes | Message metadata
+
 ### claimAsset
 ```solidity
   function claimAsset(
@@ -88,9 +140,14 @@ Verify merkle proof and withdraw tokens/ether
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProofLocalExitRoot` | bytes32[32] | Smt proof
-|`smtProofRollupExitRoot` | bytes32[32] | Smt proof
-|`globalIndex` | uint256 | Global index: bool(isMainnet)||uint32(indexRollupRoot)||uint32(indexDepositLeaf)
+|`smtProofLocalExitRoot` | bytes32[32] | Smt proof to proof the leaf agains the exit root
+|`smtProofRollupExitRoot` | bytes32[32] | Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
+|`globalIndex` | uint256 | Global index is defined as:
+[0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex[224, 255]
+note that only the rollup index will be used only in case the mainnet flag is 0
+note that global index do not assert the unused bits to 0.
+This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
+To avoid possible synch attacks
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
 |`originNetwork` | uint32 | Origin network
@@ -125,9 +182,14 @@ will not trigger any execution
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProofLocalExitRoot` | bytes32[32] | Smt proof
-|`smtProofRollupExitRoot` | bytes32[32] | Smt proof
-|`globalIndex` | uint256 | Index of the leaf
+|`smtProofLocalExitRoot` | bytes32[32] | Smt proof to proof the leaf agains the exit root
+|`smtProofRollupExitRoot` | bytes32[32] | Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
+|`globalIndex` | uint256 | Global index is defined as:
+[0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex [224, 255]
+note that only the rollup index will be used only in case the mainnet flag is 0
+note that global index do not assert the unused bits to 0.
+This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
+To avoid possible synch attacks
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
 |`originNetwork` | uint32 | Origin network
@@ -226,7 +288,7 @@ Verify leaf and checks that it has not been claimed
 ```solidity
   function isClaimed(
     uint32 leafIndex,
-    uint32 originNetwork
+    uint32 sourceBridgeNetwork
   ) external returns (bool)
 ```
 Function to check if an index is claimed or not
@@ -236,7 +298,7 @@ Function to check if an index is claimed or not
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`leafIndex` | uint32 | Index
-|`originNetwork` | uint32 | origin network
+|`sourceBridgeNetwork` | uint32 | origin network
 
 ### updateGlobalExitRoot
 ```solidity

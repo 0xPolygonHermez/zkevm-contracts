@@ -3,19 +3,19 @@ Based on the implementation of the deposit eth2.0 contract https://github.com/et
 
 
 ## Functions
-### getDepositRoot
+### getRoot
 ```solidity
-  function getDepositRoot(
+  function getRoot(
   ) public returns (bytes32)
 ```
 Computes and returns the merkle root
 
 
 
-### _deposit
+### _addLeaf
 ```solidity
-  function _deposit(
-    bytes32 leafHash
+  function _addLeaf(
+    bytes32 leaf
   ) internal
 ```
 Add a new leaf to the merkle tree
@@ -24,7 +24,7 @@ Add a new leaf to the merkle tree
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`leafHash` | bytes32 | Leaf hash
+|`leaf` | bytes32 | Leaf
 
 ### verifyMerkleProof
 ```solidity
@@ -46,29 +46,21 @@ Verify merkle proof
 |`index` | uint32 | Index of the leaf
 |`root` | bytes32 | Merkle root
 
-### getLeafValue
+### calculateRoot
 ```solidity
-  function getLeafValue(
-    uint8 leafType,
-    uint32 originNetwork,
-    address originAddress,
-    uint32 destinationNetwork,
-    address destinationAddress,
-    uint256 amount,
-    bytes32 metadataHash
+  function calculateRoot(
+    bytes32 leafHash,
+    bytes32[32] smtProof,
+    uint32 index
   ) public returns (bytes32)
 ```
-Given the leaf data returns the leaf value
+calcualte root from merkle proof
 
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`leafType` | uint8 | Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
-|`originNetwork` | uint32 | Origin Network
-|`originAddress` | address | [0] Origin token address, 0 address is reserved for ether, [1] msg.sender of the message
-|`destinationNetwork` | uint32 | Destination network
-|`destinationAddress` | address | Destination address
-|`amount` | uint256 | [0] Amount of tokens/ether, [1] Amount of ether
-|`metadataHash` | bytes32 | Hash of the metadata
+|`leafHash` | bytes32 | Leaf hash
+|`smtProof` | bytes32[32] | Smt proof
+|`index` | uint32 | Index of the leaf
 
