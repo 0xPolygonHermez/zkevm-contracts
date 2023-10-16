@@ -746,11 +746,6 @@
           "internalType": "address",
           "name": "sequencerAddress",
           "type": "address"
-        },
-        {
-          "internalType": "bool",
-          "name": "isForced",
-          "type": "bool"
         }
       ],
       "name": "calculateAccInputHash",
@@ -882,19 +877,6 @@
     {
       "inputs": [],
       "name": "forkID",
-      "outputs": [
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "gapLastTimestamp",
       "outputs": [
         {
           "internalType": "uint64",
@@ -1194,6 +1176,19 @@
     },
     {
       "inputs": [],
+      "name": "lastTimestamp",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "lastVerifiedBatch",
       "outputs": [
         {
@@ -1434,8 +1429,13 @@
             },
             {
               "internalType": "bytes32",
-              "name": "forcedHistoricGlobalExitRoot",
+              "name": "globalExitRoot",
               "type": "bytes32"
+            },
+            {
+              "internalType": "uint64",
+              "name": "timestamp",
+              "type": "uint64"
             },
             {
               "internalType": "uint64",
@@ -1469,7 +1469,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "forcedHistoricGlobalExitRoot",
+              "name": "globalExitRoot",
               "type": "bytes32"
             },
             {
@@ -1478,7 +1478,7 @@
               "type": "uint64"
             }
           ],
-          "internalType": "struct PolygonZkEVM.BatchData[]",
+          "internalType": "struct PolygonZkEVM.ForcedBatchData[]",
           "name": "batches",
           "type": "tuple[]"
         }

@@ -140,6 +140,50 @@ Bridge message and send ETH value
 | `forceUpdateGlobalExitRoot` | bool    | Indicates if the new global exit root is updated or not |
 | `metadata`                  | bytes   | Message metadata                                        |
 
+### bridgeMessageWETH
+```solidity
+  function bridgeMessageWETH(
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amountWETH,
+    bool forceUpdateGlobalExitRoot,
+    bytes metadata
+  ) external
+```
+Bridge message and send ETH value
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`destinationNetwork` | uint32 | Network destination
+|`destinationAddress` | address | Address destination
+|`amountWETH` | uint256 | Amount of WETH tokens
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
+|`metadata` | bytes | Message metadata
+
+### _bridgeMessage
+```solidity
+  function _bridgeMessage(
+    uint32 destinationNetwork,
+    address destinationAddress,
+    uint256 amountEther,
+    bool forceUpdateGlobalExitRoot,
+    bytes metadata
+  ) internal
+```
+Bridge message and send ETH value
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`destinationNetwork` | uint32 | Network destination
+|`destinationAddress` | address | Address destination
+|`amountEther` | uint256 | Amount of ether along with the message
+|`forceUpdateGlobalExitRoot` | bool | Indicates if the new global exit root is updated or not
+|`metadata` | bytes | Message metadata
+
 ### claimAsset
 
 ```solidity

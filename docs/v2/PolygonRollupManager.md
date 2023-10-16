@@ -618,6 +618,35 @@ Get forced batch fee
 
 
 
+### calculateRewardPerBatch
+```solidity
+  function calculateRewardPerBatch(
+  ) public returns (uint256)
+```
+Function to calculate the reward to verify a single batch
+
+
+
+### getBatchFee
+```solidity
+  function getBatchFee(
+  ) public returns (uint256)
+```
+Get batch fee
+This function is used instad of the automatic public view one,
+because in a future might change the behaviour and we will be able to mantain the interface
+
+
+
+### getForcedBatchFee
+```solidity
+  function getForcedBatchFee(
+  ) public returns (uint256)
+```
+Get forced batch fee
+
+
+
 ### getInputSnarkBytes
 ```solidity
   function getInputSnarkBytes(
@@ -727,6 +756,33 @@ Get rollup sequence pending state struct given a batch number
 | :--- | :--- | :------------------------------------------------------------------- |
 |`rollupID` | uint32 | Rollup identifier
 |`batchNum` | uint64 | Batch number
+
+### getRollupBatchNumToStateRoot
+```solidity
+  function getRollupBatchNumToStateRoot(
+  ) public returns (bytes32)
+```
+Get the last verified batch
+
+
+
+### getRollupSequencedBatches
+```solidity
+  function getRollupSequencedBatches(
+  ) public returns (struct LegacyZKEVMStateVariables.SequencedBatchData)
+```
+Get the last verified batch
+
+
+
+### getRollupPendingStateTransitions
+```solidity
+  function getRollupPendingStateTransitions(
+  ) public returns (struct LegacyZKEVMStateVariables.PendingState)
+```
+Get the last verified batch
+
+
 
 ## Events
 ### AddNewRollupType
