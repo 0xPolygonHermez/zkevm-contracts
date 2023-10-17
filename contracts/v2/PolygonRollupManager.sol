@@ -699,9 +699,10 @@ contract PolygonRollupManager is
     }
 
     //review, should check that there are not sequenced batches pending to be verified?¿?
-    //this way no one can break the virtual state, ( but maybe is worth to break it)
+    // this way no one can break the virtual state, ( but maybe is worth to break it)
     // Also upgrade address can send `upgradeData` to the proxy, being able to call `onVerifyBathes` maliciously
     // To avoid attacks, should data be empty, or should check that does not call `onVerifyBatches`
+
     /**
      * @notice Upgrade an existing rollup
      * @param rollupContract Rollup consensus proxy address
