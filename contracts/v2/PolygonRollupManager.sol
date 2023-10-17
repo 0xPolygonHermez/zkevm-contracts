@@ -171,7 +171,7 @@ contract PolygonRollupManager is
     uint32 public rollupTypeCount;
 
     // Consensus mapping
-    mapping(uint64 rollupTypeID => RollupType) public rollupTypeMap;
+    mapping(uint32 rollupTypeID => RollupType) public rollupTypeMap;
 
     // Rollup Count
     uint32 public rollupCount;

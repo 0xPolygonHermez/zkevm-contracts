@@ -20,6 +20,21 @@ const {ProviderWrapper} = require("hardhat/plugins");
 
 const pathOZUpgradability = path.join(__dirname, `../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 
+import {
+    VerifierRollupHelperMock,
+    ERC20PermitMock,
+    PolygonRollupManagerMock,
+    PolygonZkEVMGlobalExitRoot,
+    PolygonZkEVMBridgeV2,
+    PolygonZkEVMV2,
+    PolygonRollupBase,
+    TokenWrapped,
+    Address,
+    PolygonZkEVM,
+    PolygonZkEVMV2Existent,
+    PolygonZkEVMDeployer,
+} from "../typechain-types";
+
 async function main() {
     // Check that there's no previous OZ deployment
     if (fs.existsSync(pathOZUpgradability)) {
@@ -29,7 +44,7 @@ async function main() {
     }
 
     // Check if there's an ongoing deployment
-    let ongoingDeployment = {};
+    let ongoingDeployment = {} as any;
     if (fs.existsSync(pathOngoingDeploymentJson)) {
         ongoingDeployment = require(pathOngoingDeploymentJson);
     }
@@ -89,32 +104,32 @@ async function main() {
     } = deployParameters;
 
     // Load provider
-
     let currentProvider = ethers.provider;
     if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK !== "hardhat") {
             currentProvider = ethers.getDefaultProvider(
                 `https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`
-            );
+            ) as any;
             if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
                 console.log(
                     `Hardcoded gas used: MaxPriority${deployParameters.maxPriorityFeePerGas} gwei, MaxFee${deployParameters.maxFeePerGas} gwei`
                 );
-                const FEE_DATA = {
-                    maxFeePerGas: ethers.parseUnits(deployParameters.maxFeePerGas, "gwei"),
-                    maxPriorityFeePerGas: ethers.parseUnits(deployParameters.maxPriorityFeePerGas, "gwei"),
-                };
+                const FEE_DATA = new ethers.FeeData(
+                    null,
+                    ethers.parseUnits(deployParameters.maxFeePerGas, "gwei"),
+                    ethers.parseUnits(deployParameters.maxPriorityFeePerGas, "gwei")
+                );
+
                 currentProvider.getFeeData = async () => FEE_DATA;
             } else {
                 console.log("Multiplier gas used: ", deployParameters.multiplierGas);
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
-                    return {
-                        maxFeePerGas: feedata.maxFeePerGas.mul(deployParameters.multiplierGas).div(1000),
-                        maxPriorityFeePerGas: feedata.maxPriorityFeePerGas
-                            .mul(deployParameters.multiplierGas)
-                            .div(1000),
-                    };
+                    return new ethers.FeeData(
+                        null,
+                        ((feedata.maxFeePerGas as bigint) * BigInt(deployParameters.multiplierGas)) / 1000n,
+                        ((feedata.maxPriorityFeePerGas as bigint) * BigInt(deployParameters.multiplierGas)) / 1000n
+                    );
                 }
                 currentProvider.getFeeData = overrideFeeData;
             }
@@ -125,20 +140,21 @@ async function main() {
     let deployer;
     if (deployParameters.deployerPvtKey) {
         deployer = new ethers.Wallet(deployParameters.deployerPvtKey, currentProvider);
-        console.log("Using pvtKey deployer with address: ", deployer.address);
     } else if (process.env.MNEMONIC) {
-        deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, "m/44'/60'/0'/0/0").connect(currentProvider);
-        console.log("Using MNEMONIC deployer with address: ", deployer.address);
+        deployer = ethers.HDNodeWallet.fromMnemonic(
+            ethers.Mnemonic.fromPhrase(process.env.MNEMONIC),
+            "m/44'/60'/0'/0/0"
+        ).connect(currentProvider);
     } else {
         [deployer] = await ethers.getSigners();
     }
 
     // Load zkEVM deployer
     const PolgonZKEVMDeployerFactory = await ethers.getContractFactory("PolygonZkEVMDeployer", deployer);
-    const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress);
+    const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress) as PolygonZkEVMDeployer;
 
     // check deployer is the owner of the deployer
-    if ((await deployer.provider.getCode(zkEVMDeployerContract.address)) === "0x") {
+    if ((await deployer.provider?.getCode(zkEVMDeployerContract.target)) === "0x") {
         throw new Error("zkEVM deployer contract is not deployed");
     }
     expect(deployer.address).to.be.equal(await zkEVMDeployerContract.owner());
@@ -148,17 +164,17 @@ async function main() {
         if (realVerifier === true) {
             const VerifierRollup = await ethers.getContractFactory("FflonkVerifier", deployer);
             verifierContract = await VerifierRollup.deploy();
-            await verifierContract.deployed();
+            await verifierContract.waitForDeployment();
         } else {
             const VerifierRollupHelperFactory = await ethers.getContractFactory("VerifierRollupHelperMock", deployer);
             verifierContract = await VerifierRollupHelperFactory.deploy();
-            await verifierContract.deployed();
+            await verifierContract.waitForDeployment();
         }
         console.log("#######################\n");
-        console.log("Verifier deployed to:", verifierContract.address);
+        console.log("Verifier deployed to:", verifierContract.target);
 
         // save an ongoing deployment
-        ongoingDeployment.verifierContract = verifierContract.address;
+        ongoingDeployment.verifierContract = verifierContract.target;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
     } else {
         console.log("Verifier already deployed on: ", ongoingDeployment.verifierContract);
