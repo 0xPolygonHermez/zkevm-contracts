@@ -31,6 +31,7 @@ contract PolygonRollupManager is
      * @param verifier verifier
      * @param forkID fork ID
      * @param rollupCompatibilityID Rollup compatibility ID, to check upgradability between rollup types
+     * @param obsolete Indicates if the rollup type is obsolete
      * @param genesis Genesis block of the rollup, note that will only be used on creating new rollups, not upgrade them
      */
     struct RollupType {
@@ -55,6 +56,7 @@ contract PolygonRollupManager is
      * @param pendingStateTransitions Pending state mapping
      * @param lastLocalExitRoot Last exit root verified, used for compute the rollupExitRoot
      * @param lastBatchSequenced Last batch sent by the consensus contract
+     * @param lastVerifiedBatch Last batch verified
      * @param lastPendingState Last pending state
      * @param lastPendingStateConsolidated Last pending state consolidated
      * @param lastVerifiedBatchBeforeUpgrade Last batch verified before the last upgrade
