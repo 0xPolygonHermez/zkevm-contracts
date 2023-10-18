@@ -21,14 +21,12 @@ async function main() {
     const polTokenSymbol = "POL";
     const polTokenInitialBalance = ethers.parseEther("20000000");
 
-    const polTokenFactory = await ethers.getContractFactory("ERC20PermitMock", deployer);
-
     try {
         // verify governance
         await hre.run(
             'verify:verify',
             {
-                address: deployOutputParameters.maticTokenAddress,
+                address: deployOutputParameters.polTokenAddress,
                 constructorArguments: [
                     polTokenName,
                     polTokenSymbol,
@@ -122,18 +120,55 @@ async function main() {
         await hre.run(
             'verify:verify',
             {
+                contract: "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy",
+                address: deployOutputParameters.polygonZkEVMBridgeAddress,
+                constructorArguments: [
+                    await upgrades.erc1967.getImplementationAddress(deployOutputParameters.polygonZkEVMBridgeAddress),
+                    await upgrades.erc1967.getAdminAddress(deployOutputParameters.polygonZkEVMBridgeAddress),
+                    "0x"
+                ]
+            },
+        );
+    } catch (error) {
+        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+    }
+
+
+    try {
+        await hre.run(
+            'verify:verify',
+            {
                 address: deployOutputParameters.polygonZkEVMBridgeAddress,
             },
         );
     } catch (error) {
-        expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 
-       // verify zkEVM address
-       try {
+    try {
         await hre.run(
             'verify:verify',
             {
+                contract: "contracts/v2/lib/PolygonTransparentProxy.sol:PolygonTransparentProxy",
+                address: deployOutputParameters.newZKEVMAddress,
+                constructorArguments: [
+                    await upgrades.erc1967.getImplementationAddress(deployOutputParameters.newZKEVMAddress),
+                    await upgrades.erc1967.getAdminAddress(deployOutputParameters.newZKEVMAddress),
+                    "0x"
+                ]
+            },
+        );
+    } catch (error) {
+        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+    }
+
+
+    // verify zkEVM address
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                contract: "contracts/v2/consensus/zkEVM/PolygonZkEVMV2.sol:PolygonZkEVMV2",
                 address: deployOutputParameters.newZKEVMAddress,
                 constructorArguments: [
                     deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
@@ -144,7 +179,7 @@ async function main() {
             },
         );
     } catch (error) {
-        expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 }
 
