@@ -17,9 +17,12 @@ async function main() {
     }
 
     // verify maticToken
-    const maticTokenName = 'Matic Token';
-    const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.parseEther('20000000');
+    const polTokenName = "Pol Token";
+    const polTokenSymbol = "POL";
+    const polTokenInitialBalance = ethers.parseEther("20000000");
+
+    const polTokenFactory = await ethers.getContractFactory("ERC20PermitMock", deployer);
+
     try {
         // verify governance
         await hre.run(
@@ -27,10 +30,10 @@ async function main() {
             {
                 address: deployOutputParameters.maticTokenAddress,
                 constructorArguments: [
-                    maticTokenName,
-                    maticTokenSymbol,
+                    polTokenName,
+                    polTokenSymbol,
                     deployOutputParameters.deployerAddress,
-                    maticTokenInitialBalance,
+                    polTokenInitialBalance,
                 ],
             },
         );
@@ -51,7 +54,7 @@ async function main() {
     }
 
     const { minDelayTimelock } = deployParameters;
-    const { timelockAddress } = deployParameters;
+    const { timelockAdminAddress } = deployParameters;
     try {
         await hre.run(
             'verify:verify',
@@ -59,10 +62,10 @@ async function main() {
                 address: deployOutputParameters.timelockContractAddress,
                 constructorArguments: [
                     minDelayTimelock,
-                    [timelockAddress],
-                    [timelockAddress],
-                    timelockAddress,
-                    deployOutputParameters.polygonZkEVMAddress,
+                    [timelockAdminAddress],
+                    [timelockAdminAddress],
+                    timelockAdminAddress,
+                    deployOutputParameters.polygonRollupManager,
                 ],
             },
         );
@@ -87,14 +90,11 @@ async function main() {
         await hre.run(
             'verify:verify',
             {
-                address: deployOutputParameters.polygonZkEVMAddress,
+                address: deployOutputParameters.polygonRollupManager,
                 constructorArguments: [
                     deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
-                    deployOutputParameters.maticTokenAddress,
-                    deployOutputParameters.verifierAddress,
+                    deployOutputParameters.polTokenAddress,
                     deployOutputParameters.polygonZkEVMBridgeAddress,
-                    deployOutputParameters.chainID,
-                    deployOutputParameters.forkID,
                 ],
             },
         );
@@ -109,7 +109,7 @@ async function main() {
             {
                 address: deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
                 constructorArguments: [
-                    deployOutputParameters.polygonZkEVMAddress,
+                    deployOutputParameters.polygonRollupManager,
                     deployOutputParameters.polygonZkEVMBridgeAddress,
                 ],
             },
@@ -123,6 +123,24 @@ async function main() {
             'verify:verify',
             {
                 address: deployOutputParameters.polygonZkEVMBridgeAddress,
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+    }
+
+       // verify zkEVM address
+       try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: deployOutputParameters.newZKEVMAddress,
+                constructorArguments: [
+                    deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
+                    deployOutputParameters.polTokenAddress,
+                    deployOutputParameters.polygonZkEVMBridgeAddress,
+                    deployOutputParameters.polygonRollupManager
+                ],
             },
         );
     } catch (error) {

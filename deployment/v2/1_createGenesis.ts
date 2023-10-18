@@ -5,7 +5,7 @@ import path = require("path");
 import fs = require("fs");
 
 import * as dotenv from "dotenv";
-dotenv.config({path: path.resolve(__dirname, "../.env")});
+dotenv.config({path: path.resolve(__dirname, "../../.env")});
 import yargs from "yargs/yargs";
 
 const argv = yargs(process.argv.slice(2))
@@ -14,7 +14,7 @@ const argv = yargs(process.argv.slice(2))
         input: {type: "string", default: "./deploy_parameters.json"},
         out: {type: "string", default: "./genesis.json"},
     })
-    .parseSync();
+    .parse() as any;
 
 const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk";
 process.env.HARDHAT_NETWORK = "hardhat";
@@ -22,9 +22,11 @@ process.env.MNEMONIC = argv.test ? DEFAULT_MNEMONIC : process.env.MNEMONIC;
 import {ethers, upgrades} from "hardhat";
 import {MemDB, ZkEVMDB, getPoseidon, smtUtils} from "@0xpolygonhermez/zkevm-commonjs";
 
-import {deployPolygonZkEVMDeployer, create2Deployment, getCreate2Address} from "./helpers/deployment-helpers";
-import {ProxyAdmin} from "../typechain-types";
+import {deployPolygonZkEVMDeployer, create2Deployment, getCreate2Address} from "../helpers/deployment-helpers";
+import {ProxyAdmin} from "../../typechain-types";
 import {Addressable} from "ethers";
+
+import "../helpers/utils";
 
 const deployParameters = require(argv.input);
 const pathOutputJson = path.join(__dirname, argv.out);
@@ -59,7 +61,7 @@ async function main() {
     const attemptsDeployProxy = 20;
     const balanceBrige = BigInt("0xffffffffffffffffffffffffffffffff"); // 128 bits
 
-    let timelockAddress;
+    let timelockAdminAddress;
     let initialZkEVMDeployerOwner;
     let salt;
     let minDelayTimelock;
@@ -90,7 +92,7 @@ async function main() {
     const isMainnet = deployParameters["isMainnet"] === true ? true : false;
 
     if (isMainnet === true) {
-        timelockAddress = mainnetMultisig;
+        timelockAdminAddress = mainnetMultisig;
         minDelayTimelock = mainnetMinDelayTimelock;
         salt = "0x0000000000000000000000000000000000000000000000000000000000000000"; // salt mock
         initialZkEVMDeployerOwner = mainnetInitialZkEVMDeployerOwner;
@@ -106,7 +108,7 @@ async function main() {
     } else {
         // load deploy parameters
         const mandatoryDeploymentParameters = [
-            "timelockAddress",
+            "timelockAdminAddress",
             "minDelayTimelock",
             "salt",
             "initialZkEVMDeployerOwner",
@@ -117,7 +119,7 @@ async function main() {
                 throw new Error(`Missing parameter: ${parameterName}`);
             }
         }
-        ({timelockAddress, minDelayTimelock, salt, initialZkEVMDeployerOwner} = deployParameters);
+        ({timelockAdminAddress, minDelayTimelock, salt, initialZkEVMDeployerOwner} = deployParameters);
     }
 
     // Load deployer
@@ -141,7 +143,10 @@ async function main() {
      */
 
     // Deploy proxy admin:
-    const proxyAdminFactory = await ethers.getContractFactory("ProxyAdmin", deployer);
+    const proxyAdminFactory = await ethers.getContractFactory(
+        "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol:ProxyAdmin",
+        deployer
+    );
     const deployTransactionAdmin = (await proxyAdminFactory.getDeployTransaction()).data;
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData("transferOwnership", [deployer.address]);
     [proxyAdminAddress] = await create2Deployment(
@@ -180,7 +185,10 @@ async function main() {
      * deploy proxy
      * Do not initialize directly the proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
      */
-    const transparentProxyFactory = await ethers.getContractFactory("TransparentUpgradeableProxy", deployer);
+    const transparentProxyFactory = await ethers.getContractFactory(
+        "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy",
+        deployer
+    );
     const initializeEmptyDataProxy = "0x";
     const deployTransactionProxy = (
         await transparentProxyFactory.getDeployTransaction(
@@ -242,9 +250,9 @@ async function main() {
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
     const timelockContract = await timelockContractFactory.deploy(
         minDelayTimelock,
-        [timelockAddress],
-        [timelockAddress],
-        timelockAddress,
+        [timelockAdminAddress],
+        [timelockAdminAddress],
+        timelockAdminAddress,
         zkevmAddressL2
     );
     await timelockContract.waitForDeployment();
@@ -368,7 +376,7 @@ async function main() {
         );
 
         // check timelock address manager, and timelock address itself
-        const addressArray = [timelockAddress, timelockContract.target];
+        const addressArray = [timelockAdminAddress, timelockContract.target];
         for (let j = 0; j < addressArray.length; j++) {
             const storagePositionRole = ethers.solidityPackedKeccak256(
                 ["uint256", "uint256"],
@@ -467,7 +475,7 @@ async function getAddressInfo(address: string | Addressable) {
     for (let i = 0; i < 200; i++) {
         const storageValue = await ethers.provider.getStorage(address, i);
         if (storageValue !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-            storage[ethers.zeroPadValue(ethers.toQuantity(i), 32)] = storageValue;
+            storage[ethers.toBeHex(i, 32)] = storageValue;
         }
     }
 
