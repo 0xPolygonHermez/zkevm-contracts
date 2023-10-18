@@ -453,7 +453,6 @@ async function main() {
         // save an ongoing deployment
         ongoingDeployment.polygonRollupManagerContract = polygonRollupManagerContract?.target;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
-        console.log(polygonRollupManagerContract.deploymentTransaction());
         deploymentBlockNumber = (await polygonRollupManagerContract?.deploymentTransaction().wait()).blockNumber;
     } else {
         // Expect the precalculate address matches de onogin deployment, sanity check
