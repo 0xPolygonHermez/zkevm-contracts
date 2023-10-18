@@ -5,37 +5,40 @@ import path = require("path");
 import fs = require("fs");
 
 import * as dotenv from "dotenv";
-dotenv.config({path: path.resolve(__dirname, "../.env")});
+dotenv.config({path: path.resolve(__dirname, "../../.env")});
 import {ethers, upgrades} from "hardhat";
-import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 
-const {create2Deployment} = require("./helpers/deployment-helpers");
+const {create2Deployment} = require("../helpers/deployment-helpers");
 
 const pathOutputJson = path.join(__dirname, "./deploy_output.json");
 const pathOngoingDeploymentJson = path.join(__dirname, "./deploy_ongoing.json");
 
 const deployParameters = require("./deploy_parameters.json");
 
-const pathOZUpgradability = path.join(__dirname, `../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
+const pathOZUpgradability = path.join(__dirname, `../../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 
 import {
-    VerifierRollupHelperMock,
-    ERC20PermitMock,
-    PolygonRollupManagerMock,
-    PolygonZkEVMGlobalExitRoot,
     PolygonZkEVMBridgeV2,
-    PolygonZkEVMV2,
-    PolygonRollupBase,
-    TokenWrapped,
-    Address,
-    PolygonZkEVM,
-    PolygonZkEVMV2Existent,
     PolygonZkEVMDeployer,
     PolygonZkEVMGlobalExitRootV2,
     PolygonZkEVMTimelock,
-} from "../typechain-types";
-import {ProxyAdmin} from "../typechain-types/@openzeppelin/contracts5/proxy/transparent";
-import {Contract} from "hardhat/internal/hardhat-network/stack-traces/model";
+    ProxyAdmin,
+} from "../../typechain-types";
+import "../helpers/utils";
+
+const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
+const ADD_ROLLUP_TYPE_ROLE = ethers.id("ADD_ROLLUP_TYPE_ROLE");
+const OBSOLETE_ROLLUP_TYPE_ROLE = ethers.id("OBSOLETE_ROLLUP_TYPE_ROLE");
+const CREATE_ROLLUP_ROLE = ethers.id("CREATE_ROLLUP_ROLE");
+const ADD_EXISTING_ROLLUP_ROLE = ethers.id("ADD_EXISTING_ROLLUP_ROLE");
+const UPDATE_ROLLUP_ROLE = ethers.id("UPDATE_ROLLUP_ROLE");
+const TRUSTED_AGGREGATOR_ROLE = ethers.id("TRUSTED_AGGREGATOR_ROLE");
+const TRUSTED_AGGREGATOR_ROLE_ADMIN = ethers.id("TRUSTED_AGGREGATOR_ROLE_ADMIN");
+const TWEAK_PARAMETERS_ROLE = ethers.id("TWEAK_PARAMETERS_ROLE");
+const SET_FEE_ROLE = ethers.id("SET_FEE_ROLE");
+const STOP_EMERGENCY_ROLE = ethers.id("STOP_EMERGENCY_ROLE");
+const EMERGENCY_COUNCIL_ROLE = ethers.id("EMERGENCY_COUNCIL_ROLE");
+const EMERGENCY_COUNCIL_ADMIN = ethers.id("EMERGENCY_COUNCIL_ADMIN");
 
 async function main() {
     // Check that there's no previous OZ deployment
@@ -65,14 +68,14 @@ async function main() {
      * Check that every necessary parameter is fullfilled
      */
     const mandatoryDeploymentParameters = [
+        "timelockAdminAddress",
+        "minDelayTimelock",
+        "salt",
         "admin",
         "trustedAggregator",
         "trustedAggregatorTimeout",
         "pendingStateTimeout",
         "emergencyCouncilAddress",
-        "timelockAdminAddress",
-        "minDelayTimelock",
-        "salt",
         "zkEVMDeployerAddress",
         "polTokenAddress",
     ];
@@ -158,7 +161,10 @@ async function main() {
      */
 
     // Deploy proxy admin:
-    const proxyAdminFactory = await ethers.getContractFactory("ProxyAdmin", deployer);
+    const proxyAdminFactory = await ethers.getContractFactory(
+        "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol:ProxyAdmin",
+        deployer
+    );
     const deployTransactionAdmin = (await proxyAdminFactory.getDeployTransaction()).data;
     const dataCallAdmin = proxyAdminFactory.interface.encodeFunctionData("transferOwnership", [deployer.address]);
     const [proxyAdminAddress, isProxyAdminDeployed] = await create2Deployment(
@@ -266,14 +272,17 @@ async function main() {
     console.log("\n#######################");
     console.log("#####  Checks TimelockContract  #####");
     console.log("#######################");
-    console.log("minDelayTimelock:", await timelockContract.getMinDelay());
+    //console.log("minDelayTimelock:", await timelockContract.getMinDelay());
     console.log("polygonZkEVM:", await timelockContract.polygonZkEVM());
 
     /*
      * deploy proxy
      * Do not initialize directly the proxy since we want to deploy the same code on L2 and this will alter the bytecode deployed of the proxy
      */
-    const transparentProxyFactory = await ethers.getContractFactory("TransparentUpgradeableProxy", deployer);
+    const transparentProxyFactory = await ethers.getContractFactory(
+        "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy",
+        deployer
+    );
     const initializeEmptyDataProxy = "0x";
     const deployTransactionProxy = (
         await transparentProxyFactory.getDeployTransaction(
@@ -414,6 +423,7 @@ async function main() {
                         emergencyCouncilAddress,
                     ],
                     {
+                        initializer: "initializeMock",
                         constructorArgs: [
                             polygonZkEVMGlobalExitRoot?.target,
                             polTokenAddress,
@@ -443,8 +453,8 @@ async function main() {
         // save an ongoing deployment
         ongoingDeployment.polygonRollupManagerContract = polygonRollupManagerContract?.target;
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
-
-        deploymentBlockNumber = (await polygonRollupManagerContract.deployTransaction.wait()).blockNumber;
+        console.log(polygonRollupManagerContract.deploymentTransaction());
+        deploymentBlockNumber = (await polygonRollupManagerContract?.deploymentTransaction().wait()).blockNumber;
     } else {
         // Expect the precalculate address matches de onogin deployment, sanity check
         expect(precalculateRollupManager).to.be.equal(ongoingDeployment.polygonRollupManagerContract);
@@ -472,22 +482,34 @@ async function main() {
     console.log("#####    Checks  PolygonZkEVM  #####");
     console.log("#######################");
     console.log("PolygonZkEVMGlobalExitRootAddress:", await polygonRollupManagerContract.globalExitRootManager());
-    console.log("polTokenAddress:", await polygonRollupManagerContract.matic());
-    console.log("verifierAddress:", await polygonRollupManagerContract.rollupVerifier());
+    console.log("polTokenAddress:", await polygonRollupManagerContract.pol());
     console.log("polygonZkEVMBridgeContract:", await polygonRollupManagerContract.bridgeAddress());
 
-    console.log("admin:", await polygonRollupManagerContract.admin());
-    console.log("chainID:", await polygonRollupManagerContract.chainID());
-    console.log("trustedSequencer:", await polygonRollupManagerContract.trustedSequencer());
     console.log("pendingStateTimeout:", await polygonRollupManagerContract.pendingStateTimeout());
-    console.log("trustedAggregator:", await polygonRollupManagerContract.trustedAggregator());
     console.log("trustedAggregatorTimeout:", await polygonRollupManagerContract.trustedAggregatorTimeout());
 
-    console.log("genesiRoot:", await polygonRollupManagerContract.batchNumToStateRoot(0));
-    console.log("trustedSequencerURL:", await polygonRollupManagerContract.trustedSequencerURL());
-    console.log("networkName:", await polygonRollupManagerContract.networkName());
-    console.log("owner:", await polygonRollupManagerContract.owner());
-    console.log("forkID:", await polygonRollupManagerContract.forkID());
+    // Check roles
+    expect(await polygonRollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelockContract.target)).to.be.equal(true);
+    expect(await polygonRollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, timelockContract.target)).to.be.equal(true);
+    expect(await polygonRollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, timelockContract.target)).to.be.equal(true);
+    expect(await polygonRollupManagerContract.hasRole(ADD_EXISTING_ROLLUP_ROLE, timelockContract.target)).to.be.equal(
+        true
+    );
+    expect(await polygonRollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE, trustedAggregator)).to.be.equal(true);
+
+    expect(await polygonRollupManagerContract.hasRole(OBSOLETE_ROLLUP_TYPE_ROLE, admin)).to.be.equal(true);
+    expect(await polygonRollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, admin)).to.be.equal(true);
+    expect(await polygonRollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE_ADMIN, admin)).to.be.equal(true);
+    expect(await polygonRollupManagerContract.hasRole(TWEAK_PARAMETERS_ROLE, admin)).to.be.equal(true);
+    expect(await polygonRollupManagerContract.hasRole(SET_FEE_ROLE, admin)).to.be.equal(true);
+    expect(await polygonRollupManagerContract.hasRole(STOP_EMERGENCY_ROLE, admin)).to.be.equal(true);
+
+    expect(await polygonRollupManagerContract.hasRole(EMERGENCY_COUNCIL_ROLE, emergencyCouncilAddress)).to.be.equal(
+        true
+    );
+    expect(await polygonRollupManagerContract.hasRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncilAddress)).to.be.equal(
+        true
+    );
 
     // Assert admin address
     expect(await upgrades.erc1967.getAdminAddress(precalculateRollupManager)).to.be.equal(proxyAdminAddress);
@@ -495,26 +517,18 @@ async function main() {
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
     const outputJson = {
-        polygonZkEVMAddress: polygonRollupManagerContract.address,
-        polygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.address,
-        polygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot.address,
+        polygonRollupManager: polygonRollupManagerContract.target,
+        polygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.target,
+        polygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot?.target,
         polTokenAddress,
-        verifierAddress: verifierContract.address,
-        zkEVMDeployerContract: zkEVMDeployerContract.address,
+        zkEVMDeployerContract: zkEVMDeployerContract.target,
         deployerAddress: deployer.address,
-        timelockContractAddress: timelockContract.address,
+        timelockContractAddress: timelockContract.target,
         deploymentBlockNumber,
-        genesisRoot: genesisRootHex,
-        trustedSequencer,
-        trustedSequencerURL,
-        chainID,
-        networkName,
         admin,
         trustedAggregator,
         proxyAdminAddress,
-        forkID,
         salt,
-        version,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 

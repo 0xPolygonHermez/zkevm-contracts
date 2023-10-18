@@ -1,3 +1,6 @@
+/* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if, no-restricted-syntax */
+/* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
+
 /* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if */
 /* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
 import {expect} from "chai";
@@ -6,13 +9,18 @@ import fs = require("fs");
 
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../.env")});
-import {ethers, upgrades} from "hardhat";
-import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
+import {ethers} from "hardhat";
 
-import {deployPolygonZkEVMDeployer} from "./helpers/deployment-helpers";
+import yargs from "yargs/yargs";
 
-const pathDeployParameters = path.join(__dirname, "./deploy_parameters.json");
-const deployParameters = require("./deploy_parameters.json");
+const argv = yargs(process.argv.slice(2))
+    .options({
+        input: {type: "string", default: "../v2/deploy_parameters.json"},
+    })
+    .parse() as any;
+
+const pathDeployParameters = path.join(__dirname, argv.input);
+const deployParameters = require(argv.input);
 
 async function main() {
     // Load provider
@@ -61,28 +69,60 @@ async function main() {
         [deployer] = await ethers.getSigners();
     }
 
-    // Load initialZkEVMDeployerOwner
-    const {initialZkEVMDeployerOwner} = deployParameters;
+    // Check trusted address from deploy parameters
+    const mandatoryDeploymentParameters = ["trustedAggregator", "trustedSequencer"];
 
-    if (initialZkEVMDeployerOwner === undefined || initialZkEVMDeployerOwner === "") {
-        throw new Error("Missing parameter: initialZkEVMDeployerOwner");
+    for (const parameterName of mandatoryDeploymentParameters) {
+        if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === "") {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
     }
 
-    // Deploy PolygonZkEVMDeployer if is not deployed already using keyless deployment
-    const [zkEVMDeployerContract, keylessDeployer] = await deployPolygonZkEVMDeployer(
-        initialZkEVMDeployerOwner,
-        deployer as HardhatEthersSigner
+    const {trustedAggregator, trustedSequencer} = deployParameters;
+
+    /*
+     *Deployment pol
+     */
+    const polTokenName = "Pol Token";
+    const polTokenSymbol = "POL";
+    const polTokenInitialBalance = ethers.parseEther("20000000");
+
+    const polTokenFactory = await ethers.getContractFactory("ERC20PermitMock", deployer);
+    const polTokenContract = await polTokenFactory.deploy(
+        polTokenName,
+        polTokenSymbol,
+        deployer.address,
+        polTokenInitialBalance
     );
+    await polTokenContract.waitForDeployment();
 
-    if (keylessDeployer === ethers.ZeroAddress) {
-        console.log("#######################\n");
-        console.log("polygonZkEVMDeployer already deployed on: ", zkEVMDeployerContract.target);
-    } else {
-        console.log("#######################\n");
-        console.log("polygonZkEVMDeployer deployed on: ", zkEVMDeployerContract.target);
+    console.log("#######################\n");
+    console.log("pol deployed to:", polTokenContract.target);
+
+    // fund sequencer account with tokens and ether if it have less than 0.1 ether.
+    const balanceEther = await ethers.provider.getBalance(trustedSequencer);
+    const minEtherBalance = ethers.parseEther("0.1");
+    if (balanceEther < minEtherBalance) {
+        const params = {
+            to: trustedSequencer,
+            value: minEtherBalance,
+        };
+        await deployer.sendTransaction(params);
+    }
+    const tokensBalance = ethers.parseEther("100000");
+    await (await polTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
+
+    // fund aggregator account with ether if it have less than 0.1 ether.
+    const balanceEtherAggr = await ethers.provider.getBalance(trustedAggregator);
+    if (balanceEtherAggr < minEtherBalance) {
+        const params = {
+            to: trustedAggregator,
+            value: minEtherBalance,
+        };
+        await deployer.sendTransaction(params);
     }
 
-    deployParameters.zkEVMDeployerAddress = zkEVMDeployerContract.target;
+    deployParameters.polTokenAddress = polTokenContract.target;
     fs.writeFileSync(pathDeployParameters, JSON.stringify(deployParameters, null, 1));
 }
 
