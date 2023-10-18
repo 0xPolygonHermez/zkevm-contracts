@@ -115,6 +115,17 @@ const config: HardhatUserConfig = {
                     evmVersion: "shanghai",
                 }, // try yul optimizer
             },
+            // Should have the same optimizations than the RollupManager to verify
+            "contracts/v2/lib/PolygonTransparentProxy.sol": {
+                version: "0.8.20",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 10,
+                    },
+                    evmVersion: "shanghai",
+                }, // try yul optimizer
+            },
         },
     },
     networks: {

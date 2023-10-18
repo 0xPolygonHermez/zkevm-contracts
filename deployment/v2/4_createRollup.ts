@@ -178,6 +178,7 @@ async function main() {
 
     deployOutput.genesis = genesis.root;
     deployOutput.newZKEVMAddress = newZKEVMAddress;
+    deployOutput.verifierAddress = verifierContract.target;
 
     fs.writeFileSync(pathOutputJson, JSON.stringify(deployOutput, null, 1));
 }

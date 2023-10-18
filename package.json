@@ -84,6 +84,7 @@
     "deploy:v2:localhost": "rm -f .openzeppelin/unknown-31337.json && npx ts-node deployment/v2/1_createGenesis.ts --test && npx hardhat run deployment/v2/2_deployPolygonZKEVMDeployer.ts --network localhost && npx hardhat run deployment/v2/3_deployContracts.ts --network localhost && npx hardhat run deployment/v2/4_createRollup.ts --network localhost",
     "deploy:testnet:v2:localhost": "rm -f deployment/v2/deploy_ongoing.json && npm run prepare:testnet:ZkEVM:localhost && npm run deploy:v2:localhost",
     "deploy:v2:goerli": "npx ts-node deployment/v2/1_createGenesis.ts && npx hardhat run deployment/v2/2_deployPolygonZKEVMDeployer.ts --network goerli && npx hardhat run deployment/v2/3_deployContracts.ts --network goerli && npx hardhat run deployment/v2/4_createRollup.ts --network goerli",
-    "deploy:testnet:v2:goerli": "rm -f deployment/v2/deploy_ongoing.json && npm run prepare:testnet:ZkEVM:goerli && npm run deploy:v2:goerli"
+    "deploy:testnet:v2:goerli": "rm -f deployment/v2/deploy_ongoing.json && npm run prepare:testnet:ZkEVM:goerli && npm run deploy:v2:goerli",
+    "verify:v2:goerli": "npx hardhat run deployment/v2/verifyContracts.js --network goerli"
   }
 }
