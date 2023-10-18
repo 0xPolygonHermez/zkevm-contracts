@@ -12,13 +12,14 @@ import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 const {create2Deployment} = require("../helpers/deployment-helpers");
 
 const pathOutputJson = path.join(__dirname, "./deploy_output.json");
+const pathGenesis = path.join(__dirname, "./genesis.json");
 
 const deployParameters = require("./deploy_parameters.json");
 const genesis = require("./genesis.json");
 const deployOutput = require("./deploy_output.json");
 import "../helpers/utils";
 
-import {PolygonRollupManager} from "../../typechain-types";
+import {PolygonRollupManager, PolygonZkEVMV2} from "../../typechain-types";
 
 async function main() {
     /*
@@ -168,7 +169,9 @@ async function main() {
         trustedSequencerURL,
         networkName
     );
-    await txDeployRollup.wait();
+    const receipt = await txDeployRollup.wait();
+    const timestampReceipt = (await receipt?.getBlock())?.timestamp;
+    const rollupID = await rollupManagerContract.chainIDToRollupID(chainID);
     console.log("#######################\n");
     console.log("Created new Rollup:", newZKEVMAddress);
 
@@ -180,7 +183,18 @@ async function main() {
     deployOutput.newZKEVMAddress = newZKEVMAddress;
     deployOutput.verifierAddress = verifierContract.target;
 
+    // Add the first batch of the created rollup
+    const newZKEVMContract = (await PolygonZKEVMV2Factory.attach(newZKEVMAddress)) as PolygonZkEVMV2;
+    const batchData = {
+        transactions: await newZKEVMContract.generateInitializeTransaction(rollupID, gasTokenAddress, gasTokenNetwork),
+        globalExitRoot: ethers.ZeroHash,
+        timestamp: timestampReceipt,
+        sequencer: trustedSequencer,
+    };
+    genesis.firstBatchData = batchData;
+
     fs.writeFileSync(pathOutputJson, JSON.stringify(deployOutput, null, 1));
+    fs.writeFileSync(pathGenesis, JSON.stringify(genesis, null, 1));
 }
 
 main().catch((e) => {
