@@ -7,6 +7,7 @@ cp docker/scripts/v2/deploy_parameters_docker.json deployment/v2/deploy_paramete
 npm run deploy:testnet:v2:localhost
 mkdir docker/deploymentOutput
 mv deployment/v2/deploy_output.json docker/deploymentOutput
+mv deployment/v2/genesis.json docker/deploymentOutput
 DEV_PERIOD=1 docker-compose -f docker/docker-compose.geth.yml down
 sudo docker build -t hermeznetwork/geth-zkevm-contracts -f docker/Dockerfile.geth .
 # Let it readable for the multiplatform build coming later!
