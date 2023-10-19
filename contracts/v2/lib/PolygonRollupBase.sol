@@ -34,8 +34,8 @@ contract PolygonRollupBase is
     /**
      * @notice Struct which will be used to call sequenceBatches
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
+     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s || effectiveGasPrice
+     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s || effectiveGasPrice
      * @param globalExitRoot Global exit root of the batch
      * @param timestamp Sequenced timestamp of the batch
      * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
