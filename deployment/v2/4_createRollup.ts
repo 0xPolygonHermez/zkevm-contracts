@@ -129,7 +129,6 @@ async function main() {
     await PolygonZKEVMV2Contract.waitForDeployment();
 
     // Add a new rollup type with timelock
-    const newRollupTypeID = 1;
     const rollupCompatibilityID = 0;
     await rollupManagerContract.addNewRollupType(
         PolygonZKEVMV2Contract.target,
@@ -142,6 +141,7 @@ async function main() {
 
     console.log("#######################\n");
     console.log("Added new Rollup Type deployed");
+    const newRollupTypeID = await rollupManagerContract.rollupTypeCount();
 
     let gasTokenAddress, gasTokenNetwork;
 
