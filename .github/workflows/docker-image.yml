@@ -1,0 +1,26 @@
+name: Docker Image CI
+
+on:
+  pull_request_target:
+    types:
+      - closed
+      - labeled
+    
+
+jobs:
+
+  build:
+    if: ${{github.event.pull_request.merged == true}} AND ${{ github.event.label.name == 'CI:TriggerBuild' }}
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag yordan:$(date +%s)
+
+
+
+
+
+
+
