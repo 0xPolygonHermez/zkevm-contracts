@@ -10,7 +10,7 @@ on:
 jobs:
 
   build:
-    if: ${{github.event.pull_request.merged == true}} AND ${{ github.event.label.name == 'CI:TriggerBuild' }}
+    if: github.event.pull_request.merged == true AND github.event.label.name == 'CI:TriggerBuild'
     runs-on: ubuntu-latest
 
     steps:
