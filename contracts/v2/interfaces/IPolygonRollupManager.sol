@@ -4,41 +4,6 @@ pragma solidity 0.8.20;
 
 interface IPolygonRollupManager {
     /**
-     * @dev Thrown when the pending state timeout exceeds the _HALT_AGGREGATION_TIMEOUT
-     */
-    error PendingStateTimeoutExceedHaltAggregationTimeout();
-
-    /**
-     * @dev Thrown when the trusted aggregator timeout exceeds the _HALT_AGGREGATION_TIMEOUT
-     */
-    error TrustedAggregatorTimeoutExceedHaltAggregationTimeout();
-
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
-    error OnlyTrustedAggregator();
-
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
-    error ConsensusAlreadyExist();
-
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
-    error VerifierAlreadyExist();
-
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
-    error ConsensusDoesNotExist();
-
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
-    error VerifierDoesNotExist();
-
-    /**
      * @dev Thrown when sender is not the PolygonZkEVM address
      */
     error UpdateToSameRollupTypeID();
@@ -51,17 +16,7 @@ interface IPolygonRollupManager {
     /**
      * @dev Thrown when sender is not the PolygonZkEVM address
      */
-    error VerifierMustBeDifferent();
-
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
     error SenderMustBeRollup();
-
-    /**
-     * @dev Thrown when sender is not the PolygonZkEVM address
-     */
-    error NewSequencedBatchMustBeBigger();
 
     /**
      * @dev Thrown when sender is not the PolygonZkEVM address
@@ -124,21 +79,6 @@ interface IPolygonRollupManager {
     error NewStateRootNotInsidePrime();
 
     /**
-     * @dev Thrown when force batch is not allowed
-     */
-    error ForceBatchNotAllowed();
-
-    /**
-     * @dev Thrown when try to activate force batches when they are already active
-     */
-    error ForceBatchesAlreadyActive();
-
-    /**
-     * @dev Thrown when try to activate force batches when they are already active
-     */
-    error NotSupportedCurrently();
-
-    /**
      * @dev Thrown when the final pending state num is not in a valid range
      */
     error FinalPendingStateNumInvalid();
@@ -152,16 +92,6 @@ interface IPolygonRollupManager {
      * @dev Thrown when the stored root matches the new root proving a different state
      */
     error StoredRootMustBeDifferentThanNewRoot();
-
-    /**
-     * @dev Thrown when the batch is already verified when attempting to activate the emergency state
-     */
-    error BatchAlreadyVerified();
-
-    /**
-     * @dev Thrown when the batch is not sequenced or not at the end of a sequence when attempting to activate the emergency state
-     */
-    error BatchNotSequencedOrNotSequenceEnd();
 
     /**
      * @dev Thrown when the halt timeout is not expired when attempting to activate the emergency state
@@ -194,24 +124,9 @@ interface IPolygonRollupManager {
     error InvalidRangeBatchTimeTarget();
 
     /**
-     * @dev Thrown when attempting to set a force batch timeout in an invalid range of values
-     */
-    error InvalidRangeForceBatchTimeout();
-
-    /**
-     * @dev Thrown when the caller is not the pending admin
-     */
-    error OnlyPendingGovernance();
-
-    /**
      * @dev Thrown when the caller is not the pending admin
      */
     error ChainIDAlreadyExist();
-
-    /**
-     * @dev Thrown when the caller is not the pending admin
-     */
-    error VerifiersMustHaveSameGenesis();
 
     /**
      * @dev Thrown when the caller is not the pending admin
