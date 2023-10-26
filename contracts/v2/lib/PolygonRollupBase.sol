@@ -2,17 +2,14 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../../interfaces/IVerifierRollup.sol";
 import "../../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../../interfaces/IPolygonZkEVMBridge.sol";
-import "../../lib/EmergencyManager.sol";
 import "../../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMV2Errors.sol";
 import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
-import "../PolygonZkEVMBridgeV2.sol";
-import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
+import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -24,7 +21,6 @@ import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
  */
 contract PolygonRollupBase is
     Initializable,
-    IPolygonZkEVMErrors,
     IPolygonZkEVMV2Errors,
     IPolygonRollupBase
 {
@@ -808,7 +804,7 @@ contract PolygonRollupBase is
         bytes memory bytesToSign = abi.encodePacked(
             BASE_INITIALIZE_TX_BRIDGE,
             abi.encodeCall(
-                PolygonZkEVMBridgeV2.initialize,
+                IPolygonZkEVMBridgeV2.initialize,
                 (
                     networkID,
                     _gasTokenAddress,

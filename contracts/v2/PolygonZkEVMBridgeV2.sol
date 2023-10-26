@@ -106,11 +106,11 @@ contract PolygonZkEVMBridgeV2 is
 
         // Set gas token
         if (gasTokenAddress == address(0)) {
-            // gas token will be ether
+            // Gas token will be ether
             if (gasTokenNetwork != 0) {
                 revert GasTokenNetworkMustBeZeroOnEther();
             }
-            //WETHToken, gasTokenAddress and gasTokenNetwork will be 0
+            // WETHToken, gasTokenAddress and gasTokenNetwork will be 0
         } else {
             // Gas token will be an erc20
             gasTokenAddress = _gasTokenAddress;
@@ -174,6 +174,7 @@ contract PolygonZkEVMBridgeV2 is
      * Reducing the supply of tokens on this contract, and actually locking tokens in the contract.
      * Therefore we recommend to third parties bridges that if they do implement reentrant call of `beforeTransfer` of some reentrant tokens
      * do not call any external address in that case
+     * note User/UI must be aware of the existing/available networks when choosing the destination network
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
@@ -189,7 +190,6 @@ contract PolygonZkEVMBridgeV2 is
         bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState nonReentrant {
-        // User/UI must be aware of the existing/available networks
         if (destinationNetwork == networkID) {
             revert DestinationNetworkInvalid();
         }
@@ -300,6 +300,7 @@ contract PolygonZkEVMBridgeV2 is
 
     /**
      * @notice Bridge message and send ETH value
+     * note User/UI must be aware of the existing/available networks when choosing the destination network
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param forceUpdateGlobalExitRoot Indicates if the new global exit root is updated or not
@@ -311,7 +312,7 @@ contract PolygonZkEVMBridgeV2 is
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) external payable {
-        // If exist a gas token, only let call this function without value
+        // If exist a gas token, only allow call this function without value
         if (msg.value != 0 && address(WETHToken) != address(0)) {
             revert NoValueInMessagesOnGasTokenNetworks();
         }
@@ -327,6 +328,7 @@ contract PolygonZkEVMBridgeV2 is
 
     /**
      * @notice Bridge message and send ETH value
+     * note User/UI must be aware of the existing/available networks when choosing the destination network
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amountWETH Amount of WETH tokens
@@ -340,7 +342,7 @@ contract PolygonZkEVMBridgeV2 is
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) external {
-        // if native token is ether, disable this function
+        // If native token is ether, disable this function
         if (address(WETHToken) == address(0)) {
             revert NativeTokenIsEther();
         }
@@ -372,7 +374,6 @@ contract PolygonZkEVMBridgeV2 is
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) internal {
-        // User/UI must be aware of the existing/available networks
         if (destinationNetwork == networkID) {
             revert DestinationNetworkInvalid();
         }
@@ -415,7 +416,7 @@ contract PolygonZkEVMBridgeV2 is
      * note that only the rollup index will be used only in case the mainnet flag is 0
      * note that global index do not assert the unused bits to 0.
      * This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
-     * To avoid possible synch attacks
+     * to avoid possible synch attacks
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
@@ -571,7 +572,7 @@ contract PolygonZkEVMBridgeV2 is
      * note that only the rollup index will be used only in case the mainnet flag is 0
      * note that global index do not assert the unused bits to 0.
      * This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
-     * To avoid possible synch attacks
+     * to avoid possible synch attacks
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
@@ -630,7 +631,7 @@ contract PolygonZkEVMBridgeV2 is
                 )
             );
         } else {
-            // mint wETH tokens
+            // Mint wETH tokens
             WETHToken.mint(destinationAddress, amount);
 
             // Execute message
@@ -692,7 +693,7 @@ contract PolygonZkEVMBridgeV2 is
             )
         );
 
-        // last 20 bytes of hash to address
+        // Last 20 bytes of hash to address
         return address(uint160(uint256(hashCreate2)));
     }
 
@@ -763,9 +764,9 @@ contract PolygonZkEVMBridgeV2 is
 
         // Get origin network from global index
         if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {
-            // It's mainnet, therefore sourceBridgeNetwork is 0
+            // the network is mainnet, therefore sourceBridgeNetwork is 0
 
-            // last 32 bits are leafIndex
+            // Last 32 bits are leafIndex
             leafIndex = uint32(globalIndex);
 
             if (
@@ -779,14 +780,14 @@ contract PolygonZkEVMBridgeV2 is
                 revert InvalidSmtProof();
             }
         } else {
-            // it's a rollup, therefore we have to get the origin network
+            // the network is a rollup, therefore sourceBridgeNetwork must be decoded
             uint32 indexRollup = uint32(globalIndex >> 32);
             sourceBridgeNetwork = indexRollup + 1;
 
-            // last 32 bits are leafIndex
+            // Last 32 bits are leafIndex
             leafIndex = uint32(globalIndex);
 
-            // verify merkle proof agains rollup exit root
+            // Verify merkle proof agains rollup exit root
             if (
                 !verifyMerkleProof(
                     calculateRoot(leafValue, smtProofLocalExitRoot, leafIndex),
@@ -806,7 +807,7 @@ contract PolygonZkEVMBridgeV2 is
     /**
      * @notice Function to check if an index is claimed or not
      * @param leafIndex Index
-     * @param sourceBridgeNetwork origin network
+     * @param sourceBridgeNetwork Origin network
      */
     function isClaimed(
         uint32 leafIndex,
@@ -834,7 +835,7 @@ contract PolygonZkEVMBridgeV2 is
     /**
      * @notice Function to check that an index is not claimed and set it as claimed
      * @param leafIndex Index
-     * @param sourceBridgeNetwork origin network
+     * @param sourceBridgeNetwork Origin network
      */
     function _setAndCheckClaimed(
         uint32 leafIndex,

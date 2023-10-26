@@ -103,7 +103,7 @@ contract DepositContractBase {
     }
 
     /**
-     * @notice calcualte root from merkle proof
+     * @notice Calculate root from merkle proof
      * @param leafHash Leaf hash
      * @param smtProof Smt proof
      * @param index Index of the leaf
@@ -115,7 +115,7 @@ contract DepositContractBase {
     ) public pure returns (bytes32) {
         bytes32 node = leafHash;
 
-        // Check merkle proof
+        // Compute root
         for (
             uint256 height = 0;
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
