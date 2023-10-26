@@ -822,7 +822,7 @@ contract PolygonZkEVMBridgeV2 is
             // last 32 bits are leafIndex
             leafIndex = uint32(globalIndex);
 
-            // verify merkle proof agains rollup exit root
+            // Verify merkle proof agains rollup exit root
             if (
                 !verifyMerkleProof(
                     calculateRoot(leafValue, smtProofLocalExitRoot, leafIndex),

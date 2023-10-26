@@ -142,7 +142,7 @@ contract DepositContractBase {
     ) public pure returns (bytes32) {
         bytes32 node = leafHash;
 
-        // Check merkle proof
+        // Compute root
         for (
             uint256 height = 0;
             height < _DEPOSIT_CONTRACT_TREE_DEPTH;
