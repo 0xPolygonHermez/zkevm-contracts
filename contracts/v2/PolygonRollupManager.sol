@@ -43,7 +43,6 @@ contract PolygonRollupManager is
         bytes32 genesis;
     }
 
-    // review POssible optimization rto reduce bytecode, put maps on another struct or double mapping
     /**
      * @notice Struct which to store the rollup data of each chain
      * @param rollupContract Rollup consensus contract, which manages everything
@@ -85,7 +84,7 @@ contract PolygonRollupManager is
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
-    // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
+    // If the system a does not verify a batch inside this time window, the contract enters in emergency mode
     uint64 internal constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
 
     // Maximum batches that can be verified in one call. It depends on our current metrics
@@ -116,51 +115,57 @@ contract PolygonRollupManager is
     // zkEVM FORK ID
     uint64 internal constant _ZKEVM_FORKID = 5;
 
-    // Existing roles on rollup manager
+    // Roles
 
-    // Trusted aggregator will be able to verify batches without extra delau
+    // Be able to add a new rollup type
     bytes32 internal constant _ADD_ROLLUP_TYPE_ROLE =
         keccak256("ADD_ROLLUP_TYPE_ROLE");
 
-    // Trusted aggregator will be able to verify batches without extra delau
+    // Be able to obsolete a rollup type, which means that new rollups cannot use this type
     bytes32 internal constant _OBSOLETE_ROLLUP_TYPE_ROLE =
         keccak256("OBSOLETE_ROLLUP_TYPE_ROLE");
 
+    // Be able to create a new rollup using a rollup type
     bytes32 internal constant _CREATE_ROLLUP_ROLE =
         keccak256("CREATE_ROLLUP_ROLE");
 
+    // Be able to create a new rollup which does not have to follow any rollup type.
+    // Also is able to set a genesis block
     bytes32 internal constant _ADD_EXISTING_ROLLUP_ROLE =
         keccak256("ADD_EXISTING_ROLLUP_ROLE");
 
+    // Be able to update a rollup to a new rollup type that it's compatible
     bytes32 internal constant _UPDATE_ROLLUP_ROLE =
         keccak256("UPDATE_ROLLUP_ROLE");
 
-    // Role that has priority to verify batches, also consolidates the state instantly
+    // Be able to that has priority to verify batches and consolidates the state instantly
     bytes32 internal constant _TRUSTED_AGGREGATOR_ROLE =
         keccak256("TRUSTED_AGGREGATOR_ROLE");
 
-    // Role to Set the Trusted aggregator
+    // Be able to set the Trusted aggregator address
     bytes32 internal constant _TRUSTED_AGGREGATOR_ROLE_ADMIN =
         keccak256("TRUSTED_AGGREGATOR_ROLE_ADMIN");
 
+    // Be able to tweak parameters
     bytes32 internal constant _TWEAK_PARAMETERS_ROLE =
         keccak256("TWEAK_PARAMETERS_ROLE");
 
-    // Will be able to set the current batch fee
+    // Be able to set the current batch fee
     bytes32 internal constant _SET_FEE_ROLE = keccak256("SET_FEE_ROLE");
 
+    // Be able to stop the emergency state
     bytes32 internal constant _STOP_EMERGENCY_ROLE =
         keccak256("STOP_EMERGENCY_ROLE");
 
-    // Trusted aggregator will be able to verify batches without extra delau
+    // Be able to activate the emergency state without any further condition
     bytes32 internal constant _EMERGENCY_COUNCIL_ROLE =
         keccak256("EMERGENCY_COUNCIL_ROLE");
 
-    // Will be able to update the emergency council
+    // Be able to set the emergency council address
     bytes32 internal constant _EMERGENCY_COUNCIL_ADMIN =
         keccak256("EMERGENCY_COUNCIL_ADMIN");
 
-    // Global Exit Root interface
+    // Global Exit Root address
     IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
 
     // PolygonZkEVM Bridge Address
@@ -169,13 +174,13 @@ contract PolygonRollupManager is
     // POL token address
     IERC20Upgradeable public immutable pol;
 
-    // Number of rollup types added, every new consensus will be assigned sequencially a new ID
+    // Number of rollup types added, every new type will be assigned sequencially a new ID
     uint32 public rollupTypeCount;
 
     // Consensus mapping
     mapping(uint32 rollupTypeID => RollupType) public rollupTypeMap;
 
-    // Rollup Count
+    // Number of rollups added, every new rollup will be assigned sequencially a new ID
     uint32 public rollupCount;
 
     // Rollups mapping
@@ -185,7 +190,6 @@ contract PolygonRollupManager is
     mapping(address rollupAddress => uint32 rollupID) public rollupAddressToID;
 
     // Rollups mapping
-    // review, should we reserve some ChainIDs?
     mapping(uint64 chainID => uint32 rollupID) public chainIDToRollupID;
 
     // Total sequenced batches between all rollups
@@ -194,7 +198,7 @@ contract PolygonRollupManager is
     // Total verified batches between all rollups
     uint64 public totalVerifiedBatches;
 
-    // Last timestamp where an aggregation happen
+    // Last timestamp when an aggregation happen
     uint64 public lastAggregationTimestamp;
 
     // Trusted aggregator timeout, if a sequence is not verified in this time frame,
@@ -410,7 +414,6 @@ contract PolygonRollupManager is
 
         // Even this role can only update to an already added verifier/consensus
         // Could break the compatibility of them, changing the virtual state
-        // review
         _setupRole(_UPDATE_ROLLUP_ROLE, timelock);
 
         // Admin roles
@@ -495,7 +498,6 @@ contract PolygonRollupManager is
         bytes32 genesis,
         string memory description
     ) external onlyRole(_ADD_ROLLUP_TYPE_ROLE) {
-        // nullify rollup type?¿ review hash(verifier, implementation, genesis)
         uint32 rollupTypeID = ++rollupTypeCount;
 
         rollupTypeMap[rollupTypeID] = RollupType({
