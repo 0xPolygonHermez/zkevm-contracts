@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity ^0.8.20;
+import "../../interfaces/IPolygonZkEVMErrors.sol";
 
-interface IPolygonZkEVMV2Errors {
+interface IPolygonZkEVMV2Errors is IPolygonZkEVMErrors {
     /**
      * @dev Thrown when the caller is not the trusted sequencer
      */

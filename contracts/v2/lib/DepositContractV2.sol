@@ -5,8 +5,8 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "./DepositContractBase.sol";
 
 /**
- * This contract will be used as a helper for all the sparse merkle tree related functions
- * Based on the implementation of the deposit eth2.0 contract https://github.com/ethereum/consensus-specs/blob/dev/solidity_deposit_contract/deposit_contract.sol
+ * This contract will be used in the PolygonZkEVMBridge contract, it inherits the DepositContractBase and adds the logic
+ * to calculate the leaf of the tree
  */
 contract DepositContractV2 is ReentrancyGuardUpgradeable, DepositContractBase {
     /**
