@@ -185,7 +185,7 @@ describe('PolygonZkEVMBridge Contract - for L2', () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
         const originAddress = deployer.address;
-        const amount = ethers.utils.parseEther('10');
+        const amount = ethers.utils.parseEther('0');
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
@@ -246,7 +246,7 @@ describe('PolygonZkEVMBridge Contract - for L2', () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
         const tokenAddress = tokenContract.address;
-        const amount = ethers.utils.parseEther('10');
+        const amount = ethers.utils.parseEther('0');
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
@@ -1192,6 +1192,16 @@ describe('PolygonZkEVMBridge Contract - for L2', () => {
             amount,
             metadata,
         )).to.be.revertedWith('AlreadyClaimed');
+    });
+    it('should not allow to send message with ether', async () => {
+        const amount = ethers.utils.parseEther('10');
+        await expect(polygonZkEVMBridgeContract.bridgeMessage(
+            networkIDRollup,
+            ethers.constants.AddressZero,
+            true,
+            '0x',
+            { value: amount },
+        )).to.be.revertedWith('MsgValueNotZero()');
     });
 });
 
