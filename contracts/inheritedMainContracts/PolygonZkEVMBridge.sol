@@ -289,7 +289,7 @@ contract PolygonZkEVMBridge is
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
     ) public virtual payable ifNotEmergencyState {
-        if (msg.value != 0 && !isDeployedOnL2) {
+        if (msg.value != 0) {
                 revert MsgValueNotZero();
         }
         if (
