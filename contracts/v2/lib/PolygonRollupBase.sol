@@ -100,10 +100,10 @@ contract PolygonRollupBase is
     uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
 
     // List rlp: 1 listLenLen "0xf8" (0xf7 + 1), + listLen 1 "0xc3"
-    // 1 nonce "0x80" + 1 gasPrice "0x80" + 5 gasLimit "0x8401c9c380" + 21 to "0x942a3dd3eb832af982ec71669e178424b10dca2ede"
+    // 1 nonce "0x80" + 1 gasPrice "0x80" + 5 gasLimit "0x8401c9c380" + 21 to "0x9440E0576c0A7dff9dc460B29ba73e79aBf73dD2a9"
     // + 1 value "0x80" + 1 stringLenLen "0xb8" (0xb7 + 1) + stringLen 1 "0xa4" + 164 bytes data ( signature 4 bytes + 5parameters*32bytes) = 195 bytes  (0xc3)
     bytes public constant BASE_INITIALIZE_TX_BRIDGE =
-        hex"f8c380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b8a4";
+        hex"f8c380808401c9c3809440E0576c0A7dff9dc460B29ba73e79aBf73dD2a980b8a4";
 
     // Signature used to initialize the bridge
 
