@@ -762,7 +762,7 @@ contract PolygonZkEVMBridgeV2 is
         uint32 sourceBridgeNetwork;
 
         // Get origin network from global index
-        if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {
+        if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG != 0) {
             // It's mainnet, therefore sourceBridgeNetwork is 0
 
             // last 32 bits are leafIndex
