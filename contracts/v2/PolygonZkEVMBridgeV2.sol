@@ -12,6 +12,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20Metadat
 import "../lib/EmergencyManager.sol";
 import "../lib/GlobalExitRootLib.sol";
 
+// contract PolygonBridge is DepositContractV2, EmergencyManager, IPolygonBridge {
+// TODO
 /**
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
@@ -105,9 +107,9 @@ contract PolygonZkEVMBridgeV2 is
         polygonRollupManager = _polygonRollupManager;
 
         // Set gas token
-        if (gasTokenAddress == address(0)) {
+        if (_gasTokenAddress == address(0)) {
             // Gas token will be ether
-            if (gasTokenNetwork != 0) {
+            if (_gasTokenNetwork != 0) {
                 revert GasTokenNetworkMustBeZeroOnEther();
             }
             // WETHToken, gasTokenAddress and gasTokenNetwork will be 0
@@ -763,7 +765,7 @@ contract PolygonZkEVMBridgeV2 is
         uint32 sourceBridgeNetwork;
 
         // Get origin network from global index
-        if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG == 1) {
+        if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG != 0) {
             // the network is mainnet, therefore sourceBridgeNetwork is 0
 
             // Last 32 bits are leafIndex
