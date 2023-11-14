@@ -416,7 +416,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             gasTokenAddress,
             gasTokenNetwork
         );
-        const txBase = await newZkEVMContract.BASE_INITIALIZE_TX_BRIDGE();
 
         // Check transaction
         const bridgeL2Factory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
@@ -430,7 +429,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         const rawTx = processorUtils.customRawTxToRawTx(transaction);
         const tx = ethers.Transaction.from(rawTx);
-        expect(tx.to).to.be.equal("0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe");
+        expect(tx.to).to.be.equal(polygonZkEVMBridgeContract.target);
         expect(tx.value).to.be.equal(0);
         expect(tx.data).to.be.equal(encodedData);
         expect(tx.gasPrice).to.be.equal(0);

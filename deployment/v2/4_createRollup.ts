@@ -130,14 +130,16 @@ async function main() {
 
     // Add a new rollup type with timelock
     const rollupCompatibilityID = 0;
-    await rollupManagerContract.addNewRollupType(
-        PolygonZKEVMV2Contract.target,
-        verifierContract.target,
-        forkID,
-        rollupCompatibilityID,
-        genesis.root,
-        description
-    );
+    await (
+        await rollupManagerContract.addNewRollupType(
+            PolygonZKEVMV2Contract.target,
+            verifierContract.target,
+            forkID,
+            rollupCompatibilityID,
+            genesis.root,
+            description
+        )
+    ).wait();
 
     console.log("#######################\n");
     console.log("Added new Rollup Type deployed");
