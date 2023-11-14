@@ -19,6 +19,7 @@ import "../interfaces/IPolygonZkEVMBridgeV2.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
+// PolygonL2Base rename TODO
 contract PolygonRollupBase is
     Initializable,
     IPolygonZkEVMV2Errors,

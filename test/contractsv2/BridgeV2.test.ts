@@ -385,6 +385,140 @@ describe("PolygonZkEVMBridge Contract", () => {
         const metadata = metadataToken;
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
 
+        const rollupExitRoot = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
+
+        // compute root merkle tree in Js
+        const height = 32;
+        const merkleTreeLocal = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+        merkleTreeLocal.add(leafValue);
+
+        const mainnetExitRoot = merkleTreeLocal.getRoot();
+        const indexRollup = 0;
+
+        // check only rollup account with update rollup exit root
+        await expect(polygonZkEVMGlobalExitRoot.updateExitRoot(mainnetExitRoot)).to.be.revertedWithCustomError(
+            polygonZkEVMGlobalExitRoot,
+            "OnlyAllowedContracts"
+        );
+
+        // add rollup Merkle root
+        await ethers.provider.send("hardhat_impersonateAccount", [polygonZkEVMBridgeContract.target]);
+        const bridgemoCK = await ethers.getSigner(polygonZkEVMBridgeContract.target as any);
+
+        // await deployer.sendTransaction({
+        //     to: bridgemoCK.address,
+        //     value: ethers.parseEther("1"),
+        // });
+
+        await expect(polygonZkEVMGlobalExitRoot.connect(bridgemoCK).updateExitRoot(mainnetExitRoot, {gasPrice: 0}))
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .withArgs(mainnetExitRoot, rollupExitRoot);
+
+        // check roots
+        const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
+        expect(rollupExitRootSC).to.be.equal(rollupExitRoot);
+        const mainnetExitRootSC = await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot();
+        expect(mainnetExitRootSC).to.be.equal(mainnetExitRoot);
+
+        const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
+        expect(computedGlobalExitRoot).to.be.equal(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot());
+
+        // check merkle proof
+
+        // Merkle proof local
+        const indexLocal = 0;
+        const proofLocal = merkleTreeLocal.getProofTreeByIndex(indexLocal);
+
+        // verify merkle proof
+        expect(verifyMerkleProof(leafValue, proofLocal, indexLocal, mainnetExitRoot)).to.be.equal(true);
+
+        const globalIndex = computeGlobalIndex(indexLocal, indexRollup, true);
+
+        /*
+         * claim
+         * Can't claim without tokens
+         */
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofLocal,
+                proofLocal,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+
+        // transfer tokens, then claim
+        await expect(polTokenContract.transfer(polygonZkEVMBridgeContract.target, amount))
+            .to.emit(polTokenContract, "Transfer")
+            .withArgs(deployer.address, polygonZkEVMBridgeContract.target, amount);
+
+        expect(false).to.be.equal(await polygonZkEVMBridgeContract.isClaimed(indexLocal, indexRollup + 1));
+
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofLocal,
+                proofLocal,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        )
+            .to.emit(polygonZkEVMBridgeContract, "ClaimEvent")
+            .withArgs(globalIndex, originNetwork, tokenAddress, destinationAddress, amount)
+            .to.emit(polTokenContract, "Transfer")
+            .withArgs(polygonZkEVMBridgeContract.target, acc1.address, amount);
+
+        // Can't claim because nullifier
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofLocal,
+                proofLocal,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "AlreadyClaimed");
+        expect(true).to.be.equal(await polygonZkEVMBridgeContract.isClaimed(indexLocal, indexRollup + 1));
+    });
+
+    it("should claim tokens from Mainnet to Mainnet", async () => {
+        const originNetwork = networkIDMainnet;
+        const tokenAddress = polTokenContract.target;
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDMainnet;
+        const destinationAddress = acc1.address;
+
+        const metadata = metadataToken;
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
         const mainnetExitRoot = await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot();
 
         // compute root merkle tree in Js
