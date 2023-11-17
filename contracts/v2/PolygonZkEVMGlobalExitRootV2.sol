@@ -1,29 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0
+
 pragma solidity 0.8.20;
 
-import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
+import "./lib/PolygonZkEVMGlobalExitRootBaseStorage.sol";
 import "../lib/GlobalExitRootLib.sol";
+import "./lib/DepositContractBase.sol";
 
 /// review Possible renaming to PolygonGlobalExitRootManager
-
+// TODO tests
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
-contract PolygonZkEVMGlobalExitRootV2 is IPolygonZkEVMGlobalExitRoot {
+contract PolygonZkEVMGlobalExitRootV2 is
+    PolygonZkEVMGlobalExitRootBaseStorage,
+    DepositContractBase
+{
     // PolygonZkEVMBridge address
     address public immutable bridgeAddress;
 
     // Rollup manager contract address
     address public immutable rollupManager;
-
-    // Rollup root, contains all exit roots of all rollups
-    bytes32 public lastRollupExitRoot;
-
-    // Mainnet exit root, this will be updated every time a deposit is made in mainnet
-    bytes32 public lastMainnetExitRoot;
-
-    // Store every global exit root: Root --> timestamp
-    mapping(bytes32 => uint256) public globalExitRootMap;
 
     /**
      * @dev Emitted when the global exit root is updated
@@ -66,9 +63,22 @@ contract PolygonZkEVMGlobalExitRootV2 is IPolygonZkEVMGlobalExitRoot {
             cacheLastRollupExitRoot
         );
 
-        // If it already exists, do not modify the timestamp
+        // If it already exists, do not modify the blockhash
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
-            globalExitRootMap[newGlobalExitRoot] = block.timestamp;
+            uint256 lastBlockHash = uint256(blockhash(block.number - 1));
+            globalExitRootMap[newGlobalExitRoot] = lastBlockHash;
+
+            // save new leaf in L1InfoTree
+            _addLeaf(
+                keccak256(
+                    abi.encodePacked(
+                        newGlobalExitRoot,
+                        lastBlockHash,
+                        uint64(block.timestamp)
+                    )
+                )
+            );
+
             emit UpdateGlobalExitRoot(
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot
@@ -85,5 +95,17 @@ contract PolygonZkEVMGlobalExitRootV2 is IPolygonZkEVMGlobalExitRoot {
                 lastMainnetExitRoot,
                 lastRollupExitRoot
             );
+    }
+
+    /**
+     * @notice Computes and returns the merkle root of the L1InfoTree
+     */
+    function getRoot()
+        public
+        view
+        override(DepositContractBase, IPolygonZkEVMGlobalExitRootV2)
+        returns (bytes32)
+    {
+        return super.getRoot();
     }
 }

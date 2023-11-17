@@ -754,8 +754,9 @@ contract PolygonZkEVMBridgeV2 is
         bytes32 rollupExitRoot,
         bytes32 leafValue
     ) internal {
-        // Check timestamp where the global exit root was set
-        uint256 timestampGlobalExitRoot = globalExitRootManager
+        // Check blockhash where the global exit root was set
+        // Note that previusly timestamps were setted, since in only checked if != 0 it's ok
+        uint256 blockHashGlobalExitRoot = globalExitRootManager
             .globalExitRootMap(
                 GlobalExitRootLib.calculateGlobalExitRoot(
                     mainnetExitRoot,
@@ -764,7 +765,7 @@ contract PolygonZkEVMBridgeV2 is
             );
 
         // check that this global exit root exist
-        if (timestampGlobalExitRoot == 0) {
+        if (blockHashGlobalExitRoot == 0) {
             revert GlobalExitRootInvalid();
         }
 

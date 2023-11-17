@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMV2Errors.sol";
@@ -11,7 +11,7 @@ import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
-// review Possible renaming to PolygonL2Base
+// review Possible renaming to PolygonL2BaseEtrog
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -21,7 +21,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20Metadat
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonRollupBase is
+contract PolygonRollupBaseEtrog is
     Initializable,
     IPolygonZkEVMV2Errors,
     IPolygonRollupBase
@@ -32,31 +32,17 @@ contract PolygonRollupBase is
     /**
      * @notice Struct which will be used to call sequenceBatches
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s || effectiveGasPrice
-     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s || effectiveGasPrice
-     * @param globalExitRoot Global exit root of the batch
-     * @param timestamp Sequenced timestamp of the batch
-     * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
+     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
+     * @param forcedGlobalExitRoot Global exit root, empty when sequencing a non forced batch
+     * @param forcedTimestamp Minimum timestamp of the force batch data, empty when sequencing a non forced batch
+     * @param forcedBlockHashL1 blockHash snapshot of the force batch data, empty when sequencing a non forced batch
      */
     struct BatchData {
         bytes transactions;
-        bytes32 globalExitRoot;
-        uint64 timestamp;
-        uint64 minForcedTimestamp;
-    }
-
-    /**
-     * @notice Struct which will be used to call sequenceForceBatches
-     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param globalExitRoot Global exit root of the batch
-     * @param minForcedTimestamp Indicates the minimum sequenced timestamp of the batch
-     */
-    struct ForcedBatchData {
-        bytes transactions;
-        bytes32 globalExitRoot;
-        uint64 minForcedTimestamp;
+        bytes32 forcedGlobalExitRoot;
+        uint64 forcedTimestamp;
+        bytes32 forcedBlockHashL1;
     }
 
     /**
@@ -152,7 +138,7 @@ contract PolygonRollupBase is
     IERC20Upgradeable public immutable pol;
 
     // Global Exit Root interface
-    IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
+    IPolygonZkEVMGlobalExitRootV2 public immutable globalExitRootManager;
 
     // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridgeV2 public immutable bridgeAddress;
@@ -184,8 +170,10 @@ contract PolygonRollupBase is
     // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minForcedTimestamp)
     mapping(uint64 => bytes32) public forcedBatches;
 
-    // Last sequenced timestamp
-    uint64 public lastTimestamp;
+    // Last sequenced timestamp gap, since this contract could be an upgrade from a non etrog contract
+    // review if not incaberry contracts are deployed, this might be erased
+    /// @custom:oz-renamed-from lastTimestamp
+    uint64 public gapLastTimestamp;
 
     // Last forced batch
     uint64 public lastForceBatch;
@@ -273,7 +261,7 @@ contract PolygonRollupBase is
      * @param _rollupManager Global exit root manager address
      */
     constructor(
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
         PolygonRollupManager _rollupManager
@@ -360,7 +348,6 @@ contract PolygonRollupBase is
                 sequencer
             )
         );
-        lastTimestamp = currentTimestamp;
         lastAccInputHash = newAccInputHash;
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
@@ -421,8 +408,14 @@ contract PolygonRollupBase is
             revert ExceedMaxVerifyBatches();
         }
 
+        // Update global exit root if there are new deposits
+        bridgeAddress.updateGlobalExitRoot();
+
+        // Get global batch variables
+        bytes32 l1InfoRoot = globalExitRootManager.getRoot();
+        uint64 currentTimestamp = uint64(block.timestamp);
+
         // Store storage variables in memory, to save gas, because will be overrided multiple times
-        uint64 currentTimestamp = lastTimestamp;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
         bytes32 currentAccInputHash = lastAccInputHash;
 
@@ -439,15 +432,16 @@ contract PolygonRollupBase is
             );
 
             // Check if it's a forced batch
-            if (currentBatch.minForcedTimestamp > 0) {
+            if (currentBatch.forcedTimestamp > 0) {
                 currentLastForceBatchSequenced++;
 
                 // Check forced data matches
                 bytes32 hashedForcedBatchData = keccak256(
                     abi.encodePacked(
                         currentTransactionsHash,
-                        currentBatch.globalExitRoot,
-                        currentBatch.minForcedTimestamp
+                        currentBatch.forcedGlobalExitRoot,
+                        currentBatch.forcedTimestamp,
+                        currentBatch.forcedBlockHashL1
                     )
                 );
 
@@ -458,55 +452,42 @@ contract PolygonRollupBase is
                     revert ForcedDataDoesNotMatch();
                 }
 
-                // Check timestamp is bigger than min timestamp
-                if (currentBatch.timestamp < currentBatch.minForcedTimestamp) {
-                    revert SequencedTimestampBelowForcedTimestamp();
-                }
+                // Calculate next accumulated input hash
+                currentAccInputHash = keccak256(
+                    abi.encodePacked(
+                        currentAccInputHash,
+                        currentTransactionsHash,
+                        currentBatch.forcedGlobalExitRoot,
+                        currentBatch.forcedTimestamp,
+                        l2Coinbase,
+                        currentBatch.forcedBlockHashL1
+                    )
+                );
 
                 // Delete forceBatch data since won't be used anymore
                 delete forcedBatches[currentLastForceBatchSequenced];
             } else {
-                // Check global exit root exists with proper batch length. These checks are already done in the forceBatches call
-                // Note that the sequencer can skip setting a global exit root putting zeros
-                if (
-                    currentBatch.globalExitRoot != bytes32(0) &&
-                    globalExitRootManager.globalExitRootMap(
-                        currentBatch.globalExitRoot
-                    ) ==
-                    0
-                ) {
-                    revert GlobalExitRootNotExist();
-                }
-
+                // Note that forcedGlobalExitRoot and forcedBlockHashL1 remain unused and unchecked in this path
+                // The synchronizer should be aware of that
                 if (
                     currentBatch.transactions.length >
                     _MAX_TRANSACTIONS_BYTE_LENGTH
                 ) {
                     revert TransactionsLengthAboveMax();
                 }
+
+                // Calculate next accumulated input hash
+                currentAccInputHash = keccak256(
+                    abi.encodePacked(
+                        currentAccInputHash,
+                        currentTransactionsHash,
+                        l1InfoRoot,
+                        currentTimestamp,
+                        l2Coinbase,
+                        bytes32(0)
+                    )
+                );
             }
-
-            // Check Batch timestamps are correct
-            if (
-                currentBatch.timestamp < currentTimestamp ||
-                currentBatch.timestamp > block.timestamp
-            ) {
-                revert SequencedTimestampInvalid();
-            }
-
-            // Calculate next accumulated input hash
-            currentAccInputHash = keccak256(
-                abi.encodePacked(
-                    currentAccInputHash,
-                    currentTransactionsHash,
-                    currentBatch.globalExitRoot,
-                    currentBatch.timestamp,
-                    l2Coinbase
-                )
-            );
-
-            // Update timestamp
-            currentTimestamp = currentBatch.timestamp;
         }
 
         // Sanity check, should be unreachable
@@ -515,7 +496,6 @@ contract PolygonRollupBase is
         }
 
         // Store back the storage variables
-        lastTimestamp = currentTimestamp;
         lastAccInputHash = currentAccInputHash;
 
         uint256 nonForcedBatchesSequenced = batchesNum;
@@ -527,7 +507,8 @@ contract PolygonRollupBase is
             // substract forced batches
             nonForcedBatchesSequenced -= forcedBatchesSequenced;
 
-            pol.safeTransfer( // Transfer pol for every forced batch submitted
+            // Transfer pol for every forced batch submitted
+            pol.safeTransfer(
                 address(rollupManager),
                 calculatePolPerForceBatch() * (forcedBatchesSequenced)
             );
@@ -542,9 +523,6 @@ contract PolygonRollupBase is
             address(rollupManager),
             rollupManager.getBatchFee() * nonForcedBatchesSequenced
         );
-
-        // Update global exit root if there are new deposits
-        bridgeAddress.updateGlobalExitRoot();
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(batchesNum),
@@ -610,7 +588,8 @@ contract PolygonRollupBase is
             abi.encodePacked(
                 keccak256(transactions),
                 lastGlobalExitRoot,
-                uint64(block.timestamp)
+                uint64(block.timestamp),
+                blockhash(block.number - 1)
             )
         );
 
@@ -634,7 +613,7 @@ contract PolygonRollupBase is
      * @param batches Struct array which holds the necessary data to append force batches
      */
     function sequenceForceBatches(
-        ForcedBatchData[] calldata batches
+        BatchData[] calldata batches
     ) external virtual isForceBatchActive {
         uint256 batchesNum = batches.length;
 
@@ -660,7 +639,7 @@ contract PolygonRollupBase is
         // Sequence force batches
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
-            ForcedBatchData memory currentBatch = batches[i];
+            BatchData memory currentBatch = batches[i];
             currentLastForceBatchSequenced++;
 
             // Store the current transactions hash since it's used more than once for gas saving
@@ -672,8 +651,9 @@ contract PolygonRollupBase is
             bytes32 hashedForcedBatchData = keccak256(
                 abi.encodePacked(
                     currentTransactionsHash,
-                    currentBatch.globalExitRoot,
-                    currentBatch.minForcedTimestamp
+                    currentBatch.forcedGlobalExitRoot,
+                    currentBatch.forcedTimestamp,
+                    currentBatch.forcedBlockHashL1
                 )
             );
 
@@ -690,7 +670,7 @@ contract PolygonRollupBase is
             if (i == (batchesNum - 1)) {
                 // The last batch will have the most restrictive timestamp
                 if (
-                    currentBatch.minForcedTimestamp + forceBatchTimeout >
+                    currentBatch.forcedTimestamp + forceBatchTimeout >
                     block.timestamp
                 ) {
                     revert ForceBatchTimeoutNotExpired();
@@ -701,9 +681,10 @@ contract PolygonRollupBase is
                 abi.encodePacked(
                     currentAccInputHash,
                     currentTransactionsHash,
-                    currentBatch.globalExitRoot,
-                    uint64(block.timestamp),
-                    msg.sender
+                    currentBatch.forcedGlobalExitRoot,
+                    currentBatch.forcedTimestamp,
+                    msg.sender,
+                    currentBatch.forcedBlockHashL1
                 )
             );
         }
@@ -716,7 +697,6 @@ contract PolygonRollupBase is
 
         // Store back the storage variables
         lastAccInputHash = currentAccInputHash;
-        lastTimestamp = uint64(block.timestamp);
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
