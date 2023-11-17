@@ -8,7 +8,6 @@ interface IPolygonRollupBase {
         address sequencer,
         uint32 networkID,
         address gasTokenAddress,
-        uint32 gasTokenNetwork,
         string memory sequencerURL,
         string memory _networkName
     ) external;

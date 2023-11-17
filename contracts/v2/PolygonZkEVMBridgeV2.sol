@@ -12,8 +12,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20Metadat
 import "../lib/EmergencyManager.sol";
 import "../lib/GlobalExitRootLib.sol";
 
-// contract PolygonBridge is DepositContractV2, EmergencyManager, IPolygonBridge {
-// TODO
+// review Possible renaming to PolygonBridge
 /**
  * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
  * Contract responsible to manage the token interactions with other networks
@@ -83,6 +82,9 @@ contract PolygonZkEVMBridgeV2 is
     // Native address
     uint32 public gasTokenNetwork;
 
+    // Gas token metadata
+    bytes public gasTokenMetadata;
+
     // WETH address
     TokenWrapped public WETHToken;
 
@@ -100,7 +102,8 @@ contract PolygonZkEVMBridgeV2 is
         address _gasTokenAddress,
         uint32 _gasTokenNetwork,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        address _polygonRollupManager
+        address _polygonRollupManager,
+        bytes memory _gasTokenMetadata
     ) external virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
@@ -113,10 +116,13 @@ contract PolygonZkEVMBridgeV2 is
                 revert GasTokenNetworkMustBeZeroOnEther();
             }
             // WETHToken, gasTokenAddress and gasTokenNetwork will be 0
+            // gasTokenMetadata will be empty
         } else {
             // Gas token will be an erc20
             gasTokenAddress = _gasTokenAddress;
             gasTokenNetwork = _gasTokenNetwork;
+            gasTokenMetadata = _gasTokenMetadata;
+
             WETHToken = (new TokenWrapped){salt: bytes32(0)}(
                 "Wrapped Ether",
                 "WETH",
@@ -210,6 +216,7 @@ contract PolygonZkEVMBridgeV2 is
             // Set gas token parameters
             originNetwork = gasTokenNetwork;
             originTokenAddress = gasTokenAddress;
+            metadata = gasTokenMetadata;
         } else {
             // Check msg.value is 0 if tokens are bridged
             if (msg.value != 0) {
@@ -223,6 +230,7 @@ contract PolygonZkEVMBridgeV2 is
                 TokenWrapped(token).burn(msg.sender, amount);
 
                 // Both origin network and originTokenAddress will be 0
+                // Metadata will be empty
             } else {
                 TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
                     token
@@ -260,14 +268,13 @@ contract PolygonZkEVMBridgeV2 is
 
                     originTokenAddress = token;
                     originNetwork = networkID;
-
-                    // Encode metadata
-                    metadata = abi.encode(
-                        _safeName(token),
-                        _safeSymbol(token),
-                        _safeDecimals(token)
-                    );
                 }
+                // Encode metadata
+                metadata = abi.encode(
+                    _safeName(token),
+                    _safeSymbol(token),
+                    _safeDecimals(token)
+                );
             }
         }
 

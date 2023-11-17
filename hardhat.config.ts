@@ -90,7 +90,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 9999,
+                        runs: 999,
                     },
                     evmVersion: "shanghai",
                 },
@@ -100,7 +100,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 9999, // must be the same as bridge, for testing porpuses
+                        runs: 999, // must be the same as bridge, for testing porpuses
                     },
                     evmVersion: "shanghai",
                 },

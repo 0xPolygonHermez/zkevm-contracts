@@ -14,11 +14,11 @@ import "./lib/PolygonAccessControlUpgradeable.sol";
 import "./lib/LegacyZKEVMStateVariables.sol";
 import "./consensus/zkEVM/PolygonZkEVMV2Existent.sol";
 
-// PolygonL2Manager, ?¿ TODO
+// review Possible renaming to PolygonL2Manager
 /**
  * Contract responsible for managing the exit roots across multiple Rollups
  */
-contract PolygonRollupManager is 
+contract PolygonRollupManager is
     PolygonAccessControlUpgradeable,
     EmergencyManager,
     LegacyZKEVMStateVariables,
@@ -247,8 +247,7 @@ contract PolygonRollupManager is
         uint32 rollupTypeID,
         address rollupAddress,
         uint64 chainID,
-        address gasTokenAddress,
-        uint32 gasTokenNetwork
+        address gasTokenAddress
     );
 
     /**
@@ -550,7 +549,7 @@ contract PolygonRollupManager is
      * @param admin Admin of the new created rollup
      * @param sequencer Sequencer of the new created rollup
      * @param gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
-     * @param gasTokenNetwork Indicates the native network of the token address
+     * Note if a wrapped token of the bridge is used, the original network and address of this wrapped will be used instead
      * @param sequencerURL Sequencer URL of the new created rollup
      * @param networkName Network name of the new created rollup
      */
@@ -560,7 +559,6 @@ contract PolygonRollupManager is
         address admin,
         address sequencer,
         address gasTokenAddress,
-        uint32 gasTokenNetwork,
         string memory sequencerURL,
         string memory networkName
     ) external onlyRole(_CREATE_ROLLUP_ROLE) {
@@ -612,8 +610,7 @@ contract PolygonRollupManager is
             rollupTypeID,
             rollupAddress,
             chainID,
-            gasTokenAddress,
-            gasTokenNetwork
+            gasTokenAddress
         );
 
         // Initialize new rollup
@@ -622,7 +619,6 @@ contract PolygonRollupManager is
             sequencer,
             rollupID,
             gasTokenAddress,
-            gasTokenNetwork,
             sequencerURL,
             networkName
         );

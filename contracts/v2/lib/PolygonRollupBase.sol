@@ -4,12 +4,14 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "../../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../interfaces/IPolygonZkEVMBridge.sol";
 import "../../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMV2Errors.sol";
 import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+
+// review Possible renaming to PolygonL2Base
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -19,7 +21,6 @@ import "../interfaces/IPolygonZkEVMBridgeV2.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-// PolygonL2Base rename TODO
 contract PolygonRollupBase is
     Initializable,
     IPolygonZkEVMV2Errors,
@@ -96,13 +97,33 @@ contract PolygonRollupBase is
     // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
     uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
 
-    // List rlp: 1 listLenLen "0xf8" (0xf7 + 1), + listLen 1 "0xc3"
-    // 1 nonce "0x80" + 1 gasPrice "0x80" + 5 gasLimit "0x8401c9c380" + 21 to ("0x94" + bridgeAddress")
-    // + 1 value "0x80" + 1 stringLenLen "0xb8" (0xb7 + 1) + stringLen 1 "0xa4" + 164 bytes data ( signature 4 bytes + 5parameters*32bytes) = 195 bytes  (0xc3)
-    bytes public constant FIRST_BASE_INITIALIZE_TX_BRIDGE =
-        hex"f8c380808401c9c38094";
+    // In order to encode the initialize transaction of the bridge there's have a constant part and the metadata which is variable
+    // Note the total transaction will be constrained to 65535 to avoid attacks and simplify the implementation
 
-    bytes public constant SECOND_BASE_INITIALIZE_TX_BRIDGE = hex"80b8a4";
+    // List rlp: 1 listLenLen "0xf9" (0xf7 + 2), + listLen 2 (32 bytes + txData bytes) (do not accept more than 65535 bytes)
+
+    // TxData bytes: 164 bytes data ( signature 4 bytes + 5 parameters*32bytes +
+    // (abi encoded metadata: 32 bytes position + 32 bytes len + 32 bytes position name + 32 bytes length name + 32 bytes position Symbol + 32 bytes length Symbol
+    //+ 32 bytes decimal )) min 7*32 bytes =
+    // = 164 bytes + 224 bytes = 388 (0x0184) minimum
+    // Extra data: nameLen padded to 32 bytes + symbol len padded to 32 bytes
+
+    // Constant bytes:  1 nonce "0x80" + 1 gasPrice "0x80" + 5 gasLimit "0x8401c9c380" (30M gas)
+    // + 21 to ("0x94" + bridgeAddress")  + 1 value "0x80" + 1 stringLenLen "0xb9" (0xb7 + 2) +
+    // stringLen (0x0184 + nameLen padded to 32 bytes + symbol len padded to 32 bytes) + txData bytes = 32 bytes + txData bytes
+    uint16 public constant INITIALIZE_TX_CONSTANT_BYTES = 32;
+
+    // First byte of the initialize bridge tx, indicates a list with a lengt of 2 bytes
+    // Since the minimum constant bytes will be: 388 (tx data min) + 32 (tx parameters) = 420 (0x1a4) will always take 2 bytes to express the lenght of the rlp
+    // Note that more than 2 bytes of list len is not supported, since it's constrained to 65535
+    uint8 public constant INITIALIZE_TX_BRIDGE_LIST_LEN_LEN = 0xf9;
+
+    // Tx parameters until the bridge address
+    bytes public constant INITIALIZE_TX_BRIDGE_PARAMS = hex"80808401c9c38094";
+
+    // Tx parameters after the bridge address
+    bytes public constant INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS =
+        hex"80b9";
 
     // Signature used to initialize the bridge
 
@@ -117,7 +138,7 @@ contract PolygonRollupBase is
     bytes32 public constant SIGNATURE_INITIALIZE_TX_S =
         0x000000000000000000000000000000000000000000000000000000005ca1ab1e;
 
-    // S parameter of the initialize signature
+    // Effective percentage of the initalize transaction
     bytes1 public constant INITIALIZE_TX_EFFECTIVE_PERCENTAGE = 0xFF;
 
     // Global Exit Root address L2
@@ -134,7 +155,7 @@ contract PolygonRollupBase is
     IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
 
     // PolygonZkEVM Bridge Address
-    IPolygonZkEVMBridge public immutable bridgeAddress;
+    IPolygonZkEVMBridgeV2 public immutable bridgeAddress;
 
     // Rollup manager
     PolygonRollupManager public immutable rollupManager;
@@ -254,7 +275,7 @@ contract PolygonRollupBase is
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _pol,
-        IPolygonZkEVMBridge _bridgeAddress,
+        IPolygonZkEVMBridgeV2 _bridgeAddress,
         PolygonRollupManager _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
@@ -267,8 +288,8 @@ contract PolygonRollupBase is
      * @param _admin Admin address
      * @param sequencer Trusted sequencer address
      * @param networkID Indicates the network identifier that will be used in the bridge
-     * @param _gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
-     * @param _gasTokenNetwork Indicates the native network of the token address
+     * @param _gasTokenAddress Indicates the token address in mainnet that will be used as a gas token
+     * Note if a wrapped token of the bridge is used, the original network and address of this wrapped are used instead
      * @param sequencerURL Trusted sequencer URL
      * @param _networkName L2 network name
      */
@@ -277,7 +298,6 @@ contract PolygonRollupBase is
         address sequencer,
         uint32 networkID,
         address _gasTokenAddress,
-        uint32 _gasTokenNetwork,
         string memory sequencerURL,
         string memory _networkName
     ) external virtual onlyRollupManager initializer {
@@ -290,24 +310,40 @@ contract PolygonRollupBase is
         // Constant deployment variables
         forceBatchTimeout = 5 days;
 
-        if (_gasTokenAddress == address(0)) {
-            // gas token will be ether
-            if (_gasTokenNetwork != 0) {
-                revert GasTokenNetworkMustBeZeroOnEther();
+        bytes memory gasTokenMetadata;
+
+        if (_gasTokenAddress != address(0)) {
+            // Ask for token metadata, the same way is enconded in the bridge
+            // Note that this funciton will revert if the token is not in this network
+            gasTokenMetadata = abi.encode(
+                _safeName(_gasTokenAddress),
+                _safeSymbol(_gasTokenAddress),
+                _safeDecimals(_gasTokenAddress)
+            );
+
+            // Check gas token address on the bridge
+            (
+                uint32 originWrappedNetwork,
+                address originWrappedAddress
+            ) = bridgeAddress.wrappedTokenToTokenInfo(_gasTokenAddress);
+
+            if (originWrappedNetwork != 0) {
+                // It's a wrapped token, get the wrapped parameters
+                gasTokenAddress = originWrappedAddress;
+                gasTokenNetwork = originWrappedNetwork;
+            } else {
+                // gasTokenNetwork will be mainnet, for instance 0
+                gasTokenAddress = _gasTokenAddress;
             }
         }
-
-        // set gas token variables
-        gasTokenAddress = _gasTokenAddress;
-        gasTokenNetwork = _gasTokenNetwork;
-
         // Sequence transaction to initilize the bridge
 
         // Calculate transaction to initialize the bridge
         bytes memory transaction = generateInitializeTransaction(
             networkID,
-            _gasTokenAddress,
-            _gasTokenNetwork
+            gasTokenAddress,
+            gasTokenNetwork,
+            gasTokenMetadata
         );
 
         bytes32 currentTransactionsHash = keccak256(transaction);
@@ -801,23 +837,37 @@ contract PolygonRollupBase is
     function generateInitializeTransaction(
         uint32 networkID,
         address _gasTokenAddress,
-        uint32 _gasTokenNetwork
+        uint32 _gasTokenNetwork,
+        bytes memory _gasTokenMetadata
     ) public view returns (bytes memory) {
         // Check the ecrecover, as a sanity check, to not allow invalid transactions
-        bytes memory bytesToSign = abi.encodePacked(
-            FIRST_BASE_INITIALIZE_TX_BRIDGE,
-            bridgeAddress,
-            SECOND_BASE_INITIALIZE_TX_BRIDGE,
-            abi.encodeCall(
-                IPolygonZkEVMBridgeV2.initialize,
-                (
-                    networkID,
-                    _gasTokenAddress,
-                    _gasTokenNetwork,
-                    GLOBAL_EXIT_ROOT_MANAGER_L2,
-                    address(0) // Rollup manager on L2 does not exist
-                )
+
+        bytes memory initializeBrigeData = abi.encodeCall(
+            IPolygonZkEVMBridgeV2.initialize,
+            (
+                networkID,
+                _gasTokenAddress,
+                _gasTokenNetwork,
+                GLOBAL_EXIT_ROOT_MANAGER_L2,
+                address(0), // Rollup manager on L2 does not exist
+                _gasTokenMetadata
             )
+        );
+
+        // Do not support more than 65535 bytes
+        if (initializeBrigeData.length >= type(uint16).max) {
+            revert();
+        }
+        uint16 initializeBrigeDataLen = uint16(initializeBrigeData.length);
+
+        bytes memory bytesToSign = abi.encodePacked(
+            INITIALIZE_TX_BRIDGE_LIST_LEN_LEN,
+            uint16(initializeBrigeData.length) + INITIALIZE_TX_CONSTANT_BYTES, // do not support more than 65535 bytes
+            INITIALIZE_TX_BRIDGE_PARAMS,
+            bridgeAddress,
+            INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS,
+            initializeBrigeDataLen,
+            initializeBrigeData
         );
 
         // Sanity check that the ecrecover will work
@@ -842,5 +892,73 @@ contract PolygonRollupBase is
         );
 
         return transaction;
+    }
+
+    // Helpers to safely get the metadata from a token, inspired by https://github.com/traderjoe-xyz/joe-core/blob/main/contracts/MasterChefJoeV3.sol#L55-L95
+
+    /**
+     * @notice Provides a safe ERC20.symbol version which returns 'NO_SYMBOL' as fallback string
+     * @param token The address of the ERC-20 token contract
+     */
+    function _safeSymbol(address token) internal view returns (string memory) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.symbol, ())
+        );
+        return success ? _returnDataToString(data) : "NO_SYMBOL";
+    }
+
+    /**
+     * @notice  Provides a safe ERC20.name version which returns 'NO_NAME' as fallback string.
+     * @param token The address of the ERC-20 token contract.
+     */
+    function _safeName(address token) internal view returns (string memory) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.name, ())
+        );
+        return success ? _returnDataToString(data) : "NO_NAME";
+    }
+
+    /**
+     * @notice Provides a safe ERC20.decimals version which returns '18' as fallback value.
+     * Note Tokens with (decimals > 255) are not supported
+     * @param token The address of the ERC-20 token contract
+     */
+    function _safeDecimals(address token) internal view returns (uint8) {
+        (bool success, bytes memory data) = address(token).staticcall(
+            abi.encodeCall(IERC20MetadataUpgradeable.decimals, ())
+        );
+        return success && data.length == 32 ? abi.decode(data, (uint8)) : 18;
+    }
+
+    /**
+     * @notice Function to convert returned data to string
+     * returns 'NOT_VALID_ENCODING' as fallback value.
+     * @param data returned data
+     */
+    function _returnDataToString(
+        bytes memory data
+    ) internal pure returns (string memory) {
+        if (data.length >= 64) {
+            return abi.decode(data, (string));
+        } else if (data.length == 32) {
+            // Since the strings on bytes32 are encoded left-right, check the first zero in the data
+            uint256 nonZeroBytes;
+            while (nonZeroBytes < 32 && data[nonZeroBytes] != 0) {
+                nonZeroBytes++;
+            }
+
+            // If the first one is 0, we do not handle the encoding
+            if (nonZeroBytes == 0) {
+                return "NOT_VALID_ENCODING";
+            }
+            // Create a byte array with nonZeroBytes length
+            bytes memory bytesArray = new bytes(nonZeroBytes);
+            for (uint256 i = 0; i < nonZeroBytes; i++) {
+                bytesArray[i] = data[i];
+            }
+            return string(bytesArray);
+        } else {
+            return "NOT_VALID_ENCODING";
+        }
     }
 }
