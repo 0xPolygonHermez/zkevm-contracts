@@ -21,7 +21,7 @@ contract PolygonZkEVMV2 is PolygonRollupBase {
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _pol,
-        IPolygonZkEVMBridge _bridgeAddress,
+        IPolygonZkEVMBridgeV2 _bridgeAddress,
         PolygonRollupManager _rollupManager
     )
         PolygonRollupBase(

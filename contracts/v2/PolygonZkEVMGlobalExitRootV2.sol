@@ -4,7 +4,7 @@ pragma solidity 0.8.20;
 import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "../lib/GlobalExitRootLib.sol";
 
-// TODO contract PolygonGlobalExitRootManager is IPolygonGlobalExitRootManager {
+/// review Possible renaming to PolygonGlobalExitRootManager
 
 /**
  * Contract responsible for managing the exit roots across multiple networks

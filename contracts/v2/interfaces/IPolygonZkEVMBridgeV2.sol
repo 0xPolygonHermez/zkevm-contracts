@@ -84,6 +84,10 @@ interface IPolygonZkEVMBridgeV2 {
      */
     error GasTokenNetworkMustBeZeroOnEther();
 
+    function wrappedTokenToTokenInfo(
+        address destinationAddress
+    ) external returns (uint32, address);
+
     function updateGlobalExitRoot() external;
 
     function activateEmergencyState() external;
@@ -147,6 +151,7 @@ interface IPolygonZkEVMBridgeV2 {
         address _gasTokenAddress,
         uint32 _gasTokenNetwork,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
-        address _polygonRollupManager
+        address _polygonRollupManager,
+        bytes memory _gasTokenMetadata
     ) external;
 }

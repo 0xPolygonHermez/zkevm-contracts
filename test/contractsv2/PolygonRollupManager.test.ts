@@ -154,7 +154,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             ethers.ZeroAddress, // zero for ether
             ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
-            rollupManagerContract.target
+            rollupManagerContract.target,
+            "0x"
         );
 
         // Initialize Mock
@@ -312,7 +313,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 admin.address,
                 trustedSequencer.address,
                 gasTokenAddress,
-                gasTokenNetwork,
                 urlSequencer,
                 networkName
             )
@@ -328,7 +328,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
-                    gasTokenNetwork,
                     urlSequencer,
                     networkName
                 )
@@ -349,7 +348,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
-                    gasTokenNetwork,
                     urlSequencer,
                     networkName
                 )
@@ -374,13 +372,12 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
-                    gasTokenNetwork,
                     urlSequencer,
                     networkName
                 )
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
-            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress, gasTokenNetwork)
+            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
             .to.emit(newZkEVMContract, "SequenceBatches")
             .withArgs(newSequencedBatch)
             .to.emit(rollupManagerContract, "OnSequenceBatches")
@@ -405,7 +402,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
-                    gasTokenNetwork,
                     urlSequencer,
                     networkName
                 )
@@ -414,7 +410,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const transaction = await newZkEVMContract.generateInitializeTransaction(
             newCreatedRollupID,
             gasTokenAddress,
-            gasTokenNetwork
+            gasTokenNetwork,
+            "0x" // empty metadata
         );
 
         // Check transaction
@@ -425,6 +422,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             gasTokenNetwork,
             globalExitRootL2Address,
             ethers.ZeroAddress,
+            "0x", // empty metadata
         ]);
 
         const rawTx = processorUtils.customRawTxToRawTx(transaction);

@@ -46,7 +46,6 @@ describe("PolygonZkEVMBridge Contract", () => {
         ["string", "string", "uint8"],
         [tokenName, tokenSymbol, decimals]
     );
-
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
 
@@ -77,7 +76,8 @@ describe("PolygonZkEVMBridge Contract", () => {
             ethers.ZeroAddress, // zero for ether
             ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
-            rollupManager.address
+            rollupManager.address,
+            "0x"
         );
 
         // deploy token
@@ -855,7 +855,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         const merkleTreeMainnet = new MerkleTreeBridge(height);
         // Imporant calcualte leaf with origin token address no wrapped token address
         const originTokenAddress = tokenAddress;
-        const metadataMainnet = "0x"; // since the token does not belong to this network
+        const metadataMainnet = metadata; // since the token does not belong to this network
         const metadataHashMainnet = ethers.solidityPackedKeccak256(["bytes"], [metadataMainnet]);
 
         const leafValueMainnet = getLeafValue(

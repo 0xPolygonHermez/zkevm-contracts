@@ -335,7 +335,6 @@ async function main() {
      *Deployment Global exit root manager
      */
     let polygonZkEVMGlobalExitRoot;
-    // TODO review should use V2?¿
     const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2", deployer);
     if (!ongoingDeployment.polygonZkEVMGlobalExitRoot) {
         for (let i = 0; i < attemptsDeployProxy; i++) {
