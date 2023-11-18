@@ -196,7 +196,7 @@ contract PolygonRollupBaseEtrog is
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
-    event SequenceBatches(uint64 indexed numBatch);
+    event SequenceBatches(uint64 indexed numBatch, bytes32 l1InfoRoot);
 
     /**
      * @dev Emitted when a batch is forced
@@ -289,20 +289,12 @@ contract PolygonRollupBaseEtrog is
         string memory sequencerURL,
         string memory _networkName
     ) external virtual onlyRollupManager initializer {
-        admin = _admin;
-        trustedSequencer = sequencer;
-
-        trustedSequencerURL = sequencerURL;
-        networkName = _networkName;
-
-        // Constant deployment variables
-        forceBatchTimeout = 5 days;
-
         bytes memory gasTokenMetadata;
 
         if (_gasTokenAddress != address(0)) {
             // Ask for token metadata, the same way is enconded in the bridge
             // Note that this funciton will revert if the token is not in this network
+            // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
             gasTokenMetadata = abi.encode(
                 _safeName(_gasTokenAddress),
                 _safeSymbol(_gasTokenAddress),
@@ -339,15 +331,19 @@ contract PolygonRollupBaseEtrog is
         // should be deterministic for easier deployment
         uint64 currentTimestamp = uint64(block.timestamp);
 
+        // Add the transaction to the sequence as if it was a force transaction
+        // review add acutal global exit root, need different event
         bytes32 newAccInputHash = keccak256(
             abi.encodePacked(
                 bytes32(0), // Current acc Input hash
                 currentTransactionsHash,
                 bytes32(0), // Global exit root
                 currentTimestamp,
-                sequencer
+                sequencer,
+                blockhash(block.number - 1)
             )
         );
+
         lastAccInputHash = newAccInputHash;
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
@@ -355,7 +351,17 @@ contract PolygonRollupBaseEtrog is
             newAccInputHash
         );
 
-        emit SequenceBatches(currentBatchSequenced);
+        // Set initialize variables
+        admin = _admin;
+        trustedSequencer = sequencer;
+
+        trustedSequencerURL = sequencerURL;
+        networkName = _networkName;
+
+        // Constant deployment variables
+        forceBatchTimeout = 5 days;
+
+        emit SequenceBatches(currentBatchSequenced, bytes32(0));
     }
 
     modifier onlyAdmin() {
@@ -529,7 +535,7 @@ contract PolygonRollupBaseEtrog is
             currentAccInputHash
         );
 
-        emit SequenceBatches(currentBatchSequenced);
+        emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
     }
 
     /**
