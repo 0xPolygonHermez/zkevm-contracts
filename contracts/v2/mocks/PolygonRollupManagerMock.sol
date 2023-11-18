@@ -48,7 +48,6 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
 
         // Even this role can only update to an already added verifier/consensus
         // Could break the compatibility of them, changing the virtual state
-        // review
         _setupRole(_UPDATE_ROLLUP_ROLE, timelock);
 
         // Admin roles
@@ -59,7 +58,6 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         _setRoleAdmin(_TRUSTED_AGGREGATOR_ROLE, _TRUSTED_AGGREGATOR_ROLE_ADMIN);
         _setupRole(_TRUSTED_AGGREGATOR_ROLE_ADMIN, admin);
 
-        // review Could be another address?¿
         _setupRole(_SET_FEE_ROLE, admin);
 
         // Emergency council roles

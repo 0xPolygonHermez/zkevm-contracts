@@ -843,6 +843,55 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         await expect(newZkEVMContract.sequenceForceBatches([forceBatchStruct]))
             .to.emit(newZkEVMContract, "SequenceForceBatches")
             .withArgs(3);
+
+        // Check admin functions
+        await expect(newZkEVMContract.setTrustedSequencer(deployer.address)).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyAdmin"
+        );
+
+        await expect(newZkEVMContract.connect(admin).setTrustedSequencer(deployer.address))
+            .to.emit(newZkEVMContract, "SetTrustedSequencer")
+            .withArgs(deployer.address);
+
+        await expect(newZkEVMContract.setTrustedSequencerURL("0x1253")).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyAdmin"
+        );
+        await expect(newZkEVMContract.connect(admin).setTrustedSequencerURL("0x1253"))
+            .to.emit(newZkEVMContract, "SetTrustedSequencerURL")
+            .withArgs("0x1253");
+
+        await expect(newZkEVMContract.setForceBatchTimeout(0)).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyAdmin"
+        );
+
+        await expect(
+            newZkEVMContract.connect(admin).setForceBatchTimeout(FORCE_BATCH_TIMEOUT)
+        ).to.be.revertedWithCustomError(newZkEVMContract, "InvalidRangeForceBatchTimeout");
+
+        await expect(newZkEVMContract.connect(admin).setForceBatchTimeout(0))
+            .to.emit(newZkEVMContract, "SetForceBatchTimeout")
+            .withArgs(0);
+
+        await expect(newZkEVMContract.transferAdminRole(deployer.address)).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyAdmin"
+        );
+
+        await expect(newZkEVMContract.connect(admin).transferAdminRole(deployer.address))
+            .to.emit(newZkEVMContract, "TransferAdminRole")
+            .withArgs(deployer.address);
+
+        await expect(newZkEVMContract.connect(admin).acceptAdminRole()).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyPendingAdmin"
+        );
+
+        await expect(newZkEVMContract.connect(deployer).acceptAdminRole())
+            .to.emit(newZkEVMContract, "AcceptAdminRole")
+            .withArgs(deployer.address);
     });
 
     it("should check full flow etrog", async () => {
@@ -1464,6 +1513,55 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         await expect(newZkEVMContract.sequenceForceBatches([sequenceForced]))
             .to.emit(newZkEVMContract, "SequenceForceBatches")
             .withArgs(3);
+
+        // Check admin functions
+        await expect(newZkEVMContract.setTrustedSequencer(deployer.address)).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyAdmin"
+        );
+
+        await expect(newZkEVMContract.connect(admin).setTrustedSequencer(deployer.address))
+            .to.emit(newZkEVMContract, "SetTrustedSequencer")
+            .withArgs(deployer.address);
+
+        await expect(newZkEVMContract.setTrustedSequencerURL("0x1253")).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyAdmin"
+        );
+        await expect(newZkEVMContract.connect(admin).setTrustedSequencerURL("0x1253"))
+            .to.emit(newZkEVMContract, "SetTrustedSequencerURL")
+            .withArgs("0x1253");
+
+        await expect(newZkEVMContract.setForceBatchTimeout(0)).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyAdmin"
+        );
+
+        await expect(
+            newZkEVMContract.connect(admin).setForceBatchTimeout(FORCE_BATCH_TIMEOUT)
+        ).to.be.revertedWithCustomError(newZkEVMContract, "InvalidRangeForceBatchTimeout");
+
+        await expect(newZkEVMContract.connect(admin).setForceBatchTimeout(0))
+            .to.emit(newZkEVMContract, "SetForceBatchTimeout")
+            .withArgs(0);
+
+        await expect(newZkEVMContract.transferAdminRole(deployer.address)).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyAdmin"
+        );
+
+        await expect(newZkEVMContract.connect(admin).transferAdminRole(deployer.address))
+            .to.emit(newZkEVMContract, "TransferAdminRole")
+            .withArgs(deployer.address);
+
+        await expect(newZkEVMContract.connect(admin).acceptAdminRole()).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "OnlyPendingAdmin"
+        );
+
+        await expect(newZkEVMContract.connect(deployer).acceptAdminRole())
+            .to.emit(newZkEVMContract, "AcceptAdminRole")
+            .withArgs(deployer.address);
     });
 
     it("should check full flow with gas Token", async () => {
