@@ -8,7 +8,6 @@ import "../lib/GlobalExitRootLib.sol";
 import "./lib/DepositContractBase.sol";
 
 /// review Possible renaming to PolygonGlobalExitRootManager
-// TODO tests
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
@@ -70,12 +69,10 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
             // save new leaf in L1InfoTree
             _addLeaf(
-                keccak256(
-                    abi.encodePacked(
-                        newGlobalExitRoot,
-                        lastBlockHash,
-                        uint64(block.timestamp)
-                    )
+                getLeafValue(
+                    newGlobalExitRoot,
+                    lastBlockHash,
+                    uint64(block.timestamp)
                 )
             );
 
@@ -107,5 +104,22 @@ contract PolygonZkEVMGlobalExitRootV2 is
         returns (bytes32)
     {
         return super.getRoot();
+    }
+
+    /**
+     * @notice Given the leaf data returns the leaf hash
+     * @param newGlobalExitRoot Last global exit root
+     * @param lastBlockHash Last accesible block hash
+     * @param timestamp Ethereum timestamp in seconds
+     */
+    function getLeafValue(
+        bytes32 newGlobalExitRoot,
+        uint256 lastBlockHash,
+        uint64 timestamp
+    ) public pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(newGlobalExitRoot, lastBlockHash, timestamp)
+            );
     }
 }
