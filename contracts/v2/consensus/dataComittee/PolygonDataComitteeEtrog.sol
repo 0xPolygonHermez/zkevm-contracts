@@ -221,7 +221,7 @@ contract PolygonDataComitteeEtrog is
             currentAccInputHash
         );
 
-        emit SequenceBatches(currentBatchSequenced);
+        emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
     }
 
     //////////////////

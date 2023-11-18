@@ -301,20 +301,12 @@ contract PolygonRollupBase is
         string memory sequencerURL,
         string memory _networkName
     ) external virtual onlyRollupManager initializer {
-        admin = _admin;
-        trustedSequencer = sequencer;
-
-        trustedSequencerURL = sequencerURL;
-        networkName = _networkName;
-
-        // Constant deployment variables
-        forceBatchTimeout = 5 days;
-
         bytes memory gasTokenMetadata;
 
         if (_gasTokenAddress != address(0)) {
             // Ask for token metadata, the same way is enconded in the bridge
             // Note that this funciton will revert if the token is not in this network
+            // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
             gasTokenMetadata = abi.encode(
                 _safeName(_gasTokenAddress),
                 _safeSymbol(_gasTokenAddress),
@@ -367,6 +359,16 @@ contract PolygonRollupBase is
             uint64(1), // num total batches
             newAccInputHash
         );
+
+        // Set initialize variables
+        admin = _admin;
+        trustedSequencer = sequencer;
+
+        trustedSequencerURL = sequencerURL;
+        networkName = _networkName;
+
+        // Constant deployment variables
+        forceBatchTimeout = 5 days;
 
         emit SequenceBatches(currentBatchSequenced);
     }
@@ -527,7 +529,8 @@ contract PolygonRollupBase is
             // substract forced batches
             nonForcedBatchesSequenced -= forcedBatchesSequenced;
 
-            pol.safeTransfer( // Transfer pol for every forced batch submitted
+            // Transfer pol for every forced batch submitted
+            pol.safeTransfer(
                 address(rollupManager),
                 calculatePolPerForceBatch() * (forcedBatchesSequenced)
             );

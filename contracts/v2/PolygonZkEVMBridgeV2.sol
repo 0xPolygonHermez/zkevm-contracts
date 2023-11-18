@@ -270,11 +270,7 @@ contract PolygonZkEVMBridgeV2 is
                     originNetwork = networkID;
                 }
                 // Encode metadata
-                metadata = abi.encode(
-                    _safeName(token),
-                    _safeSymbol(token),
-                    _safeDecimals(token)
-                );
+                metadata = getTokenMetadata(token);
             }
         }
 
@@ -680,10 +676,10 @@ contract PolygonZkEVMBridgeV2 is
     function precalculatedWrapperAddress(
         uint32 originNetwork,
         address originTokenAddress,
-        string calldata name,
-        string calldata symbol,
+        string memory name,
+        string memory symbol,
         uint8 decimals
-    ) external view returns (address) {
+    ) public view returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
@@ -1083,5 +1079,45 @@ contract PolygonZkEVMBridgeV2 is
         } else {
             return "NOT_VALID_ENCODING";
         }
+    }
+
+    /**
+     * @notice Returns the encoded token metadata
+     * @param token Address of the token
+     */
+
+    function getTokenMetadata(
+        address token
+    ) public view returns (bytes memory) {
+        return
+            abi.encode(
+                _safeName(token),
+                _safeSymbol(token),
+                _safeDecimals(token)
+            );
+    }
+
+    /**
+     * @notice Returns the precalculated address of a wrapper using the token address
+     * Note Updating the metadata of a token is not supported.
+     * Since the metadata has relevance in the address deployed, this function will not return a valid
+     * wrapped address if the metadata provided is not the original one.
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param token Address of the token to calculate the wrapper address
+     */
+    function calculateTokenWrapperAddress(
+        uint32 originNetwork,
+        address originTokenAddress,
+        address token
+    ) external view returns (address) {
+        return
+            precalculatedWrapperAddress(
+                originNetwork,
+                originTokenAddress,
+                _safeName(token),
+                _safeSymbol(token),
+                _safeDecimals(token)
+            );
     }
 }
