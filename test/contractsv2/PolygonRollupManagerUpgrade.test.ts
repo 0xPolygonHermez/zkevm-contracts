@@ -443,8 +443,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
             .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
-            .to.emit(newZkEVMContract, "SequenceBatches")
-            .withArgs(newSequencedBatch)
+            .to.emit(newZkEVMContract, "InitialSequenceBatches")
             .to.emit(rollupManagerContract, "OnSequenceBatches")
             .withArgs(newCreatedRollupID, newSequencedBatch);
 
@@ -503,7 +502,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const expectedAccInputHash = calculateAccInputHash(
             ethers.ZeroHash,
             ethers.keccak256(transaction),
-            ethers.ZeroHash,
+            await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot(),
             timestampCreatedRollup,
             trustedSequencer.address
         );
@@ -973,8 +972,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
             .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
-            .to.emit(newZkEVMContract, "SequenceBatches")
-            .withArgs(newSequencedBatch)
+            .to.emit(newZkEVMContract, "InitialSequenceBatches")
             .to.emit(rollupManagerContract, "OnSequenceBatches")
             .withArgs(newCreatedRollupID, newSequencedBatch);
 
@@ -1033,7 +1031,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const expectedAccInputHash = calculateAccInputHash(
             ethers.ZeroHash,
             ethers.keccak256(transaction),
-            ethers.ZeroHash,
+            await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot(),
             timestampCreatedRollup,
             trustedSequencer.address
         );

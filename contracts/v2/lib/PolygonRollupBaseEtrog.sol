@@ -214,6 +214,15 @@ contract PolygonRollupBaseEtrog is
     event SequenceForceBatches(uint64 indexed numBatch);
 
     /**
+     * @dev Emitted when the contract is initialized, contain the first sequenced transaction
+     */
+    event InitialSequenceBatches(
+        bytes transactions,
+        bytes32 lastGlobalExitRoot,
+        address sequencer
+    );
+
+    /**
      * @dev Emitted when a aggregator verifies batches
      */
     event VerifyBatches(
@@ -293,7 +302,7 @@ contract PolygonRollupBaseEtrog is
 
         if (_gasTokenAddress != address(0)) {
             // Ask for token metadata, the same way is enconded in the bridge
-            // Note that this funciton will revert if the token is not in this network
+            // Note that this function will revert if the token is not in this network
             // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
             gasTokenMetadata = abi.encode(
                 _safeName(_gasTokenAddress),
@@ -328,16 +337,17 @@ contract PolygonRollupBaseEtrog is
 
         bytes32 currentTransactionsHash = keccak256(transaction);
 
-        // should be deterministic for easier deployment
+        // Get current timestamp and global exit root
         uint64 currentTimestamp = uint64(block.timestamp);
+        bytes32 lastGlobalExitRoot = globalExitRootManager
+            .getLastGlobalExitRoot();
 
         // Add the transaction to the sequence as if it was a force transaction
-        // review add acutal global exit root, need different event
         bytes32 newAccInputHash = keccak256(
             abi.encodePacked(
                 bytes32(0), // Current acc Input hash
                 currentTransactionsHash,
-                bytes32(0), // Global exit root
+                lastGlobalExitRoot, // Global exit root
                 currentTimestamp,
                 sequencer,
                 blockhash(block.number - 1)
@@ -346,7 +356,7 @@ contract PolygonRollupBaseEtrog is
 
         lastAccInputHash = newAccInputHash;
 
-        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
+        rollupManager.onSequenceBatches(
             uint64(1), // num total batches
             newAccInputHash
         );
@@ -361,7 +371,7 @@ contract PolygonRollupBaseEtrog is
         // Constant deployment variables
         forceBatchTimeout = 5 days;
 
-        emit SequenceBatches(currentBatchSequenced, bytes32(0));
+        emit InitialSequenceBatches(transaction, lastGlobalExitRoot, sequencer);
     }
 
     modifier onlyAdmin() {
@@ -842,7 +852,7 @@ contract PolygonRollupBaseEtrog is
 
         // Do not support more than 65535 bytes
         if (initializeBrigeData.length > type(uint16).max) {
-            revert();
+            revert HugeTokenMetadataNotSupported();
         }
         uint16 initializeBrigeDataLen = uint16(initializeBrigeData.length);
 

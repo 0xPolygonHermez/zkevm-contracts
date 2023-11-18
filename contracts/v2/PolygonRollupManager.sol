@@ -1469,6 +1469,7 @@ contract PolygonRollupManager is
     function activateEmergencyState() external {
         if (!hasRole(_EMERGENCY_COUNCIL_ROLE, msg.sender)) {
             if (
+                lastAggregationTimestamp == 0 ||
                 lastAggregationTimestamp + _HALT_AGGREGATION_TIMEOUT >
                 block.timestamp
             ) {

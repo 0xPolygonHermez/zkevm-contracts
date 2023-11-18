@@ -23,4 +23,9 @@ interface IPolygonZkEVMV2Errors is IPolygonZkEVMErrors {
      * @dev Thrown when the caller is not the trusted sequencer
      */
     error GasTokenNetworkMustBeZeroOnEther();
+
+    /**
+     * @dev Thrown when the try to initialize with a gas token with huge metadata
+     */
+    error HugeTokenMetadataNotSupported();
 }
