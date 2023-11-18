@@ -200,7 +200,8 @@ contract PolygonDataComitteeEtrog is
             // substract forced batches
             nonForcedBatchesSequenced -= forcedBatchesSequenced;
 
-            pol.safeTransfer( // Transfer pol for every forced batch submitted
+            // Transfer pol for every forced batch submitted
+            pol.safeTransfer(
                 address(rollupManager),
                 calculatePolPerForceBatch() * (forcedBatchesSequenced)
             );

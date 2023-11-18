@@ -132,6 +132,49 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
         expect(await polygonZkEVMBridgeContract.gasTokenMetadata()).to.be.equal(gasTokenMetadata);
     });
 
+    it("should check the initalized function", async () => {
+        // deploy PolygonZkEVMBridge
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
+        const bridge = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {initializer: false});
+
+        await expect(
+            bridge.initialize(
+                networkIDMainnet,
+                ethers.ZeroAddress, // zero for ether
+                1, // zero for ether
+                polygonZkEVMGlobalExitRoot.target,
+                rollupManager.address,
+                "0x"
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "GasTokenNetworkMustBeZeroOnEther");
+    });
+
+    it("should check the emergency state", async () => {
+        expect(await polygonZkEVMBridgeContract.isEmergencyState()).to.be.equal(false);
+
+        await expect(polygonZkEVMBridgeContract.activateEmergencyState()).to.be.revertedWithCustomError(
+            polygonZkEVMBridgeContract,
+            "OnlyRollupManager"
+        );
+        await expect(polygonZkEVMBridgeContract.connect(rollupManager).activateEmergencyState()).to.emit(
+            polygonZkEVMBridgeContract,
+            "EmergencyStateActivated"
+        );
+
+        expect(await polygonZkEVMBridgeContract.isEmergencyState()).to.be.equal(true);
+
+        await expect(
+            polygonZkEVMBridgeContract.connect(deployer).deactivateEmergencyState()
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "OnlyRollupManager");
+
+        await expect(polygonZkEVMBridgeContract.connect(rollupManager).deactivateEmergencyState()).to.emit(
+            polygonZkEVMBridgeContract,
+            "EmergencyStateDeactivated"
+        );
+
+        expect(await polygonZkEVMBridgeContract.isEmergencyState()).to.be.equal(false);
+    });
+
     it("should PolygonZkEVM bridge asset and verify merkle proof", async () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
