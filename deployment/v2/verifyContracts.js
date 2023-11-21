@@ -3,7 +3,7 @@ require('dotenv').config();
 const path = require('path');
 const hre = require('hardhat');
 const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 
 const pathDeployOutputParameters = path.join(__dirname, './deploy_output.json');
 const pathDeployParameters = path.join(__dirname, './deploy_parameters.json');
@@ -17,9 +17,9 @@ async function main() {
     }
 
     // verify maticToken
-    const polTokenName = "Pol Token";
-    const polTokenSymbol = "POL";
-    const polTokenInitialBalance = ethers.parseEther("20000000");
+    const polTokenName = 'Pol Token';
+    const polTokenSymbol = 'POL';
+    const polTokenInitialBalance = ethers.parseEther('20000000');
 
     try {
         // verify governance
@@ -120,19 +120,18 @@ async function main() {
         await hre.run(
             'verify:verify',
             {
-                contract: "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy",
+                contract: '@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy',
                 address: deployOutputParameters.polygonZkEVMBridgeAddress,
                 constructorArguments: [
                     await upgrades.erc1967.getImplementationAddress(deployOutputParameters.polygonZkEVMBridgeAddress),
                     await upgrades.erc1967.getAdminAddress(deployOutputParameters.polygonZkEVMBridgeAddress),
-                    "0x"
-                ]
+                    '0x',
+                ],
             },
         );
     } catch (error) {
-        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
-
 
     try {
         await hre.run(
@@ -142,44 +141,43 @@ async function main() {
             },
         );
     } catch (error) {
-        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 
     try {
         await hre.run(
             'verify:verify',
             {
-                contract: "contracts/v2/lib/PolygonTransparentProxy.sol:PolygonTransparentProxy",
+                contract: 'contracts/v2/lib/PolygonTransparentProxy.sol:PolygonTransparentProxy',
                 address: deployOutputParameters.newZKEVMAddress,
                 constructorArguments: [
                     await upgrades.erc1967.getImplementationAddress(deployOutputParameters.newZKEVMAddress),
                     await upgrades.erc1967.getAdminAddress(deployOutputParameters.newZKEVMAddress),
-                    "0x"
-                ]
+                    '0x',
+                ],
             },
         );
     } catch (error) {
-        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
-
 
     // verify zkEVM address
     try {
         await hre.run(
             'verify:verify',
             {
-                contract: "contracts/v2/consensus/zkEVM/PolygonZkEVMV2.sol:PolygonZkEVMV2",
+                contract: 'contracts/v2/consensus/zkEVM/PolygonZkEVMV2.sol:PolygonZkEVMV2',
                 address: deployOutputParameters.newZKEVMAddress,
                 constructorArguments: [
                     deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
                     deployOutputParameters.polTokenAddress,
                     deployOutputParameters.polygonZkEVMBridgeAddress,
-                    deployOutputParameters.polygonRollupManager
+                    deployOutputParameters.polygonRollupManager,
                 ],
             },
         );
     } catch (error) {
-        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 }
 

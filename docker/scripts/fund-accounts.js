@@ -16,8 +16,8 @@ async function main() {
         const pathWallet = `m/44'/60'/0'/0/${i}`;
         const accountWallet = ethers.HDNodeWallet.fromMnemonic(
             ethers.Mnemonic.fromPhrase(MNEMONIC),
-            pathWallet
-        )
+            pathWallet,
+        );
 
         const params = [{
             from: await signerNode.getAddress(),
