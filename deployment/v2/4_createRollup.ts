@@ -145,7 +145,7 @@ async function main() {
     console.log("Added new Rollup Type deployed");
     const newRollupTypeID = await rollupManagerContract.rollupTypeCount();
 
-    let gasTokenAddress, gasTokenNetwork;
+    let gasTokenAddress, gasTokenNetwork, gasTokenMetadata;
 
     if (deployParameters.gasTokenAddress && deployParameters.gasTokenAddress != "") {
         gasTokenAddress = deployParameters.gasTokenAddress;
@@ -153,6 +153,7 @@ async function main() {
     } else {
         gasTokenAddress = ethers.ZeroAddress;
         gasTokenNetwork = 0;
+        gasTokenMetadata = "0x";
     }
 
     const newZKEVMAddress = ethers.getCreateAddress({
@@ -167,10 +168,10 @@ async function main() {
         adminZkEVM,
         trustedSequencer,
         gasTokenAddress,
-        gasTokenNetwork,
         trustedSequencerURL,
         networkName
     );
+
     const receipt = await txDeployRollup.wait();
     const timestampReceipt = (await receipt?.getBlock())?.timestamp;
     const rollupID = await rollupManagerContract.chainIDToRollupID(chainID);
@@ -188,7 +189,12 @@ async function main() {
     // Add the first batch of the created rollup
     const newZKEVMContract = (await PolygonZKEVMV2Factory.attach(newZKEVMAddress)) as PolygonZkEVMV2;
     const batchData = {
-        transactions: await newZKEVMContract.generateInitializeTransaction(rollupID, gasTokenAddress, gasTokenNetwork),
+        transactions: await newZKEVMContract.generateInitializeTransaction(
+            rollupID,
+            gasTokenAddress,
+            gasTokenNetwork,
+            gasTokenMetadata as any
+        ),
         globalExitRoot: ethers.ZeroHash,
         timestamp: timestampReceipt,
         sequencer: trustedSequencer,

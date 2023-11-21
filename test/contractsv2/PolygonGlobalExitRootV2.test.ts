@@ -97,7 +97,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         // Update root from the rollup
         await expect(polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup))
-            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTree")
             .withArgs(ethers.ZeroHash, newRootRollup);
 
         blockUpdates.push({
@@ -112,7 +112,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         // Update root from the PolygonZkEVMBridge
         const newRootBridge = ethers.hexlify(ethers.randomBytes(32));
         await expect(polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge))
-            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTree")
             .withArgs(newRootBridge, newRootRollup);
 
         const newGlobalExitRoot = calculateGlobalExitRoot(newRootBridge, newRootRollup);
