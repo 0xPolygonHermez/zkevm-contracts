@@ -24,7 +24,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
     /**
      * @dev Emitted when the global exit root is updated
      */
-    event UpdateGlobalExitRoot(
+    event UpdateL1InfoTree(
         bytes32 indexed mainnetExitRoot,
         bytes32 indexed rollupExitRoot
     );
@@ -76,7 +76,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 )
             );
 
-            emit UpdateGlobalExitRoot(
+            emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot
             );

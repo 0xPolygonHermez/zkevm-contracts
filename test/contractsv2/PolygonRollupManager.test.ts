@@ -644,7 +644,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -1320,7 +1320,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -1992,7 +1992,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -2538,7 +2538,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -2991,7 +2991,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(RollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);

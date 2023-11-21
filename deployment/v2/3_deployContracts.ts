@@ -62,6 +62,7 @@ async function main() {
     const gasTokenAddressMainnet = ethers.ZeroAddress;
     const gasTokenNetworkMainnet = 0n;
     const attemptsDeployProxy = 20;
+    const gasTokenMetadata = "0x";
 
     /*
      * Check deploy parameters
@@ -298,6 +299,7 @@ async function main() {
         gasTokenNetworkMainnet,
         precalculateGlobalExitRootAddress,
         precalculateRollupManager,
+        gasTokenMetadata,
     ]);
 
     const [proxyBridgeAddress, isBridgeProxyDeployed] = await create2Deployment(

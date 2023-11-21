@@ -138,7 +138,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         firstDeployment = false;
 
         // deploy globalExitRoot
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRoot");
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2");
         polygonZkEVMGlobalExitRoot = (await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             initializer: false,
             constructorArgs: [precalculatezkEVM, precalculateBridgeAddress],
@@ -680,7 +680,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
