@@ -45,7 +45,7 @@ Return last global exit root
   function getRoot(
   ) public returns (bytes32)
 ```
-Computes and returns the merkle root
+Computes and returns the merkle root of the L1InfoTree
 
 
 

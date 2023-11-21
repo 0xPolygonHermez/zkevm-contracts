@@ -147,8 +147,9 @@ describe('Emergency mode test', () => {
 
         const sequence = {
             transactions: l2txData,
-            forcedHistoricGlobalExitRoot: ethers.constants.HashZero,
+            lastGlobalExitRoot: ethers.constants.HashZero,
             minForcedTimestamp: 0,
+            forcedBlockHashL1: '0x0000000000000000000000000000000000000000000000000000000000000000',
         };
 
         // revert because emergency state

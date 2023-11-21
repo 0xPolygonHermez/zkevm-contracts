@@ -1,0 +1,13 @@
+{
+    "proxyAddress": "0x69705bbB83BC0B836c50E66899f9832810e2822c",
+    "implementationName": "PolygonZkEVMUpgraded",
+    "constructorArgs": [
+        "0x2ea38E8E42c5C24c5d310Df77Cad1046Bd97ee95",
+        "0x61CD4f96f45ff6879d03381A0C7EB05c456918e5",
+        "0xAc4B5eF18230c2d22557Fc0Eba1499dFA333DBE0",
+        "0xb8EDA38661675860B158da790fDefD2F32Cecc9c",
+        666,
+        5,
+        0
+    ]
+}

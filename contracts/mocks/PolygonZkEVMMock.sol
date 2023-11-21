@@ -42,6 +42,7 @@ contract PolygonZkEVMMock is PolygonZkEVM {
      * @param globalExitRoot Global Exit Root
      * @param timestamp Timestamp
      * @param sequencerAddress Sequencer address
+     * @param forcedBlockHashL1 forced block hash
      */
     function calculateAccInputHash(
         bytes32 currentAccInputHash,
@@ -49,7 +50,7 @@ contract PolygonZkEVMMock is PolygonZkEVM {
         bytes32 globalExitRoot,
         uint64 timestamp,
         address sequencerAddress,
-        bool isForced
+        bytes32 forcedBlockHashL1
     ) public pure returns (bytes32) {
         return
             keccak256(
@@ -59,7 +60,7 @@ contract PolygonZkEVMMock is PolygonZkEVM {
                     globalExitRoot,
                     timestamp,
                     sequencerAddress,
-                    isForced
+                    forcedBlockHashL1
                 )
             );
     }
