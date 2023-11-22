@@ -78,6 +78,9 @@ describe("Polygon ZK-EVM TestnetV2", () => {
     const EMERGENCY_COUNCIL_ROLE = ethers.id("EMERGENCY_COUNCIL_ROLE");
     const EMERGENCY_COUNCIL_ADMIN = ethers.id("EMERGENCY_COUNCIL_ADMIN");
 
+    const SIGNATURE_BYTES = 32 + 32 + 1;
+    const EFFECTIVE_PERCENTAGE_BYTES = 1;
+
     beforeEach("Deploy contract", async () => {
         upgrades.silenceWarnings();
 
@@ -456,6 +459,10 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         const rawTx = processorUtils.customRawTxToRawTx(transaction);
         const tx = ethers.Transaction.from(rawTx);
+
+        const rlpSignData = transaction.slice(0, -(SIGNATURE_BYTES * 2 + EFFECTIVE_PERCENTAGE_BYTES * 2));
+        expect(rlpSignData).to.be.equal(tx.unsignedSerialized);
+
         expect(tx.to).to.be.equal(polygonZkEVMBridgeContract.target);
         expect(tx.value).to.be.equal(0);
         expect(tx.data).to.be.equal(encodedData);
@@ -1115,6 +1122,10 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         const rawTx = processorUtils.customRawTxToRawTx(transaction);
         const tx = ethers.Transaction.from(rawTx);
+
+        const rlpSignData = transaction.slice(0, -(SIGNATURE_BYTES * 2 + EFFECTIVE_PERCENTAGE_BYTES * 2));
+        expect(rlpSignData).to.be.equal(tx.unsignedSerialized);
+
         expect(tx.to).to.be.equal(polygonZkEVMBridgeContract.target);
         expect(tx.value).to.be.equal(0);
         expect(tx.data).to.be.equal(encodedData);
@@ -1804,6 +1815,10 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         const rawTx = processorUtils.customRawTxToRawTx(transaction);
         const tx = ethers.Transaction.from(rawTx);
+
+        const rlpSignData = transaction.slice(0, -(SIGNATURE_BYTES * 2 + EFFECTIVE_PERCENTAGE_BYTES * 2));
+        expect(rlpSignData).to.be.equal(tx.unsignedSerialized);
+
         expect(tx.to).to.be.equal(polygonZkEVMBridgeContract.target);
         expect(tx.value).to.be.equal(0);
         expect(tx.data).to.be.equal(encodedData);
@@ -2350,6 +2365,10 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         const rawTx = processorUtils.customRawTxToRawTx(transaction);
         const tx = ethers.Transaction.from(rawTx);
+
+        const rlpSignData = transaction.slice(0, -(SIGNATURE_BYTES * 2 + EFFECTIVE_PERCENTAGE_BYTES * 2));
+        expect(rlpSignData).to.be.equal(tx.unsignedSerialized);
+
         expect(tx.to).to.be.equal(polygonZkEVMBridgeContract.target);
         expect(tx.value).to.be.equal(0);
         expect(tx.data).to.be.equal(encodedData);

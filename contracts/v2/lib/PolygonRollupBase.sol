@@ -102,6 +102,16 @@ contract PolygonRollupBase is
 
     // List rlp: 1 listLenLen "0xf9" (0xf7 + 2), + listLen 2 (32 bytes + txData bytes) (do not accept more than 65535 bytes)
 
+    // First byte of the initialize bridge tx, indicates a list with a lengt of 2 bytes
+    // Since the minimum constant bytes will be: 259 (tx data empty) + 31 (tx parameters) = 259 (0x103) will always take 2 bytes to express the lenght of the rlp
+    // Note that more than 2 bytes of list len is not supported, since it's constrained to 65535
+    uint8 public constant INITIALIZE_TX_BRIDGE_LIST_LEN_LEN = 0xf9;
+
+    // Tx parameters until the bridge address
+    bytes public constant INITIALIZE_TX_BRIDGE_PARAMS = hex"80808401c9c38094";
+
+    // RLP encoded metadata (non empty)
+
     // TxData bytes: 164 bytes data ( signature 4 bytes + 5 parameters*32bytes +
     // (abi encoded metadata: 32 bytes position + 32 bytes len + 32 bytes position name + 32 bytes length name + 32 bytes position Symbol + 32 bytes length Symbol
     //+ 32 bytes decimal )) min 7*32 bytes =
@@ -113,17 +123,27 @@ contract PolygonRollupBase is
     // stringLen (0x0184 + nameLen padded to 32 bytes + symbol len padded to 32 bytes) + txData bytes = 32 bytes + txData bytes
     uint16 public constant INITIALIZE_TX_CONSTANT_BYTES = 32;
 
-    // First byte of the initialize bridge tx, indicates a list with a lengt of 2 bytes
-    // Since the minimum constant bytes will be: 388 (tx data min) + 32 (tx parameters) = 420 (0x1a4) will always take 2 bytes to express the lenght of the rlp
-    // Note that more than 2 bytes of list len is not supported, since it's constrained to 65535
-    uint8 public constant INITIALIZE_TX_BRIDGE_LIST_LEN_LEN = 0xf9;
-
-    // Tx parameters until the bridge address
-    bytes public constant INITIALIZE_TX_BRIDGE_PARAMS = hex"80808401c9c38094";
-
     // Tx parameters after the bridge address
     bytes public constant INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS =
         hex"80b9";
+
+    // RLP empty metadata
+
+    // TxData empty metadata bytes: 164 bytes data ( signature 4 bytes + 5 parameters*32bytes +
+    // (abi encoded metadata: 32 bytes position + 32 bytes len = 2*32 bytes =
+    // = 164 bytes + 64 bytes = 228 (0xe4)
+
+    // Constant bytes empty metadata :  1 nonce "0x80" + 1 gasPrice "0x80" + 5 gasLimit "0x8401c9c380" (30M gas)
+    // + 21 to ("0x94" + bridgeAddress")  + 1 value "0x80" + 1 stringLenLen "0xb8" (0xb7 + 1) +
+    // 1 stringLen (0xe4) + txData bytes = 31 bytes + txData bytes empty metadata 228 = 259
+    uint16 public constant INITIALIZE_TX_CONSTANT_BYTES_EMPTY_METADATA = 31;
+
+    uint8 public constant INITIALIZE_TX_DATA_LEN_EMPTY_METADATA = 228; // 0xe4
+
+    // Tx parameters after the bridge address
+    bytes
+        public constant INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS_EMPTY_METADATA =
+        hex"80b8";
 
     // Signature used to initialize the bridge
 
@@ -868,21 +888,37 @@ contract PolygonRollupBase is
             )
         );
 
-        // Do not support more than 65535 bytes
-        if (initializeBrigeData.length > type(uint16).max) {
-            revert HugeTokenMetadataNotSupported();
-        }
-        uint16 initializeBrigeDataLen = uint16(initializeBrigeData.length);
+        bytes memory bytesToSign;
 
-        bytes memory bytesToSign = abi.encodePacked(
-            INITIALIZE_TX_BRIDGE_LIST_LEN_LEN,
-            uint16(initializeBrigeData.length) + INITIALIZE_TX_CONSTANT_BYTES, // do not support more than 2 bytes of length, intended to revert on overflow
-            INITIALIZE_TX_BRIDGE_PARAMS,
-            bridgeAddress,
-            INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS,
-            initializeBrigeDataLen,
-            initializeBrigeData
-        );
+        if (_gasTokenMetadata.length == 0) {
+            bytesToSign = abi.encodePacked(
+                INITIALIZE_TX_BRIDGE_LIST_LEN_LEN,
+                uint16(initializeBrigeData.length) +
+                    INITIALIZE_TX_CONSTANT_BYTES_EMPTY_METADATA, // do not support more than 2 bytes of length, intended to revert on overflow
+                INITIALIZE_TX_BRIDGE_PARAMS,
+                bridgeAddress,
+                INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS_EMPTY_METADATA,
+                INITIALIZE_TX_DATA_LEN_EMPTY_METADATA,
+                initializeBrigeData
+            );
+        } else {
+            // Do not support more than 65535 bytes
+            if (initializeBrigeData.length > type(uint16).max) {
+                revert HugeTokenMetadataNotSupported();
+            }
+            uint16 initializeBrigeDataLen = uint16(initializeBrigeData.length);
+
+            bytesToSign = abi.encodePacked(
+                INITIALIZE_TX_BRIDGE_LIST_LEN_LEN,
+                uint16(initializeBrigeData.length) +
+                    INITIALIZE_TX_CONSTANT_BYTES, // do not support more than 2 bytes of length, intended to revert on overflow
+                INITIALIZE_TX_BRIDGE_PARAMS,
+                bridgeAddress,
+                INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS,
+                initializeBrigeDataLen,
+                initializeBrigeData
+            );
+        }
 
         // Sanity check that the ecrecover will work
         // Should never happen that giving a valid signature, ecrecover "breaks"
