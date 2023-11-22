@@ -24,6 +24,9 @@ if npm run lint; then
     cp artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json compiled-contracts/
     
     cp artifacts/contracts/v2/PolygonRollupManager.sol/PolygonRollupManager.json compiled-contracts/
+    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMock.sol/PolygonRollupManagerMock.json compiled-contracts/
+    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMockInternalTest.sol/PolygonRollupManagerMockInternalTest.json compiled-contracts/
+
     cp artifacts/contracts/v2/PolygonZkEVMBridgeV2.sol/PolygonZkEVMBridgeV2.json compiled-contracts/
     cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
 
