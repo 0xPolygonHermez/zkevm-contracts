@@ -119,7 +119,7 @@ async function main() {
     await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, deployer.address);
 
     // Create zkEVM implementation
-    const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMV2");
+    const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrog");
     const PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
         deployOutput.polygonZkEVMGlobalExitRootAddress,
         deployOutput.polTokenAddress,
