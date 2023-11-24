@@ -417,7 +417,8 @@ contract PolygonZkEVMBridgeV2 is
      * @param smtProofLocalExitRoot Smt proof to proof the leaf agains the exit root
      * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
      * @param globalIndex Global index is defined as:
-     * [0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex[224, 255]
+     * | 191 bits |    1 bit     |   32 bits   |     32 bits    |
+     * |    0     |  mainnetFlag | rollupIndex | localRootIndex |
      * note that only the rollup index will be used only in case the mainnet flag is 0
      * note that global index do not assert the unused bits to 0.
      * This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
@@ -573,7 +574,8 @@ contract PolygonZkEVMBridgeV2 is
      * @param smtProofLocalExitRoot Smt proof to proof the leaf agains the exit root
      * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
      * @param globalIndex Global index is defined as:
-     * [0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex [224, 255]
+     * | 191 bits |    1 bit     |   32 bits   |     32 bits    |
+     * |    0     |  mainnetFlag | rollupIndex | localRootIndex |
      * note that only the rollup index will be used only in case the mainnet flag is 0
      * note that global index do not assert the unused bits to 0.
      * This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract

@@ -8,7 +8,7 @@ import {
     PolygonZkEVMGlobalExitRootV2,
     PolygonZkEVMBridgeV2,
     PolygonZkEVMV2,
-    PolygonZkEVMVEtrog,
+    PolygonZkEVMEtrog,
     PolygonRollupBase,
     PolygonRollupBaseEtrog,
     TokenWrapped,
@@ -916,7 +916,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         // In order to create a new rollup type, create an implementation of the contract
 
         // Create zkEVM implementation
-        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMVEtrog");
+        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrog");
         const PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
             polygonZkEVMGlobalExitRoot.target,
             polTokenContract.target,
@@ -1055,7 +1055,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             nonce: 1,
         });
 
-        const newZkEVMContract = PolygonZKEVMV2Factory.attach(newZKEVMAddress) as PolygonZkEVMVEtrog;
+        const newZkEVMContract = PolygonZKEVMV2Factory.attach(newZKEVMAddress) as PolygonZkEVMEtrog;
         const newSequencedBatch = 1;
 
         await expect(
@@ -2678,7 +2678,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         // In order to update a new rollup type, create an implementation of the contract
 
         // Create zkEVM implementation
-        const PolygonZKEVMEtrogFactory = await ethers.getContractFactory("PolygonZkEVMVEtrog");
+        const PolygonZKEVMEtrogFactory = await ethers.getContractFactory("PolygonZkEVMEtrog");
         const PolygonZKEVMEtrogContract = await PolygonZKEVMEtrogFactory.deploy(
             polygonZkEVMGlobalExitRoot.target,
             polTokenContract.target,

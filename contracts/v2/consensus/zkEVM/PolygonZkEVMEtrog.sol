@@ -11,7 +11,7 @@ import "../../lib/PolygonRollupBaseEtrog.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonZkEVMVEtrog is PolygonRollupBaseEtrog {
+contract PolygonZkEVMEtrog is PolygonRollupBaseEtrog {
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol POL token address
