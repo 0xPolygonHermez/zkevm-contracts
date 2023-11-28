@@ -390,7 +390,7 @@ async function main() {
         expect(precalculateRollupManager).to.be.equal(await polygonZkEVMGlobalExitRoot.rollupManager());
     }
 
-    // deploy Rollup Managdr
+    // deploy Rollup Manager
     console.log("\n#######################");
     console.log("##### Deployment Polygon ZK-EVM #####");
     console.log("#######################");

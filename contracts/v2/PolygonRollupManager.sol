@@ -956,7 +956,7 @@ contract PolygonRollupManager is
 
     /**
      * @notice Verify and reward batches internal function
-     * @param rollup Rollup Data struct that will be used to the verification
+     * @param rollup Rollup Data storage pointer that will be used to the verification
      * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
@@ -1085,6 +1085,7 @@ contract PolygonRollupManager is
     /**
      * @notice Allows to consolidate any pending state that has already exceed the pendingStateTimeout
      * Can be called by the trusted aggregator, which can consolidate any state without the timeout restrictions
+     * @param rollupID Rollup identifier
      * @param pendingStateNum Pending state to consolidate
      */
     function consolidatePendingState(
@@ -1108,6 +1109,7 @@ contract PolygonRollupManager is
 
     /**
      * @notice Internal function to consolidate any pending state that has already exceed the pendingStateTimeout
+     * @param rollup Rollup data storage pointer
      * @param pendingStateNum Pending state to consolidate
      */
     function _consolidatePendingState(
@@ -1689,6 +1691,8 @@ contract PolygonRollupManager is
 
     /**
      * @notice Returns a boolean that indicates if the pendingStateNum is or not consolidable
+     * @param rollupID Rollup id
+     * @param pendingStateNum Pending state number to check
      * Note that his function does not check if the pending state currently exists, or if it's consolidated already
      */
     function isPendingStateConsolidable(
@@ -1704,6 +1708,8 @@ contract PolygonRollupManager is
 
     /**
      * @notice Returns a boolean that indicates if the pendingStateNum is or not consolidable
+     * @param rollup Rollup data storage pointer
+     * @param pendingStateNum Pending state number to check
      * Note that his function does not check if the pending state currently exists, or if it's consolidated already
      */
     function _isPendingStateConsolidable(
@@ -1747,6 +1753,7 @@ contract PolygonRollupManager is
 
     /**
      * @notice Function to calculate the input snark bytes
+     * @param rollupID Rollup id used to calculate the input snark bytes
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot New local exit root once the batch is processed
@@ -1774,6 +1781,7 @@ contract PolygonRollupManager is
 
     /**
      * @notice Function to calculate the input snark bytes
+     * @param rollup Rollup data storage pointer
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot New local exit root once the batch is processed
@@ -1826,6 +1834,10 @@ contract PolygonRollupManager is
             );
     }
 
+    /**
+     * @notice Function to check if the state root is inside of the prime field
+     * @param newStateRoot New State root once the batch is processed
+     */
     function _checkStateRootInsidePrime(
         uint256 newStateRoot
     ) internal pure returns (bool) {
@@ -1843,7 +1855,9 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Get the last verified batch
+     * @notice Get rollup state root given a batch number
+     * @param rollupID Rollup identifier
+     * @param batchNum Batch number
      */
     function getRollupBatchNumToStateRoot(
         uint32 rollupID,
@@ -1853,7 +1867,9 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Get the last verified batch
+     * @notice Get rollup sequence batches struct given a batch number
+     * @param rollupID Rollup identifier
+     * @param batchNum Batch number
      */
     function getRollupSequencedBatches(
         uint32 rollupID,
@@ -1863,7 +1879,9 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Get the last verified batch
+     * @notice Get rollup sequence pending state struct given a batch number
+     * @param rollupID Rollup identifier
+     * @param batchNum Batch number
      */
     function getRollupPendingStateTransitions(
         uint32 rollupID,
