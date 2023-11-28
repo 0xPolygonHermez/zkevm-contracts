@@ -16,6 +16,7 @@
  "chainID": 1001,
  "adminZkEVM": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
  "forkID": 5,
+ "consensusContract": "PolygonZkEVMEtrog",
  "polTokenAddress": "",
  "zkEVMDeployerAddress": "",
  "gasTokenAddress": "",
