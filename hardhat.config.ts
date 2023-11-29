@@ -131,7 +131,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 10,
+                        runs: 99,
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
