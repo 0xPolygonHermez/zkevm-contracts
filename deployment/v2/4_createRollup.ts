@@ -22,6 +22,8 @@ import "../helpers/utils";
 import {PolygonRollupManager, PolygonZkEVMV2, PolygonZkEVMBridgeV2} from "../../typechain-types";
 
 async function main() {
+    const attemptsDeployProxy = 20;
+
     /*
      * Check deploy parameters
      * Check that every necessary parameter is fullfilled
@@ -145,12 +147,42 @@ async function main() {
 
     // Create consensus implementation
     const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
-    const PolygonconsensusContract = await PolygonconsensusFactory.deploy(
-        deployOutput.polygonZkEVMGlobalExitRootAddress,
-        deployOutput.polTokenAddress,
-        deployOutput.polygonZkEVMBridgeAddress,
-        deployOutput.polygonRollupManager
-    );
+    let PolygonconsensusContract;
+    if (consensusContract.includes("DataComittee")) {
+        // deploy data commitee
+        const PolygonDataComittee = (await ethers.getContractFactory("CDKDataCommittee", deployer)) as any;
+        let polygonDataComitteeContract;
+
+        for (let i = 0; i < attemptsDeployProxy; i++) {
+            try {
+                polygonDataComitteeContract = await upgrades.deployProxy(PolygonDataComittee, []);
+                break;
+            } catch (error: any) {
+                console.log(`attempt ${i}`);
+                console.log("upgrades.deployProxy of polygonDataComitteeContract ", error.message);
+            }
+            // reach limits of attempts
+            if (i + 1 === attemptsDeployProxy) {
+                throw new Error("polygonDataComitteeContract contract has not been deployed");
+            }
+        }
+        deployOutput.polygonDataComitteeContract = polygonDataComitteeContract?.target;
+
+        PolygonconsensusContract = await PolygonconsensusFactory.deploy(
+            deployOutput.polygonZkEVMGlobalExitRootAddress,
+            deployOutput.polTokenAddress,
+            deployOutput.polygonZkEVMBridgeAddress,
+            deployOutput.polygonRollupManager,
+            polygonDataComitteeContract?.target
+        );
+    } else {
+        PolygonconsensusContract = await PolygonconsensusFactory.deploy(
+            deployOutput.polygonZkEVMGlobalExitRootAddress,
+            deployOutput.polTokenAddress,
+            deployOutput.polygonZkEVMBridgeAddress,
+            deployOutput.polygonRollupManager
+        );
+    }
     await PolygonconsensusContract.waitForDeployment();
 
     // Add a new rollup type with timelock
