@@ -33,11 +33,16 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
     }
 
     // CDK Data Committee Address
-    ICDKDataCommittee public immutable dataCommittee;
+    ICDKDataCommittee public dataCommittee;
 
     // Indicates if sequence with data avialability is allowed
     // This allow the sequencer to post the data and skip the Data comittee
     bool public isSequenceWithDataAvailabilityAllowed;
+
+    /**
+     * @dev Emitted when the admin updates the data committee
+     */
+    event SetDataCommittee(address newDataCommittee);
 
     /**
      * @dev Emitted when switch the ability to sequence with data availability
@@ -49,14 +54,12 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
      * @param _pol POL token address
      * @param _bridgeAddress Bridge address
      * @param _rollupManager Global exit root manager address
-     * @param _dataCommittee Data committee
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        PolygonRollupManager _rollupManager,
-        ICDKDataCommittee _dataCommittee
+        PolygonRollupManager _rollupManager
     )
         PolygonRollupBase(
             _globalExitRootManager,
@@ -64,9 +67,7 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
             _bridgeAddress,
             _rollupManager
         )
-    {
-        dataCommittee = _dataCommittee;
-    }
+    {}
 
     /////////////////////////////////////
     // Sequence/Verify batches functions
@@ -194,12 +195,6 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
 
         uint256 nonForcedBatchesSequenced = batchesNum;
 
-        // Validate that the data committee has signed the accInputHash for this sequence
-        dataCommittee.verifySignatures(
-            currentAccInputHash,
-            dataAvailabilityMessage
-        );
-
         // Check if there has been forced batches
         if (currentLastForceBatchSequenced != initLastForceBatchSequenced) {
             uint64 forcedBatchesSequenced = currentLastForceBatchSequenced -
@@ -232,12 +227,30 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
             currentAccInputHash
         );
 
+        // Validate that the data committee has signed the accInputHash for this sequence
+        dataCommittee.verifySignatures(
+            currentAccInputHash,
+            dataAvailabilityMessage
+        );
+
         emit SequenceBatches(currentBatchSequenced);
     }
 
     //////////////////
     // admin functions
     //////////////////
+
+    /**
+     * @notice Allow the admin to set a new data committee
+     * @param newDataCommittee Address of the new data committee
+     */
+    function setDataCommittee(
+        ICDKDataCommittee newDataCommittee
+    ) external onlyAdmin {
+        dataCommittee = newDataCommittee;
+
+        emit SetDataCommittee(address(newDataCommittee));
+    }
 
     /**
      * @notice Allow the admin to turn on the force batches
