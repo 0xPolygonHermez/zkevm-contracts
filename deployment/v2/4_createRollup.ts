@@ -144,7 +144,7 @@ async function main() {
         await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, deployer.address);
 
     // Create consensus implementation
-    const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract)) as any;
+    const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
     const PolygonconsensusContract = await PolygonconsensusFactory.deploy(
         deployOutput.polygonZkEVMGlobalExitRootAddress,
         deployOutput.polTokenAddress,
