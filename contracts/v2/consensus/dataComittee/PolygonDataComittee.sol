@@ -49,6 +49,7 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
      * @param _pol POL token address
      * @param _bridgeAddress Bridge address
      * @param _rollupManager Global exit root manager address
+     * @param _dataCommittee Data committee
      */
     constructor(
         IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
