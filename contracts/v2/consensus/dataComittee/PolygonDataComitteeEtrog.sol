@@ -36,11 +36,16 @@ contract PolygonDataComitteeEtrog is
     }
 
     // CDK Data Committee Address
-    ICDKDataCommittee public immutable dataCommittee;
+    ICDKDataCommittee public dataCommittee;
 
     // Indicates if sequence with data avialability is allowed
     // This allow the sequencer to post the data and skip the Data comittee
     bool public isSequenceWithDataAvailabilityAllowed;
+
+    /**
+     * @dev Emitted when the admin updates the data committee
+     */
+    event SetDataCommittee(address newDataCommittee);
 
     /**
      * @dev Emitted when switch the ability to sequence with data availability
@@ -57,8 +62,7 @@ contract PolygonDataComitteeEtrog is
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        PolygonRollupManager _rollupManager,
-        ICDKDataCommittee _dataCommittee
+        PolygonRollupManager _rollupManager
     )
         PolygonRollupBaseEtrog(
             _globalExitRootManager,
@@ -66,9 +70,7 @@ contract PolygonDataComitteeEtrog is
             _bridgeAddress,
             _rollupManager
         )
-    {
-        dataCommittee = _dataCommittee;
-    }
+    {}
 
     /////////////////////////////////////
     // Sequence/Verify batches functions
@@ -187,12 +189,6 @@ contract PolygonDataComitteeEtrog is
 
         uint256 nonForcedBatchesSequenced = batchesNum;
 
-        // Validate that the data committee has signed the accInputHash for this sequence
-        dataCommittee.verifySignatures(
-            currentAccInputHash,
-            dataAvailabilityMessage
-        );
-
         // Check if there has been forced batches
         if (currentLastForceBatchSequenced != initLastForceBatchSequenced) {
             uint64 forcedBatchesSequenced = currentLastForceBatchSequenced -
@@ -222,12 +218,30 @@ contract PolygonDataComitteeEtrog is
             currentAccInputHash
         );
 
+        // Validate that the data committee has signed the accInputHash for this sequence
+        dataCommittee.verifySignatures(
+            currentAccInputHash,
+            dataAvailabilityMessage
+        );
+
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
     }
 
     //////////////////
     // admin functions
     //////////////////
+
+    /**
+     * @notice Allow the admin to set a new data committee
+     * @param newDataCommittee Address of the new data committee
+     */
+    function setDataCommittee(
+        ICDKDataCommittee newDataCommittee
+    ) external onlyAdmin {
+        dataCommittee = newDataCommittee;
+
+        emit SetDataCommittee(address(newDataCommittee));
+    }
 
     /**
      * @notice Allow the admin to turn on the force batches

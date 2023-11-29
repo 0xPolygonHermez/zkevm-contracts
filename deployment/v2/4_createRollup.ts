@@ -148,6 +148,15 @@ async function main() {
     // Create consensus implementation
     const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
     let PolygonconsensusContract;
+
+    PolygonconsensusContract = await PolygonconsensusFactory.deploy(
+        deployOutput.polygonZkEVMGlobalExitRootAddress,
+        deployOutput.polTokenAddress,
+        deployOutput.polygonZkEVMBridgeAddress,
+        deployOutput.polygonRollupManager
+    );
+    await PolygonconsensusContract.waitForDeployment();
+
     if (consensusContract.includes("DataComittee")) {
         // deploy data commitee
         const PolygonDataComittee = (await ethers.getContractFactory("CDKDataCommittee", deployer)) as any;
@@ -166,24 +175,13 @@ async function main() {
                 throw new Error("polygonDataComitteeContract contract has not been deployed");
             }
         }
-        deployOutput.polygonDataComitteeContract = polygonDataComitteeContract?.target;
+        // add data commitee to the consensus contract
+        if ((await PolygonconsensusContract.admin()) == deployer.address) {
+            await (await PolygonconsensusContract.setDataCommittee(polygonDataComitteeContract?.target)).wait();
+        }
 
-        PolygonconsensusContract = await PolygonconsensusFactory.deploy(
-            deployOutput.polygonZkEVMGlobalExitRootAddress,
-            deployOutput.polTokenAddress,
-            deployOutput.polygonZkEVMBridgeAddress,
-            deployOutput.polygonRollupManager,
-            polygonDataComitteeContract?.target
-        );
-    } else {
-        PolygonconsensusContract = await PolygonconsensusFactory.deploy(
-            deployOutput.polygonZkEVMGlobalExitRootAddress,
-            deployOutput.polTokenAddress,
-            deployOutput.polygonZkEVMBridgeAddress,
-            deployOutput.polygonRollupManager
-        );
+        deployOutput.polygonDataComitteeContract = polygonDataComitteeContract?.target;
     }
-    await PolygonconsensusContract.waitForDeployment();
 
     // Add a new rollup type with timelock
     const rollupCompatibilityID = 0;
