@@ -85,6 +85,11 @@
     "deploy:testnet:v2:localhost": "npx hardhat compile && rm -f deployment/v2/deploy_ongoing.json && npm run prepare:testnet:ZkEVM:localhost && npm run deploy:v2:localhost",
     "deploy:v2:goerli": "npx hardhat compile && npx ts-node deployment/v2/1_createGenesis.ts && npx hardhat run deployment/v2/2_deployPolygonZKEVMDeployer.ts --network goerli && npx hardhat run deployment/v2/3_deployContracts.ts --network goerli && npx hardhat run deployment/v2/4_createRollup.ts --network goerli && npm run saveDeployment:goerli",
     "deploy:testnet:v2:goerli": "npx hardhat compile && rm -f deployment/v2/deploy_ongoing.json && npm run prepare:testnet:ZkEVM:goerli && npm run deploy:v2:goerli",
-    "verify:v2:goerli": "npx hardhat run deployment/v2/verifyContracts.js --network goerli"
+    "verify:v2:goerli": "npx hardhat run deployment/v2/verifyContracts.js --network goerli",
+    "prepare:testnet:ZkEVM:sepolia": "npx hardhat run deployment/testnet/prepareTestnet.ts --network sepolia",
+    "deploy:v2:sepolia": "npx hardhat compile && npx ts-node deployment/v2/1_createGenesis.ts && npx hardhat run deployment/v2/2_deployPolygonZKEVMDeployer.ts --network sepolia && npx hardhat run deployment/v2/3_deployContracts.ts --network sepolia && npx hardhat run deployment/v2/4_createRollup.ts --network sepolia && npm run saveDeployment:sepolia",
+    "deploy:testnet:v2:sepolia": "npx hardhat compile && rm -f deployment/v2/deploy_ongoing.json && npm run prepare:testnet:ZkEVM:sepolia && npm run deploy:v2:sepolia",
+    "verify:v2:sepolia": "npx hardhat run deployment/v2/verifyContracts.js --network sepolia",
+    "saveDeployment:sepolia": "mkdir -p deployments/sepolia_$(date +%s) && cp -r deployment/v2/deploy_*.json deployments/sepolia_$(date +%s) && cp .openzeppelin/sepolia.json deployments/sepolia_$(date +%s) && cp deployment/v2/genesis.json deployments/sepolia_$(date +%s)"
   }
 }
