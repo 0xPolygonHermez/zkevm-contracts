@@ -8,21 +8,23 @@ import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../.env")});
 import {ethers, upgrades} from "hardhat";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
-
 const {create2Deployment} = require("../helpers/deployment-helpers");
 
-const pathOutputJson = path.join(__dirname, "./deploy_output.json");
 const pathGenesis = path.join(__dirname, "./genesis.json");
 
-const deployParameters = require("./deploy_parameters.json");
+const createRollupParameters = require("./create_rollup_parameters.json");
 const genesis = require("./genesis.json");
 const deployOutput = require("./deploy_output.json");
 import "../helpers/utils";
+
+const pathOutputJson = path.join(__dirname, "./create_rollup_output.json");
 
 import {PolygonRollupManager, PolygonZkEVMV2, PolygonZkEVMBridgeV2} from "../../typechain-types";
 
 async function main() {
     const attemptsDeployProxy = 20;
+
+    const outputJson = {} as any;
 
     /*
      * Check deploy parameters
@@ -41,7 +43,7 @@ async function main() {
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
-        if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === "") {
+        if (createRollupParameters[parameterName] === undefined || createRollupParameters[parameterName] === "") {
             throw new Error(`Missing parameter: ${parameterName}`);
         }
     }
@@ -56,7 +58,7 @@ async function main() {
         adminZkEVM,
         forkID,
         consensusContract,
-    } = deployParameters;
+    } = createRollupParameters;
 
     const supportedConensus = [
         "PolygonZkEVMEtrog",
@@ -71,30 +73,31 @@ async function main() {
 
     // Load provider
     let currentProvider = ethers.provider;
-    if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
+    if (createRollupParameters.multiplierGas || createRollupParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK !== "hardhat") {
             currentProvider = ethers.getDefaultProvider(
                 `https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`
             ) as any;
-            if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
+            if (createRollupParameters.maxPriorityFeePerGas && createRollupParameters.maxFeePerGas) {
                 console.log(
-                    `Hardcoded gas used: MaxPriority${deployParameters.maxPriorityFeePerGas} gwei, MaxFee${deployParameters.maxFeePerGas} gwei`
+                    `Hardcoded gas used: MaxPriority${createRollupParameters.maxPriorityFeePerGas} gwei, MaxFee${createRollupParameters.maxFeePerGas} gwei`
                 );
                 const FEE_DATA = new ethers.FeeData(
                     null,
-                    ethers.parseUnits(deployParameters.maxFeePerGas, "gwei"),
-                    ethers.parseUnits(deployParameters.maxPriorityFeePerGas, "gwei")
+                    ethers.parseUnits(createRollupParameters.maxFeePerGas, "gwei"),
+                    ethers.parseUnits(createRollupParameters.maxPriorityFeePerGas, "gwei")
                 );
 
                 currentProvider.getFeeData = async () => FEE_DATA;
             } else {
-                console.log("Multiplier gas used: ", deployParameters.multiplierGas);
+                console.log("Multiplier gas used: ", createRollupParameters.multiplierGas);
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
                     return new ethers.FeeData(
                         null,
-                        ((feedata.maxFeePerGas as bigint) * BigInt(deployParameters.multiplierGas)) / 1000n,
-                        ((feedata.maxPriorityFeePerGas as bigint) * BigInt(deployParameters.multiplierGas)) / 1000n
+                        ((feedata.maxFeePerGas as bigint) * BigInt(createRollupParameters.multiplierGas)) / 1000n,
+                        ((feedata.maxPriorityFeePerGas as bigint) * BigInt(createRollupParameters.multiplierGas)) /
+                            1000n
                     );
                 }
                 currentProvider.getFeeData = overrideFeeData;
@@ -104,8 +107,8 @@ async function main() {
 
     // Load deployer
     let deployer;
-    if (deployParameters.deployerPvtKey) {
-        deployer = new ethers.Wallet(deployParameters.deployerPvtKey, currentProvider);
+    if (createRollupParameters.deployerPvtKey) {
+        deployer = new ethers.Wallet(createRollupParameters.deployerPvtKey, currentProvider);
     } else if (process.env.MNEMONIC) {
         deployer = ethers.HDNodeWallet.fromMnemonic(
             ethers.Mnemonic.fromPhrase(process.env.MNEMONIC),
@@ -180,7 +183,7 @@ async function main() {
             await (await PolygonconsensusContract.setDataCommittee(polygonDataComitteeContract?.target)).wait();
         }
 
-        deployOutput.polygonDataComitteeContract = polygonDataComitteeContract?.target;
+        outputJson.polygonDataComitteeContract = polygonDataComitteeContract?.target;
     }
 
     // Add a new rollup type with timelock
@@ -203,9 +206,9 @@ async function main() {
     let gasTokenAddress, gasTokenNetwork, gasTokenMetadata;
 
     if (
-        deployParameters.gasTokenAddress &&
-        deployParameters.gasTokenAddress != "" &&
-        deployParameters.gasTokenAddress != ethers.ZeroAddress
+        createRollupParameters.gasTokenAddress &&
+        createRollupParameters.gasTokenAddress != "" &&
+        createRollupParameters.gasTokenAddress != ethers.ZeroAddress
     ) {
         // Get bridge instance
         const bridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2", deployer);
@@ -214,16 +217,18 @@ async function main() {
         ) as PolygonZkEVMBridgeV2;
 
         // Get token metadata
-        gasTokenMetadata = await polygonZkEVMBridgeContract.getTokenMetadata(deployParameters.gasTokenAddress);
+        gasTokenMetadata = await polygonZkEVMBridgeContract.getTokenMetadata(createRollupParameters.gasTokenAddress);
 
-        const wrappedData = await polygonZkEVMBridgeContract.wrappedTokenToTokenInfo(deployParameters.gasTokenAddress);
+        const wrappedData = await polygonZkEVMBridgeContract.wrappedTokenToTokenInfo(
+            createRollupParameters.gasTokenAddress
+        );
         if (wrappedData.originNetwork != 0n) {
             // Wrapped token
             gasTokenAddress = wrappedData.originTokenAddress;
             gasTokenNetwork = wrappedData.originNetwork;
         } else {
             // Mainnet token
-            gasTokenAddress = deployParameters.gasTokenAddress;
+            gasTokenAddress = createRollupParameters.gasTokenAddress;
             gasTokenNetwork = 0n;
         }
     } else {
@@ -249,7 +254,8 @@ async function main() {
     );
 
     const receipt = (await txDeployRollup.wait()) as any;
-    const timestampReceipt = (await receipt?.getBlock())?.timestamp;
+    const blockDeploymentRollup = await receipt?.getBlock();
+    const timestampReceipt = blockDeploymentRollup.timestamp;
     const rollupID = await rollupManagerContract.chainIDToRollupID(chainID);
 
     console.log("#######################\n");
@@ -272,10 +278,6 @@ async function main() {
         }
     }
 
-    deployOutput.genesis = genesis.root;
-    deployOutput.newZKEVMAddress = newZKEVMAddress;
-    deployOutput.verifierAddress = verifierContract.target;
-
     // Add the first batch of the created rollup
     const newZKEVMContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonZkEVMV2;
     const batchData = {
@@ -289,10 +291,14 @@ async function main() {
         timestamp: timestampReceipt,
         sequencer: trustedSequencer,
     };
-    genesis.firstBatchData = batchData;
 
-    fs.writeFileSync(pathOutputJson, JSON.stringify(deployOutput, null, 1));
-    fs.writeFileSync(pathGenesis, JSON.stringify(genesis, null, 1));
+    outputJson.firstBatchData = batchData;
+    outputJson.genesis = genesis.root;
+    outputJson.createRollupBlock = blockDeploymentRollup.number;
+    outputJson.rollupAddress = newZKEVMAddress;
+    outputJson.verifierAddress = verifierContract.target;
+
+    fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
 
 main().catch((e) => {

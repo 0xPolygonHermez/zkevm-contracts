@@ -64,7 +64,11 @@ A new folder will be created witth the following name `deployments/${network}_$(
 -   `trustedAggregatorTimeout`: uint64, If a sequence is not verified in this timeout everyone can verify it
 -   `pendingStateTimeout`: uint64, Once a pending state exceeds this timeout it can be consolidated
 -   `emergencyCouncilAddress`:address, Emergency council addres
-    <The following parameters refer to the new rollup created >
+-   `polTokenAddress`: address, Matic token address, only if deploy on testnet can be left blank and will fullfilled by the scripts.
+-   `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:goerli` script.
+
+## create_rollup_parameters.json
+
 -   `realVerifier`: bool, Indicates whether deploy a real verifier or not for the new created
 -   `trustedSequencerURL`: string, trustedSequencer URL
 -   `networkName`: string, networkName
@@ -75,10 +79,8 @@ A new folder will be created witth the following name `deployments/${network}_$(
 -   `forkID`: uint64, Fork ID of the new rollup, indicates the prover (zkROM/executor) version
 -   `consensusContract`: string, Consensus contract name of the new rollup deployed, current options are: "PolygonZkEVMEtrog","PolygonZkEVMV2","PolygonDataComittee", "PolygonDataComitteeEtrog",
 -   `gasTokenAddress`:address, Gas token address, empty or address(0) for ether
--   `polTokenAddress`: address, Matic token address, only if deploy on testnet can be left blank and will fullfilled by the scripts.
--   `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:goerli` script.
 
-### Optional Parameters
+### Optional Parameters on both parameters
 
 -   `deployerPvtKey`: string, pvtKey of the deployer, overrides the address in `MNEMONIC` of `.env` if exist
 -   `maxFeePerGas`:string, Set `maxFeePerGas`, must define aswell `maxPriorityFeePerGas` to use it
