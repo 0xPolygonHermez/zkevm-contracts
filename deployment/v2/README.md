@@ -75,7 +75,7 @@ A new folder will be created witth the following name `deployments/${network}_$(
 -   `description`:string, Description of the new rollup type
 -   `trustedSequencer`: address, trusted sequencer addresss
 -   `chainID`: uint64, chainID of the new rollup
--   `admin`:address, Admin address, can adjust Rollup parameters
+-   `adminZkEVM`:address, Admin address, can adjust Rollup parameters
 -   `forkID`: uint64, Fork ID of the new rollup, indicates the prover (zkROM/executor) version
 -   `consensusContract`: string, Consensus contract name of the new rollup deployed, current options are: "PolygonZkEVMEtrog","PolygonZkEVMV2","PolygonDataComittee", "PolygonDataComitteeEtrog",
 -   `gasTokenAddress`:address, Gas token address, empty or address(0) for ether
