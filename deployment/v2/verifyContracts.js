@@ -7,8 +7,13 @@ const { ethers, upgrades } = require('hardhat');
 
 const pathDeployOutputParameters = path.join(__dirname, './deploy_output.json');
 const pathDeployParameters = path.join(__dirname, './deploy_parameters.json');
-const deployOutputParameters = require(pathDeployOutputParameters);
+
 const deployParameters = require(pathDeployParameters);
+const deployOutputParameters = require(pathDeployOutputParameters);
+
+const pathCreateRollupOutput = path.join(__dirname, './create_rollup_output.json');
+
+const createRollupOutputParameters = require(pathCreateRollupOutput);
 
 async function main() {
     // load deployer account
@@ -37,18 +42,6 @@ async function main() {
         );
     } catch (error) {
         // expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
-    }
-
-    // verify verifier
-    try {
-        await hre.run(
-            'verify:verify',
-            {
-                address: deployOutputParameters.verifierAddress,
-            },
-        );
-    } catch (error) {
-        expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
     }
 
     const { minDelayTimelock } = deployParameters;
@@ -149,10 +142,10 @@ async function main() {
             'verify:verify',
             {
                 contract: 'contracts/v2/lib/PolygonTransparentProxy.sol:PolygonTransparentProxy',
-                address: deployOutputParameters.newZKEVMAddress,
+                address: createRollupOutputParameters.rollupAddress,
                 constructorArguments: [
-                    await upgrades.erc1967.getImplementationAddress(deployOutputParameters.newZKEVMAddress),
-                    await upgrades.erc1967.getAdminAddress(deployOutputParameters.newZKEVMAddress),
+                    await upgrades.erc1967.getImplementationAddress(createRollupOutputParameters.rollupAddress),
+                    await upgrades.erc1967.getAdminAddress(createRollupOutputParameters.rollupAddress),
                     '0x',
                 ],
             },
@@ -161,13 +154,26 @@ async function main() {
         // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 
+        // verify verifier
+        try {
+            await hre.run(
+                'verify:verify',
+                {
+                    address: createRollupOutputParameters.verifierAddress,
+                },
+            );
+        } catch (error) {
+            expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
+        }
+    
+
     // verify zkEVM address
     try {
         await hre.run(
             'verify:verify',
             {
                 contract: 'contracts/v2/consensus/zkEVM/PolygonZkEVMV2.sol:PolygonZkEVMV2',
-                address: deployOutputParameters.newZKEVMAddress,
+                address: createRollupOutputParameters.rollupAddress,
                 constructorArguments: [
                     deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
                     deployOutputParameters.polTokenAddress,
