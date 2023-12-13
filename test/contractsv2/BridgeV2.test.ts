@@ -90,10 +90,28 @@ describe("PolygonZkEVMBridge Contract", () => {
         );
     });
 
-    it("should check the constructor parameters", async () => {
+    it("should check the initialize parameters", async () => {
         expect(await polygonZkEVMBridgeContract.globalExitRootManager()).to.be.equal(polygonZkEVMGlobalExitRoot.target);
         expect(await polygonZkEVMBridgeContract.networkID()).to.be.equal(networkIDMainnet);
         expect(await polygonZkEVMBridgeContract.polygonRollupManager()).to.be.equal(rollupManager.address);
+
+        // cannot initialzie again
+        await expect(
+            polygonZkEVMBridgeContract.initialize(
+                networkIDMainnet,
+                ethers.ZeroAddress, // zero for ether
+                ethers.ZeroAddress, // zero for ether
+                polygonZkEVMGlobalExitRoot.target,
+                rollupManager.address,
+                "0x"
+            )
+        ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
+
+    it("should check bridgeMessageWETH reverts", async () => {
+        await expect(
+            polygonZkEVMBridgeContract.bridgeMessageWETH(networkIDMainnet, deployer.address, 0, true, "0x")
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "NativeTokenIsEther");
     });
 
     it("should PolygonZkEVM bridge asset and verify merkle proof", async () => {
@@ -216,6 +234,10 @@ describe("PolygonZkEVMBridge Contract", () => {
         );
         merkleTree.add(leafValue);
         const rootJSMainnet = merkleTree.getRoot();
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeMessage(networkIDMainnet, destinationAddress, true, "0x")
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "DestinationNetworkInvalid");
 
         await expect(
             polygonZkEVMBridgeContract.bridgeMessage(destinationNetwork, destinationAddress, true, metadata, {
@@ -462,6 +484,38 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata
             )
         ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofLocal,
+                proofLocal,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                tokenAddress,
+                networkIDRollup,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "DestinationNetworkInvalid");
+
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofLocal,
+                proofLocal,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount + 1n,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "InvalidSmtProof");
 
         // transfer tokens, then claim
         await expect(polTokenContract.transfer(polygonZkEVMBridgeContract.target, amount))
@@ -771,6 +825,15 @@ describe("PolygonZkEVMBridge Contract", () => {
             .withArgs(ethers.ZeroAddress, destinationAddress, amount);
 
         const newTokenInfo = await polygonZkEVMBridgeContract.wrappedTokenToTokenInfo(precalculateWrappedErc20);
+
+        // Use precalculatedWrapperAddress and check if matches
+        expect(
+            await polygonZkEVMBridgeContract.calculateTokenWrapperAddress(
+                networkIDRollup,
+                tokenAddress,
+                precalculateWrappedErc20
+            )
+        ).to.be.equal(precalculateWrappedErc20);
 
         expect(newTokenInfo.originNetwork).to.be.equal(networkIDRollup);
         expect(newTokenInfo.originTokenAddress).to.be.equal(tokenAddress);
@@ -1467,6 +1530,26 @@ describe("PolygonZkEVMBridge Contract", () => {
 
         /*
          * claim
+         * Can't claim invalid destination network
+         */
+        await expect(
+            polygonZkEVMBridgeContract.claimMessage(
+                proofLocal,
+                proofRollup,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                tokenAddress,
+                networkIDRollup,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "DestinationNetworkInvalid");
+
+        /*
+         * claim
          * Can't claim without ether
          */
         await expect(
@@ -1484,6 +1567,22 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata
             )
         ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "MessageFailed");
+
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofLocal,
+                proofRollup,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                tokenAddress,
+                networkIDRollup,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "DestinationNetworkInvalid");
 
         const balanceDeployer = await ethers.provider.getBalance(deployer.address);
         /*
@@ -1587,5 +1686,76 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata
             )
         ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "AlreadyClaimed");
+    });
+
+    it("should test emergency state", async () => {
+        await expect(polygonZkEVMBridgeContract.activateEmergencyState()).to.be.revertedWithCustomError(
+            polygonZkEVMBridgeContract,
+            "OnlyRollupManager"
+        );
+
+        await expect(polygonZkEVMBridgeContract.connect(rollupManager).activateEmergencyState()).to.emit(
+            polygonZkEVMBridgeContract,
+            "EmergencyStateActivated"
+        );
+
+        const tokenAddress = polTokenContract.target;
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDRollup;
+        const destinationAddress = deployer.address;
+
+        const metadata = metadataToken;
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                "0x"
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "OnlyNotEmergencyState");
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeMessage(destinationNetwork, destinationAddress, true, "0x")
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "OnlyNotEmergencyState");
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeMessageWETH(destinationNetwork, destinationAddress, amount, true, "0x")
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "OnlyNotEmergencyState");
+
+        const mockMerkleProof = new Array(32).fill(ethers.ZeroHash) as any;
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                mockMerkleProof,
+                mockMerkleProof,
+                ethers.ZeroHash,
+                ethers.ZeroHash,
+                ethers.ZeroHash,
+                0,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "OnlyNotEmergencyState");
+
+        await expect(
+            polygonZkEVMBridgeContract.claimMessage(
+                mockMerkleProof,
+                mockMerkleProof,
+                ethers.ZeroHash,
+                ethers.ZeroHash,
+                ethers.ZeroHash,
+                0,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "OnlyNotEmergencyState");
     });
 });

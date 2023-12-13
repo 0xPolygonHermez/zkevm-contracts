@@ -19,7 +19,7 @@ async function createPermitSignature(tokenContractInstance, wallet, spenderAddre
         name,
         version: '1',
         chainId,
-        verifyingContract: tokenContractInstance.address,
+        verifyingContract: tokenContractInstance.target,
     };
 
     // The named list of all type definitions
@@ -42,9 +42,10 @@ async function createPermitSignature(tokenContractInstance, wallet, spenderAddre
         deadline,
     };
 
-    const rawSignature = await wallet._signTypedData(domain, types, values);
-    const signature = ethers.splitSignature(rawSignature);
+    const rawSignature = await wallet.signTypedData(domain, types, values);
+    const signature = ethers.Signature.from(rawSignature);
     const recoveredAddressTyped = ethers.verifyTypedData(domain, types, values, rawSignature);
+
     expect(recoveredAddressTyped).to.be.equal(wallet.address);
 
     return signature;
@@ -70,7 +71,7 @@ async function createPermitSignatureDaiType(tokenContractInstance, wallet, spend
         name,
         version,
         chainId,
-        verifyingContract: tokenContractInstance.address,
+        verifyingContract: tokenContractInstance.target,
     };
 
     // The named list of all type definitions
@@ -93,10 +94,9 @@ async function createPermitSignatureDaiType(tokenContractInstance, wallet, spend
         allowed: true,
     };
 
-    const rawSignature = await wallet._signTypedData(domain, types, values);
-    const signature = ethers.splitSignature(rawSignature);
+    const rawSignature = await wallet.signTypedData(domain, types, values);
+    const signature = ethers.Signature.from(rawSignature);
     const recoveredAddressTyped = ethers.verifyTypedData(domain, types, values, rawSignature);
-
     expect(recoveredAddressTyped).to.be.equal(wallet.address);
 
     return signature;
@@ -120,7 +120,7 @@ async function createPermitSignatureUniType(tokenContractInstance, wallet, spend
     const domain = {
         name,
         chainId,
-        verifyingContract: tokenContractInstance.address,
+        verifyingContract: tokenContractInstance.target,
     };
 
     // The named list of all type definitions
@@ -143,8 +143,8 @@ async function createPermitSignatureUniType(tokenContractInstance, wallet, spend
         deadline,
     };
 
-    const rawSignature = await wallet._signTypedData(domain, types, values);
-    const signature = ethers.splitSignature(rawSignature);
+    const rawSignature = await wallet.signTypedData(domain, types, values);
+    const signature = ethers.Signature.from(rawSignature);
     const recoveredAddressTyped = ethers.verifyTypedData(domain, types, values, rawSignature);
     expect(recoveredAddressTyped).to.be.equal(wallet.address);
 
