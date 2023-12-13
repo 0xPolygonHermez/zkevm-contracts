@@ -316,7 +316,7 @@ contract PolygonZkEVMBridgeV2 is
         address destinationAddress,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
-    ) external payable {
+    ) external payable ifNotEmergencyState {
         // If exist a gas token, only allow call this function without value
         if (msg.value != 0 && address(WETHToken) != address(0)) {
             revert NoValueInMessagesOnGasTokenNetworks();
@@ -346,7 +346,7 @@ contract PolygonZkEVMBridgeV2 is
         uint256 amountWETH,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
-    ) external {
+    ) external ifNotEmergencyState {
         // If native token is ether, disable this function
         if (address(WETHToken) == address(0)) {
             revert NativeTokenIsEther();

@@ -35,7 +35,7 @@
     "@openzeppelin/contracts": "4.8.2",
     "@openzeppelin/contracts-upgradeable": "4.8.2",
     "@openzeppelin/contracts5": "npm:@openzeppelin/contracts@^5.0.0",
-    "@openzeppelin/hardhat-upgrades": "2.3.3",
+    "@openzeppelin/hardhat-upgrades": "2.5.0",
     "@types/yargs": "^17.0.28",
     "circomlibjs": "0.1.1",
     "dotenv": "^8.6.0",
