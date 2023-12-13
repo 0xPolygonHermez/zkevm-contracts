@@ -96,13 +96,12 @@ const config: HardhatUserConfig = {
                 },
             },
             "contracts/lib/TokenWrapped.sol": {
-                version: "0.8.20",
+                version: "0.8.17",
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 999, // must be the same as bridge, for testing porpuses
+                        runs: 999999, // must be the same as the previous bridge
                     },
-                    evmVersion: "shanghai",
                 },
             },
             "contracts/v2/mocks/PolygonRollupManagerMockInternalTest.sol": {
