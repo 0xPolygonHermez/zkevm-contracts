@@ -14,6 +14,7 @@ const pathOutputJson = path.join(__dirname, "./deploy_output.json");
 const pathOngoingDeploymentJson = path.join(__dirname, "./deploy_ongoing.json");
 
 const deployParameters = require("./deploy_parameters.json");
+import {processorUtils} from "@0xpolygonhermez/zkevm-commonjs";
 
 const pathOZUpgradability = path.join(__dirname, `../../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 const genesis = require("./genesis.json");
@@ -457,10 +458,10 @@ async function main() {
                     PolygonZkEVMFactory,
                     [
                         {
-                            admin: adminZkEVM,
-                            trustedSequencer: trustedSequencer,
+                            admin: deployer.address, // should be admin, will be transfered afterwards
+                            trustedSequencer: deployer.address, // should be trusted seuquencer, will be transfered afterwards
                             pendingStateTimeout: pendingStateTimeout,
-                            trustedAggregator: trustedAggregator,
+                            trustedAggregator: deployer.address, // should be trusted aggregator, will be transfered afterwards
                             trustedAggregatorTimeout: trustedAggregatorTimeout,
                         },
                         genesis.root,
@@ -542,8 +543,61 @@ async function main() {
     expect(await upgrades.erc1967.getAdminAddress(precalculateGlobalExitRootAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
-    // Update current system to rollup manager
+    // // Approve tokens
+    // const maticAmount = ethers.parseEther("1");
+    // const polTokenFactory = await ethers.getContractFactory("ERC20PermitMock", deployer);
+    // const polTokenContract = polTokenFactory.attach(polTokenAddress) as any;
+    // await (await polTokenContract.approve(polygonZkEVMContract.target, maticAmount)).wait();
 
+    // // Sequence  batches
+    // const tx = ethers.Transaction.from({
+    //     to: deployer.address,
+    //     nonce: 0,
+    //     value: 1,
+    //     gasLimit: 21000,
+    //     gasPrice: 1,
+    //     data: "0x",
+    //     chainId: chainID,
+    //     type: 0, // legacy transaction
+    // });
+
+    // const signer = ethers.HDNodeWallet.fromMnemonic(
+    //     ethers.Mnemonic.fromPhrase("test test test test test test test test test test test junk"),
+    //     "m/44'/60'/0'/0/0"
+    // ).connect(currentProvider);
+
+    // const signedTx = await signer.signTransaction(tx);
+    // const l2txData = processorUtils.rawTxToCustomRawTx(signedTx);
+    // const currentTimestamp = (await currentProvider.getBlock("latest"))?.timestamp;
+
+    // const sequence = {
+    //     transactions: l2txData,
+    //     globalExitRoot: ethers.ZeroHash,
+    //     timestamp: currentTimestamp,
+    //     minForcedTimestamp: 0,
+    // } as any;
+    // await (await polygonZkEVMContract.sequenceBatches([sequence], trustedSequencer)).wait();
+
+    // // Verify batches
+    // const newStateRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    // const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
+    // await (
+    //     await polygonZkEVMContract.verifyBatchesTrustedAggregator(
+    //         0, // pending state not used
+    //         0, // old batch
+    //         1, // new batch
+    //         ethers.ZeroHash, // local exit root
+    //         newStateRoot,
+    //         new Array(24).fill(ethers.ZeroHash)
+    //     )
+    // ).wait();
+
+    // TRrnsfer roles
+    await (await polygonZkEVMContract.setTrustedSequencer(trustedSequencer)).wait();
+    await (await polygonZkEVMContract.setTrustedAggregator(trustedAggregator)).wait();
+    await (await polygonZkEVMContract.transferAdminRole(adminZkEVM)).wait();
+
+    // Update current system to rollup manager
     const PolygonZkEVMV2ExistentFactory = await ethers.getContractFactory("PolygonZkEVMV2Existent");
 
     const newPolygonZkEVMContract = (await upgrades.deployProxy(PolygonZkEVMV2ExistentFactory, [], {
