@@ -3416,7 +3416,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 )
         )
             .to.emit(rollupManagerContract, "AddExistingRollup")
-            .withArgs(RollupID, forkID, PolygonZKEVMV2Contract.target, chainID, rollupCompatibilityID);
+            .withArgs(RollupID, forkID, PolygonZKEVMV2Contract.target, chainID, rollupCompatibilityID, 0);
 
         await expect(
             rollupManagerContract

@@ -232,6 +232,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                     emergencyCouncil.address,
                     newPolygonZkEVMContract.target,
                     verifierContract.target,
+                    forkID,
+                    chainID,
                 ],
             },
         });
