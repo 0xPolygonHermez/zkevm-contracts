@@ -275,7 +275,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
     it("should check full flow", async () => {
         const urlSequencer = "http://zkevm-json-rpc:8123";
-        const chainID2 = 1001;
+        const chainID2 = chainID + 1;
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
@@ -718,7 +718,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const tokenWrappedFactory = await ethers.getContractFactory("TokenWrapped");
         // create2 parameters
         const salt = ethers.solidityPackedKeccak256(["uint32", "address"], [networkIDRollup, tokenAddress]);
-        const minimalBytecodeProxy = tokenWrappedFactory.bytecode;
+        const minimalBytecodeProxy = await polygonZkEVMBridgeContract.BASE_INIT_BYTECODE_WRAPPED_TOKEN();
         const hashInitCode = ethers.solidityPackedKeccak256(["bytes", "bytes"], [minimalBytecodeProxy, metadataToken]);
         const precalculateWrappedErc20 = await ethers.getCreate2Address(
             polygonZkEVMBridgeContract.target as string,
@@ -804,7 +804,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
     it("should check full flow no trusted aggreagtor", async () => {
         const urlSequencer = "http://zkevm-json-rpc:8123";
-        const chainID2 = 1001;
+        const chainID2 = chainID + 1;
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
@@ -1237,7 +1237,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const tokenWrappedFactory = await ethers.getContractFactory("TokenWrapped");
         // create2 parameters
         const salt = ethers.solidityPackedKeccak256(["uint32", "address"], [networkIDRollup, tokenAddress]);
-        const minimalBytecodeProxy = tokenWrappedFactory.bytecode;
+        const minimalBytecodeProxy = await polygonZkEVMBridgeContract.BASE_INIT_BYTECODE_WRAPPED_TOKEN();
         const hashInitCode = ethers.solidityPackedKeccak256(["bytes", "bytes"], [minimalBytecodeProxy, metadataToken]);
         const precalculateWrappedErc20 = await ethers.getCreate2Address(
             polygonZkEVMBridgeContract.target as string,
