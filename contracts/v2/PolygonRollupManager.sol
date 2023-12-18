@@ -110,12 +110,6 @@ contract PolygonRollupManager is
     // Exit merkle tree levels
     uint256 internal constant _EXIT_TREE_DEPTH = 32;
 
-    // L2 chain identifier
-    uint64 internal constant _ZKEVM_CHAINID = 1101;
-
-    // zkEVM FORK ID
-    uint64 internal constant _ZKEVM_FORKID = 5;
-
     // Roles
 
     // Be able to add a new rollup type
@@ -258,7 +252,8 @@ contract PolygonRollupManager is
         uint64 forkID,
         address rollupAddress,
         uint64 chainID,
-        uint8 rollupCompatibilityID
+        uint8 rollupCompatibilityID,
+        uint64 lastVerifiedBatchBeforeUpgrade
     );
 
     /**
@@ -381,6 +376,8 @@ contract PolygonRollupManager is
      * @param emergencyCouncil Emergency council address
      * @param polygonZkEVM New deployed Polygon zkEVM which will be initialized wiht previous values
      * @param zkEVMVerifier Verifier of the new zkEVM deployed
+     * @param zkEVMForkID Fork id of the new zkEVM deployed
+     * @param zkEVMChainID Chain id of the new zkEVM deployed
      */
     function initialize(
         address trustedAggregator,
@@ -390,7 +387,9 @@ contract PolygonRollupManager is
         address timelock,
         address emergencyCouncil,
         PolygonZkEVMV2Existent polygonZkEVM,
-        IVerifierRollup zkEVMVerifier
+        IVerifierRollup zkEVMVerifier,
+        uint64 zkEVMForkID,
+        uint64 zkEVMChainID
     ) external reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
@@ -433,20 +432,22 @@ contract PolygonRollupManager is
         _setupRole(_EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
         _setupRole(_EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
 
-        // Initialize current zkEVM
-        RollupData storage currentZkEVM = _addExistingRollup(
-            IPolygonRollupBase(polygonZkEVM),
-            zkEVMVerifier,
-            _ZKEVM_FORKID,
-            _ZKEVM_CHAINID,
-            0 // Rollup compatibility ID is 0
-        );
-
+        // Check last verified batch
         uint64 zkEVMLastBatchSequenced = _legacylastBatchSequenced;
         uint64 zkEVMLastVerifiedBatch = _legacyLastVerifiedBatch;
         if (zkEVMLastBatchSequenced != zkEVMLastVerifiedBatch) {
             revert AllzkEVMSequencedBatchesMustBeVerified();
         }
+
+        // Initialize current zkEVM
+        RollupData storage currentZkEVM = _addExistingRollup(
+            IPolygonRollupBase(polygonZkEVM),
+            zkEVMVerifier,
+            zkEVMForkID,
+            zkEVMChainID,
+            0, // Rollup compatibility ID is 0
+            _legacyLastVerifiedBatch
+        );
 
         // Copy variables from legacy
         currentZkEVM.batchNumToStateRoot[
@@ -652,7 +653,8 @@ contract PolygonRollupManager is
             verifier,
             forkID,
             chainID,
-            rollupCompatibilityID
+            rollupCompatibilityID,
+            0 // last verified batch it's always 0
         );
         rollup.batchNumToStateRoot[0] = genesis;
     }
@@ -665,13 +667,15 @@ contract PolygonRollupManager is
      * @param forkID Fork id of the added rollup
      * @param chainID Chain id of the added rollup
      * @param rollupCompatibilityID Compatibility ID for the added rollup
+     * @param lastVerifiedBatch Last verified batch before adding the rollup
      */
     function _addExistingRollup(
         IPolygonRollupBase rollupAddress,
         IVerifierRollup verifier,
         uint64 forkID,
         uint64 chainID,
-        uint8 rollupCompatibilityID
+        uint8 rollupCompatibilityID,
+        uint64 lastVerifiedBatch
     ) internal returns (RollupData storage rollup) {
         uint32 rollupID = ++rollupCount;
 
@@ -694,7 +698,8 @@ contract PolygonRollupManager is
             forkID,
             address(rollupAddress),
             chainID,
-            rollupCompatibilityID
+            rollupCompatibilityID,
+            lastVerifiedBatch
         );
     }
 

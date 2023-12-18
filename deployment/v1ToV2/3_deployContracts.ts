@@ -88,7 +88,8 @@ async function main() {
         "trustedSequencer",
         "chainID",
         "adminZkEVM",
-        "forkID",
+        "oldForkID",
+        "newForkID",
         "version",
     ];
 
@@ -116,7 +117,8 @@ async function main() {
         trustedSequencer,
         chainID,
         adminZkEVM,
-        forkID,
+        oldForkID,
+        newForkID,
         version,
     } = deployParameters;
 
@@ -443,7 +445,7 @@ async function main() {
     console.log("genesisRoot:", genesis.root);
     console.log("trustedSequencerURL:", trustedSequencerURL);
     console.log("networkName:", networkName);
-    console.log("forkID:", forkID);
+    console.log("forkID:", oldForkID);
     console.log("emergencyCouncilAddress:", emergencyCouncilAddress);
 
     const PolygonZkEVMFactory = await ethers.getContractFactory("PolygonZkEVM", deployer);
@@ -476,7 +478,7 @@ async function main() {
                             verifierContract.target,
                             polygonZkEVMBridgeContract.target,
                             chainID,
-                            forkID,
+                            oldForkID,
                         ],
                         unsafeAllow: ["constructor", "state-variable-immutable"],
                     }
@@ -627,6 +629,8 @@ async function main() {
                 emergencyCouncilAddress,
                 newPolygonZkEVMContract.target,
                 verifierContract.target,
+                newForkID,
+                chainID,
             ],
         },
     });
