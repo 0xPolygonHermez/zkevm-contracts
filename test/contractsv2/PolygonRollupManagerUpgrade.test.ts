@@ -275,7 +275,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
     it("should check full flow", async () => {
         const urlSequencer = "http://zkevm-json-rpc:8123";
-        const chainID = 1000;
+        const chainID2 = 1001;
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
@@ -376,7 +376,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         await expect(
             rollupManagerContract.createNewRollup(
                 newRollupTypeID,
-                chainID,
+                chainID2,
                 admin.address,
                 trustedSequencer.address,
                 gasTokenAddress,
@@ -391,7 +391,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 .connect(admin)
                 .createNewRollup(
                     0,
-                    chainID,
+                    chainID2,
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
@@ -411,7 +411,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 .connect(admin)
                 .createNewRollup(
                     newRollupTypeID,
-                    chainID,
+                    chainID2,
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
@@ -435,7 +435,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 .connect(admin)
                 .createNewRollup(
                     newRollupTypeID,
-                    chainID,
+                    chainID2,
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
@@ -444,7 +444,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 )
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
-            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
+            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID2, gasTokenAddress)
             .to.emit(newZkEVMContract, "InitialSequenceBatches")
             .to.emit(rollupManagerContract, "OnSequenceBatches")
             .withArgs(newCreatedRollupID, newSequencedBatch);
@@ -464,7 +464,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 .connect(admin)
                 .createNewRollup(
                     newRollupTypeID,
-                    chainID,
+                    chainID2,
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
@@ -514,7 +514,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         // Check mapping on rollup Manager
         const rollupData = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
         expect(rollupData.rollupContract).to.be.equal(newZKEVMAddress);
-        expect(rollupData.chainID).to.be.equal(chainID);
+        expect(rollupData.chainID).to.be.equal(chainID2);
         expect(rollupData.verifier).to.be.equal(verifierContract.target);
         expect(rollupData.forkID).to.be.equal(forkID);
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
@@ -804,7 +804,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
     it("should check full flow no trusted aggreagtor", async () => {
         const urlSequencer = "http://zkevm-json-rpc:8123";
-        const chainID = 1000;
+        const chainID2 = 1001;
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
@@ -905,7 +905,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         await expect(
             rollupManagerContract.createNewRollup(
                 newRollupTypeID,
-                chainID,
+                chainID2,
                 admin.address,
                 trustedSequencer.address,
                 gasTokenAddress,
@@ -920,7 +920,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 .connect(admin)
                 .createNewRollup(
                     0,
-                    chainID,
+                    chainID2,
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
@@ -940,7 +940,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 .connect(admin)
                 .createNewRollup(
                     newRollupTypeID,
-                    chainID,
+                    chainID2,
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
@@ -964,7 +964,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 .connect(admin)
                 .createNewRollup(
                     newRollupTypeID,
-                    chainID,
+                    chainID2,
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
@@ -973,7 +973,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 )
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
-            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
+            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID2, gasTokenAddress)
             .to.emit(newZkEVMContract, "InitialSequenceBatches")
             .to.emit(rollupManagerContract, "OnSequenceBatches")
             .withArgs(newCreatedRollupID, newSequencedBatch);
@@ -987,13 +987,13 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(await newZkEVMContract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
         expect(await newZkEVMContract.lastTimestamp()).to.be.equal(timestampCreatedRollup);
 
-        // Cannot create 2 chains with the same chainID
+        // Cannot create 2 chains with the same chainID2
         await expect(
             rollupManagerContract
                 .connect(admin)
                 .createNewRollup(
                     newRollupTypeID,
-                    chainID,
+                    chainID2,
                     admin.address,
                     trustedSequencer.address,
                     gasTokenAddress,
@@ -1043,7 +1043,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         // Check mapping on rollup Manager
         const rollupData = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
         expect(rollupData.rollupContract).to.be.equal(newZKEVMAddress);
-        expect(rollupData.chainID).to.be.equal(chainID);
+        expect(rollupData.chainID).to.be.equal(chainID2);
         expect(rollupData.verifier).to.be.equal(verifierContract.target);
         expect(rollupData.forkID).to.be.equal(forkID);
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
