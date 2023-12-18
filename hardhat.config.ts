@@ -95,15 +95,6 @@ const config: HardhatUserConfig = {
                     evmVersion: "shanghai",
                 },
             },
-            "contracts/lib/TokenWrapped.sol": {
-                version: "0.8.17",
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 999999, // must be the same as the previous bridge
-                    },
-                },
-            },
             "contracts/v2/mocks/PolygonRollupManagerMockInternalTest.sol": {
                 version: "0.8.20",
                 settings: {

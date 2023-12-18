@@ -102,7 +102,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
         // calculate the weth address:
         const tokenWrappedFactory = await ethers.getContractFactory("TokenWrapped");
         // create2 parameters
-        const minimalBytecodeProxy = tokenWrappedFactory.bytecode;
+        const minimalBytecodeProxy = await polygonZkEVMBridgeContract.BASE_INIT_BYTECODE_WRAPPED_TOKEN();
         const WETHName = "Wrapped Ether";
         const WETHSymbol = "WETH";
         const WETHDecimals = 18;
@@ -885,7 +885,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
         const tokenWrappedFactory = await ethers.getContractFactory("TokenWrapped");
         // create2 parameters
         const salt = ethers.solidityPackedKeccak256(["uint32", "address"], [networkIDRollup, tokenAddress]);
-        const minimalBytecodeProxy = tokenWrappedFactory.bytecode;
+        const minimalBytecodeProxy = await polygonZkEVMBridgeContract.BASE_INIT_BYTECODE_WRAPPED_TOKEN();
         const hashInitCode = ethers.solidityPackedKeccak256(["bytes", "bytes"], [minimalBytecodeProxy, metadataToken]);
         const precalculateWrappedErc20 = await ethers.getCreate2Address(
             polygonZkEVMBridgeContract.target as string,
