@@ -84,6 +84,11 @@ interface IPolygonZkEVMBridgeV2 {
      */
     error GasTokenNetworkMustBeZeroOnEther();
 
+    /**
+     * @dev Thrown when the wrapped token deployment fails
+     */
+    error FailedTokenWrappedDeployment();
+
     function wrappedTokenToTokenInfo(
         address destinationAddress
     ) external returns (uint32, address);
