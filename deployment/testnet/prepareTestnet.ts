@@ -16,11 +16,14 @@ import yargs from "yargs/yargs";
 const argv = yargs(process.argv.slice(2))
     .options({
         input: {type: "string", default: "../v2/deploy_parameters.json"},
+        createRollupInput: {type: "string", default: "../v2/create_rollup_parameters.json"},
     })
     .parse() as any;
 
 const pathDeployParameters = path.join(__dirname, argv.input);
 const deployParameters = require(argv.input);
+
+const createRollupParameters = require(argv.createRollupInput);
 
 async function main() {
     // Load provider
@@ -70,15 +73,21 @@ async function main() {
     }
 
     // Check trusted address from deploy parameters
-    const mandatoryDeploymentParameters = ["trustedAggregator", "trustedSequencer"];
-
+    const mandatoryDeploymentParameters = ["trustedAggregator"];
     for (const parameterName of mandatoryDeploymentParameters) {
         if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === "") {
             throw new Error(`Missing parameter: ${parameterName}`);
         }
     }
+    const {trustedAggregator} = deployParameters;
 
-    const {trustedAggregator, trustedSequencer} = deployParameters;
+    const mandatoryDeploymentParametersCreateRollup = ["trustedSequencer"];
+    for (const parameterName of mandatoryDeploymentParametersCreateRollup) {
+        if (createRollupParameters[parameterName] === undefined || createRollupParameters[parameterName] === "") {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
+    }
+    const {trustedSequencer} = createRollupParameters;
 
     /*
      *Deployment pol
