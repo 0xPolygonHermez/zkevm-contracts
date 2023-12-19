@@ -274,7 +274,7 @@ async function main() {
     console.log("#####  Checks TimelockContract  #####");
     console.log("#######################");
     //console.log("minDelayTimelock:", await timelockContract.getMinDelay());
-    console.log("polygonZkEVM:", await timelockContract.polygonZkEVM());
+    console.log("polygonZkEVM (Rollup Manager):", await timelockContract.polygonZkEVM());
 
     /*
      * deploy proxy
@@ -328,7 +328,7 @@ async function main() {
     console.log("#######################");
     console.log("PolygonZkEVMGlobalExitRootAddress:", await polygonZkEVMBridgeContract.globalExitRootManager());
     console.log("networkID:", await polygonZkEVMBridgeContract.networkID());
-    console.log("zkEVMaddress:", await polygonZkEVMBridgeContract.polygonRollupManager());
+    console.log("Rollup Manager:", await polygonZkEVMBridgeContract.polygonRollupManager());
 
     // Import OZ manifest the deployed contracts, its enough to import just the proxy, the rest are imported automatically (admin/impl)
     await upgrades.forceImport(proxyBridgeAddress, polygonZkEVMBridgeFactory, "transparent" as any);
@@ -392,7 +392,7 @@ async function main() {
 
     // deploy Rollup Manager
     console.log("\n#######################");
-    console.log("##### Deployment Polygon ZK-EVM #####");
+    console.log("##### Deployment Rollup Manager #####");
     console.log("#######################");
     console.log("deployer:", deployer.address);
     console.log("PolygonZkEVMGlobalExitRootAddress:", polygonZkEVMGlobalExitRoot?.target);
@@ -445,7 +445,7 @@ async function main() {
 
             // reach limits of attempts
             if (i + 1 === attemptsDeployProxy) {
-                throw new Error("PolygonZkEVM contract has not been deployed");
+                throw new Error("Rollup Manager contract has not been deployed");
             }
         }
 
@@ -482,7 +482,7 @@ async function main() {
     }
 
     console.log("\n#######################");
-    console.log("#####    Checks  PolygonZkEVM  #####");
+    console.log("#####    Checks  Rollup Manager  #####");
     console.log("#######################");
     console.log("PolygonZkEVMGlobalExitRootAddress:", await polygonRollupManagerContract.globalExitRootManager());
     console.log("polTokenAddress:", await polygonRollupManagerContract.pol());
