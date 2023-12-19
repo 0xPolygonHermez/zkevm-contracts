@@ -55,6 +55,7 @@ const mainnetMinDelayTimelock = 864000;
 
 const globalExitRootL2Address = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa";
 const zkevmAddressL2 = ethers.ZeroAddress;
+const networkIDL2 = 1;
 
 async function main() {
     // Constant variables
@@ -198,11 +199,20 @@ async function main() {
         )
     ).data;
 
+    const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData("initialize", [
+        networkIDL2,
+        ethers.ZeroAddress, // gas token address
+        0, // gas token network
+        globalExitRootL2Address,
+        zkevmAddressL2,
+        "0x", // metadata
+    ]);
+
     [proxyBridgeAddress] = await create2Deployment(
         zkEVMDeployerContract,
         salt,
         deployTransactionProxy,
-        null,
+        dataCallProxy,
         deployer,
         null
     );
