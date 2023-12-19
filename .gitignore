@@ -19,3 +19,4 @@ upgrade_parameters.json
 docker/gethData/
 *.ignore/
 typechain-types/
+create_rollup_parameters.json
