@@ -643,6 +643,7 @@ async function main() {
         polygonRollupManager: polygonZkEVMContract.target,
         polygonZkEVMBridgeAddress: polygonZkEVMBridgeContract.target,
         polygonZkEVMGlobalExitRootAddress: polygonZkEVMGlobalExitRoot?.target,
+        newPolygonZkEVM: newPolygonZkEVMContract.target,
         polTokenAddress,
         zkEVMDeployerContract: zkEVMDeployerContract.target,
         deployerAddress: deployer.address,
