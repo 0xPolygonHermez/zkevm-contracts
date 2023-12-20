@@ -14,7 +14,7 @@ const pathOutputJson = path.join(__dirname, "./deploy_output.json");
 const pathOngoingDeploymentJson = path.join(__dirname, "./deploy_ongoing.json");
 
 const deployParameters = require("./deploy_parameters.json");
-import {processorUtils} from "@0xpolygonhermez/zkevm-commonjs";
+import {MemDB, ZkEVMDB, getPoseidon, smtUtils, processorUtils} from "@0xpolygonhermez/zkevm-commonjs";
 
 const pathOZUpgradability = path.join(__dirname, `../../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 const genesis = require("./genesis.json");
@@ -545,54 +545,119 @@ async function main() {
     expect(await upgrades.erc1967.getAdminAddress(precalculateGlobalExitRootAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
 
-    // // Approve tokens
-    // const maticAmount = ethers.parseEther("1");
-    // const polTokenFactory = await ethers.getContractFactory("ERC20PermitMock", deployer);
-    // const polTokenContract = polTokenFactory.attach(polTokenAddress) as any;
-    // await (await polTokenContract.approve(polygonZkEVMContract.target, maticAmount)).wait();
+    // Load genesis on a zkEVMDB
+    const poseidon = await getPoseidon();
+    const {F} = poseidon;
+    const db = new MemDB(F);
+    const genesisRoot = [F.zero, F.zero, F.zero, F.zero];
+    const accHashInput = [F.zero, F.zero, F.zero, F.zero];
+    const zkEVMDB = await ZkEVMDB.newZkEVM(
+        db,
+        poseidon,
+        genesisRoot,
+        accHashInput,
+        genesis.genesis,
+        null,
+        null,
+        chainID
+    );
 
-    // // Sequence  batches
-    // const tx = ethers.Transaction.from({
-    //     to: deployer.address,
-    //     nonce: 0,
-    //     value: 1,
-    //     gasLimit: 21000,
-    //     gasPrice: 1,
-    //     data: "0x",
-    //     chainId: chainID,
-    //     type: 0, // legacy transaction
-    // });
+    // Build batch params
+    const currentTimestamp = (await currentProvider.getBlock("latest"))?.timestamp;
+    const options = {skipUpdateSystemStorage: true};
+    const batch = await zkEVMDB.buildBatch(
+        currentTimestamp,
+        trustedSequencer,
+        smtUtils.stringToH4(ethers.ZeroHash),
+        undefined,
+        options
+    );
 
-    // const signer = ethers.HDNodeWallet.fromMnemonic(
-    //     ethers.Mnemonic.fromPhrase("test test test test test test test test test test test junk"),
-    //     "m/44'/60'/0'/0/0"
-    // ).connect(currentProvider);
+    // Load signer
+    const signer = ethers.HDNodeWallet.fromMnemonic(
+        ethers.Mnemonic.fromPhrase("test test test test test test test test test test test junk"),
+        "m/44'/60'/0'/0/0"
+    ).connect(currentProvider);
 
-    // const signedTx = await signer.signTransaction(tx);
-    // const l2txData = processorUtils.rawTxToCustomRawTx(signedTx);
-    // const currentTimestamp = (await currentProvider.getBlock("latest"))?.timestamp;
+    let initialNonceGenesis = 8;
+    const polTokenFactory = await ethers.getContractFactory("ERC20PermitMock", deployer);
 
-    // const sequence = {
-    //     transactions: l2txData,
-    //     globalExitRoot: ethers.ZeroHash,
-    //     timestamp: currentTimestamp,
-    //     minForcedTimestamp: 0,
-    // } as any;
-    // await (await polygonZkEVMContract.sequenceBatches([sequence], trustedSequencer)).wait();
+    const txArray = [
+        // test normal ether transfer
+        ethers.Transaction.from({
+            to: deployer.address,
+            nonce: initialNonceGenesis++,
+            value: 1,
+            gasLimit: 21000,
+            gasPrice: 1,
+            data: "0x",
+            chainId: chainID,
+            type: 0, // legacy transaction
+        }),
+        // test deployment transactions
+        ethers.Transaction.from({
+            to: null,
+            nonce: initialNonceGenesis++,
+            value: 0,
+            gasLimit: 10000000,
+            gasPrice: 1,
+            data: (
+                await polTokenFactory.getDeployTransaction(
+                    "Polygon Token",
+                    "POL",
+                    deployer.address,
+                    ethers.parseEther("1000")
+                )
+            ).data,
+            chainId: chainID,
+            type: 0, // legacy transaction
+        }),
+    ];
 
-    // // Verify batches
-    // const newStateRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
-    // const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
-    // await (
-    //     await polygonZkEVMContract.verifyBatchesTrustedAggregator(
-    //         0, // pending state not used
-    //         0, // old batch
-    //         1, // new batch
-    //         ethers.ZeroHash, // local exit root
-    //         newStateRoot,
-    //         new Array(24).fill(ethers.ZeroHash)
-    //     )
-    // ).wait();
+    for (let i = 0; i < txArray.length; i++) {
+        const currentTx = txArray[i];
+        const signedTx = await signer.signTransaction(currentTx);
+        const newTx = processorUtils.rawTxToCustomRawTx(signedTx);
+        // Add the raw tx to the batch builder
+        batch.addRawTx(newTx);
+    }
+
+    // execute the transactions added to the batch
+    await batch.executeTxs();
+    // consolidate state
+    await zkEVMDB.consolidate(batch);
+
+    const sequence = {
+        transactions: batch.getBatchL2Data(),
+        globalExitRoot: ethers.ZeroHash,
+        timestamp: currentTimestamp,
+        minForcedTimestamp: 0,
+    } as any;
+
+    // Approve tokens
+    const maticAmount = ethers.parseEther("1");
+    const polTokenContract = polTokenFactory.attach(polTokenAddress) as any;
+    await (await polTokenContract.approve(polygonZkEVMContract.target, maticAmount)).wait();
+
+    // Sequence batches
+    await (await polygonZkEVMContract.sequenceBatches([sequence], trustedSequencer)).wait();
+
+    // Verify batches
+    const oldBatch = 0;
+    const newBatch = 1;
+    const newRoot = smtUtils.h4toString(batch.currentStateRoot);
+    const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
+
+    await (
+        await polygonZkEVMContract.verifyBatchesTrustedAggregator(
+            0, // pending state not used
+            oldBatch,
+            newBatch,
+            ethers.ZeroHash, // local exit root
+            newRoot,
+            zkProofFFlonk
+        )
+    ).wait();
 
     // TRrnsfer roles
     await (await polygonZkEVMContract.setTrustedSequencer(trustedSequencer)).wait();
