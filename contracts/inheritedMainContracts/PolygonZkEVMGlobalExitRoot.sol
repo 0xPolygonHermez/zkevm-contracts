@@ -37,9 +37,14 @@ contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot, Initializabl
      * @param _rollupAddress Rollup contract address
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
-    function initialize(address _rollupAddress, address _bridgeAddress) public virtual onlyInitializing {
+    function initialize(address _rollupAddress, address _bridgeAddress, bytes32 _lastMainnetExitRoot, bytes32 _lastRollupExitRoot) public virtual onlyInitializing {
         rollupAddress = _rollupAddress;
         bridgeAddress = _bridgeAddress;
+        lastMainnetExitRoot = _lastMainnetExitRoot;
+        lastRollupExitRoot = _lastRollupExitRoot;
+        if(_lastMainnetExitRoot != bytes32(0) || _lastRollupExitRoot != bytes32(0)){
+            _updateGlobalExitRootHash(_lastMainnetExitRoot, _lastRollupExitRoot);
+        }
     }
 
     /**
@@ -61,6 +66,15 @@ contract PolygonZkEVMGlobalExitRoot is IPolygonZkEVMGlobalExitRoot, Initializabl
             revert OnlyAllowedContracts();
         }
 
+        _updateGlobalExitRootHash(cacheLastMainnetExitRoot, cacheLastRollupExitRoot);
+    }
+
+    /**
+     * @notice Update the global exit root
+        * @param cacheLastMainnetExitRoot last mainnet exit root
+        * @param cacheLastRollupExitRoot last rollup exit root
+     */
+    function _updateGlobalExitRootHash(bytes32 cacheLastMainnetExitRoot, bytes32 cacheLastRollupExitRoot) internal {
         bytes32 newGlobalExitRoot = GlobalExitRootLib.calculateGlobalExitRoot(
             cacheLastMainnetExitRoot,
             cacheLastRollupExitRoot

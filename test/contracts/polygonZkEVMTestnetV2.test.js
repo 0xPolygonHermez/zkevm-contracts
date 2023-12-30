@@ -90,7 +90,12 @@ describe('Polygon ZK-EVM TestnetV2', () => {
             constructorArgs: [],
         });
 
-        await polygonZkEVMGlobalExitRoot.initialize(precalculateZkevmAddress, precalculateBridgeAddress);
+        await polygonZkEVMGlobalExitRoot.initialize(
+            precalculateZkevmAddress,
+            precalculateBridgeAddress,
+            ethers.constants.HashZero,
+            ethers.constants.HashZero,
+        );
         // deploy PolygonZkEVMBridge
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeWrapper');
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], { initializer: false });

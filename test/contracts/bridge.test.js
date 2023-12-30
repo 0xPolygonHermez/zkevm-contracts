@@ -65,7 +65,12 @@ describe('PolygonZkEVMBridge Contract - for L2', () => {
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootWrapper');
         polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], { initializer: false });
 
-        await polygonZkEVMGlobalExitRoot.initialize(rollup.address, polygonZkEVMBridgeContract.address);
+        await polygonZkEVMGlobalExitRoot.initialize(
+            rollup.address,
+            polygonZkEVMBridgeContract.address,
+            ethers.constants.HashZero,
+            ethers.constants.HashZero,
+        );
 
         await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,
@@ -1241,7 +1246,12 @@ describe('PolygonZkEVMBridge Contract - for L1', () => {
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootWrapper');
         polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], { initializer: false });
 
-        await polygonZkEVMGlobalExitRoot.initialize(rollup.address, polygonZkEVMBridgeContract.address);
+        await polygonZkEVMGlobalExitRoot.initialize(
+            rollup.address,
+            polygonZkEVMBridgeContract.address,
+            ethers.constants.HashZero,
+            ethers.constants.HashZero,
+        );
 
         await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,

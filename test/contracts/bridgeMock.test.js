@@ -58,7 +58,12 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
         // deploy global exit root manager
         const polygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootMock');
         polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(polygonZkEVMGlobalExitRootFactory, [], { initializer: false });
-        await polygonZkEVMGlobalExitRoot.initialize(rollup.address, polygonZkEVMBridgeContract.address);
+        await polygonZkEVMGlobalExitRoot.initialize(
+            rollup.address,
+            polygonZkEVMBridgeContract.address,
+            ethers.constants.HashZero,
+            ethers.constants.HashZero,
+        );
 
         await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,

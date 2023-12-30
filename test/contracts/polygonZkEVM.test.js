@@ -98,7 +98,12 @@ describe('Polygon ZK-EVM', () => {
             initializer: false,
             constructorArgs: [],
         });
-        await polygonZkEVMGlobalExitRoot.initialize(precalculateZkevmAddress, precalculateBridgeAddress);
+        await polygonZkEVMGlobalExitRoot.initialize(
+            precalculateZkevmAddress,
+            precalculateBridgeAddress,
+            ethers.constants.HashZero,
+            ethers.constants.HashZero,
+        );
 
         // deploy PolygonZkEVMBridge
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeWrapper');
