@@ -172,7 +172,7 @@ async function main() {
         await hre.run(
             'verify:verify',
             {
-                contract: 'contracts/v2/consensus/zkEVM/PolygonZkEVMV2.sol:PolygonZkEVMV2',
+                contract: 'contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol:PolygonZkEVMEtrog',
                 address: createRollupOutputParameters.rollupAddress,
                 constructorArguments: [
                     deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
