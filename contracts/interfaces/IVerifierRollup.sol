@@ -8,6 +8,6 @@ pragma solidity ^0.8.20;
 interface IVerifierRollup {
     function verifyProof(
         bytes32[24] calldata proof,
-        uint256[1] memory pubSignals
+        uint256[1] calldata pubSignals
     ) external view returns (bool);
 }
