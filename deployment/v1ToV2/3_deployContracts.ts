@@ -564,7 +564,7 @@ async function main() {
 
     // Build batch params
     const currentTimestamp = (await currentProvider.getBlock("latest"))?.timestamp;
-    const options = {skipUpdateSystemStorage: true};
+    const options = {skipUpdateSystemStorage: false};
     const batch = await zkEVMDB.buildBatch(
         currentTimestamp,
         trustedSequencer,
