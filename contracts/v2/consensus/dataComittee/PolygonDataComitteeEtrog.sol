@@ -32,7 +32,7 @@ contract PolygonDataComitteeEtrog is
         bytes32 transactionsHash;
         bytes32 forcedGlobalExitRoot;
         uint64 forcedTimestamp;
-        uint64 forcedBlockHashL1;
+        bytes32 forcedBlockHashL1;
     }
 
     // CDK Data Committee Address
