@@ -789,6 +789,27 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             "ForceBatchesAlreadyActive"
         );
 
+        //snapshot emergency
+        const snapshotEmergencyState = await takeSnapshot();
+        await rollupManagerContract.connect(emergencyCouncil).activateEmergencyState();
+        await expect(newZkEVMContract.forceBatch("0x", 0)).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "ForceBatchesNotAllowedOnEmergencyState"
+        );
+        await rollupManagerContract.connect(admin).deactivateEmergencyState();
+        const currentTimestampEmergency = (await ethers.provider.getBlock("latest"))?.timestamp;
+
+        expect(await rollupManagerContract.lastDeactivatedEmergencyStateTimestamp()).to.be.equal(
+            currentTimestampEmergency
+        );
+
+        await expect(newZkEVMContract.sequenceForceBatches([sequence])).to.be.revertedWithCustomError(
+            newZkEVMContract,
+            "HaltTimeoutNotExpiredAfterEmergencyState"
+        );
+
+        await snapshotEmergencyState.restore();
+
         const l2txDataForceBatch = "0x123456";
         const maticAmountForced = await rollupManagerContract.getForcedBatchFee();
         const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();

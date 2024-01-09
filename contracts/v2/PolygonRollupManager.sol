@@ -215,6 +215,9 @@ contract PolygonRollupManager is
     // note This variable is internal, since the view function getBatchFee is likely to be ugpraded
     uint256 internal _batchFee;
 
+    // Timestamp when the last emergency state was deactivated
+    uint64 public lastDeactivatedEmergencyStateTimestamp;
+
     /**
      * @dev Emitted when a new rollup type is added
      */
@@ -1471,13 +1474,16 @@ contract PolygonRollupManager is
 
     /**
      * @notice Function to activate emergency state, which also enables the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
-     * If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
+     * If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period and an emergency state was not happened in the same period
      */
     function activateEmergencyState() external {
         if (!hasRole(_EMERGENCY_COUNCIL_ROLE, msg.sender)) {
             if (
                 lastAggregationTimestamp == 0 ||
                 lastAggregationTimestamp + _HALT_AGGREGATION_TIMEOUT >
+                block.timestamp ||
+                lastDeactivatedEmergencyStateTimestamp +
+                    _HALT_AGGREGATION_TIMEOUT >
                 block.timestamp
             ) {
                 revert HaltTimeoutNotExpired();
@@ -1493,6 +1499,9 @@ contract PolygonRollupManager is
         external
         onlyRole(_STOP_EMERGENCY_ROLE)
     {
+        // Set last deactivated emergency state
+        lastDeactivatedEmergencyStateTimestamp = uint64(block.timestamp);
+
         // Deactivate emergency state on PolygonZkEVMBridge
         bridgeAddress.deactivateEmergencyState();
 
