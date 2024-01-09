@@ -619,6 +619,11 @@ contract PolygonRollupBase is
         bytes calldata transactions,
         uint256 polAmount
     ) public virtual isForceBatchActive {
+        // Check if rollup manager is on emergency state
+        if (rollupManager.isEmergencyState()) {
+            revert ForceBatchesNotAllowedOnEmergencyState();
+        }
+
         // Calculate pol collateral
         uint256 polFee = rollupManager.getForcedBatchFee();
 
@@ -670,6 +675,15 @@ contract PolygonRollupBase is
     function sequenceForceBatches(
         ForcedBatchData[] calldata batches
     ) external virtual isForceBatchActive {
+        // Check if rollup manager is on emergency state
+        if (
+            rollupManager.lastDeactivatedEmergencyStateTimestamp() +
+                _HALT_AGGREGATION_TIMEOUT >
+            block.timestamp
+        ) {
+            revert HaltTimeoutNotExpiredAfterEmergencyState();
+        }
+
         uint256 batchesNum = batches.length;
 
         if (batchesNum == 0) {
