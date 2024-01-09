@@ -28,4 +28,14 @@ interface IPolygonZkEVMV2Errors is IPolygonZkEVMErrors {
      * @dev Thrown when the try to initialize with a gas token with huge metadata
      */
     error HugeTokenMetadataNotSupported();
+
+    /**
+     * @dev Thrown when trying force a batch during emergency state
+     */
+    error ForceBatchesNotAllowedOnEmergencyState();
+
+    /**
+     * @dev Thrown when the try to sequence force batches before the halt timeout period
+     */
+    error HaltTimeoutNotExpiredAfterEmergencyState();
 }
