@@ -162,4 +162,9 @@ interface IPolygonRollupManager {
      * @dev When a rollup type does not exist
      */
     error AllzkEVMSequencedBatchesMustBeVerified();
+
+    /**
+     * @dev When adding an existing rollup where the rollup address already was added
+     */
+    error RollupAddressAlreadyExist();
 }

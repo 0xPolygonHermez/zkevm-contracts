@@ -30,6 +30,8 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
 }
 
 describe("PolygonZkEVMBridge Contract", () => {
+    upgrades.silenceWarnings();
+
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
@@ -62,6 +64,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
         polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
+            unsafeAllow: ["constructor"],
         })) as unknown as PolygonZkEVMBridgeV2;
 
         // deploy global exit root manager

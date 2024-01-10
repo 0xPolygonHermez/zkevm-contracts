@@ -183,7 +183,7 @@ async function main() {
             await (await PolygonconsensusContract.setDataCommittee(polygonDataComitteeContract?.target)).wait();
         }
 
-        outputJson.polygonDataComitteeContract = polygonDataComitteeContract?.target;
+        outputJson.CDKDataCommitteeAddress = polygonDataComitteeContract?.target;
     }
 
     // Add a new rollup type with timelock

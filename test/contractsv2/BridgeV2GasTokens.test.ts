@@ -31,6 +31,8 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
 }
 
 describe("PolygonZkEVMBridge Gas tokens tests", () => {
+    upgrades.silenceWarnings();
+
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
@@ -68,6 +70,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
         polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
+            unsafeAllow: ["constructor"],
         })) as unknown as PolygonZkEVMBridgeV2;
 
         // deploy global exit root manager
@@ -135,7 +138,10 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
     it("should check the initalized function", async () => {
         // deploy PolygonZkEVMBridge
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
-        const bridge = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {initializer: false});
+        const bridge = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
+            initializer: false,
+            unsafeAllow: ["constructor"],
+        });
 
         await expect(
             bridge.initialize(
