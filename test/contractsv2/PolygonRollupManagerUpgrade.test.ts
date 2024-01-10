@@ -149,6 +149,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
         polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
+            unsafeAllow: ["constructor"],
         })) as any;
 
         // deploy PolygonZkEVM

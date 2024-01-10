@@ -11,7 +11,8 @@ contract LegacyZKEVMStateVariables {
     /**
      * @notice Struct which will be stored for every batch sequence
      * @param accInputHash Hash chain that contains all the information to process a batch:
-     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
+     * Before etrog: keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
+     * Etrog: keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 l1InfoRoot/forcedGlobalExitRoot, uint64 currentTimestamp/forcedTimestamp, address l2Coinbase, bytes32 0/forcedBlockHashL1)
      * @param sequencedTimestamp Sequenced timestamp
      * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
      */

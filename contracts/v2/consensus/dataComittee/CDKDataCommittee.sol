@@ -111,8 +111,11 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
         bytes32 signedHash,
         bytes calldata signaturesAndAddrs
     ) external view {
+        // Save storage variable on cache since will be used multiple times
+        uint256 cacheRequiredAmountOfSignatures = requiredAmountOfSignatures;
+
         // pre-check: byte array size
-        uint256 splitByte = _SIGNATURE_SIZE * requiredAmountOfSignatures;
+        uint256 splitByte = _SIGNATURE_SIZE * cacheRequiredAmountOfSignatures;
         if (
             signaturesAndAddrs.length < splitByte ||
             (signaturesAndAddrs.length - splitByte) % _ADDR_SIZE != 0
@@ -128,7 +131,7 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
         // recover addresses from signatures and check that are part of the committee
         uint256 lastAddrIndexUsed;
         uint256 addrsLen = (signaturesAndAddrs.length - splitByte) / _ADDR_SIZE;
-        for (uint256 i = 0; i < requiredAmountOfSignatures; i++) {
+        for (uint256 i = 0; i < cacheRequiredAmountOfSignatures; i++) {
             uint256 currentSignatureStartingByte = i * _SIGNATURE_SIZE;
 
             // Recover currnet signer from the signature
