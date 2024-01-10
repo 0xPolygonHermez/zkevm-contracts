@@ -12,7 +12,7 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
      * @param _bridgeAddress Bridge address
      */
     constructor(
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridge _bridgeAddress
     ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}

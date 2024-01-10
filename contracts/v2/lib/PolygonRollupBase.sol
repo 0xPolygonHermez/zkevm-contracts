@@ -10,6 +10,7 @@ import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+import "./PolygonConstantsBase.sol";
 
 // review Possible renaming to PolygonL2Base
 
@@ -23,6 +24,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20Metadat
  */
 contract PolygonRollupBase is
     Initializable,
+    PolygonConstantsBase,
     IPolygonZkEVMV2Errors,
     IPolygonRollupBase
 {
@@ -59,19 +61,6 @@ contract PolygonRollupBase is
         uint64 minForcedTimestamp;
     }
 
-    /**
-     * @notice Struct which will be stored for every batch sequence
-     * @param accInputHash Hash chain that contains all the information to process a batch:
-     *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
-     * @param sequencedTimestamp Sequenced timestamp
-     * @param previousLastBatchSequenced Previous last batch sequenced before the current one, this is used to properly calculate the fees
-     */
-    struct SequencedBatchData {
-        bytes32 accInputHash;
-        uint64 sequencedTimestamp;
-        uint64 previousLastBatchSequenced;
-    }
-
     // Max transactions bytes that can be added in a single batch
     // Max keccaks circuit = (2**23 / 155286) * 44 = 2376
     // Bytes per keccak = 136
@@ -89,13 +78,6 @@ contract PolygonRollupBase is
     // Max force batch transaction length
     // This is used to avoid huge calldata attacks, where the attacker call force batches from another contract
     uint256 internal constant _MAX_FORCE_BATCH_BYTE_LENGTH = 5000;
-
-    // If a sequenced batch exceeds this timeout without being verified, the contract enters in emergency mode
-    uint64 internal constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
-
-    // Maximum batches that can be verified in one call. It depends on our current metrics
-    // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
-    uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
 
     // In order to encode the initialize transaction of the bridge there's have a constant part and the metadata which is variable
     // Note the total transaction will be constrained to 65535 to avoid attacks and simplify the implementation

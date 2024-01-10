@@ -7,4 +7,9 @@ interface IPolygonDataComittee {
      * @dev Thrown when try to activate force batches when they are already active
      */
     error SequenceWithDataAvailabilityNotAllowed();
+
+    /**
+     * @dev Thrown when try to switch SequenceWithDataAvailability to the same value
+     */
+    error SwitchToSameValue();
 }
