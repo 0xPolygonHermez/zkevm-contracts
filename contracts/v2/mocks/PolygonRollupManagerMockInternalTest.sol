@@ -17,14 +17,18 @@ contract PolygonRollupManagerMockInternalTest is PolygonRollupManager {
         IPolygonZkEVMBridge _bridgeAddress
     ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}
 
-    function initializeMock(
+    function initialize(
         address trustedAggregator,
         uint64 _pendingStateTimeout,
         uint64 _trustedAggregatorTimeout,
         address admin,
         address timelock,
-        address emergencyCouncil
-    ) external reinitializer(2) {
+        address emergencyCouncil,
+        PolygonZkEVMV2Existent polygonZkEVM,
+        IVerifierRollup zkEVMVerifier,
+        uint64 zkEVMForkID,
+        uint64 zkEVMChainID
+    ) external override reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 

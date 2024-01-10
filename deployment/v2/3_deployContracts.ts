@@ -425,9 +425,13 @@ async function main() {
                         admin,
                         timelockContract.target,
                         emergencyCouncilAddress,
+                        ethers.ZeroAddress, // unused parameter
+                        ethers.ZeroAddress, // unused parameter
+                        0, // unused parameter
+                        0, // unused parameter
                     ],
                     {
-                        initializer: "initializeMock",
+                        initializer: "initialize",
                         constructorArgs: [
                             polygonZkEVMGlobalExitRoot?.target,
                             polTokenAddress,
