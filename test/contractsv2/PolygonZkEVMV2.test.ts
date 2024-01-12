@@ -286,20 +286,17 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         );
 
         // deployer now is the admin
-        await expect(PolygonZKEVMV2Contract.connect(admin).activateForceBatches()).to.be.revertedWithCustomError(
-            PolygonZKEVMV2Contract,
-            "OnlyAdmin"
-        );
+        await expect(
+            PolygonZKEVMV2Contract.connect(admin).setForceBatchAddress(ethers.ZeroAddress)
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "OnlyAdmin");
 
-        await expect(PolygonZKEVMV2Contract.connect(deployer).activateForceBatches()).to.emit(
-            PolygonZKEVMV2Contract,
-            "ActivateForceBatches"
-        );
+        await expect(PolygonZKEVMV2Contract.connect(deployer).setForceBatchAddress(ethers.ZeroAddress))
+            .to.emit(PolygonZKEVMV2Contract, "SetForceBatchAddress")
+            .withArgs(ethers.ZeroAddress);
 
-        await expect(PolygonZKEVMV2Contract.connect(deployer).activateForceBatches()).to.be.revertedWithCustomError(
-            PolygonZKEVMV2Contract,
-            "ForceBatchesAlreadyActive"
-        );
+        await expect(
+            PolygonZKEVMV2Contract.connect(deployer).setForceBatchAddress(ethers.ZeroAddress)
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForceBatchesDescentralized");
     });
 
     it("should check full flow", async () => {
@@ -661,7 +658,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const maticAmount = ethers.parseEther("1");
 
         // Approve tokens
-        await expect(polTokenContract.connect(deployer).approve(PolygonZKEVMV2Contract.target, maticAmount)).to.emit(
+        await expect(polTokenContract.connect(admin).approve(PolygonZKEVMV2Contract.target, maticAmount)).to.emit(
             polTokenContract,
             "Approval"
         );
@@ -676,18 +673,23 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             "ForceBatchNotAllowed"
         );
 
-        // deployer now is the admin
-        await PolygonZKEVMV2Contract.connect(admin).activateForceBatches();
+        //await PolygonZKEVMV2Contract.connect(admin).activateForceBatches();
+        await polTokenContract.transfer(admin.address, ethers.parseEther("1000"));
 
         // force Batches
         await expect(PolygonZKEVMV2Contract.forceBatch(l2txData, 0)).to.be.revertedWithCustomError(
             PolygonZKEVMV2Contract,
+            "ForceBatchNotAllowed"
+        );
+
+        await expect(PolygonZKEVMV2Contract.connect(admin).forceBatch(l2txData, 0)).to.be.revertedWithCustomError(
+            PolygonZKEVMV2Contract,
             "NotEnoughPOLAmount"
         );
 
-        await expect(PolygonZKEVMV2Contract.forceBatch(l2txData, maticAmount))
+        await expect(PolygonZKEVMV2Contract.connect(admin).forceBatch(l2txData, maticAmount))
             .to.emit(PolygonZKEVMV2Contract, "ForceBatch")
-            .withArgs(1, globalExitRoot, deployer.address, "0x");
+            .withArgs(1, globalExitRoot, admin.address, "0x");
 
         expect(await PolygonZKEVMV2Contract.calculatePolPerForceBatch()).to.be.equal(
             await rollupManagerContract.getForcedBatchFee()

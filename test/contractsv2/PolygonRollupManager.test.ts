@@ -783,14 +783,19 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             "ForceBatchNotAllowed"
         );
 
-        await expect(newZkEVMContract.connect(admin).activateForceBatches()).to.emit(
-            newZkEVMContract,
-            "ActivateForceBatches"
-        );
-        await expect(newZkEVMContract.connect(admin).activateForceBatches()).to.be.revertedWithCustomError(
-            newZkEVMContract,
-            "ForceBatchesAlreadyActive"
-        );
+        expect(await newZkEVMContract.forceBatchAddress()).to.be.equal(admin.address);
+        await expect(newZkEVMContract.connect(admin).setForceBatchAddress(deployer.address))
+            .to.emit(newZkEVMContract, "SetForceBatchAddress")
+            .withArgs(deployer.address);
+        expect(await newZkEVMContract.forceBatchAddress()).to.be.equal(deployer.address);
+
+        await expect(newZkEVMContract.connect(admin).setForceBatchAddress(ethers.ZeroAddress))
+            .to.emit(newZkEVMContract, "SetForceBatchAddress")
+            .withArgs(ethers.ZeroAddress);
+
+        await expect(
+            newZkEVMContract.connect(admin).setForceBatchAddress(deployer.address)
+        ).to.be.revertedWithCustomError(newZkEVMContract, "ForceBatchesDescentralized");
 
         //snapshot emergency
         const snapshotEmergencyState = await takeSnapshot();
@@ -1484,14 +1489,9 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             "ForceBatchNotAllowed"
         );
 
-        await expect(newZkEVMContract.connect(admin).activateForceBatches()).to.emit(
-            newZkEVMContract,
-            "ActivateForceBatches"
-        );
-        await expect(newZkEVMContract.connect(admin).activateForceBatches()).to.be.revertedWithCustomError(
-            newZkEVMContract,
-            "ForceBatchesAlreadyActive"
-        );
+        await expect(newZkEVMContract.connect(admin).setForceBatchAddress(ethers.ZeroAddress))
+            .to.emit(newZkEVMContract, "SetForceBatchAddress")
+            .withArgs(ethers.ZeroAddress);
 
         const l2txDataForceBatch = "0x123456";
         const maticAmountForced = await rollupManagerContract.getForcedBatchFee();

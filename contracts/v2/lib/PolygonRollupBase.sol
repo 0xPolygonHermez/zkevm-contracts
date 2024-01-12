@@ -198,8 +198,9 @@ contract PolygonRollupBase is
     // Force batch timeout
     uint64 public forceBatchTimeout;
 
-    // Indicates if forced batches are allowed
-    bool public isForcedBatchAllowed;
+    // Indicates what address is able to do forced batches
+    // If the address is set to 0, forced batches are open to everyone
+    address public forceBatchAddress;
 
     // Token address that will be used to pay gas fees in this rollup. This variable it's just for read purposes
     address public gasTokenAddress;
@@ -261,9 +262,9 @@ contract PolygonRollupBase is
     event SetForceBatchTimeout(uint64 newforceBatchTimeout);
 
     /**
-     * @dev Emitted when activate force batches
+     * @dev Emitted when the admin update the force batch address
      */
-    event ActivateForceBatches();
+    event SetForceBatchAddress(address newForceBatchAddress);
 
     /**
      * @dev Emitted when the admin starts the two-step transfer role setting a new pending admin
@@ -380,6 +381,8 @@ contract PolygonRollupBase is
         trustedSequencerURL = sequencerURL;
         networkName = _networkName;
 
+        forceBatchAddress = _admin;
+
         // Constant deployment variables
         forceBatchTimeout = 5 days;
 
@@ -400,8 +403,10 @@ contract PolygonRollupBase is
         _;
     }
 
-    modifier isForceBatchActive() {
-        if (!isForcedBatchAllowed) {
+    modifier isSenderAllowedToForceBatches() {
+        if (
+            forceBatchAddress != address(0) && forceBatchAddress != msg.sender
+        ) {
             revert ForceBatchNotAllowed();
         }
         _;
@@ -600,7 +605,7 @@ contract PolygonRollupBase is
     function forceBatch(
         bytes calldata transactions,
         uint256 polAmount
-    ) public virtual isForceBatchActive {
+    ) public virtual isSenderAllowedToForceBatches {
         // Check if rollup manager is on emergency state
         if (rollupManager.isEmergencyState()) {
             revert ForceBatchesNotAllowedOnEmergencyState();
@@ -656,7 +661,7 @@ contract PolygonRollupBase is
      */
     function sequenceForceBatches(
         ForcedBatchData[] calldata batches
-    ) external virtual isForceBatchActive {
+    ) external virtual isSenderAllowedToForceBatches {
         // Check if rollup manager is on emergency state
         if (
             rollupManager.lastDeactivatedEmergencyStateTimestamp() +
@@ -786,6 +791,22 @@ contract PolygonRollupBase is
     }
 
     /**
+     * @notice Allow the admin to change the force batch address, that will be allowed to force batches
+     * If address 0 is set, then everyone is able to force batches, this action is irreversible
+     * @param newForceBatchAddress New force batch address
+     */
+    function setForceBatchAddress(
+        address newForceBatchAddress
+    ) external onlyAdmin {
+        if (forceBatchAddress == address(0)) {
+            revert ForceBatchesDescentralized();
+        }
+        forceBatchAddress = newForceBatchAddress;
+
+        emit SetForceBatchAddress(newForceBatchAddress);
+    }
+
+    /**
      * @notice Allow the admin to set the forcedBatchTimeout
      * The new value can only be lower, except if emergency state is active
      * @param newforceBatchTimeout New force batch timeout
@@ -805,18 +826,6 @@ contract PolygonRollupBase is
 
         forceBatchTimeout = newforceBatchTimeout;
         emit SetForceBatchTimeout(newforceBatchTimeout);
-    }
-
-    /**
-     * @notice Allow the admin to turn on the force batches
-     * This action is not reversible
-     */
-    function activateForceBatches() external onlyAdmin {
-        if (isForcedBatchAllowed) {
-            revert ForceBatchesAlreadyActive();
-        }
-        isForcedBatchAllowed = true;
-        emit ActivateForceBatches();
     }
 
     /**
