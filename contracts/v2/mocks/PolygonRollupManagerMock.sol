@@ -78,4 +78,131 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
                 .lastLocalExitRoot = localExitRoots[i];
         }
     }
+
+    /**
+     * @notice Function to calculate the input snark bytes
+     * @param verifyBatchesData Struct that contains all the necessary data to verify batches
+     * @param oldStateRootArray Array of state root before batch is processed
+     */
+    function getInputSnarkBytes(
+        VerifyBatchData[] calldata verifyBatchesData,
+        bytes32[] calldata oldAccInputHashArray,
+        bytes32[] calldata newAccInputHasArray,
+        bytes32[] calldata oldStateRootArray
+    ) public view returns (uint256) {
+        // review don't check the length on both arrays since this is a view function
+
+        // Create a snark input byte array
+        bytes memory accumulateSnarkBytes;
+
+        // This pointer will be the current position to write on accumulateSnarkBytes
+        uint256 ptrAccumulateInputSnarkBytes;
+
+        // Total length of the accumulateSnarkBytes, ByesPerRollup * rollupToVerify + 20 bytes (msg.sender)
+        uint256 totalSnarkLength = _SNARK_BYTES_PER_ROLLUP_AGGREGATED *
+            verifyBatchesData.length +
+            20;
+
+        // Use assembly to rever memory and get the memory pointer
+        assembly {
+            // Set accumulateSnarkBytes to the next free memory space
+            accumulateSnarkBytes := mload(0x40)
+
+            // Reserve the memory: 32 bytes for the byte array length + 32 bytes extra for byte manipulation (0x40) +
+            // the length of the input snark bytes
+            mstore(0x40, add(add(accumulateSnarkBytes, 0x40), totalSnarkLength))
+
+            // Set the length of the input bytes
+            mstore(accumulateSnarkBytes, totalSnarkLength)
+
+            // Set the pointer on the start of the actual byte array
+            ptrAccumulateInputSnarkBytes := add(accumulateSnarkBytes, 0x20)
+        }
+
+        for (uint256 i = 0; i < verifyBatchesData.length; i++) {
+            ptrAccumulateInputSnarkBytes = _appendDataToInputSnarkBytesMock(
+                rollupIDToRollupData[verifyBatchesData[i].rollupID],
+                verifyBatchesData[i],
+                oldStateRootArray[i],
+                oldAccInputHashArray[i],
+                newAccInputHasArray[i],
+                ptrAccumulateInputSnarkBytes
+            );
+        }
+
+        _appendSenderToInputSnarkBytes(ptrAccumulateInputSnarkBytes);
+
+        uint256 inputSnark = uint256(sha256(accumulateSnarkBytes)) % _RFIELD;
+        return inputSnark;
+    }
+
+    /**
+     * @notice Function to append the current rollup data to the input snark bytes
+     * @param rollup Rollup storage pointer
+     * @param verifyBatchData Struct that contains all the necessary data to verify batches
+     * @param oldStateRoot State root before batch is processed
+     * @param oldAccInputHash Old accumulated input hash
+     * @param newAccInputHash new accumualted input hash
+     * @param ptrAccumulateInputSnarkBytes Memory pointer to the bytes array that will accumulate all rollups data to finally be used as the snark input
+     */
+    function _appendDataToInputSnarkBytesMock(
+        RollupData storage rollup,
+        VerifyBatchData calldata verifyBatchData,
+        bytes32 oldStateRoot,
+        bytes32 oldAccInputHash,
+        bytes32 newAccInputHash,
+        uint256 ptrAccumulateInputSnarkBytes
+    ) internal view returns (uint256) {
+        uint64 initNumBatch = verifyBatchData.initNumBatch;
+        uint64 finalNewBatch = verifyBatchData.finalNewBatch;
+        bytes32 newLocalExitRoot = verifyBatchData.newLocalExitRoot;
+        bytes32 newStateRoot = verifyBatchData.newStateRoot;
+
+        // Check that new state root is inside goldilocks field
+        // if (!_checkStateRootInsidePrime(uint256(newStateRoot))) {
+        //     revert NewStateRootNotInsidePrime();
+        // }
+        uint256 ptr = ptrAccumulateInputSnarkBytes;
+
+        assembly {
+            // store oldStateRoot
+            mstore(ptr, oldStateRoot)
+            ptr := add(ptr, 32)
+
+            // store oldAccInputHash
+            mstore(ptr, oldAccInputHash)
+            ptr := add(ptr, 32)
+
+            // store initNumBatch
+            mstore(ptr, shl(192, initNumBatch)) // 256-64 = 192
+            ptr := add(ptr, 8)
+
+            // store chainID
+            // chainID is stored inside the rollup struct, on the first storage slot with 32 -(8 + 20) = 4 bytes offset
+            mstore(ptr, shl(32, sload(rollup.slot)))
+            ptr := add(ptr, 8)
+
+            // store forkID
+            // chainID is stored inside the rollup struct, on the second storage slot with 32 -(8 + 20) = 4 bytes offset
+            mstore(ptr, shl(32, sload(add(rollup.slot, 1))))
+            ptr := add(ptr, 8)
+
+            // store newStateRoot
+            mstore(ptr, newStateRoot)
+            ptr := add(ptr, 32)
+
+            // store newAccInputHash
+            mstore(ptr, newAccInputHash)
+            ptr := add(ptr, 32)
+
+            // store newLocalExitRoot
+            mstore(ptr, newLocalExitRoot)
+            ptr := add(ptr, 32)
+
+            // store finalNewBatch
+            mstore(ptr, shl(192, finalNewBatch)) // 256-64 = 192
+            ptr := add(ptr, 8)
+        }
+        return ptr;
+    }
 }

@@ -810,18 +810,6 @@ contract PolygonRollupManager is
         emit UpdateRollup(rollupID, newRollupTypeID, lastVerifiedBatch);
     }
 
-    /**
-     * @notice Set the aggregated rollup verifier of the system
-     * @param newAggregateRollupVerifier new aggregated rollup verifier
-     */
-    function setAggregateRollupVerifier(
-        IVerifierRollup newAggregateRollupVerifier
-    ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
-        aggregateRollupVerifier = newAggregateRollupVerifier;
-
-        emit SetAggregateRollupVerifier(newAggregateRollupVerifier);
-    }
-
     /////////////////////////////////////
     // Sequence/Verify batches functions
     ////////////////////////////////////
@@ -962,7 +950,7 @@ contract PolygonRollupManager is
                     msg.sender
                 );
 
-            // emit an event for every rollupID?
+            // emit an event for every rollupID? // review
             // emit a global event? ( then the sychronizer must synch all this events and )
             emit VerifyBatches(
                 currentVerifyBatchData.rollupID,
@@ -1030,7 +1018,7 @@ contract PolygonRollupManager is
                     msg.sender
                 );
 
-            // emit an event for every rollupID?
+            // emit an event for every rollupID? // review
             // emit a global event? ( then the sychronizer must synch all this events and )
             emit VerifyBatchesTrustedAggregator(
                 currentVerifyBatchData.rollupID,
@@ -1092,21 +1080,26 @@ contract PolygonRollupManager is
             )
         }
 
-        //uint32 lastRollupID;
+        uint32 lastRollupID;
         uint64 newVerifiedBatches;
 
         // Loop through all rollups
         for (uint256 i = 0; i < verifyBatchesData.length; i++) {
-            //uint32 currentRollupID = verifyBatchesData[i].rollupID;
-            // // Same rollup can't be used twice in this call, review necessary?¿
-            // if (currentRollupID <= lastRollupID) {
-            //     revert();
-            // }
-            // // Update lastRollupID,
-            // lastRollupID = currentRollupID;
+            uint32 currentRollupID = verifyBatchesData[i].rollupID;
+            // Same rollup can't be used twice in this call, review necessary?¿
+            // Security considerations: RollupExitRoot could not be the final D:, little bit inconsisten events
+            if (currentRollupID <= lastRollupID) {
+                revert();
+            }
+            // Update lastRollupID,
+            lastRollupID = currentRollupID;
 
             // Append the current rollup verification data to the accumulateSnarkBytes
-            uint64 verifiedBatches = _checkAndAccumulateVerifyBatchesData(
+            uint64 verifiedBatches;
+            (
+                verifiedBatches,
+                ptrAccumulateInputSnarkBytes
+            ) = _checkAndAccumulateVerifyBatchesData(
                 verifyBatchesData[i],
                 ptrAccumulateInputSnarkBytes
             );
@@ -1153,7 +1146,7 @@ contract PolygonRollupManager is
     function _checkAndAccumulateVerifyBatchesData(
         VerifyBatchData memory verifyBatchData,
         uint256 ptrAccumulateInputSnarkBytes
-    ) internal view virtual returns (uint64) {
+    ) internal view virtual returns (uint64, uint256) {
         RollupData storage rollup = rollupIDToRollupData[
             verifyBatchData.rollupID
         ];
@@ -1173,7 +1166,7 @@ contract PolygonRollupManager is
 
         // Get snark bytes
         // review use struct instead
-        _appendDataToInputSnarkBytes(
+        uint256 currentPtr = _appendDataToInputSnarkBytes(
             rollup,
             verifyBatchData.initNumBatch,
             verifyBatchData.finalNewBatch,
@@ -1184,7 +1177,10 @@ contract PolygonRollupManager is
         );
 
         // Return verified batches
-        return verifyBatchData.finalNewBatch - currentLastVerifiedBatch;
+        return (
+            verifyBatchData.finalNewBatch - currentLastVerifiedBatch,
+            currentPtr
+        );
     }
 
     /**
@@ -1234,30 +1230,6 @@ contract PolygonRollupManager is
 
         return oldStateRoot;
     }
-
-    // review
-    // /**
-    //  * @notice Intenral function with the common logic to aggregate the snark input and verify proofs
-    //  * @param verifyBatchesData Struct that contains all the necessary data to verify batches
-    //  */
-    // function _updateGlobalExitRootAndEmitVerifyEvents(
-    //     VerifyBatchesData[] calldata verifyBatchesData
-    // ) internal {
-    //     // Interact with globalExitRootManager
-    //     globalExitRootManager.updateExitRoot(getRollupExitRoot());
-
-    //     // Callback to the rollup address
-    //     for (uint256 i = 0; i < verifyBatchesData.length; i++) {
-    //         // review Check if it's cheaper to load the struct
-    //         rollupIDToRollupData[verifyBatchesData[i].rollupID]
-    //             .rollupContract
-    //             .onVerifyBatches(
-    //                 verifyBatchesData[i].finalNewBatch,
-    //                 verifyBatchesData[i].newStateRoot,
-    //                 msg.sender
-    //             );
-    //     }
-    // }
 
     /**
      * @notice Internal function to consolidate the state automatically once sequence or verify batches are called
@@ -1542,7 +1514,7 @@ contract PolygonRollupManager is
         }
 
         // Get snark bytes
-        _appendDataToInputSnarkBytes(
+        ptrAccumulateInputSnarkBytes = _appendDataToInputSnarkBytes(
             rollup,
             initNumBatch,
             finalNewBatch,
@@ -1721,6 +1693,18 @@ contract PolygonRollupManager is
     //////////////////
     // Setter functions
     //////////////////
+
+    /**
+     * @notice Set the aggregated rollup verifier of the system
+     * @param newAggregateRollupVerifier new aggregated rollup verifier
+     */
+    function setAggregateRollupVerifier(
+        IVerifierRollup newAggregateRollupVerifier
+    ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
+        aggregateRollupVerifier = newAggregateRollupVerifier;
+
+        emit SetAggregateRollupVerifier(newAggregateRollupVerifier);
+    }
 
     /**
      * @notice Set a new pending state timeout
@@ -1963,65 +1947,6 @@ contract PolygonRollupManager is
         return _batchFee * 100;
     }
 
-    // /**
-    //  * @notice Function to calculate the input snark bytes
-    //  * @param verifyBatchesData Struct that contains all the necessary data to verify batches
-    //  * @param oldStateRootArray Array of state root before batch is processed
-    //  */
-    // function getInputSnarkBytes(
-    //     VerifyBatchesData[] calldata verifyBatchesData,
-    //     bytes32[] calldata oldStateRootArray
-    // ) public view returns (bytes memory) {
-    //     // review don't check the length on both arrays since this is a view function
-
-    //     // Create a snark input byte array
-    //     bytes memory accumulateSnarkBytes;
-
-    //     // This pointer will be the current position to write on accumulateSnarkBytes
-    //     uint256 ptrAccumulateInputSnarkBytes;
-
-    //     // Total length of the accumulateSnarkBytes, ByesPerRollup * rollupToVerify + 20 bytes (msg.sender)
-    //     uint256 totalSnarkLength = _SNARK_BYTES_PER_ROLLUP_AGGREGATED *
-    //         verifyBatchesData.length +
-    //         20;
-
-    //     // Use assembly to rever memory and get the memory pointer
-    //     assembly {
-    //         // Set accumulateSnarkBytes to the next free memory space
-    //         accumulateSnarkBytes := mload(0x40)
-
-    //         // Reserve the memory: 32 bytes for the byte array length + 32 bytes extra for byte manipulation (0x40) +
-    //         // the length of the input snark bytes
-    //         mstore(
-    //             0x40,
-    //             add(add(ptrAccumulateInputSnarkBytes, 0x40), totalSnarkLength)
-    //         )
-
-    //         // Set the length of the input bytes
-    //         mstore(accumulateSnarkBytes, totalSnarkLength)
-
-    //         // Set the pointer on the start of the actual byte array
-    //         ptrAccumulateInputSnarkBytes := add(
-    //             ptrAccumulateInputSnarkBytes,
-    //             0x20
-    //         )
-    //     }
-
-    //     for (uint256 i = 0; i < verifyBatchesData.length; i++) {
-    //         _appendDataToInputSnarkBytes(
-    //             rollupIDToRollupData[verifyBatchesData[i].rollupID],
-    //             verifyBatchesData[i].initNumBatch,
-    //             verifyBatchesData[i].finalNewBatch,
-    //             verifyBatchesData[i].newLocalExitRoot,
-    //             oldStateRootArray[i],
-    //             verifyBatchesData[i].newStateRoot,
-    //             ptrAccumulateInputSnarkBytes
-    //         );
-    //     }
-
-    //     return accumulateSnarkBytes;
-    // }
-
     /**
      * @notice Function to append the current rollup data to the input snark bytes
      * @param rollup Rollup storage pointer
@@ -2041,7 +1966,7 @@ contract PolygonRollupManager is
         bytes32 oldStateRoot,
         bytes32 newStateRoot,
         uint256 ptrAccumulateInputSnarkBytes
-    ) internal view {
+    ) internal view returns (uint256) {
         // Sanity check
         bytes32 oldAccInputHash = rollup
             .sequencedBatches[initNumBatch]
@@ -2064,71 +1989,49 @@ contract PolygonRollupManager is
         if (!_checkStateRootInsidePrime(uint256(newStateRoot))) {
             revert NewStateRootNotInsidePrime();
         }
+        uint256 ptr = ptrAccumulateInputSnarkBytes;
 
         assembly {
             // store oldStateRoot
-            mstore(ptrAccumulateInputSnarkBytes, oldStateRoot)
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                32
-            )
+            mstore(ptr, oldStateRoot)
+            ptr := add(ptr, 32)
 
             // store oldAccInputHash
-            mstore(ptrAccumulateInputSnarkBytes, oldAccInputHash)
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                32
-            )
+            mstore(ptr, oldAccInputHash)
+            ptr := add(ptr, 32)
 
             // store initNumBatch
-            mstore(ptrAccumulateInputSnarkBytes, shl(192, initNumBatch)) // 256-64 = 192
-            ptrAccumulateInputSnarkBytes := add(ptrAccumulateInputSnarkBytes, 8)
+            mstore(ptr, shl(192, initNumBatch)) // 256-64 = 192
+            ptr := add(ptr, 8)
 
             // store chainID
-            // chainID is stored inside the rollup struct, on the first storage slot with 20 bytes offset
-            mstore(ptrAccumulateInputSnarkBytes, shl(160, sload(rollup.slot)))
-            ptrAccumulateInputSnarkBytes := add(ptrAccumulateInputSnarkBytes, 8)
+            // chainID is stored inside the rollup struct, on the first storage slot with 32 -(8 + 20) = 4 bytes offset
+            mstore(ptr, shl(32, sload(rollup.slot)))
+            ptr := add(ptr, 8)
 
             // store forkID
-            // chainID is stored inside the rollup struct, on the second storage slot with 20 bytes offset
-            mstore(
-                ptrAccumulateInputSnarkBytes,
-                shl(160, sload(add(rollup.slot, 1)))
-            )
-            ptrAccumulateInputSnarkBytes := add(ptrAccumulateInputSnarkBytes, 8)
+            // chainID is stored inside the rollup struct, on the second storage slot with 32 -(8 + 20) = 4 bytes offset
+            mstore(ptr, shl(32, sload(add(rollup.slot, 1))))
+            ptr := add(ptr, 8)
 
             // store newStateRoot
-            mstore(ptrAccumulateInputSnarkBytes, newStateRoot)
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                32
-            )
+            mstore(ptr, newStateRoot)
+            ptr := add(ptr, 32)
 
             // store newAccInputHash
-            mstore(ptrAccumulateInputSnarkBytes, newAccInputHash)
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                32
-            )
-
-            // store newAccInputHash
-            mstore(ptrAccumulateInputSnarkBytes, newAccInputHash)
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                32
-            )
+            mstore(ptr, newAccInputHash)
+            ptr := add(ptr, 32)
 
             // store newLocalExitRoot
-            mstore(ptrAccumulateInputSnarkBytes, newLocalExitRoot)
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                32
-            )
+            mstore(ptr, newLocalExitRoot)
+            ptr := add(ptr, 32)
 
             // store finalNewBatch
-            mstore(ptrAccumulateInputSnarkBytes, shl(192, finalNewBatch)) // 256-64 = 192
-            ptrAccumulateInputSnarkBytes := add(ptrAccumulateInputSnarkBytes, 8)
+            mstore(ptr, shl(192, finalNewBatch)) // 256-64 = 192
+            ptr := add(ptr, 8)
         }
+
+        return ptr;
     }
 
     /**

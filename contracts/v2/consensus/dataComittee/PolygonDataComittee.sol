@@ -72,7 +72,11 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
     /////////////////////////////////////
     // Sequence/Verify batches functions
     ////////////////////////////////////
-
+    /**
+     * @notice Allows a sequencer to send multiple batches
+     * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param l2Coinbase Address that will receive the fees from L2
+     */
     function sequenceBatches(
         BatchData[] calldata batches,
         address l2Coinbase
