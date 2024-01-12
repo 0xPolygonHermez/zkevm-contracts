@@ -290,7 +290,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
                 finalNewBatch: currentInput.newNumBatch,
                 newLocalExitRoot: currentInput.newLocalExitRoot,
                 newStateRoot: currentInput.newStateRoot,
-            } as BatchDataStruct;
+            } as VerifyBatchData;
 
             VerifyBatchesData.push(VerifyBatchData);
             oldAccInputHashArray.push(currentInput.oldAccInputHash);

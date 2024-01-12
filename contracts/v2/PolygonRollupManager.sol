@@ -865,7 +865,7 @@ contract PolygonRollupManager is
      * @param beneficiary Address that will receive the verification reward
      * @param proof Fflonk proof
      */
-    function verifyBatches(
+    function verifyBatchesMultiProof(
         VerifyBatchData[] calldata verifyBatchesData,
         address beneficiary,
         bytes32[24] calldata proof
@@ -896,9 +896,13 @@ contract PolygonRollupManager is
             }
 
             // TODO check review remove?¿?¿
-            // if (verifiedBatches > _MAX_VERIFY_BATCHES) {
-            //     revert ExceedMaxVerifyBatches();
-            // }
+            if (
+                currentVerifyBatchData.finalNewBatch -
+                    currentVerifyBatchData.initNumBatch >
+                _MAX_VERIFY_BATCHES
+            ) {
+                revert ExceedMaxVerifyBatches();
+            }
 
             // Update batch fees
             _updateBatchFee(
@@ -1065,19 +1069,13 @@ contract PolygonRollupManager is
 
             // Reserve the memory: 32 bytes for the byte array length + 32 bytes extra for byte manipulation (0x40) +
             // the length of the input snark bytes
-            mstore(
-                0x40,
-                add(add(ptrAccumulateInputSnarkBytes, 0x40), totalSnarkLength)
-            )
+            mstore(0x40, add(add(accumulateSnarkBytes, 0x40), totalSnarkLength))
 
             // Set the length of the input bytes
             mstore(accumulateSnarkBytes, totalSnarkLength)
 
             // Set the pointer on the start of the actual byte array
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                0x20
-            )
+            ptrAccumulateInputSnarkBytes := add(accumulateSnarkBytes, 0x20)
         }
 
         uint32 lastRollupID;
@@ -1127,15 +1125,15 @@ contract PolygonRollupManager is
             revert InvalidProof();
         }
 
-        // Update global aggregation parameters
-        totalVerifiedBatches += newVerifiedBatches;
-        lastAggregationTimestamp = uint64(block.timestamp);
-
         // Pay POL rewards
         pol.safeTransfer(
             beneficiary,
             calculateRewardPerBatch() * newVerifiedBatches
         );
+
+        // Update global aggregation parameters
+        totalVerifiedBatches += newVerifiedBatches;
+        lastAggregationTimestamp = uint64(block.timestamp);
     }
 
     /**
@@ -1313,7 +1311,7 @@ contract PolygonRollupManager is
         // Update pending state
         rollup.lastPendingStateConsolidated = pendingStateNum;
 
-        // Interact with globalExitRootManager
+        // Interact with globalExitRootManager // review, update global after event?¿
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
         emit ConsolidatePendingState(
@@ -1498,19 +1496,13 @@ contract PolygonRollupManager is
 
             // Reserve the memory: 32 bytes for the byte array length + 32 bytes extra for byte manipulation (0x40) +
             // the length of the input snark bytes
-            mstore(
-                0x40,
-                add(add(ptrAccumulateInputSnarkBytes, 0x40), totalSnarkLength)
-            )
+            mstore(0x40, add(add(accumulateSnarkBytes, 0x40), totalSnarkLength))
 
             // Set the length of the input bytes
             mstore(accumulateSnarkBytes, totalSnarkLength)
 
             // Set the pointer on the start of the actual byte array
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                0x20
-            )
+            ptrAccumulateInputSnarkBytes := add(accumulateSnarkBytes, 0x20)
         }
 
         // Get snark bytes
@@ -2044,10 +2036,6 @@ contract PolygonRollupManager is
         assembly {
             // store msg.sender, there's an extra 32 bytes at the end of the array for word manipulation, no need to worry about that bytes
             mstore(ptrAccumulateInputSnarkBytes, shl(96, caller())) // 256-160 = 96
-            ptrAccumulateInputSnarkBytes := add(
-                ptrAccumulateInputSnarkBytes,
-                20
-            )
         }
     }
 

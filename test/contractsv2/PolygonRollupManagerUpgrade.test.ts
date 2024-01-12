@@ -19,6 +19,7 @@ import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygon
 const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
 
 type BatchDataStruct = PolygonRollupBase.BatchDataStruct;
+type VerifyBatchData = PolygonRollupManagerMock.VerifyBatchData;
 
 const MerkleTreeBridge = MTBridge;
 const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
@@ -36,7 +37,7 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
     }
 }
 
-describe("Polygon ZK-EVM TestnetV2", () => {
+describe("Polygon ZK-EVM TestnetV2 upgraded", () => {
     let deployer: any;
     let timelock: any;
     let emergencyCouncil: any;
@@ -615,50 +616,21 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const currentVerifiedBatch = 0;
 
         const initialAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
+
+        const VerifyBatchData = {
+            rollupID: newCreatedRollupID,
+            pendingStateNum: pendingState,
+            initNumBatch: currentVerifiedBatch,
+            finalNewBatch: newVerifiedBatch,
+            newLocalExitRoot: newLocalExitRoot,
+            newStateRoot: newStateRoot,
+        } as VerifyBatchData;
+
         await expect(
             rollupManagerContract
                 .connect(deployer)
-                .verifyBatchesTrustedAggregator(
-                    newCreatedRollupID,
-                    pendingState,
-                    currentVerifiedBatch,
-                    newVerifiedBatch,
-                    newLocalExitRoot,
-                    newStateRoot,
-                    beneficiary.address,
-                    zkProofFFlonk
-                )
+                .verifyBatchesTrustedAggregatorMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
-
-        await expect(
-            rollupManagerContract
-                .connect(trustedAggregator)
-                .verifyBatchesTrustedAggregator(
-                    newCreatedRollupID,
-                    pendingState,
-                    currentVerifiedBatch,
-                    currentVerifiedBatch,
-                    newLocalExitRoot,
-                    newStateRoot,
-                    beneficiary.address,
-                    zkProofFFlonk
-                )
-        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBatchBelowLastVerifiedBatch");
-
-        await expect(
-            rollupManagerContract
-                .connect(trustedAggregator)
-                .verifyBatchesTrustedAggregator(
-                    newCreatedRollupID,
-                    pendingState,
-                    currentVerifiedBatch,
-                    3,
-                    newLocalExitRoot,
-                    newStateRoot,
-                    beneficiary.address,
-                    zkProofFFlonk
-                )
-        ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
 
         // Calcualte new globalExitroot
         const merkleTreeRollups = new MerkleTreeBridge(height);
@@ -670,16 +642,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyBatchesTrustedAggregator(
-                    newCreatedRollupID,
-                    pendingState,
-                    currentVerifiedBatch,
-                    newVerifiedBatch,
-                    newLocalExitRoot,
-                    newStateRoot,
-                    beneficiary.address,
-                    zkProofFFlonk
-                )
+                .verifyBatchesTrustedAggregatorMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
@@ -803,7 +766,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(await newWrappedToken.totalSupply()).to.be.equal(amount);
     });
 
-    it("should check full flow no trusted aggreagtor", async () => {
+    it("should check full flow no trusted aggregator", async () => {
         const urlSequencer = "http://zkevm-json-rpc:8123";
         const chainID2 = chainID + 1;
         const networkName = "zkevm";
@@ -1143,37 +1106,30 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
         const currentVerifiedBatch = 0;
 
-        const initialAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
+        const VerifyBatchData = {
+            rollupID: newCreatedRollupID,
+            pendingStateNum: pendingState,
+            initNumBatch: currentVerifiedBatch,
+            finalNewBatch: newVerifiedBatch,
+            newLocalExitRoot: newLocalExitRoot,
+            newStateRoot: newStateRoot,
+        } as VerifyBatchData;
 
+        const initialAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
         await rollupManagerContract.connect(admin).setTrustedAggregatorTimeout(0);
 
+        VerifyBatchData.finalNewBatch = 0;
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyBatches(
-                    newCreatedRollupID,
-                    pendingState,
-                    currentVerifiedBatch,
-                    currentVerifiedBatch,
-                    newLocalExitRoot,
-                    newStateRoot,
-                    beneficiary.address,
-                    zkProofFFlonk
-                )
+                .verifyBatchesMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
         ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBatchBelowLastVerifiedBatch");
 
+        VerifyBatchData.finalNewBatch = 3;
         await expect(
-            rollupManagerContract.verifyBatches(
-                newCreatedRollupID,
-                pendingState,
-                currentVerifiedBatch,
-                3,
-                newLocalExitRoot,
-                newStateRoot,
-                beneficiary.address,
-                zkProofFFlonk
-            )
+            rollupManagerContract.verifyBatchesMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
         ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
+        VerifyBatchData.finalNewBatch = newVerifiedBatch;
 
         // Calcualte new globalExitroot
         const merkleTreeRollups = new MerkleTreeBridge(height);
@@ -1183,16 +1139,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         // Verify batch
         await expect(
-            rollupManagerContract.verifyBatches(
-                newCreatedRollupID,
-                pendingState,
-                currentVerifiedBatch,
-                newVerifiedBatch,
-                newLocalExitRoot,
-                newStateRoot,
-                beneficiary.address,
-                zkProofFFlonk
-            )
+            rollupManagerContract.verifyBatchesMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
         )
             .to.emit(rollupManagerContract, "VerifyBatches")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, deployer.address);
