@@ -24,10 +24,10 @@ contract PolygonRollupManagerMockInternalTest is PolygonRollupManager {
         address admin,
         address timelock,
         address emergencyCouncil,
-        PolygonZkEVMV2Existent polygonZkEVM,
-        IVerifierRollup zkEVMVerifier,
-        uint64 zkEVMForkID,
-        uint64 zkEVMChainID
+        PolygonZkEVMV2Existent /*polygonZkEVM*/,
+        IVerifierRollup /*zkEVMVerifier*/,
+        uint64 /*zkEVMForkID*/,
+        uint64 /*zkEVMChainID*/
     ) external override reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
