@@ -387,6 +387,11 @@ contract PolygonRollupManager is
     event SetBatchFee(uint256 newBatchFee);
 
     /**
+     * @dev Emitted when the aggregated rollup verifier is updated
+     */
+    event SetAggregateRollupVerifier(IVerifierRollup aggregateRollupVerifier);
+
+    /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol POL token address
      * @param _bridgeAddress Bridge address
@@ -805,6 +810,18 @@ contract PolygonRollupManager is
         emit UpdateRollup(rollupID, newRollupTypeID, lastVerifiedBatch);
     }
 
+    /**
+     * @notice Set the aggregated rollup verifier of the system
+     * @param newAggregateRollupVerifier new aggregated rollup verifier
+     */
+    function setAggregateRollupVerifier(
+        IVerifierRollup newAggregateRollupVerifier
+    ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
+        aggregateRollupVerifier = newAggregateRollupVerifier;
+
+        emit SetAggregateRollupVerifier(newAggregateRollupVerifier);
+    }
+
     /////////////////////////////////////
     // Sequence/Verify batches functions
     ////////////////////////////////////
@@ -1102,13 +1119,14 @@ contract PolygonRollupManager is
         // Calulate the snark input
         uint256 inputSnark = uint256(sha256(accumulateSnarkBytes)) % _RFIELD;
 
-        // Verify proof using the multiple rollup verifier
+        // Select verifier
         IVerifierRollup verifier;
         if (verifyBatchesData.length == 1) {
-            // Get the verifier
+            // Get the verifier rollup specific
             verifier = rollupIDToRollupData[verifyBatchesData[0].rollupID]
                 .verifier;
         } else {
+            // Get the aggregated verifier
             verifier = aggregateRollupVerifier;
         }
 
