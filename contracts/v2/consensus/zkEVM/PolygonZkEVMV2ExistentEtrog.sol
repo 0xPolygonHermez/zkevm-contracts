@@ -12,6 +12,19 @@ import "../../lib/PolygonRollupBaseEtrog.sol";
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
 contract PolygonZkEVMV2ExistentEtrog is PolygonRollupBaseEtrog {
+    // Transaction that will be injected as a forced transaction, to setup the timestamp on the state root
+    bytes public constant SET_UP_ETROG_TX =
+        hex"df2a8080944d5cf5032b2a844602278b01199ed191a86c93ff80808210928080ba42034e163abcd726e65aac3b7c747e8d36cd473b2419910ffa3fb96c10b9df28e9b6f13e927dd66ab2281a5cdeb98cdb3d49d09be9ba1b1716535c650f012b1bff";
+
+    /**
+     * @dev Emitted when the system is updated to a etrog using this contract, contain the set up etrog transaction
+     */
+    event UpdateEtrogSequence(
+        bytes transactions,
+        bytes32 lastGlobalExitRoot,
+        address sequencer
+    );
+
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol POL token address
@@ -49,6 +62,36 @@ contract PolygonZkEVMV2ExistentEtrog is PolygonRollupBaseEtrog {
         bytes32 _lastAccInputHash,
         uint64 /*_lastTimestamp*/ // review
     ) external onlyRollupManager initializer {
+        // Set up etrog Tx
+        bytes memory transaction = SET_UP_ETROG_TX;
+        bytes32 currentTransactionsHash = keccak256(transaction);
+
+        // Get current timestamp and global exit root
+        uint64 currentTimestamp = uint64(block.timestamp);
+        bytes32 lastGlobalExitRoot = globalExitRootManager
+            .getLastGlobalExitRoot();
+
+        // Add the transaction to the sequence as if it was a force transaction
+        bytes32 newAccInputHash = keccak256(
+            abi.encodePacked(
+                _lastAccInputHash, // Last acc Input hash
+                currentTransactionsHash,
+                lastGlobalExitRoot, // Global exit root
+                currentTimestamp,
+                _trustedSequencer,
+                blockhash(block.number - 1)
+            )
+        );
+
+        // Set acumulated input hash
+        lastAccInputHash = newAccInputHash;
+
+        rollupManager.onSequenceBatches(
+            uint64(1), // num total batches
+            newAccInputHash
+        );
+
+        // Set zkEVM variables
         admin = _admin;
         trustedSequencer = _trustedSequencer;
 
@@ -57,13 +100,16 @@ contract PolygonZkEVMV2ExistentEtrog is PolygonRollupBaseEtrog {
 
         forceBatchAddress = _admin;
 
-        // zkEVM Upgraded variables
-        lastAccInputHash = _lastAccInputHash;
-
-        // Constant deployment variables
+        // Constant variables
         forceBatchTimeout = 5 days;
 
         // Both gasTokenAddress and gasTokenNetwork are 0, since it uses ether as gas token
         // Therefore is not necessary to set the variables
+
+        emit UpdateEtrogSequence(
+            transaction,
+            lastGlobalExitRoot,
+            _trustedSequencer
+        );
     }
 }
