@@ -56,6 +56,8 @@ contract PolygonZkEVMV2Existent is PolygonRollupBase {
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
 
+        forceBatchAddress = _admin;
+
         // zkEVM Upgraded variables
         lastAccInputHash = _lastAccInputHash;
         lastTimestamp = _lastTimestamp;

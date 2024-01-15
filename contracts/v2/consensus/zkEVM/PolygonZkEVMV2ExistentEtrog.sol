@@ -55,6 +55,8 @@ contract PolygonZkEVMV2ExistentEtrog is PolygonRollupBaseEtrog {
         trustedSequencerURL = _trustedSequencerURL;
         networkName = _networkName;
 
+        forceBatchAddress = _admin;
+
         // zkEVM Upgraded variables
         lastAccInputHash = _lastAccInputHash;
 
