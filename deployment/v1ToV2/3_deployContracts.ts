@@ -665,7 +665,7 @@ async function main() {
     await (await polygonZkEVMContract.transferAdminRole(adminZkEVM)).wait();
 
     // Update current system to rollup manager
-    const PolygonZkEVMV2ExistentFactory = await ethers.getContractFactory("PolygonZkEVMV2Existent");
+    const PolygonZkEVMV2ExistentFactory = await ethers.getContractFactory("PolygonZkEVMV2ExistentEtrog");
 
     const newPolygonZkEVMContract = (await upgrades.deployProxy(PolygonZkEVMV2ExistentFactory, [], {
         initializer: false,
