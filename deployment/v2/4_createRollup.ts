@@ -266,6 +266,9 @@ async function main() {
         // add data commitee to the consensus contract
         if ((await PolygonDataComiteeContract.admin()) == deployer.address) {
             await (await PolygonDataComiteeContract.setDataCommittee(polygonCDKComittee?.target as any)).wait();
+
+            // Setup data commitee to 0
+            await (await polygonCDKComittee?.setupCommittee(0, [], "0x")).wait();
         }
 
         outputJson.polygonCDKComittee = polygonCDKComittee?.target;
