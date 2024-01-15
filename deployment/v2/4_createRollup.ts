@@ -19,7 +19,13 @@ import "../helpers/utils";
 
 const pathOutputJson = path.join(__dirname, "./create_rollup_output.json");
 
-import {PolygonRollupManager, PolygonZkEVMV2, PolygonZkEVMBridgeV2} from "../../typechain-types";
+import {
+    PolygonRollupManager,
+    PolygonZkEVMV2,
+    PolygonZkEVMBridgeV2,
+    PolygonDataComittee,
+    PolygonDataComitteeEtrog,
+} from "../../typechain-types";
 
 async function main() {
     const attemptsDeployProxy = 20;
@@ -160,32 +166,6 @@ async function main() {
     );
     await PolygonconsensusContract.waitForDeployment();
 
-    if (consensusContract.includes("DataComittee")) {
-        // deploy data commitee
-        const PolygonDataComittee = (await ethers.getContractFactory("CDKDataCommittee", deployer)) as any;
-        let polygonDataComitteeContract;
-
-        for (let i = 0; i < attemptsDeployProxy; i++) {
-            try {
-                polygonDataComitteeContract = await upgrades.deployProxy(PolygonDataComittee, []);
-                break;
-            } catch (error: any) {
-                console.log(`attempt ${i}`);
-                console.log("upgrades.deployProxy of polygonDataComitteeContract ", error.message);
-            }
-            // reach limits of attempts
-            if (i + 1 === attemptsDeployProxy) {
-                throw new Error("polygonDataComitteeContract contract has not been deployed");
-            }
-        }
-        // add data commitee to the consensus contract
-        if ((await PolygonconsensusContract.admin()) == deployer.address) {
-            await (await PolygonconsensusContract.setDataCommittee(polygonDataComitteeContract?.target)).wait();
-        }
-
-        outputJson.polygonDataComitteeContract = polygonDataComitteeContract?.target;
-    }
-
     // Add a new rollup type with timelock
     const rollupCompatibilityID = 0;
     await (
@@ -260,6 +240,36 @@ async function main() {
 
     console.log("#######################\n");
     console.log("Created new Rollup:", newZKEVMAddress);
+
+    if (consensusContract.includes("DataComittee")) {
+        // deploy data commitee
+        const PolygonDataComittee = (await ethers.getContractFactory("CDKDataCommittee", deployer)) as any;
+        let polygonCDKComittee;
+
+        for (let i = 0; i < attemptsDeployProxy; i++) {
+            try {
+                polygonCDKComittee = await upgrades.deployProxy(PolygonDataComittee, []);
+                break;
+            } catch (error: any) {
+                console.log(`attempt ${i}`);
+                console.log("upgrades.deployProxy of polygonCDKComittee ", error.message);
+            }
+            // reach limits of attempts
+            if (i + 1 === attemptsDeployProxy) {
+                throw new Error("polygonCDKComittee contract has not been deployed");
+            }
+        }
+        // Load data commitee
+        const PolygonDataComiteeContract = (await PolygonconsensusFactory.attach(
+            newZKEVMAddress
+        )) as PolygonDataComittee;
+        // add data commitee to the consensus contract
+        if ((await PolygonDataComiteeContract.admin()) == deployer.address) {
+            await (await PolygonDataComiteeContract.setDataCommittee(polygonCDKComittee?.target as any)).wait();
+        }
+
+        outputJson.polygonCDKComittee = polygonCDKComittee?.target;
+    }
 
     // Assert admin address
     expect(await upgrades.erc1967.getAdminAddress(newZKEVMAddress)).to.be.equal(rollupManagerContract.target);
