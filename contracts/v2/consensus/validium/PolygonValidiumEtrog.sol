@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "../../lib/PolygonRollupBaseEtrog.sol";
-import "../../interfaces/ICDKDataCommittee.sol";
-import "../../interfaces/IPolygonDataComittee.sol";
+import "../../interfaces/IPolygonDataAvailabilityProtocol.sol";
+import "../../interfaces/IPolygonValidium.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -15,7 +15,7 @@ import "../../interfaces/IPolygonDataComittee.sol";
  */
 contract PolygonDataComitteeEtrog is
     PolygonRollupBaseEtrog,
-    IPolygonDataComittee
+    IPolygonValidium
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -35,17 +35,17 @@ contract PolygonDataComitteeEtrog is
         bytes32 forcedBlockHashL1;
     }
 
-    // CDK Data Committee Address
-    ICDKDataCommittee public dataCommittee;
+    // Data Availability Protocol Address
+    IPolygonDataAvailabilityProtocol public dataAvailability;
 
     // Indicates if sequence with data avialability is allowed
     // This allow the sequencer to post the data and skip the Data comittee
     bool public isSequenceWithDataAvailabilityAllowed;
 
     /**
-     * @dev Emitted when the admin updates the data committee
+     * @dev Emitted when the admin updates the data availability protocol
      */
-    event SetDataCommittee(address newDataCommittee);
+    event SetDataAvailabilityProtocol(address newDataAvailabilityProtocol);
 
     /**
      * @dev Emitted when switch the ability to sequence with data availability
@@ -218,8 +218,8 @@ contract PolygonDataComitteeEtrog is
             currentAccInputHash
         );
 
-        // Validate that the data committee has signed the accInputHash for this sequence
-        dataCommittee.verifySignatures(
+        // Validate that the data availability protocol accepts the dataAvailabilityMessage
+        dataAvailability.verifyMessage(
             currentAccInputHash,
             dataAvailabilityMessage
         );
@@ -232,15 +232,15 @@ contract PolygonDataComitteeEtrog is
     //////////////////
 
     /**
-     * @notice Allow the admin to set a new data committee
-     * @param newDataCommittee Address of the new data committee
+     * @notice Allow the admin to set a new data availability protocol
+     * @param newDataAvailabilityProtocol Address of the new data availability protocol
      */
-    function setDataCommittee(
-        ICDKDataCommittee newDataCommittee
+    function setDataAvailabilityProtocol(
+        IPolygonDataAvailabilityProtocol newDataAvailabilityProtocol
     ) external onlyAdmin {
-        dataCommittee = newDataCommittee;
+        dataAvailability = newDataAvailabilityProtocol;
 
-        emit SetDataCommittee(address(newDataCommittee));
+        emit SetDataAvailabilityProtocol(address(newDataAvailabilityProtocol));
     }
 
     /**

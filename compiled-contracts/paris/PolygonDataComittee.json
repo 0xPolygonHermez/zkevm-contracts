@@ -402,7 +402,7 @@
           "type": "address"
         }
       ],
-      "name": "SetDataCommittee",
+      "name": "SetDataAvailabilityProtocol",
       "type": "event"
     },
     {
@@ -705,10 +705,10 @@
     },
     {
       "inputs": [],
-      "name": "dataCommittee",
+      "name": "validium",
       "outputs": [
         {
-          "internalType": "contract ICDKDataCommittee",
+          "internalType": "contract IPolygonDataAvailabilityProtocol",
           "name": "",
           "type": "address"
         }
@@ -1148,7 +1148,7 @@
     {
       "inputs": [
         {
-          "internalType": "contract ICDKDataCommittee",
+          "internalType": "contract IPolygonDataAvailabilityProtocol",
           "name": "newDataCommittee",
           "type": "address"
         }

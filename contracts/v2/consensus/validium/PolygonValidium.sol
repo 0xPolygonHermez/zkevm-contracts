@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "../../lib/PolygonRollupBase.sol";
-import "../../interfaces/ICDKDataCommittee.sol";
-import "../../interfaces/IPolygonDataComittee.sol";
+import "../../interfaces/IPolygonDataAvailabilityProtocol.sol";
+import "../../interfaces/IPolygonValidium.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -13,7 +13,7 @@ import "../../interfaces/IPolygonDataComittee.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
+contract PolygonDataComittee is PolygonRollupBase, IPolygonValidium {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -32,17 +32,17 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
         uint64 minForcedTimestamp;
     }
 
-    // CDK Data Committee Address
-    ICDKDataCommittee public dataCommittee;
+    // Data Availability Protocol Address
+    IPolygonDataAvailabilityProtocol public dataAvailability;
 
     // Indicates if sequence with data avialability is allowed
     // This allow the sequencer to post the data and skip the Data comittee
     bool public isSequenceWithDataAvailabilityAllowed;
 
     /**
-     * @dev Emitted when the admin updates the data committee
+     * @dev Emitted when the admin updates the data availability protocol
      */
-    event SetDataCommittee(address newDataCommittee);
+    event SetDataAvailabilityProtocol(address newDataAvailabilityProtocol);
 
     /**
      * @dev Emitted when switch the ability to sequence with data availability
@@ -227,8 +227,8 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
             currentAccInputHash
         );
 
-        // Validate that the data committee has signed the accInputHash for this sequence
-        dataCommittee.verifySignatures(
+        // Validate that the data availability protocol accepts the dataAvailabilityMessage
+        dataAvailability.verifyMessage(
             currentAccInputHash,
             dataAvailabilityMessage
         );
@@ -241,15 +241,15 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonDataComittee {
     //////////////////
 
     /**
-     * @notice Allow the admin to set a new data committee
-     * @param newDataCommittee Address of the new data committee
+     * @notice Allow the admin to set a new data availability protocol
+     * @param newDataAvailabilityProtocol Address of the new data availability protocol
      */
-    function setDataCommittee(
-        ICDKDataCommittee newDataCommittee
+    function setDataAvailabilityProtocol(
+        IPolygonDataAvailabilityProtocol newDataAvailabilityProtocol
     ) external onlyAdmin {
-        dataCommittee = newDataCommittee;
+        dataAvailability = newDataAvailabilityProtocol;
 
-        emit SetDataCommittee(address(newDataCommittee));
+        emit SetDataAvailabilityProtocol(address(newDataAvailabilityProtocol));
     }
 
     /**

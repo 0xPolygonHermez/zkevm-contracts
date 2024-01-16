@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-interface ICDKDataCommitteeErrors {
+interface IPolygonDataCommitteeErrors {
     /**
      * @dev Thrown when the addres bytes doesn't have the expected length
      */

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../../interfaces/ICDKDataCommitteeErrors.sol";
+import "../../interfaces/IPolygonDataCommitteeErrors.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
+contract PolygonDataCommittee is IPolygonDataCommitteeErrors, OwnableUpgradeable {
     /**
      * @notice Struct which will store all the data of the committee members
      * @param url string that represents the URL of the member to be used to access the data
@@ -15,6 +15,9 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
         string url;
         address addr;
     }
+
+    // Name of the data availability protocol
+    string public constant protocolName = "DataAvailabilityCommittee";
 
     // Size of a signature in bytes
     uint256 internal constant _SIGNATURE_SIZE = 65;

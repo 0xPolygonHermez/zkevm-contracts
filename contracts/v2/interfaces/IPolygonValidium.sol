@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-interface IPolygonDataComittee {
+interface IPolygonValidium {
     /**
      * @dev Thrown when try to activate force batches when they are already active
      */

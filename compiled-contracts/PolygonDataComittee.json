@@ -26,8 +26,8 @@
           "type": "address"
         },
         {
-          "internalType": "contract ICDKDataCommittee",
-          "name": "_dataCommittee",
+          "internalType": "contract IPolygonDataAvailabilityProtocol",
+          "name": "_validium",
           "type": "address"
         }
       ],
@@ -569,10 +569,10 @@
     },
     {
       "inputs": [],
-      "name": "dataCommittee",
+      "name": "validium",
       "outputs": [
         {
-          "internalType": "contract ICDKDataCommittee",
+          "internalType": "contract IPolygonDataAvailabilityProtocol",
           "name": "",
           "type": "address"
         }
