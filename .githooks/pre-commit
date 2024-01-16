@@ -33,6 +33,8 @@ if npm run lint; then
     cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
     cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMV2.sol/PolygonZkEVMV2.json compiled-contracts/
     cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMV2Existent.sol/PolygonZkEVMV2Existent.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol/PolygonZkEVMEtrog.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMV2ExistentEtrog.sol/PolygonZkEVMV2ExistentEtrog.json compiled-contracts/
 
     cp artifacts/contracts/v2/consensus/dataComittee/PolygonDataComittee.sol/PolygonDataComittee.json compiled-contracts/
     git add compiled-contracts
