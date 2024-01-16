@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "../../lib/PolygonRollupBase.sol";
-import "../../interfaces/IPolygonDataAvailabilityProtocol.sol";
+import "../../interfaces/IDataAvailabilityProtocol.sol";
 import "../../interfaces/IPolygonValidium.sol";
 
 /**
@@ -33,7 +33,7 @@ contract PolygonValidium is PolygonRollupBase, IPolygonValidium {
     }
 
     // Data Availability Protocol Address
-    IPolygonDataAvailabilityProtocol public dataAvailabilityProtocol;
+    IDataAvailabilityProtocol public dataAvailabilityProtocol;
 
     // Indicates if sequence with data avialability is allowed
     // This allow the sequencer to post the data and skip the Data comittee
@@ -245,7 +245,7 @@ contract PolygonValidium is PolygonRollupBase, IPolygonValidium {
      * @param newDataAvailabilityProtocol Address of the new data availability protocol
      */
     function setDataAvailabilityProtocol(
-        IPolygonDataAvailabilityProtocol newDataAvailabilityProtocol
+        IDataAvailabilityProtocol newDataAvailabilityProtocol
     ) external onlyAdmin {
         dataAvailabilityProtocol = newDataAvailabilityProtocol;
 

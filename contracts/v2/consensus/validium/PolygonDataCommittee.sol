@@ -2,10 +2,11 @@
 pragma solidity 0.8.20;
 
 import "../../interfaces/IPolygonDataCommitteeErrors.sol";
+import "../../interfaces/IDataAvailabilityProtocol.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract PolygonDataCommittee is IPolygonDataCommitteeErrors, OwnableUpgradeable {
+contract PolygonDataCommittee is IDataAvailabilityProtocol, IPolygonDataCommitteeErrors, OwnableUpgradeable {
     /**
      * @notice Struct which will store all the data of the committee members
      * @param url string that represents the URL of the member to be used to access the data
@@ -17,7 +18,7 @@ contract PolygonDataCommittee is IPolygonDataCommitteeErrors, OwnableUpgradeable
     }
 
     // Name of the data availability protocol
-    string public constant protocolName = "DataAvailabilityCommittee";
+    string internal constant _PROTOCOL_NAME = "DataAvailabilityCommittee";
 
     // Size of a signature in bytes
     uint256 internal constant _SIGNATURE_SIZE = 65;
@@ -43,6 +44,13 @@ contract PolygonDataCommittee is IPolygonDataCommitteeErrors, OwnableUpgradeable
     function initialize() external initializer {
         // Initialize OZ contracts
         __Ownable_init_unchained();
+    }
+
+    /**
+     * @notice Return the protocol name
+     */
+    function getProcotolName() pure external returns (string memory) {
+        return _PROTOCOL_NAME;
     }
 
     /**
