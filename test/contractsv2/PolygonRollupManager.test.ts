@@ -795,7 +795,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         await expect(
             newZkEVMContract.connect(admin).setForceBatchAddress(deployer.address)
-        ).to.be.revertedWithCustomError(newZkEVMContract, "ForceBatchesDescentralized");
+        ).to.be.revertedWithCustomError(newZkEVMContract, "ForceBatchesDecentralized");
 
         //snapshot emergency
         const snapshotEmergencyState = await takeSnapshot();

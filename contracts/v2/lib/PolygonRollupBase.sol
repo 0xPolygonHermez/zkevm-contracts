@@ -799,7 +799,7 @@ contract PolygonRollupBase is
         address newForceBatchAddress
     ) external onlyAdmin {
         if (forceBatchAddress == address(0)) {
-            revert ForceBatchesDescentralized();
+            revert ForceBatchesDecentralized();
         }
         forceBatchAddress = newForceBatchAddress;
 
