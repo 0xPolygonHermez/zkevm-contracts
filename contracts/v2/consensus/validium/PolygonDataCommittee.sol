@@ -6,7 +6,11 @@ import "../../interfaces/IDataAvailabilityProtocol.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract PolygonDataCommittee is IDataAvailabilityProtocol, IPolygonDataCommitteeErrors, OwnableUpgradeable {
+contract PolygonDataCommittee is
+    IDataAvailabilityProtocol,
+    IPolygonDataCommitteeErrors,
+    OwnableUpgradeable
+{
     /**
      * @notice Struct which will store all the data of the committee members
      * @param url string that represents the URL of the member to be used to access the data
@@ -44,13 +48,6 @@ contract PolygonDataCommittee is IDataAvailabilityProtocol, IPolygonDataCommitte
     function initialize() external initializer {
         // Initialize OZ contracts
         __Ownable_init_unchained();
-    }
-
-    /**
-     * @notice Return the protocol name
-     */
-    function getProcotolName() pure external returns (string memory) {
-        return _PROTOCOL_NAME;
     }
 
     /**
@@ -105,10 +102,6 @@ contract PolygonDataCommittee is IDataAvailabilityProtocol, IPolygonDataCommitte
         committeeHash = keccak256(addrsBytes);
         requiredAmountOfSignatures = _requiredAmountOfSignatures;
         emit CommitteeUpdated(committeeHash);
-    }
-
-    function getAmountOfMembers() public view returns (uint256) {
-        return members.length;
     }
 
     /**
@@ -175,5 +168,19 @@ contract PolygonDataCommittee is IDataAvailabilityProtocol, IPolygonDataCommitte
                 revert CommitteeAddressDoesntExist();
             }
         }
+    }
+
+    /**
+     * @notice Return the amount of committee members
+     */
+    function getAmountOfMembers() public view returns (uint256) {
+        return members.length;
+    }
+
+    /**
+     * @notice Return the protocol name
+     */
+    function getProcotolName() external pure override returns (string memory) {
+        return _PROTOCOL_NAME;
     }
 }
