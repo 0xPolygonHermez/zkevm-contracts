@@ -5,7 +5,7 @@ Contract responsible for managing the exit roots across multiple Rollups
 ### constructor
 ```solidity
   function constructor(
-    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+    contract IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
     contract IERC20Upgradeable _pol,
     contract IPolygonZkEVMBridge _bridgeAddress
   ) public
@@ -15,8 +15,8 @@ Contract responsible for managing the exit roots across multiple Rollups
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | Global exit root manager address
-|`_pol` | contract IERC20Upgradeable | MATIC token address
+|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRootV2 | Global exit root manager address
+|`_pol` | contract IERC20Upgradeable | POL token address
 |`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
 
 ### initialize
@@ -29,7 +29,9 @@ Contract responsible for managing the exit roots across multiple Rollups
     address timelock,
     address emergencyCouncil,
     contract PolygonZkEVMV2Existent polygonZkEVM,
-    contract IVerifierRollup zkEVMVerifier
+    contract IVerifierRollup zkEVMVerifier,
+    uint64 zkEVMForkID,
+    uint64 zkEVMChainID
   ) external
 ```
 
@@ -45,6 +47,8 @@ Contract responsible for managing the exit roots across multiple Rollups
 |`emergencyCouncil` | address | Emergency council address
 |`polygonZkEVM` | contract PolygonZkEVMV2Existent | New deployed Polygon zkEVM which will be initialized wiht previous values
 |`zkEVMVerifier` | contract IVerifierRollup | Verifier of the new zkEVM deployed
+|`zkEVMForkID` | uint64 | Fork id of the new zkEVM deployed
+|`zkEVMChainID` | uint64 | Chain id of the new zkEVM deployed
 
 ### addNewRollupType
 ```solidity
@@ -62,11 +66,11 @@ Add a new rollup type
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`consensusImplementation` | address | consensus implementation
-|`verifier` | contract IVerifierRollup | verifier address
-|`forkID` | uint64 | forkID of the verifier
-|`genesis` | uint8 | genesis block of the rollup
-|`description` | bytes32 | description of the rollup type
+|`consensusImplementation` | address | Consensus implementation
+|`verifier` | contract IVerifierRollup | Verifier address
+|`forkID` | uint64 | ForkID of the verifier
+|`genesis` | uint8 | Genesis block of the rollup
+|`description` | bytes32 | Description of the rollup type
 
 ### obsoleteRollupType
 ```solidity
@@ -90,7 +94,6 @@ Obsolete Rollup type
     address admin,
     address sequencer,
     address gasTokenAddress,
-    uint32 gasTokenNetwork,
     string sequencerURL,
     string networkName
   ) external
@@ -102,13 +105,13 @@ Create a new rollup
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`rollupTypeID` | uint32 | Rollup type to deploy
-|`chainID` | uint64 | chainID of the rollup, must be a new one
-|`admin` | address | admin of the new created rollup
-|`sequencer` | address | sequencer of the new created rollup
+|`chainID` | uint64 | ChainID of the rollup, must be a new one
+|`admin` | address | Admin of the new created rollup
+|`sequencer` | address | Sequencer of the new created rollup
 |`gasTokenAddress` | address | Indicates the token address that will be used to pay gas fees in the new rollup
-|`gasTokenNetwork` | uint32 | Indicates the native network of the token address
-|`sequencerURL` | string | sequencer URL of the new created rollup
-|`networkName` | string | network name of the new created rollup
+Note if a wrapped token of the bridge is used, the original network and address of this wrapped will be used instead
+|`sequencerURL` | string | Sequencer URL of the new created rollup
+|`networkName` | string | Network name of the new created rollup
 
 ### addExistingRollup
 ```solidity
@@ -128,12 +131,12 @@ note that this rollup does not follow any rollupType
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`rollupAddress` | contract IPolygonRollupBase | rollup address
-|`verifier` | contract IVerifierRollup | verifier address, must be added before
-|`forkID` | uint64 | fork id of the added rollup
-|`chainID` | uint64 | chain id of the added rollup
-|`genesis` | bytes32 | genesis block for this rollup
-|`rollupCompatibilityID` | uint8 | compatibility ID for the added rollup
+|`rollupAddress` | contract IPolygonRollupBase | Rollup address
+|`verifier` | contract IVerifierRollup | Verifier address, must be added before
+|`forkID` | uint64 | Fork id of the added rollup
+|`chainID` | uint64 | Chain id of the added rollup
+|`genesis` | bytes32 | Genesis block for this rollup
+|`rollupCompatibilityID` | uint8 | Compatibility ID for the added rollup
 
 ### _addExistingRollup
 ```solidity
@@ -142,7 +145,8 @@ note that this rollup does not follow any rollupType
     contract IVerifierRollup verifier,
     uint64 forkID,
     uint64 chainID,
-    uint8 rollupCompatibilityID
+    uint8 rollupCompatibilityID,
+    uint64 lastVerifiedBatch
   ) internal returns (struct PolygonRollupManager.RollupData rollup)
 ```
 Add an already deployed rollup
@@ -152,11 +156,12 @@ note that this rollup does not follow any rollupType
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`rollupAddress` | contract IPolygonRollupBase | rollup address
-|`verifier` | contract IVerifierRollup | verifier address, must be added before
-|`forkID` | uint64 | fork id of the added rollup
-|`chainID` | uint64 | chain id of the added rollup
-|`rollupCompatibilityID` | uint8 | compatibility ID for the added rollup
+|`rollupAddress` | contract IPolygonRollupBase | Rollup address
+|`verifier` | contract IVerifierRollup | Verifier address, must be added before
+|`forkID` | uint64 | Fork id of the added rollup
+|`chainID` | uint64 | Chain id of the added rollup
+|`rollupCompatibilityID` | uint8 | Compatibility ID for the added rollup
+|`lastVerifiedBatch` | uint64 | Last verified batch before adding the rollup
 
 ### updateRollup
 ```solidity
@@ -189,8 +194,8 @@ Sequence batches, callback called by one of the consensus managed by this contra
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newSequencedBatches` | uint64 | how many sequenced batches were sequenced
-|`newAccInputHash` | bytes32 | new accumualted input hash
+|`newSequencedBatches` | uint64 | Number of batches sequenced
+|`newAccInputHash` | bytes32 | New accumulate input hash
 
 ### verifyBatches
 ```solidity
@@ -215,10 +220,10 @@ Allows an aggregator to verify multiple batches
 |`pendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 |`beneficiary` | address | Address that will receive the verification reward
-|`proof` | bytes32[24] | fflonk proof
+|`proof` | bytes32[24] | Fflonk proof
 
 ### verifyBatchesTrustedAggregator
 ```solidity
@@ -243,10 +248,10 @@ Allows an aggregator to verify multiple batches
 |`pendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 |`beneficiary` | address | Address that will receive the verification reward
-|`proof` | bytes32[24] | fflonk proof
+|`proof` | bytes32[24] | Fflonk proof
 
 ### _verifyAndRewardBatches
 ```solidity
@@ -266,13 +271,13 @@ Verify and reward batches internal function
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`rollup` | struct PolygonRollupManager.RollupData | Rollup Data struct that will be used to the verification
+|`rollup` | struct PolygonRollupManager.RollupData | Rollup Data storage pointer that will be used to the verification
 |`pendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
+|`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | address | fflonk proof
+|`proof` | address | Fflonk proof
 
 ### _tryConsolidatePendingState
 ```solidity
@@ -287,7 +292,8 @@ It tries to consolidate the first and the middle pending state in the queue
 ### consolidatePendingState
 ```solidity
   function consolidatePendingState(
-    uint32 pendingStateNum
+    uint32 rollupID,
+    uint64 pendingStateNum
   ) external
 ```
 Allows to consolidate any pending state that has already exceed the pendingStateTimeout
@@ -297,12 +303,14 @@ Can be called by the trusted aggregator, which can consolidate any state without
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`pendingStateNum` | uint32 | Pending state to consolidate
+|`rollupID` | uint32 | Rollup identifier
+|`pendingStateNum` | uint64 | Pending state to consolidate
 
 ### _consolidatePendingState
 ```solidity
   function _consolidatePendingState(
-    struct PolygonRollupManager.RollupData pendingStateNum
+    struct PolygonRollupManager.RollupData rollup,
+    uint64 pendingStateNum
   ) internal
 ```
 Internal function to consolidate any pending state that has already exceed the pendingStateTimeout
@@ -311,7 +319,8 @@ Internal function to consolidate any pending state that has already exceed the p
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`pendingStateNum` | struct PolygonRollupManager.RollupData | Pending state to consolidate
+|`rollup` | struct PolygonRollupManager.RollupData | Rollup data storage pointer
+|`pendingStateNum` | uint64 | Pending state to consolidate
 
 ### overridePendingState
 ```solidity
@@ -340,7 +349,7 @@ if it's possible to prove a different state root given the same batches
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes32[24] | fflonk proof
+|`proof` | bytes32[24] | Fflonk proof
 
 ### proveNonDeterministicPendingState
 ```solidity
@@ -368,7 +377,7 @@ Allows to halt the PolygonZkEVM if its possible to prove a different state root 
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes32[24] | fflonk proof
+|`proof` | bytes32[24] | Fflonk proof
 
 ### _proveDistinctPendingState
 ```solidity
@@ -396,7 +405,7 @@ Internal function that proves a different state root given the same batches to v
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 |  New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | bytes32[24] | fflonk proof
+|`proof` | bytes32[24] | Fflonk proof
 
 ### _updateBatchFee
 ```solidity
@@ -419,7 +428,7 @@ The batch fee will not be updated when the trusted aggregator verifies batches
   ) external
 ```
 Function to activate emergency state, which also enables the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
-If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
+If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period and an emergency state was not happened in the same period
 
 
 
@@ -447,7 +456,7 @@ Internal function to activate emergency state on both PolygonZkEVM and PolygonZk
     uint64 newTrustedAggregatorTimeout
   ) external
 ```
-Allow the admin to set a new pending state timeout
+Set a new pending state timeout
 The timeout can only be lowered, except if emergency state is active
 
 
@@ -462,7 +471,7 @@ The timeout can only be lowered, except if emergency state is active
     uint64 newPendingStateTimeout
   ) external
 ```
-Allow the admin to set a new trusted aggregator timeout
+Set a new trusted aggregator timeout
 The timeout can only be lowered, except if emergency state is active
 
 
@@ -477,7 +486,7 @@ The timeout can only be lowered, except if emergency state is active
     uint16 newMultiplierBatchFee
   ) external
 ```
-Allow the admin to set a new multiplier batch fee
+Set a new multiplier batch fee
 
 
 #### Parameters:
@@ -491,7 +500,7 @@ Allow the admin to set a new multiplier batch fee
     uint64 newVerifyBatchTimeTarget
   ) external
 ```
-Allow the admin to set a new verify batch time target
+Set a new verify batch time target
 This value will only be relevant once the aggregation is decentralized, so
 the trustedAggregatorTimeout should be zero or very close to zero
 
@@ -507,7 +516,7 @@ the trustedAggregatorTimeout should be zero or very close to zero
     uint256 newBatchFee
   ) external
 ```
-Allow to corresponding role to set the current batch fee
+Set the current batch fee
 
 
 #### Parameters:
@@ -549,22 +558,36 @@ Get the last verified batch
 ### isPendingStateConsolidable
 ```solidity
   function isPendingStateConsolidable(
+    uint32 rollupID,
+    uint64 pendingStateNum
   ) public returns (bool)
 ```
 Returns a boolean that indicates if the pendingStateNum is or not consolidable
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`rollupID` | uint32 | Rollup id
+|`pendingStateNum` | uint64 | Pending state number to check
 Note that his function does not check if the pending state currently exists, or if it's consolidated already
-
-
 
 ### _isPendingStateConsolidable
 ```solidity
   function _isPendingStateConsolidable(
+    struct PolygonRollupManager.RollupData rollup,
+    uint64 pendingStateNum
   ) internal returns (bool)
 ```
 Returns a boolean that indicates if the pendingStateNum is or not consolidable
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`rollup` | struct PolygonRollupManager.RollupData | Rollup data storage pointer
+|`pendingStateNum` | uint64 | Pending state number to check
 Note that his function does not check if the pending state currently exists, or if it's consolidated already
-
-
 
 ### calculateRewardPerBatch
 ```solidity
@@ -598,9 +621,10 @@ Get forced batch fee
 ### getInputSnarkBytes
 ```solidity
   function getInputSnarkBytes(
-    uint32 initNumBatch,
+    uint32 rollupID,
+    uint64 initNumBatch,
     uint64 finalNewBatch,
-    uint64 newLocalExitRoot,
+    bytes32 newLocalExitRoot,
     bytes32 oldStateRoot,
     bytes32 newStateRoot
   ) public returns (bytes)
@@ -611,18 +635,20 @@ Function to calculate the input snark bytes
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`initNumBatch` | uint32 | Batch which the aggregator starts the verification
+|`rollupID` | uint32 | Rollup id used to calculate the input snark bytes
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | uint64 | New local exit root once the batch is processed
+|`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
 |`oldStateRoot` | bytes32 | State root before batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 
 ### _getInputSnarkBytes
 ```solidity
   function _getInputSnarkBytes(
-    struct PolygonRollupManager.RollupData initNumBatch,
+    struct PolygonRollupManager.RollupData rollup,
+    uint64 initNumBatch,
     uint64 finalNewBatch,
-    uint64 newLocalExitRoot,
+    bytes32 newLocalExitRoot,
     bytes32 oldStateRoot,
     bytes32 newStateRoot
   ) internal returns (bytes)
@@ -633,47 +659,74 @@ Function to calculate the input snark bytes
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`initNumBatch` | struct PolygonRollupManager.RollupData | Batch which the aggregator starts the verification
+|`rollup` | struct PolygonRollupManager.RollupData | Rollup data storage pointer
+|`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
-|`newLocalExitRoot` | uint64 | New local exit root once the batch is processed
+|`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
 |`oldStateRoot` | bytes32 | State root before batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
 
 ### _checkStateRootInsidePrime
 ```solidity
   function _checkStateRootInsidePrime(
+    uint256 newStateRoot
   ) internal returns (bool)
 ```
+Function to check if the state root is inside of the prime field
 
 
-
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newStateRoot` | uint256 | New State root once the batch is processed
 
 ### getRollupBatchNumToStateRoot
 ```solidity
   function getRollupBatchNumToStateRoot(
+    uint32 rollupID,
+    uint64 batchNum
   ) public returns (bytes32)
 ```
-Get the last verified batch
+Get rollup state root given a batch number
 
 
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`rollupID` | uint32 | Rollup identifier
+|`batchNum` | uint64 | Batch number
 
 ### getRollupSequencedBatches
 ```solidity
   function getRollupSequencedBatches(
+    uint32 rollupID,
+    uint64 batchNum
   ) public returns (struct LegacyZKEVMStateVariables.SequencedBatchData)
 ```
-Get the last verified batch
+Get rollup sequence batches struct given a batch number
 
 
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`rollupID` | uint32 | Rollup identifier
+|`batchNum` | uint64 | Batch number
 
 ### getRollupPendingStateTransitions
 ```solidity
   function getRollupPendingStateTransitions(
+    uint32 rollupID,
+    uint64 batchNum
   ) public returns (struct LegacyZKEVMStateVariables.PendingState)
 ```
-Get the last verified batch
+Get rollup sequence pending state struct given a batch number
 
 
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`rollupID` | uint32 | Rollup identifier
+|`batchNum` | uint64 | Batch number
 
 ## Events
 ### AddNewRollupType
@@ -690,7 +743,7 @@ Emitted when a new rollup type is added
   )
 ```
 
-Emitted when a a rolup type is deleted
+Emitted when a a rolup type is obsoleted
 
 ### CreateNewRollup
 ```solidity
@@ -730,7 +783,7 @@ Emitted when a new verifier is added
   )
 ```
 
-Emitted when a aggregator verifies batches
+Emitted when an aggregator verifies batches
 
 ### VerifyBatchesTrustedAggregator
 ```solidity
@@ -738,7 +791,7 @@ Emitted when a aggregator verifies batches
   )
 ```
 
-Emitted when a aggregator verifies batches
+Emitted when the trusted aggregator verifies batches
 
 ### ConsolidatePendingState
 ```solidity
@@ -770,7 +823,7 @@ Emitted when the trusted aggregator overrides pending state
   )
 ```
 
-Emitted when the admin updates the trusted aggregator timeout
+Emitted when is updated the trusted aggregator timeout
 
 ### SetPendingStateTimeout
 ```solidity
@@ -778,7 +831,7 @@ Emitted when the admin updates the trusted aggregator timeout
   )
 ```
 
-Emitted when the admin updates the pending state timeout
+Emitted when is updated the pending state timeout
 
 ### SetMultiplierBatchFee
 ```solidity
@@ -786,7 +839,7 @@ Emitted when the admin updates the pending state timeout
   )
 ```
 
-Emitted when the admin updates the multiplier batch fee
+Emitted when is updated the multiplier batch fee
 
 ### SetVerifyBatchTimeTarget
 ```solidity
@@ -794,7 +847,7 @@ Emitted when the admin updates the multiplier batch fee
   )
 ```
 
-Emitted when the admin updates the verify batch timeout
+Emitted when is updated the verify batch timeout
 
 ### SetTrustedAggregator
 ```solidity
@@ -802,7 +855,7 @@ Emitted when the admin updates the verify batch timeout
   )
 ```
 
-Emitted when the admin updates the trusted aggregator address
+Emitted when is updated the trusted aggregator address
 
 ### SetBatchFee
 ```solidity
@@ -810,5 +863,5 @@ Emitted when the admin updates the trusted aggregator address
   )
 ```
 
-Emitted when the batch fee is set
+Emitted when is updated the batch fee
 

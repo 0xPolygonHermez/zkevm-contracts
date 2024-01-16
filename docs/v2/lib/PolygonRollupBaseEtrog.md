@@ -10,7 +10,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 ### constructor
 ```solidity
   function constructor(
-    contract IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+    contract IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
     contract IERC20Upgradeable _pol,
     contract IPolygonZkEVMBridgeV2 _bridgeAddress,
     contract PolygonRollupManager _rollupManager
@@ -21,7 +21,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRoot | Global exit root manager address
+|`_globalExitRootManager` | contract IPolygonZkEVMGlobalExitRootV2 | Global exit root manager address
 |`_pol` | contract IERC20Upgradeable | POL token address
 |`_bridgeAddress` | contract IPolygonZkEVMBridgeV2 | Bridge address
 |`_rollupManager` | contract PolygonRollupManager | Global exit root manager address
@@ -53,7 +53,7 @@ Note if a wrapped token of the bridge is used, the original network and address 
 ### sequenceBatches
 ```solidity
   function sequenceBatches(
-    struct PolygonRollupBase.BatchData[] batches,
+    struct PolygonRollupBaseEtrog.BatchData[] batches,
     address l2Coinbase
   ) public
 ```
@@ -63,7 +63,7 @@ Allows a sequencer to send multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonRollupBase.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
+|`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
 |`l2Coinbase` | address | Address that will receive the fees from L2
 
 ### onVerifyBatches
@@ -107,7 +107,7 @@ with the same nonce
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
-    struct PolygonRollupBase.ForcedBatchData[] batches
+    struct PolygonRollupBaseEtrog.BatchData[] batches
   ) external
 ```
 Allows anyone to sequence forced Batches if the trusted sequencer has not done so in the timeout period
@@ -116,7 +116,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer has not done s
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonRollupBase.ForcedBatchData[] | Struct array which holds the necessary data to append force batches
+|`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append force batches
 
 ### setTrustedSequencer
 ```solidity
