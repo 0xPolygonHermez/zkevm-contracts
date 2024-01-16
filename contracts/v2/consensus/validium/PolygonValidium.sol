@@ -91,7 +91,7 @@ contract PolygonValidium is PolygonRollupBase, IPolygonValidium {
      * [signature 0, ..., signature requiredAmountOfSignatures -1, address 0, ... address N]
      * note that each ECDSA signatures are used, therefore each one must be 65 bytes
      */
-    function sequenceBatchesDataCommittee(
+    function sequenceBatchesValidium(
         ValidiumBatchData[] calldata batches,
         address l2Coinbase,
         bytes calldata dataAvailabilityMessage
