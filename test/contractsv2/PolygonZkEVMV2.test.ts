@@ -296,7 +296,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         await expect(
             PolygonZKEVMV2Contract.connect(deployer).setForceBatchAddress(ethers.ZeroAddress)
-        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForceBatchesDescentralized");
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForceBatchesDecentralized");
     });
 
     it("should check full flow", async () => {
