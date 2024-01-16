@@ -12,9 +12,27 @@ import "../../lib/PolygonRollupBaseEtrog.sol";
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
 contract PolygonZkEVMV2ExistentEtrog is PolygonRollupBaseEtrog {
-    // Transaction that will be injected as a forced transaction, to setup the timestamp on the state root
+    // Transaction that will be injected as a forced transaction, to setup the timestamp on the state root, we just need a well encoded RLP transaction
+    // It's ok if the transaction is not processable
+    /* Encoded transaction:
+      {
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 42,
+        "data": "0x",
+        "value": "0",
+        "gasLimit": 0,
+        "gasPrice": "0",
+        "chainId": 4242,
+        "overwrite": {
+          "v": "0x1b",
+          "r": "0x00000000000000000000000000000000000000000000000000000005ca1ab1e0",
+          "s": "0x00000000000000000000000000000000000000000000000000000005ca1ab1e0"
+        }
+      }
+    */
     bytes public constant SET_UP_ETROG_TX =
-        hex"df2a8080944d5cf5032b2a844602278b01199ed191a86c93ff80808210928080ba42034e163abcd726e65aac3b7c747e8d36cd473b2419910ffa3fb96c10b9df28e9b6f13e927dd66ab2281a5cdeb98cdb3d49d09be9ba1b1716535c650f012b1bff";
+        hex"df2a8080944d5cf5032b2a844602278b01199ed191a86c93ff8080821092808000000000000000000000000000000000000000000000000000000005ca1ab1e000000000000000000000000000000000000000000000000000000005ca1ab1e01bff";
 
     /**
      * @dev Emitted when the system is updated to a etrog using this contract, contain the set up etrog transaction
