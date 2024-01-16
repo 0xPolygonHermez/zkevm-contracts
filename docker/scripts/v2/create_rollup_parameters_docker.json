@@ -7,10 +7,11 @@
     "chainID": 1001,
     "adminZkEVM": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "forkID": 7,
-    "consensusContract": "PolygonZkEVMEtrog",
-    "gasTokenAddress":"",
+    "consensusContract": "PolygonValidium",
+    "dataAvailabilityProtocol": "PolygonDataCommittee",
+    "gasTokenAddress": "",
     "deployerPvtKey": "",
-    "maxFeePerGas":"",
-    "maxPriorityFeePerGas":"",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
     "multiplierGas": ""
 }

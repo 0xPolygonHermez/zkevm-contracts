@@ -3,5 +3,5 @@
 pragma solidity 0.8.20;
 
 interface IPolygonDataAvailabilityProtocol {
-    function verifyMessage(bytes32 hash, bytes memory dataAvailabilityMessage) external view;
+    function verifyMessage(bytes32 hash, bytes calldata dataAvailabilityMessage) external view;
 }

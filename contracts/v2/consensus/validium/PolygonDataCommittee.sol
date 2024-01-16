@@ -110,7 +110,7 @@ contract PolygonDataCommittee is IPolygonDataCommitteeErrors, OwnableUpgradeable
      * [signature 0, ..., signature requiredAmountOfSignatures -1, address 0, ... address N]
      * note that each ECDSA signatures are used, therefore each one must be 65 bytes
      */
-    function verifySignatures(
+    function verifyMessage(
         bytes32 signedHash,
         bytes calldata signaturesAndAddrs
     ) external view {

@@ -13,7 +13,7 @@ import "../../interfaces/IPolygonValidium.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonDataComittee is PolygonRollupBase, IPolygonValidium {
+contract PolygonValidium is PolygonRollupBase, IPolygonValidium {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -33,7 +33,7 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonValidium {
     }
 
     // Data Availability Protocol Address
-    IPolygonDataAvailabilityProtocol public dataAvailability;
+    IPolygonDataAvailabilityProtocol public dataAvailabilityProtocol;
 
     // Indicates if sequence with data avialability is allowed
     // This allow the sequencer to post the data and skip the Data comittee
@@ -228,7 +228,7 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonValidium {
         );
 
         // Validate that the data availability protocol accepts the dataAvailabilityMessage
-        dataAvailability.verifyMessage(
+        dataAvailabilityProtocol.verifyMessage(
             currentAccInputHash,
             dataAvailabilityMessage
         );
@@ -247,7 +247,7 @@ contract PolygonDataComittee is PolygonRollupBase, IPolygonValidium {
     function setDataAvailabilityProtocol(
         IPolygonDataAvailabilityProtocol newDataAvailabilityProtocol
     ) external onlyAdmin {
-        dataAvailability = newDataAvailabilityProtocol;
+        dataAvailabilityProtocol = newDataAvailabilityProtocol;
 
         emit SetDataAvailabilityProtocol(address(newDataAvailabilityProtocol));
     }

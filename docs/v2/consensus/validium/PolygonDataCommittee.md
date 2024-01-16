@@ -41,9 +41,9 @@ A member is represented by the url and the address contained in urls[i] and addr
 
 
 
-### verifySignatures
+### verifyMessage
 ```solidity
-  function verifySignatures(
+  function verifyMessage(
     bytes32 signedHash,
     bytes signaturesAndAddrs
   ) external
