@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.20;
 
-import "../../lib/PolygonRollupBaseEtrog.sol";
-import "../../interfaces/ICDKDataCommittee.sol";
-import "../../interfaces/IPolygonDataComittee.sol";
+import "../../lib/PolygonRollupBase.sol";
+import "../../interfaces/IPolygonDataAvailabilityProtocol.sol";
+import "../../interfaces/IPolygonValidium.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -13,10 +13,7 @@ import "../../interfaces/IPolygonDataComittee.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonDataComitteeEtrog is
-    PolygonRollupBaseEtrog,
-    IPolygonDataComittee
-{
+contract PolygonValidium is PolygonRollupBase, IPolygonValidium {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -24,28 +21,28 @@ contract PolygonDataComitteeEtrog is
      * @param transactionsHash keccak256 hash of the L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param forcedGlobalExitRoot Global exit root, empty when sequencing a non forced batch
-     * @param forcedTimestamp Minimum timestamp of the force batch data, empty when sequencing a non forced batch
-     * @param forcedBlockHashL1 blockHash snapshot of the force batch data, empty when sequencing a non forced batch
+     * @param globalExitRoot Global exit root of the batch
+     * @param timestamp Sequenced timestamp of the batch
+     * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
      */
     struct ValidiumBatchData {
         bytes32 transactionsHash;
-        bytes32 forcedGlobalExitRoot;
-        uint64 forcedTimestamp;
-        bytes32 forcedBlockHashL1;
+        bytes32 globalExitRoot;
+        uint64 timestamp;
+        uint64 minForcedTimestamp;
     }
 
-    // CDK Data Committee Address
-    ICDKDataCommittee public dataCommittee;
+    // Data Availability Protocol Address
+    IPolygonDataAvailabilityProtocol public dataAvailabilityProtocol;
 
     // Indicates if sequence with data avialability is allowed
     // This allow the sequencer to post the data and skip the Data comittee
     bool public isSequenceWithDataAvailabilityAllowed;
 
     /**
-     * @dev Emitted when the admin updates the data committee
+     * @dev Emitted when the admin updates the data availability protocol
      */
-    event SetDataCommittee(address newDataCommittee);
+    event SetDataAvailabilityProtocol(address newDataAvailabilityProtocol);
 
     /**
      * @dev Emitted when switch the ability to sequence with data availability
@@ -59,12 +56,12 @@ contract PolygonDataComitteeEtrog is
      * @param _rollupManager Global exit root manager address
      */
     constructor(
-        IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
+        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
         PolygonRollupManager _rollupManager
     )
-        PolygonRollupBaseEtrog(
+        PolygonRollupBase(
             _globalExitRootManager,
             _pol,
             _bridgeAddress,
@@ -108,14 +105,8 @@ contract PolygonDataComitteeEtrog is
             revert ExceedMaxVerifyBatches();
         }
 
-        // Update global exit root if there are new deposits
-        bridgeAddress.updateGlobalExitRoot();
-
-        // Get global batch variables
-        bytes32 l1InfoRoot = globalExitRootManager.getRoot();
-        uint64 currentTimestamp = uint64(block.timestamp);
-
         // Store storage variables in memory, to save gas, because will be overrided multiple times
+        uint64 currentTimestamp = lastTimestamp;
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
         bytes32 currentAccInputHash = lastAccInputHash;
 
@@ -126,17 +117,19 @@ contract PolygonDataComitteeEtrog is
             // Load current sequence
             ValidiumBatchData memory currentBatch = batches[i];
 
+            // Store the current transactions hash since can be used more than once for gas saving
+            bytes32 currentTransactionsHash = currentBatch.transactionsHash;
+
             // Check if it's a forced batch
-            if (currentBatch.forcedTimestamp > 0) {
+            if (currentBatch.minForcedTimestamp > 0) {
                 currentLastForceBatchSequenced++;
 
                 // Check forced data matches
                 bytes32 hashedForcedBatchData = keccak256(
                     abi.encodePacked(
-                        currentBatch.transactionsHash,
-                        currentBatch.forcedGlobalExitRoot,
-                        currentBatch.forcedTimestamp,
-                        currentBatch.forcedBlockHashL1
+                        currentTransactionsHash,
+                        currentBatch.globalExitRoot,
+                        currentBatch.minForcedTimestamp
                     )
                 );
 
@@ -147,36 +140,48 @@ contract PolygonDataComitteeEtrog is
                     revert ForcedDataDoesNotMatch();
                 }
 
-                // Calculate next accumulated input hash
-                currentAccInputHash = keccak256(
-                    abi.encodePacked(
-                        currentAccInputHash,
-                        currentBatch.transactionsHash,
-                        currentBatch.forcedGlobalExitRoot,
-                        currentBatch.forcedTimestamp,
-                        l2Coinbase,
-                        currentBatch.forcedBlockHashL1
-                    )
-                );
+                // Check timestamp is bigger than min timestamp
+                if (currentBatch.timestamp < currentBatch.minForcedTimestamp) {
+                    revert SequencedTimestampBelowForcedTimestamp();
+                }
 
                 // Delete forceBatch data since won't be used anymore
                 delete forcedBatches[currentLastForceBatchSequenced];
             } else {
-                // Note that forcedGlobalExitRoot and forcedBlockHashL1 remain unused and unchecked in this path
-                // The synchronizer should be aware of that
-
-                // Calculate next accumulated input hash
-                currentAccInputHash = keccak256(
-                    abi.encodePacked(
-                        currentAccInputHash,
-                        currentBatch.transactionsHash,
-                        l1InfoRoot,
-                        currentTimestamp,
-                        l2Coinbase,
-                        bytes32(0)
-                    )
-                );
+                // Check global exit root exists with proper batch length. These checks are already done in the forceBatches call
+                // Note that the sequencer can skip setting a global exit root putting zeros
+                if (
+                    currentBatch.globalExitRoot != bytes32(0) &&
+                    globalExitRootManager.globalExitRootMap(
+                        currentBatch.globalExitRoot
+                    ) ==
+                    0
+                ) {
+                    revert GlobalExitRootNotExist();
+                }
             }
+
+            // Check Batch timestamps are correct
+            if (
+                currentBatch.timestamp < currentTimestamp ||
+                currentBatch.timestamp > block.timestamp
+            ) {
+                revert SequencedTimestampInvalid();
+            }
+
+            // Calculate next accumulated input hash
+            currentAccInputHash = keccak256(
+                abi.encodePacked(
+                    currentAccInputHash,
+                    currentTransactionsHash,
+                    currentBatch.globalExitRoot,
+                    currentBatch.timestamp,
+                    l2Coinbase
+                )
+            );
+
+            // Update timestamp
+            currentTimestamp = currentBatch.timestamp;
         }
 
         // Sanity check, should be unreachable
@@ -185,6 +190,7 @@ contract PolygonDataComitteeEtrog is
         }
 
         // Store back the storage variables
+        lastTimestamp = currentTimestamp;
         lastAccInputHash = currentAccInputHash;
 
         uint256 nonForcedBatchesSequenced = batchesNum;
@@ -213,18 +219,21 @@ contract PolygonDataComitteeEtrog is
             rollupManager.getBatchFee() * nonForcedBatchesSequenced
         );
 
+        // Update global exit root if there are new deposits
+        bridgeAddress.updateGlobalExitRoot();
+
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(batchesNum),
             currentAccInputHash
         );
 
-        // Validate that the data committee has signed the accInputHash for this sequence
-        dataCommittee.verifySignatures(
+        // Validate that the data availability protocol accepts the dataAvailabilityMessage
+        dataAvailabilityProtocol.verifyMessage(
             currentAccInputHash,
             dataAvailabilityMessage
         );
 
-        emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
+        emit SequenceBatches(currentBatchSequenced);
     }
 
     //////////////////
@@ -232,23 +241,31 @@ contract PolygonDataComitteeEtrog is
     //////////////////
 
     /**
-     * @notice Allow the admin to set a new data committee
-     * @param newDataCommittee Address of the new data committee
+     * @notice Allow the admin to set a new data availability protocol
+     * @param newDataAvailabilityProtocol Address of the new data availability protocol
      */
-    function setDataCommittee(
-        ICDKDataCommittee newDataCommittee
+    function setDataAvailabilityProtocol(
+        IPolygonDataAvailabilityProtocol newDataAvailabilityProtocol
     ) external onlyAdmin {
-        dataCommittee = newDataCommittee;
+        dataAvailabilityProtocol = newDataAvailabilityProtocol;
 
-        emit SetDataCommittee(address(newDataCommittee));
+        emit SetDataAvailabilityProtocol(address(newDataAvailabilityProtocol));
     }
 
     /**
-     * @notice Allow the admin to turn on the force batches
-     * This action is not reversible
+     * @notice Allow the admin to switch the sequence with data availability
+     * @param newIsSequenceWithDataAvailabilityAllowed Boolean to switch
      */
-    function switchSequenceWithDataAvailability() external onlyAdmin {
-        isSequenceWithDataAvailabilityAllowed = !isSequenceWithDataAvailabilityAllowed;
+    function switchSequenceWithDataAvailability(
+        bool newIsSequenceWithDataAvailabilityAllowed
+    ) external onlyAdmin {
+        if (
+            isSequenceWithDataAvailabilityAllowed ==
+            newIsSequenceWithDataAvailabilityAllowed
+        ) {
+            revert SwitchToSameValue();
+        }
+        isSequenceWithDataAvailabilityAllowed = newIsSequenceWithDataAvailabilityAllowed;
         emit SwitchSequenceWithDataAvailability();
     }
 }
