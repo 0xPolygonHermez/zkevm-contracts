@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.20;
 
-interface IPolygonDataAvailabilityProtocol {
+interface IDataAvailabilityProtocol {
+    function getProcotolName() pure external returns (string memory);
     function verifyMessage(bytes32 hash, bytes calldata dataAvailabilityMessage) external view;
 }
