@@ -404,6 +404,7 @@ contract PolygonRollupBase is
     }
 
     modifier isSenderAllowedToForceBatches() {
+        // review optimize
         if (
             forceBatchAddress != address(0) && forceBatchAddress != msg.sender
         ) {

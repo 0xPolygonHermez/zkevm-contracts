@@ -307,6 +307,7 @@ contract PolygonRollupBaseEtrog is
             // Ask for token metadata, the same way is enconded in the bridge
             // Note that this function will revert if the token is not in this network
             // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
+            // review optimization
             gasTokenMetadata = abi.encode(
                 _safeName(_gasTokenAddress),
                 _safeSymbol(_gasTokenAddress),
@@ -394,6 +395,7 @@ contract PolygonRollupBaseEtrog is
     }
 
     modifier isSenderAllowedToForceBatches() {
+        // review optimize
         if (
             forceBatchAddress != address(0) && forceBatchAddress != msg.sender
         ) {

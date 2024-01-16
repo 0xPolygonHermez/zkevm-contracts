@@ -528,6 +528,7 @@ contract PolygonZkEVMBridgeV2 is
 
                     if (wrappedToken == address(0)) {
                         // Get ERC20 metadata
+                        // review optimization
                         {
                             // Decode the metadata just as a sanity check of correct encoding
                             (
