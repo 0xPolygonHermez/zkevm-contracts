@@ -34,7 +34,7 @@ if npm run lint; then
     cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol/PolygonZkEVMEtrog.json compiled-contracts/
     cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMExistentEtrog.sol/PolygonZkEVMExistentEtrog.json compiled-contracts/
 
-    cp artifacts/contracts/v2/consensus/validium/PolygonValidium.sol/PolygonValidium.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol/PolygonValidiumEtrog.json compiled-contracts/
     git add compiled-contracts
     exit 0
 else

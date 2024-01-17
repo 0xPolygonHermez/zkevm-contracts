@@ -80,6 +80,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
      * @param dataAvailabilityMessage Byte array containing the signatures and all the addresses of the committee in ascending order
      * [signature 0, ..., signature requiredAmountOfSignatures -1, address 0, ... address N]
      * note that each ECDSA signatures are used, therefore each one must be 65 bytes
+     * note Pol is not a reentrant token
      */
     function sequenceBatchesValidium(
         ValidiumBatchData[] calldata batches,
@@ -100,7 +101,6 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
 
         // Get global batch variables
         bytes32 l1InfoRoot = globalExitRootManager.getRoot();
-        uint64 currentTimestamp = uint64(block.timestamp);
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
@@ -108,6 +108,9 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
 
         // Store in a temporal variable, for avoid access again the storage slot
         uint64 initLastForceBatchSequenced = currentLastForceBatchSequenced;
+
+        // Accumulated sequenced transaction hash to verify them afterward against the dataAvailabilityProtocol
+        bytes32 accumulatedNonForcedTransactionsHash = bytes32(0);
 
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
@@ -149,6 +152,14 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
                 // Delete forceBatch data since won't be used anymore
                 delete forcedBatches[currentLastForceBatchSequenced];
             } else {
+                // Accumulate non forced transactions hash
+                accumulatedNonForcedTransactionsHash = keccak256(
+                    abi.encodePacked(
+                        accumulatedNonForcedTransactionsHash,
+                        currentBatch.transactionsHash
+                    )
+                );
+
                 // Note that forcedGlobalExitRoot and forcedBlockHashL1 remain unused and unchecked in this path
                 // The synchronizer should be aware of that
 
@@ -158,7 +169,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
                         currentAccInputHash,
                         currentBatch.transactionsHash,
                         l1InfoRoot,
-                        currentTimestamp,
+                        uint64(block.timestamp),
                         l2Coinbase,
                         bytes32(0)
                     )
@@ -194,21 +205,24 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         }
 
         // Pay collateral for every non-forced batch submitted
-        pol.safeTransferFrom(
-            msg.sender,
-            address(rollupManager),
-            rollupManager.getBatchFee() * nonForcedBatchesSequenced
-        );
+        if (nonForcedBatchesSequenced != 0) {
+            pol.safeTransferFrom(
+                msg.sender,
+                address(rollupManager),
+                rollupManager.getBatchFee() * nonForcedBatchesSequenced
+            );
+
+            // Validate that the data availability protocol accepts the dataAvailabilityMessage
+            // note This is a view function, so there's not much risk even if this contract was vulnerable to reentrant attacks
+            dataAvailabilityProtocol.verifyMessage(
+                accumulatedNonForcedTransactionsHash,
+                dataAvailabilityMessage
+            );
+        }
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(batchesNum),
             currentAccInputHash
-        );
-
-        // Validate that the data availability protocol accepts the dataAvailabilityMessage
-        dataAvailabilityProtocol.verifyMessage(
-            currentAccInputHash,
-            dataAvailabilityMessage
         );
 
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
