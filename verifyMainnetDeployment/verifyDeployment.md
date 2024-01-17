@@ -27,7 +27,7 @@ git checkout 7a8d0c1950cf267fb7b10be8a47506754399cd4a
 ## Verify deployment
 
 In order to verify the deployment, we will compare the deployed bytecode with the compiled locally. Some of the contracts use [`immutables`](https://docs.soliditylang.org/en/v0.8.19/contracts.html#immutable), in that case it's not enough to just compile the code and compare withthe deployed bytecode.
-The easiest way is to verify this contracts is to deploy them on a local enviroment and then compare the bytecodes of this contracts and the mainnet ones.
+The easiest way is to verify this contracts is to deploy them on a local environment and then compare the bytecodes of this contracts and the mainnet ones.
 
 In order to launch the script, you need a mainnet provider.
 In root of the project create a `.env` file you Infura api key information:
