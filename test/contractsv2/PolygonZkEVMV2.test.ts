@@ -29,7 +29,7 @@ function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
     return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [mainnetExitRoot, rollupExitRoot]);
 }
 
-describe("Polygon ZK-EVM TestnetV2", () => {
+describe("PolygonZkEVMEtrog", () => {
     let deployer: any;
     let timelock: any;
     let emergencyCouncil: any;
@@ -164,7 +164,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
 
         // deploy consensus
         // Create zkEVM implementation
-        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMV2");
+        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrog");
         PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
             polygonZkEVMGlobalExitRoot.target,
             polTokenContract.target,
@@ -208,7 +208,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(await PolygonZKEVMV2Contract.trustedSequencerURL()).to.be.equal(urlSequencer);
         expect(await PolygonZKEVMV2Contract.networkName()).to.be.equal(networkName);
         expect(await PolygonZKEVMV2Contract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
-        expect(await PolygonZKEVMV2Contract.lastTimestamp()).to.be.equal(timestampCreatedRollup);
     });
 
     it("should check admin functions", async () => {
@@ -333,6 +332,7 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             ethers.ZeroAddress,
             "0x", // empty metadata
         ]);
+        const blockCreatedRollup = await ethers.provider.getBlock("latest");
 
         const rawTx = processorUtils.customRawTxToRawTx(transaction);
         const tx = ethers.Transaction.from(rawTx);
@@ -348,27 +348,28 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(tx.nonce).to.be.equal(0);
         expect(tx.chainId).to.be.equal(0);
 
-        const expectedAccInputHash = calculateAccInputHash(
+        const expectedAccInputHash = calculateAccInputHashetrog(
             ethers.ZeroHash,
             ethers.keccak256(transaction),
             await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot(),
             timestampCreatedRollup,
-            trustedSequencer.address
+            trustedSequencer.address,
+            blockCreatedRollup?.parentHash
         );
+
         // calcualte accINputHash
         expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash);
 
         // try verify batches
         const l2txData = "0x123456";
-        const maticAmount = ethers.parseEther("1");
-        const currentTimestamp = (await ethers.provider.getBlock("latest"))?.timestamp;
+        const maticAmount = await rollupManagerContract.getBatchFee();
 
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.ZeroHash,
-            timestamp: currentTimestamp,
-            minForcedTimestamp: 0,
-        } as BatchDataStruct;
+            forcedGlobalExitRoot: ethers.ZeroHash,
+            forcedTimestamp: 0,
+            forcedBlockHashL1: ethers.ZeroHash,
+        } as BatchDataStructEtrog;
 
         // Approve tokens
         await expect(
@@ -378,17 +379,19 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         // Sequence Batches
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address)
-        )
-            .to.emit(PolygonZKEVMV2Contract, "SequenceBatches")
-            .withArgs(1);
+        ).to.emit(PolygonZKEVMV2Contract, "SequenceBatches");
 
-        const expectedAccInputHash2 = calculateAccInputHash(
+        const currentTimestampSequenced = (await ethers.provider.getBlock("latest"))?.timestamp;
+
+        const expectedAccInputHash2 = calculateAccInputHashetrog(
             expectedAccInputHash,
             ethers.keccak256(l2txData),
-            ethers.ZeroHash,
-            currentTimestamp,
-            trustedSequencer.address
+            await polygonZkEVMGlobalExitRoot.getRoot(),
+            currentTimestampSequenced,
+            trustedSequencer.address,
+            ethers.ZeroHash
         );
+
         // calcualte accINputHash
         expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash2);
     });
@@ -437,7 +440,6 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         const rootRollups = merkleTreeRollups.getRoot();
 
         // Assert global exit root
-        // TODO
         await ethers.provider.send("hardhat_impersonateAccount", [rollupManagerContract.target]);
         const rolllupManagerSigner = await ethers.getSigner(rollupManagerContract.target as any);
         await polygonZkEVMGlobalExitRoot.connect(rolllupManagerSigner).updateExitRoot(rootRollups, {gasPrice: 0});
@@ -565,6 +567,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             metadata, // empty metadata
         ]);
 
+        const blockCreatedRollup = await ethers.provider.getBlock("latest");
+
         const rawTx = processorUtils.customRawTxToRawTx(transaction);
         const tx = ethers.Transaction.from(rawTx);
 
@@ -579,12 +583,13 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(tx.nonce).to.be.equal(0);
         expect(tx.chainId).to.be.equal(0);
 
-        const expectedAccInputHash = calculateAccInputHash(
+        const expectedAccInputHash = calculateAccInputHashetrog(
             ethers.ZeroHash,
             ethers.keccak256(transaction),
             await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot(),
             timestampCreatedRollup,
-            trustedSequencer.address
+            trustedSequencer.address,
+            blockCreatedRollup?.parentHash
         );
 
         // calcualte accINputHash
@@ -629,6 +634,8 @@ describe("Polygon ZK-EVM TestnetV2", () => {
             "0x", // empty metadata
         ]);
 
+        const blockCreatedRollup = await ethers.provider.getBlock("latest");
+
         const rawTx = processorUtils.customRawTxToRawTx(transaction);
         const tx = ethers.Transaction.from(rawTx);
 
@@ -643,13 +650,15 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         expect(tx.nonce).to.be.equal(0);
         expect(tx.chainId).to.be.equal(0);
 
-        const expectedAccInputHash = calculateAccInputHash(
+        const expectedAccInputHash = calculateAccInputHashetrog(
             ethers.ZeroHash,
             ethers.keccak256(transaction),
             await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot(),
             timestampCreatedRollup,
-            trustedSequencer.address
+            trustedSequencer.address,
+            blockCreatedRollup?.parentHash
         );
+
         // calcualte accINputHash
         expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash);
 
@@ -696,3 +705,28 @@ describe("Polygon ZK-EVM TestnetV2", () => {
         );
     });
 });
+
+/**
+ * Compute accumulateInputHash = Keccak256(oldAccInputHash, batchHashData, globalExitRoot, timestamp, seqAddress)
+ * @param {String} oldAccInputHash - old accumulateInputHash
+ * @param {String} batchHashData - Batch hash data
+ * @param {String} globalExitRoot - Global Exit Root
+ * @param {Number} timestamp - Block timestamp
+ * @param {String} sequencerAddress - Sequencer address
+ * @returns {String} - accumulateInputHash in hex encoding
+ */
+function calculateAccInputHashetrog(
+    oldAccInputHash: any,
+    batchHashData: any,
+    globalExitRoot: any,
+    timestamp: any,
+    sequencerAddress: any,
+    forcedBlockHash: any
+) {
+    const hashKeccak = ethers.solidityPackedKeccak256(
+        ["bytes32", "bytes32", "bytes32", "uint64", "address", "bytes32"],
+        [oldAccInputHash, batchHashData, globalExitRoot, timestamp, sequencerAddress, forcedBlockHash]
+    );
+
+    return hashKeccak;
+}

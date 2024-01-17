@@ -15,12 +15,9 @@ import {
     PolygonRollupManagerMock,
     PolygonZkEVMGlobalExitRoot,
     PolygonZkEVMBridgeV2,
-    PolygonZkEVMV2,
-    PolygonRollupBase,
     TokenWrapped,
     Address,
     PolygonZkEVM,
-    PolygonZkEVMV2Existent,
     PolygonZkEVMDeployer,
 } from "../../typechain-types";
 import {string} from "yargs";

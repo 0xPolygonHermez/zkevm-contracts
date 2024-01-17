@@ -11,7 +11,7 @@ import "../../lib/PolygonRollupBaseEtrog.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonZkEVMV2ExistentEtrog is PolygonRollupBaseEtrog {
+contract PolygonZkEVMExistentEtrog is PolygonRollupBaseEtrog {
     // Transaction that will be injected as a forced transaction, to setup the timestamp on the state root, we just need a well encoded RLP transaction
     // It's ok if the transaction is not processable
     /* Encoded transaction:
@@ -77,8 +77,7 @@ contract PolygonZkEVMV2ExistentEtrog is PolygonRollupBaseEtrog {
         address _trustedSequencer,
         string memory _trustedSequencerURL,
         string memory _networkName,
-        bytes32 _lastAccInputHash,
-        uint64 /*_lastTimestamp*/ // review
+        bytes32 _lastAccInputHash
     ) external onlyRollupManager initializer {
         // Set up etrog Tx
         bytes memory transaction = SET_UP_ETROG_TX;
