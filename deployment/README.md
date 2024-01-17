@@ -20,7 +20,7 @@ cd deployment
 cp deploy_parameters.json.example deploy_parameters.json
 ```
 
-Fill created `deploy_parameters.json` with appropiate parameters.
+Fill created `deploy_parameters.json` with appropriate parameters.
 See below for more information about the `deploy_parameters.json`
 
 The first step is deploying and verifying the `PolygonZkEVMDeployer`, this will be the factory for deterministic contracts, the address of the contracts will depend on the `salt` and the `initialZkEVMDeployerOwner`
@@ -38,7 +38,7 @@ To deploy on testnet is necessary a token MATIC contract, therefore, there's ano
 
 To deploy on testnet use:`deploy:testnet:ZkEVM:${network}`
 
-In other cases use fullfill `maticTokenAddress` in the `deploy_parameters.json` and run `deploy:ZkEVM:${network}`
+In other cases use fulfill `maticTokenAddress` in the `deploy_parameters.json` and run `deploy:ZkEVM:${network}`
 
 ```
 npm run deploy:testnet:ZkEVM:goerli
@@ -58,7 +58,7 @@ A new folder will be created witth the following name `deployments/${network}_$(
 - `realVerifier`: bool, Indicates whether deploy a real verifier or not
 - `trustedSequencerURL`: string, trustedSequencer URL
 - `networkName`: string, networkName
-- `version`:string, will just be emitted at initialization of the contract, usefull just for synchronizer
+- `version`:string, will just be emitted at initialization of the contract, useful just for synchronizer
 - `trustedSequencer`: address, trusted sequencer addresss
 - `chainID`: uint64, chainID of the zkEVM
 - `trustedAggregator`:address, Trusted aggregator address
@@ -71,8 +71,8 @@ A new folder will be created witth the following name `deployments/${network}_$(
 - `minDelayTimelock`: number, Minimum timelock delay,
 - `salt`: bytes32, Salt used in `PolygonZkEVMDeployer` to deploy deterministic contracts, such as the PolygonZkEVMBridge
 - `initialZkEVMDeployerOwner`: address, Initial owner of the `PolygonZkEVMDeployer`
-- `maticTokenAddress`: address, Matic token address, only if deploy on testnet can be left blank and will fullfilled by the scripts.
-- `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:goerli` script.
+- `maticTokenAddress`: address, Matic token address, only if deploy on testnet can be left blank and will fulfilled by the scripts.
+- `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fulfilled automatically with the `deploy:deployer:ZkEVM:goerli` script.
 
 ### Optional Parameters
 
