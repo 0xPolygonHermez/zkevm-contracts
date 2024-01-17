@@ -38,6 +38,7 @@ contract PolygonZkEVMExistentEtrog is PolygonRollupBaseEtrog {
      * @dev Emitted when the system is updated to a etrog using this contract, contain the set up etrog transaction
      */
     event UpdateEtrogSequence(
+        uint64 numBatch,
         bytes transactions,
         bytes32 lastGlobalExitRoot,
         address sequencer
@@ -103,7 +104,7 @@ contract PolygonZkEVMExistentEtrog is PolygonRollupBaseEtrog {
         // Set acumulated input hash
         lastAccInputHash = newAccInputHash;
 
-        rollupManager.onSequenceBatches(
+        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(1), // num total batches
             newAccInputHash
         );
@@ -124,6 +125,7 @@ contract PolygonZkEVMExistentEtrog is PolygonRollupBaseEtrog {
         // Therefore is not necessary to set the variables
 
         emit UpdateEtrogSequence(
+            currentBatchSequenced,
             transaction,
             lastGlobalExitRoot,
             _trustedSequencer
