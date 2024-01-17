@@ -13,10 +13,7 @@ import "../../interfaces/IPolygonValidium.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonValidiumEtrog is
-    PolygonRollupBaseEtrog,
-    IPolygonValidium
-{
+contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -75,16 +72,6 @@ contract PolygonValidiumEtrog is
     /////////////////////////////////////
     // Sequence/Verify batches functions
     ////////////////////////////////////
-
-    function sequenceBatches(
-        BatchData[] calldata batches,
-        address l2Coinbase
-    ) public override {
-        if (!isSequenceWithDataAvailabilityAllowed) {
-            revert SequenceWithDataAvailabilityNotAllowed();
-        }
-        super.sequenceBatches(batches, l2Coinbase);
-    }
 
     /**
      * @notice Allows a sequencer to send multiple batches
@@ -225,6 +212,21 @@ contract PolygonValidiumEtrog is
         );
 
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
+    }
+
+    /**
+     * @notice Allows a sequencer to send multiple batches sending all the data, and without using the dataAvailabilityProtocol
+     * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param l2Coinbase Address that will receive the fees from L2
+     */
+    function sequenceBatches(
+        BatchData[] calldata batches,
+        address l2Coinbase
+    ) public override {
+        if (!isSequenceWithDataAvailabilityAllowed) {
+            revert SequenceWithDataAvailabilityNotAllowed();
+        }
+        super.sequenceBatches(batches, l2Coinbase);
     }
 
     //////////////////

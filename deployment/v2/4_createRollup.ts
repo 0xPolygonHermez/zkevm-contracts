@@ -67,23 +67,21 @@ async function main() {
         dataAvailabilityProtocol,
     } = createRollupParameters;
 
-    const supportedConensus = [
-        "PolygonZkEVMEtrog",
-        "PolygonZkEVMV2",
-        "PolygonValidium",
-        "PolygonValidiumEtrog",
-    ];
+    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
 
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
     }
 
-    const supporteDataAvailabilityProtocols = [
-        "PolygonDataCommittee",
-    ];
+    const supporteDataAvailabilityProtocols = ["PolygonDataCommittee"];
 
-    if (consensusContract.includes("PolygonValidium") && !supporteDataAvailabilityProtocols.includes(dataAvailabilityProtocol)) {
-        throw new Error(`Data availability protocol not supported, supported data availability protocols are: ${supporteDataAvailabilityProtocols}`);
+    if (
+        consensusContract.includes("PolygonValidium") &&
+        !supporteDataAvailabilityProtocols.includes(dataAvailabilityProtocol)
+    ) {
+        throw new Error(
+            `Data availability protocol not supported, supported data availability protocols are: ${supporteDataAvailabilityProtocols}`
+        );
     }
 
     // Load provider
@@ -269,12 +267,12 @@ async function main() {
             }
         }
         // Load data commitee
-        const PolygonValidiumContract = (await PolygonconsensusFactory.attach(
-            newZKEVMAddress
-        )) as PolygonValidium;
+        const PolygonValidiumContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonValidium;
         // add data commitee to the consensus contract
         if ((await PolygonValidiumContract.admin()) == deployer.address) {
-            await (await PolygonValidiumContract.setDataAvailabilityProtocol(polygonDataCommittee?.target as any)).wait();
+            await (
+                await PolygonValidiumContract.setDataAvailabilityProtocol(polygonDataCommittee?.target as any)
+            ).wait();
 
             // Setup data commitee to 0
             await (await polygonDataCommittee?.setupCommittee(0, [], "0x")).wait();

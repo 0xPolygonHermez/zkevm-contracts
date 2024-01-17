@@ -43,7 +43,7 @@ deploy:testnet:v1ToV2:localhost
 -   `chainID`: uint64, chainID of the new rollup
 -   `adminZkEVM`:address, Admin address, can adjust Rollup parameters
 -   `forkID`: uint64, Fork ID of the new rollup, indicates the prover (zkROM/executor) version
--   `consensusContract`: string, Consensus contract name of the new rollup deployed, current options are: "PolygonZkEVMEtrog","PolygonZkEVMV2","PolygonDataComittee", "PolygonDataComitteeEtrog",
+-   `consensusContract`: string, Consensus contract name of the new rollup deployed, current options are: "PolygonZkEVMEtrog","PolygonValidiumEtrog",
 -   `gasTokenAddress`:address, Gas token address, empty or address(0) for ether
 
 ### Optional Parameters
