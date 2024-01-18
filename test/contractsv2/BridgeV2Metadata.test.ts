@@ -347,6 +347,85 @@ describe("PolygonZkEVMBridge Contract", () => {
         expect(await polygonZkEVMBridgeContract.getRoot()).to.be.equal(rootJSMainnet);
     });
 
+    it("should PolygonZkEVMBridge with weird token metadata with invalid data", async () => {
+        const weirdErc20Metadata = await ethers.getContractFactory("ERC20InvalidMetadata");
+
+        const nameWeird = "";
+        const symbolWeird = "";
+
+        const nameWeirdBytes32 = ethers.encodeBytes32String(nameWeird);
+        const symbolWeirdBytes = ethers.toUtf8Bytes(symbolWeird);
+        const decimalsWeird = 255;
+
+        const weirdTokenContract = (await weirdErc20Metadata.deploy(
+            nameWeirdBytes32, // bytes32
+            symbolWeirdBytes, // bytes
+            decimalsWeird
+        )) as any;
+        await weirdTokenContract.waitForDeployment();
+
+        // mint and approve tokens
+        await weirdTokenContract.mint(deployer.address, tokenInitialBalance);
+        await weirdTokenContract.approve(polygonZkEVMBridgeContract.target, tokenInitialBalance);
+
+        const depositCount = await polygonZkEVMBridgeContract.depositCount();
+        const originNetwork = networkIDMainnet;
+        const tokenAddress = weirdTokenContract.target;
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDRollup;
+        const destinationAddress = deployer.address;
+
+        // Empty bytes32 is a not valid encoding
+        const nameEmpty = "NOT_VALID_ENCODING"; // bytes32 empty
+        const symbolEmpty = "NOT_VALID_ENCODING";
+
+        const metadata = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["string", "string", "uint8"],
+            [nameEmpty, symbolEmpty, decimalsWeird]
+        );
+
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
+        // pre compute root merkle tree in Js
+        const height = 32;
+        const merkleTree = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+        merkleTree.add(leafValue);
+        const rootJSMainnet = merkleTree.getRoot();
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                "0x"
+            )
+        )
+            .to.emit(polygonZkEVMBridgeContract, "BridgeEvent")
+            .withArgs(
+                LEAF_TYPE_ASSET,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                depositCount
+            );
+
+        expect(await polygonZkEVMBridgeContract.getRoot()).to.be.equal(rootJSMainnet);
+    });
+
     it("should PolygonZkEVMBridge and with permit eip-2612 compilant", async () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
@@ -403,6 +482,74 @@ describe("PolygonZkEVMBridge Contract", () => {
             deadline,
             chainId
         );
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                ifacePermit.encodeFunctionData("permit", [
+                    acc1.address,
+                    polygonZkEVMBridgeContract.target,
+                    amount,
+                    deadline,
+                    v,
+                    r,
+                    s,
+                ])
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "NotValidOwner");
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                ifacePermit.encodeFunctionData("permit", [
+                    deployer.address,
+                    deployer.address,
+                    amount,
+                    deadline,
+                    v,
+                    r,
+                    s,
+                ])
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "NotValidSpender");
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                ifacePermit.encodeFunctionData("permit", [
+                    deployer.address,
+                    polygonZkEVMBridgeContract.target,
+                    amount + 1n,
+                    deadline,
+                    v,
+                    r,
+                    s,
+                ])
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "NotValidAmount");
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                ethers.ZeroHash
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "NotValidSignature");
 
         const dataPermit = ifacePermit.encodeFunctionData("permit", [
             deployer.address,
@@ -522,6 +669,47 @@ describe("PolygonZkEVMBridge Contract", () => {
             deadline,
             chainId
         );
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                ifacePermitDAI.encodeFunctionData("permit", [
+                    polygonZkEVMBridgeContract.target,
+                    polygonZkEVMBridgeContract.target,
+                    nonce,
+                    deadline,
+                    true,
+                    v,
+                    r,
+                    s,
+                ])
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "NotValidOwner");
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                ifacePermitDAI.encodeFunctionData("permit", [
+                    deployer.address,
+                    deployer.address,
+                    nonce,
+                    deadline,
+                    true,
+                    v,
+                    r,
+                    s,
+                ])
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "NotValidSpender");
+
         const dataPermit = ifacePermitDAI.encodeFunctionData("permit", [
             deployer.address,
             polygonZkEVMBridgeContract.target,
