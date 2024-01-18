@@ -243,6 +243,23 @@ describe("Polygon Rollup manager upgraded", () => {
         });
     });
 
+    it("Cannot initialzie again", async () => {
+        await expect(
+            rollupManagerContract.initialize(
+                trustedAggregator.address,
+                pendingStateTimeoutDefault,
+                trustedAggregatorTimeout,
+                admin.address,
+                timelock.address,
+                emergencyCouncil.address,
+                timelock.address,
+                verifierContract.target,
+                forkID,
+                chainID
+            )
+        ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
+
     it("should check the initalized parameters", async () => {
         expect(await rollupManagerContract.globalExitRootManager()).to.be.equal(polygonZkEVMGlobalExitRoot.target);
         expect(await rollupManagerContract.pol()).to.be.equal(polTokenContract.target);
