@@ -1291,8 +1291,6 @@ describe("Polygon Rollup manager upgraded", () => {
         ).to.emit(newZkEVMContract, "SequenceBatches");
 
         const lastBlock = await ethers.provider.getBlock("latest");
-        const lastBlockHash = lastBlock?.parentHash;
-        const lastGlobalExitRootS = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
         const height = 32;
 
         const merkleTreeGLobalExitRoot = new MerkleTreeBridge(height);
