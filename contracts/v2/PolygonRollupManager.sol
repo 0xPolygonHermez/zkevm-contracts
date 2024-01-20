@@ -1261,7 +1261,7 @@ contract PolygonRollupManager is
         );
 
         emit ProveNonDeterministicPendingState(
-            rollup.batchNumToStateRoot[finalNewBatch],
+            rollup.pendingStateTransitions[finalPendingStateNum].stateRoot,
             newStateRoot
         );
 
