@@ -38,6 +38,8 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
 
 const SIGNATURE_BYTES = 32 + 32 + 1;
 const EFFECTIVE_PERCENTAGE_BYTES = 1;
+const _MAX_VERIFY_BATCHES = 1000;
+const _HALT_AGGREGATION_TIMEOUT = 60 * 60 * 24 * 7;
 
 describe("Polygon Rollup manager upgraded", () => {
     let deployer: any;
@@ -294,6 +296,59 @@ describe("Polygon Rollup manager upgraded", () => {
         );
     });
 
+    it("Check admin parameters", async () => {
+        expect(await rollupManagerContract.multiplierBatchFee()).to.be.equal(1002);
+        await expect(rollupManagerContract.setMultiplierBatchFee(1023)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "AddressDoNotHaveRequiredRole"
+        );
+        await expect(rollupManagerContract.connect(admin).setMultiplierBatchFee(0)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "InvalidRangeMultiplierBatchFee"
+        );
+
+        await expect(rollupManagerContract.connect(admin).setMultiplierBatchFee(1020))
+            .to.emit(rollupManagerContract, "SetMultiplierBatchFee")
+            .withArgs(1020);
+
+        expect(await rollupManagerContract.multiplierBatchFee()).to.be.equal(1020);
+
+        // verifyBatchTImetarget
+        expect(await rollupManagerContract.verifyBatchTimeTarget()).to.be.equal(60 * 30);
+
+        await expect(rollupManagerContract.setVerifyBatchTimeTarget(0)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "AddressDoNotHaveRequiredRole"
+        );
+        await expect(
+            rollupManagerContract.connect(admin).setVerifyBatchTimeTarget(60 * 60 * 24 + 1)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "InvalidRangeBatchTimeTarget");
+
+        await expect(rollupManagerContract.connect(admin).setVerifyBatchTimeTarget(60))
+            .to.emit(rollupManagerContract, "SetVerifyBatchTimeTarget")
+            .withArgs(60);
+        expect(await rollupManagerContract.verifyBatchTimeTarget()).to.be.equal(60);
+
+        // batch Fee
+        // verifyBatchTImetarget
+        expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther("0.1"));
+
+        await expect(rollupManagerContract.setBatchFee(0)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "AddressDoNotHaveRequiredRole"
+        );
+        await expect(rollupManagerContract.connect(admin).setBatchFee(0)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "BatchFeeOutOfRange"
+        );
+
+        await expect(rollupManagerContract.connect(admin).setBatchFee(ethers.parseEther("10")))
+            .to.emit(rollupManagerContract, "SetBatchFee")
+            .withArgs(ethers.parseEther("10"));
+
+        expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther("10"));
+    });
+
     it("should check full flow etrog", async () => {
         const urlSequencer = "http://zkevm-json-rpc:8123";
         const chainID2 = chainID + 1;
@@ -305,7 +360,6 @@ describe("Polygon Rollup manager upgraded", () => {
         // Native token will be ether
         const gasTokenAddress = ethers.ZeroAddress;
         const gasTokenNetwork = 0;
-
         // In order to create a new rollup type, create an implementation of the contract
 
         // Create zkEVM implementation
@@ -1290,6 +1344,11 @@ describe("Polygon Rollup manager upgraded", () => {
             newZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address)
         ).to.emit(newZkEVMContract, "SequenceBatches");
 
+        const sequencedBatchData2 = await rollupManagerContract.getRollupSequencedBatches(newCreatedRollupID, 2);
+
+        const currnetRollup = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        expect(currnetRollup.lastBatchSequenced).to.be.equal(2);
+
         const lastBlock = await ethers.provider.getBlock("latest");
         const height = 32;
 
@@ -1351,13 +1410,65 @@ describe("Polygon Rollup manager upgraded", () => {
         const pendingState = 0;
         const newLocalExitRoot = rootzkEVM;
         const newStateRoot = "0x0000000000000000000000000000000000000000000000000000000000000123";
-        const newVerifiedBatch = newSequencedBatch + 1;
+        const newVerifiedBatch = newSequencedBatch;
         const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
         const currentVerifiedBatch = 0;
 
         const initialAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
 
+        await expect(
+            rollupManagerContract.getInputSnarkBytes(
+                newCreatedRollupID,
+                3,
+                4,
+                newLocalExitRoot,
+                ethers.ZeroHash,
+                newStateRoot
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OldAccInputHashDoesNotExist");
+
+        await expect(
+            rollupManagerContract.getInputSnarkBytes(
+                newCreatedRollupID,
+                2,
+                3,
+                newLocalExitRoot,
+                ethers.ZeroHash,
+                newStateRoot
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatches(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "TrustedAggregatorTimeoutNotExpired");
+
         await rollupManagerContract.connect(admin).setTrustedAggregatorTimeout(0);
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatches(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    currentVerifiedBatch + _MAX_VERIFY_BATCHES + 1,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "ExceedMaxVerifyBatches");
 
         await expect(
             rollupManagerContract
@@ -1409,10 +1520,353 @@ describe("Polygon Rollup manager upgraded", () => {
             .to.emit(rollupManagerContract, "VerifyBatches")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, deployer.address);
 
+        const timestampVerifyBatches = (await ethers.provider.getBlock("latest"))?.timestamp;
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
-        expect(finalAggregatorMatic).to.equal(((initialAggregatorMatic + maticAmount) * 2n) / 3n);
+        expect(finalAggregatorMatic).to.equal(((initialAggregatorMatic + maticAmount) * 1n) / 3n);
+        const createdPendingState = 1;
+
+        const snapshotVerify = await takeSnapshot();
+        await rollupManagerContract.connect(admin).setPendingStateTimeout(0);
+
+        await expect(
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                0,
+                5,
+                6,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OldStateRootDoesNotExist");
+
+        await expect(
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                0,
+                newVerifiedBatch,
+                0,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
+        ).to.be.reverted;
+
+        await expect(
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState + 1,
+                currentVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "PendingStateDoesNotExist");
+
+        await expect(
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState,
+                currentVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "InitNumBatchDoesNotMatchPendingState");
+
+        await expect(
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState,
+                newVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                ethers.toQuantity(ethers.MaxUint256),
+                beneficiary.address,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "NewStateRootNotInsidePrime");
+
+        await expect(
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState,
+                newVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
+        )
+            .to.emit(rollupManagerContract, "VerifyBatches")
+            .withArgs(newCreatedRollupID, newVerifiedBatch + 1, newStateRoot, newLocalExitRoot, deployer.address);
+
+        let rollupDataV = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        expect(rollupDataV.lastPendingState).to.be.equal(0);
+        expect(rollupDataV.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataV.lastBatchSequenced).to.be.equal(2);
+        expect(rollupDataV.lastVerifiedBatch).to.be.equal(newVerifiedBatch + 1);
+        expect(rollupDataV.lastPendingState).to.be.equal(0);
+        expect(rollupDataV.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupDataV.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    0,
+                    0,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBatchBelowLastVerifiedBatch");
+
+        await snapshotVerify.restore();
+        await rollupManagerContract.connect(admin).setPendingStateTimeout(1);
+
+        await expect(
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState,
+                newVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
+        )
+            .to.emit(rollupManagerContract, "VerifyBatches")
+            .withArgs(newCreatedRollupID, newVerifiedBatch + 1, newStateRoot, newLocalExitRoot, deployer.address);
+
+        rollupDataV = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        expect(rollupDataV.lastPendingState).to.be.equal(2);
+        expect(rollupDataV.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataV.lastBatchSequenced).to.be.equal(2);
+        expect(rollupDataV.lastVerifiedBatch).to.be.equal(newVerifiedBatch);
+        expect(rollupDataV.lastPendingStateConsolidated).to.be.equal(1);
+        expect(rollupDataV.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
+
+        await snapshotVerify.restore();
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch + 1,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        )
+            .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
+            .withArgs(
+                newCreatedRollupID,
+                newVerifiedBatch + 1,
+                newStateRoot,
+                newLocalExitRoot,
+                trustedAggregator.address
+            );
+
+        rollupDataV = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        expect(rollupDataV.lastPendingState).to.be.equal(0);
+        expect(rollupDataV.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataV.lastBatchSequenced).to.be.equal(2);
+        expect(rollupDataV.lastVerifiedBatch).to.be.equal(newVerifiedBatch + 1);
+        expect(rollupDataV.lastPendingState).to.be.equal(0);
+        expect(rollupDataV.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupDataV.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
+
+        await snapshotVerify.restore();
+        await expect(
+            rollupManagerContract.proveNonDeterministicPendingState(
+                newCreatedRollupID,
+                0,
+                createdPendingState,
+                0,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "StoredRootMustBeDifferentThanNewRoot");
+
+        await expect(
+            rollupManagerContract.proveNonDeterministicPendingState(
+                newCreatedRollupID,
+                0,
+                createdPendingState,
+                5,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OldStateRootDoesNotExist");
+
+        await expect(
+            rollupManagerContract.proveNonDeterministicPendingState(
+                newCreatedRollupID,
+                3, // init pending state
+                2,
+                0,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "PendingStateDoesNotExist");
+
+        await expect(
+            rollupManagerContract.proveNonDeterministicPendingState(
+                newCreatedRollupID,
+                createdPendingState,
+                createdPendingState,
+                0,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "InitNumBatchDoesNotMatchPendingState");
+
+        await expect(
+            rollupManagerContract.proveNonDeterministicPendingState(
+                newCreatedRollupID,
+                createdPendingState,
+                createdPendingState,
+                newVerifiedBatch,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalPendingStateNumInvalid");
+
+        await expect(
+            rollupManagerContract.proveNonDeterministicPendingState(
+                newCreatedRollupID,
+                0,
+                createdPendingState,
+                0,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                ethers.ZeroHash,
+                zkProofFFlonk
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBatchDoesNotMatchPendingState");
+
+        await expect(
+            rollupManagerContract.proveNonDeterministicPendingState(
+                newCreatedRollupID,
+                0,
+                createdPendingState,
+                0,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                ethers.ZeroHash,
+                zkProofFFlonk
+            )
+        )
+            .to.emit(rollupManagerContract, "ProveNonDeterministicPendingState")
+            .withArgs(newStateRoot, ethers.ZeroHash);
+
+        expect(await rollupManagerContract.isEmergencyState()).to.be.equal(true);
+
+        await snapshotVerify.restore();
+
+        const randomSTateRoot = ethers.hexlify(ethers.randomBytes(32));
+        const randomlocalRoot = ethers.hexlify(ethers.randomBytes(32));
+
+        await expect(
+            rollupManagerContract.connect(trustedAggregator).overridePendingState(
+                newCreatedRollupID,
+                0,
+                createdPendingState,
+                0,
+                newVerifiedBatch,
+                randomlocalRoot, // local exit root
+                randomSTateRoot, // state root
+                zkProofFFlonk
+            )
+        )
+            .to.emit(rollupManagerContract, "OverridePendingState")
+            .withArgs(
+                newCreatedRollupID,
+                newVerifiedBatch,
+                randomSTateRoot,
+                randomlocalRoot,
+                trustedAggregator.address
+            );
+
+        expect(
+            await rollupManagerContract.getRollupBatchNumToStateRoot(newCreatedRollupID, newVerifiedBatch)
+        ).to.be.equal(randomSTateRoot);
+
+        rollupDataV = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        expect(rollupDataV.lastPendingState).to.be.equal(0);
+        expect(rollupDataV.lastLocalExitRoot).to.be.equal(randomlocalRoot);
+        expect(rollupDataV.lastBatchSequenced).to.be.equal(2);
+        expect(rollupDataV.lastVerifiedBatch).to.be.equal(newVerifiedBatch);
+        expect(rollupDataV.lastPendingState).to.be.equal(0);
+        expect(rollupDataV.lastPendingStateConsolidated).to.be.equal(0);
+
+        expect(await rollupManagerContract.isEmergencyState()).to.be.equal(false);
+        expect(await rollupManagerContract.trustedAggregatorTimeout()).to.be.equal(_HALT_AGGREGATION_TIMEOUT);
+
+        await snapshotVerify.restore();
 
         const pendingStateNum = 1;
+        // check revert reasons:
+
+        expect(
+            await rollupManagerContract.isPendingStateConsolidable(newCreatedRollupID, createdPendingState)
+        ).to.be.equal(false);
+
+        const currentPendingStateTransition = await rollupManagerContract.getRollupPendingStateTransitions(
+            newCreatedRollupID,
+            createdPendingState
+        );
+
+        expect(currentPendingStateTransition.timestamp).to.be.equal(timestampVerifyBatches);
+        expect(currentPendingStateTransition.lastVerifiedBatch).to.be.equal(newVerifiedBatch);
+        expect(currentPendingStateTransition.exitRoot).to.be.equal(newLocalExitRoot);
+        expect(currentPendingStateTransition.stateRoot).to.be.equal(newStateRoot);
+
+        await expect(
+            rollupManagerContract.consolidatePendingState(newCreatedRollupID, pendingStateNum)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "PendingStateNotConsolidable");
+
+        // try emergency
+        await rollupManagerContract.connect(emergencyCouncil).activateEmergencyState();
+        await rollupManagerContract.connect(admin).setPendingStateTimeout(0);
+
+        await expect(
+            rollupManagerContract.consolidatePendingState(newCreatedRollupID, pendingStateNum)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OnlyNotEmergencyState");
+        await snapshotVerify.restore();
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .consolidatePendingState(newCreatedRollupID, pendingStateNum + 1)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "PendingStateInvalid");
+
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
@@ -1420,6 +1874,11 @@ describe("Polygon Rollup manager upgraded", () => {
         )
             .to.emit(rollupManagerContract, "ConsolidatePendingState")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, pendingStateNum);
+
+        // Assert new root
+        expect(
+            await rollupManagerContract.getRollupBatchNumToStateRoot(newCreatedRollupID, newVerifiedBatch)
+        ).to.be.equal(newStateRoot);
 
         // Assert global exit root
         expect(await polygonZkEVMGlobalExitRoot.lastRollupExitRoot()).to.be.equal(rootRollups);
@@ -1620,6 +2079,7 @@ describe("Polygon Rollup manager upgraded", () => {
 
     it("Should test global exit root", async () => {
         // In order to create a new rollup type, create an implementation of the contract
+
         async function testRollupExitRoot(rollupsRootsArray: any) {
             const height = 32;
             const merkleTree = new MerkleTreeBridge(height);

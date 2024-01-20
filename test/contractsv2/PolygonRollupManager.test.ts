@@ -188,6 +188,7 @@ describe("Polygon Rollup Manager", () => {
 
         expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther("0.1"));
         expect(await rollupManagerContract.getForcedBatchFee()).to.be.equal(ethers.parseEther("10"));
+        expect(await rollupManagerContract.calculateRewardPerBatch()).to.be.equal(0);
 
         // Check roles
         expect(await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelock.address)).to.be.equal(true);
@@ -234,6 +235,12 @@ describe("Polygon Rollup Manager", () => {
         await expect(rollupManagerContract.connect(admin).deactivateEmergencyState())
             .to.emit(rollupManagerContract, "EmergencyStateDeactivated")
             .to.emit(polygonZkEVMBridgeContract, "EmergencyStateDeactivated");
+
+        const timestampDeactivatedEmergency = (await ethers.provider.getBlock("latest"))?.timestamp;
+
+        expect(await rollupManagerContract.lastDeactivatedEmergencyStateTimestamp()).to.be.equal(
+            timestampDeactivatedEmergency
+        );
 
         expect(await rollupManagerContract.isEmergencyState()).to.be.equal(false);
         expect(await polygonZkEVMBridgeContract.isEmergencyState()).to.be.equal(false);
@@ -2720,6 +2727,8 @@ describe("Polygon Rollup Manager", () => {
 
     it("Should test global exit root", async () => {
         // In order to create a new rollup type, create an implementation of the contract
+        expect(await rollupManagerContract.getRollupExitRoot()).to.be.equal(ethers.ZeroHash);
+
         async function testRollupExitRoot(rollupsRootsArray: any) {
             const height = 32;
             const merkleTree = new MerkleTreeBridge(height);
