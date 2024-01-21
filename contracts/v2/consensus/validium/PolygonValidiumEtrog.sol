@@ -260,11 +260,19 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
     }
 
     /**
-     * @notice Allow the admin to turn on the force batches
-     * This action is not reversible
+     * @notice Allow the admin to switch the sequence with data availability
+     * @param newIsSequenceWithDataAvailabilityAllowed Boolean to switch
      */
-    function switchSequenceWithDataAvailability() external onlyAdmin {
-        isSequenceWithDataAvailabilityAllowed = !isSequenceWithDataAvailabilityAllowed;
+    function switchSequenceWithDataAvailability(
+        bool newIsSequenceWithDataAvailabilityAllowed
+    ) external onlyAdmin {
+        if (
+            newIsSequenceWithDataAvailabilityAllowed ==
+            isSequenceWithDataAvailabilityAllowed
+        ) {
+            revert SwitchToSameValue();
+        }
+        isSequenceWithDataAvailabilityAllowed = newIsSequenceWithDataAvailabilityAllowed;
         emit SwitchSequenceWithDataAvailability();
     }
 }
