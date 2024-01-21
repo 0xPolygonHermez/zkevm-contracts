@@ -255,7 +255,9 @@ async function main() {
 
         for (let i = 0; i < attemptsDeployProxy; i++) {
             try {
-                polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, []);
+                polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, [], {
+                    unsafeAllow: ["constructor"],
+                });
                 break;
             } catch (error: any) {
                 console.log(`attempt ${i}`);
