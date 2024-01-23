@@ -35,9 +35,9 @@ async function main() {
 
     const currentBridgeAddress = deployOutputParameters.polygonZkEVMBridgeAddress;
     const currentGlobalExitRootAddress = deployOutputParameters.polygonZkEVMGlobalExitRootAddress;
-    const currentPolygonZkEVMAddress = deployOutputParameters.polygonZkEVMAddress;
-    const currentTimelockAddress = deployOutputParameters.timelockContractAddress;
-    console.log({currentBridgeAddress});
+    const currentPolygonZkEVMAddress = deployOutputParameters.;
+    const currentTimelockAddress = deployOutputParameters.timelockContrapolygonZkEVMAddressctAddress;
+
     // Load provider
     let currentProvider = ethers.provider;
     if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
