@@ -23,13 +23,13 @@ async function main() {
         trustedAggregatorTimeout,
         pendingStateTimeout,
         zkEVMOwner,
-        trustedSequencer,
         chainID,
     } = deployParameters;
+
+    
     const emergencyCouncilAddress = zkEVMOwner;
 
-    //polTokenAddress TODO
-    const {realVerifier, newForkID, timelockDelay} = upgradeParameters;
+    const {realVerifier, newForkID, timelockDelay, polTokenAddress} = upgradeParameters;
 
     const salt = upgradeParameters.timelockSalt || ethers.ZeroHash;
 
@@ -97,41 +97,6 @@ async function main() {
     // if ((await deployer.provider?.getCode(zkEVMDeployerContract.target)) === "0x") {
     //     throw new Error("zkEVM deployer contract is not deployed");
     // }
-
-    // TODO move to another script deploy Pol Token
-    /*
-     *Deployment pol
-     */
-    const polTokenName = "Pol Token";
-    const polTokenSymbol = "POL";
-    const polTokenInitialBalance = ethers.parseEther("20000000");
-
-    const polTokenFactory = await ethers.getContractFactory("ERC20PermitMock", deployer);
-    const polTokenContract = await polTokenFactory.deploy(
-        polTokenName,
-        polTokenSymbol,
-        deployer.address,
-        polTokenInitialBalance
-    );
-    await polTokenContract.waitForDeployment();
-
-    console.log("#######################\n");
-    console.log("pol deployed to:", polTokenContract.target);
-    console.log("you can verify the new impl address with:");
-    console.log(
-        `npx hardhat verify --constructor-args upgrade/arguments.js ${polTokenContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
-    );
-    console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
-        polTokenName,
-        polTokenSymbol,
-        deployer.address,
-        polTokenInitialBalance,
-    ]);
-
-    const tokensBalance = ethers.parseEther("100000");
-    await (await polTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
-
-    const polTokenAddress = polTokenContract.target;
 
     // deploy new verifier
     let verifierContract;
@@ -211,6 +176,7 @@ async function main() {
     // Update current system to rollup manager
 
     // Deploy new polygonZkEVM
+    // TODO make admin etrog!!!!, or swap it afterwards!!
     const PolygonZkEVMV2ExistentFactory = await ethers.getContractFactory("PolygonZkEVMExistentEtrog");
     const newPolygonZkEVMContract = (await upgrades.deployProxy(PolygonZkEVMV2ExistentFactory, [], {
         initializer: false,
@@ -306,9 +272,12 @@ async function main() {
         scheduleData,
         executeData,
         verifierAddress: verifierContract.target,
+        newPolygonZKEVM: newPolygonZkEVMContract.target
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
+
+// TODO script verify contracts
 
 main().catch((e) => {
     console.error(e);
