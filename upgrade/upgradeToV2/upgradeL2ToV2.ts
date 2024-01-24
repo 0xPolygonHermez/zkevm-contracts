@@ -74,16 +74,6 @@ async function main() {
 
     const proxyAdmin = await upgrades.admin.getInstance();
 
-    // // coudl be done qiwth deterministic deployment TODO
-    // // Load zkEVM deployer
-    // const PolgonZKEVMDeployerFactory = await ethers.getContractFactory("PolygonZkEVMDeployer", deployer);
-    // const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress) as PolygonZkEVMDeployer;
-
-    // // check deployer is the owner of the deployer
-    // if ((await deployer.provider?.getCode(zkEVMDeployerContract.target)) === "0x") {
-    //     throw new Error("zkEVM deployer contract is not deployed");
-    // }
-
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
 

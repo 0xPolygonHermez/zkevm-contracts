@@ -88,15 +88,6 @@ async function main() {
 
     const proxyAdmin = await upgrades.admin.getInstance();
 
-    // // coudl be done qiwth deterministic deployment TODO
-    // // Load zkEVM deployer
-    // const PolgonZKEVMDeployerFactory = await ethers.getContractFactory("PolygonZkEVMDeployer", deployer);
-    // const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress) as PolygonZkEVMDeployer;
-
-    // // check deployer is the owner of the deployer
-    // if ((await deployer.provider?.getCode(zkEVMDeployerContract.target)) === "0x") {
-    //     throw new Error("zkEVM deployer contract is not deployed");
-    // }
 
     // deploy new verifier
     let verifierContract;
@@ -175,32 +166,42 @@ async function main() {
 
     // Update current system to rollup manager
 
-    // Deploy new polygonZkEVM
-    // TODO make admin etrog!!!!, or swap it afterwards!!
+    // deploy polygon
     const PolygonZkEVMV2ExistentFactory = await ethers.getContractFactory("PolygonZkEVMExistentEtrog");
-    const newPolygonZkEVMContract = (await upgrades.deployProxy(PolygonZkEVMV2ExistentFactory, [], {
-        initializer: false,
-        constructorArgs: [
-            currentGlobalExitRootAddress,
-            polTokenAddress,
-            currentBridgeAddress,
-            currentPolygonZkEVMAddress,
-        ],
-        unsafeAllow: ["constructor", "state-variable-immutable"],
-    })) as any;
+    const polygonZkEVMEtrogImpl = await PolygonZkEVMV2ExistentFactory.deploy(
+        currentGlobalExitRootAddress,
+        polTokenAddress,
+        currentBridgeAddress,
+        currentPolygonZkEVMAddress,
+    );
+    await polygonZkEVMEtrogImpl.waitForDeployment();
 
     console.log("#######################\n");
-    console.log(`new PolygonZkEVM: ${newPolygonZkEVMContract.target}`);
+    console.log(`new PolygonZkEVM impl: ${polygonZkEVMEtrogImpl.target}`);
 
     console.log("you can verify the new impl address with:");
     console.log(
-        `npx hardhat verify --constructor-args upgrade/arguments.js ${newPolygonZkEVMContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
+        `npx hardhat verify --constructor-args upgrade/arguments.js ${polygonZkEVMEtrogImpl.target} --network ${process.env.HARDHAT_NETWORK}\n`
     );
     console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
         currentGlobalExitRootAddress,
         polTokenAddress,
         currentBridgeAddress,
         currentPolygonZkEVMAddress,
+    ]);
+
+    const PolygonTransparentProxy = await ethers.getContractFactory("PolygonTransparentProxy");
+    const newPolygonZkEVMContract = await PolygonTransparentProxy.deploy(polygonZkEVMEtrogImpl, currentPolygonZkEVMAddress, "0x");
+    await newPolygonZkEVMContract.waitForDeployment();
+    console.log("#######################\n");
+    console.log(`new PolygonZkEVM Proxy: ${newPolygonZkEVMContract.target}`);
+
+    console.log("you can verify the new impl address with:");
+    console.log(
+        `npx hardhat verify --constructor-args upgrade/arguments.js ${newPolygonZkEVMContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
+    );
+    console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
+        polygonZkEVMEtrogImpl, currentPolygonZkEVMAddress, "0x"
     ]);
 
     // Upgrade to rollup manager previous polygonZKEVM
@@ -299,3 +300,4 @@ function genOperation(target: any, value: any, data: any, predecessor: any, salt
         salt,
     };
 }
+
