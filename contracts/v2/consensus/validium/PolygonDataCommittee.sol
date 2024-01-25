@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../../interfaces/ICDKDataCommitteeErrors.sol";
+import "../../interfaces/IPolygonDataCommitteeErrors.sol";
+import "../../interfaces/IDataAvailabilityProtocol.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
+contract PolygonDataCommittee is
+    IDataAvailabilityProtocol,
+    IPolygonDataCommitteeErrors,
+    OwnableUpgradeable
+{
     /**
      * @notice Struct which will store all the data of the committee members
      * @param url string that represents the URL of the member to be used to access the data
@@ -15,6 +20,9 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
         string url;
         address addr;
     }
+
+    // Name of the data availability protocol
+    string internal constant _PROTOCOL_NAME = "DataAvailabilityCommittee";
 
     // Size of a signature in bytes
     uint256 internal constant _SIGNATURE_SIZE = 65;
@@ -36,6 +44,13 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
      * @param committeeHash hash of the addresses of the committee members
      */
     event CommitteeUpdated(bytes32 committeeHash);
+
+    /**
+     * Disable initalizers on the implementation following the best practices
+     */
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize() external initializer {
         // Initialize OZ contracts
@@ -96,10 +111,6 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
         emit CommitteeUpdated(committeeHash);
     }
 
-    function getAmountOfMembers() public view returns (uint256) {
-        return members.length;
-    }
-
     /**
      * @notice Verifies that the given signedHash has been signed by requiredAmountOfSignatures committee members
      * @param signedHash Hash that must have been signed by requiredAmountOfSignatures of committee members
@@ -107,12 +118,15 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
      * [signature 0, ..., signature requiredAmountOfSignatures -1, address 0, ... address N]
      * note that each ECDSA signatures are used, therefore each one must be 65 bytes
      */
-    function verifySignatures(
+    function verifyMessage(
         bytes32 signedHash,
         bytes calldata signaturesAndAddrs
     ) external view {
+        // Save storage variable on cache since will be used multiple times
+        uint256 cacheRequiredAmountOfSignatures = requiredAmountOfSignatures;
+
         // pre-check: byte array size
-        uint256 splitByte = _SIGNATURE_SIZE * requiredAmountOfSignatures;
+        uint256 splitByte = _SIGNATURE_SIZE * cacheRequiredAmountOfSignatures;
         if (
             signaturesAndAddrs.length < splitByte ||
             (signaturesAndAddrs.length - splitByte) % _ADDR_SIZE != 0
@@ -128,7 +142,7 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
         // recover addresses from signatures and check that are part of the committee
         uint256 lastAddrIndexUsed;
         uint256 addrsLen = (signaturesAndAddrs.length - splitByte) / _ADDR_SIZE;
-        for (uint256 i = 0; i < requiredAmountOfSignatures; i++) {
+        for (uint256 i = 0; i < cacheRequiredAmountOfSignatures; i++) {
             uint256 currentSignatureStartingByte = i * _SIGNATURE_SIZE;
 
             // Recover currnet signer from the signature
@@ -158,8 +172,22 @@ contract CDKDataCommittee is ICDKDataCommitteeErrors, OwnableUpgradeable {
             // If an address is not on the comittee, or not enough required signatures are provided
             // This verification reverts
             if (!currentSignerIsPartOfCommittee) {
-                revert CommitteeAddressDoesntExist();
+                revert CommitteeAddressDoesNotExist();
             }
         }
+    }
+
+    /**
+     * @notice Return the amount of committee members
+     */
+    function getAmountOfMembers() public view returns (uint256) {
+        return members.length;
+    }
+
+    /**
+     * @notice Return the protocol name
+     */
+    function getProcotolName() external pure override returns (string memory) {
+        return _PROTOCOL_NAME;
     }
 }

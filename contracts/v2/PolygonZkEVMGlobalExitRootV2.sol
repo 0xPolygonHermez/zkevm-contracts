@@ -44,15 +44,17 @@ contract PolygonZkEVMGlobalExitRootV2 is
      */
     function updateExitRoot(bytes32 newRoot) external {
         // Store storage variables into temporal variables since will be used multiple times
-        bytes32 cacheLastRollupExitRoot = lastRollupExitRoot;
-        bytes32 cacheLastMainnetExitRoot = lastMainnetExitRoot;
+        bytes32 cacheLastRollupExitRoot;
+        bytes32 cacheLastMainnetExitRoot;
 
         if (msg.sender == bridgeAddress) {
             lastMainnetExitRoot = newRoot;
             cacheLastMainnetExitRoot = newRoot;
+            cacheLastRollupExitRoot = lastRollupExitRoot;
         } else if (msg.sender == rollupManager) {
             lastRollupExitRoot = newRoot;
             cacheLastRollupExitRoot = newRoot;
+            cacheLastMainnetExitRoot = lastMainnetExitRoot;
         } else {
             revert OnlyAllowedContracts();
         }

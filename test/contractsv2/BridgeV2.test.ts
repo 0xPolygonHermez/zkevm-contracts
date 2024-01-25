@@ -30,6 +30,8 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
 }
 
 describe("PolygonZkEVMBridge Contract", () => {
+    upgrades.silenceWarnings();
+
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
@@ -62,6 +64,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
         polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
+            unsafeAllow: ["constructor"],
         })) as unknown as PolygonZkEVMBridgeV2;
 
         // deploy global exit root manager
@@ -112,6 +115,100 @@ describe("PolygonZkEVMBridge Contract", () => {
         await expect(
             polygonZkEVMBridgeContract.bridgeMessageWETH(networkIDMainnet, deployer.address, 0, true, "0x")
         ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "NativeTokenIsEther");
+    });
+
+    it("should PolygonZkEVM bridge asset and verify merkle proof", async () => {
+        const depositCount = await polygonZkEVMBridgeContract.depositCount();
+        const originNetwork = networkIDMainnet;
+        const tokenAddress = polTokenContract.target;
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDRollup;
+        const destinationAddress = deployer.address;
+
+        const metadata = metadataToken;
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
+        const balanceDeployer = await polTokenContract.balanceOf(deployer.address);
+        const balanceBridge = await polTokenContract.balanceOf(polygonZkEVMBridgeContract.target);
+
+        const rollupExitRoot = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
+
+        // create a new deposit
+        await expect(polTokenContract.approve(polygonZkEVMBridgeContract.target, amount))
+            .to.emit(polTokenContract, "Approval")
+            .withArgs(deployer.address, polygonZkEVMBridgeContract.target, amount);
+
+        // pre compute root merkle tree in Js
+        const height = 32;
+        const merkleTree = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+        merkleTree.add(leafValue);
+        const rootJSMainnet = merkleTree.getRoot();
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                "0x",
+                {value: 1}
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "MsgValueNotZero");
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeAsset(
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                tokenAddress,
+                true,
+                "0x"
+            )
+        )
+            .to.emit(polygonZkEVMBridgeContract, "BridgeEvent")
+            .withArgs(
+                LEAF_TYPE_ASSET,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                depositCount
+            )
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .withArgs(rootJSMainnet, rollupExitRoot);
+
+        expect(await polTokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
+        expect(await polTokenContract.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(balanceBridge + amount);
+        expect(await polygonZkEVMBridgeContract.lastUpdatedDepositCount()).to.be.equal(1);
+
+        // check merkle root with SC
+        const rootSCMainnet = await polygonZkEVMBridgeContract.getRoot();
+        expect(rootSCMainnet).to.be.equal(rootJSMainnet);
+
+        // check merkle proof
+        const proof = merkleTree.getProofTreeByIndex(0);
+        const index = 0;
+
+        // verify merkle proof
+        expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
+        expect(await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(
+            true
+        );
+
+        const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
+        expect(computedGlobalExitRoot).to.be.equal(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot());
     });
 
     it("should PolygonZkEVM bridge asset and verify merkle proof", async () => {
@@ -999,7 +1096,120 @@ describe("PolygonZkEVMBridge Contract", () => {
         const computedGlobalExitRoot2 = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         expect(computedGlobalExitRoot2).to.be.equal(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot());
     });
+    it("should claim tokens from Rollup to Mainnet, faling deploy wrapped", async () => {
+        const originNetwork = networkIDRollup;
+        const tokenAddress = polTokenContract.target;
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDMainnet;
+        const destinationAddress = deployer.address;
 
+        const metadata = ethers.hexlify(ethers.randomBytes(40));
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
+        const mainnetExitRoot = await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot();
+
+        // compute root merkle tree in Js
+        const height = 32;
+        const merkleTreeLocal = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+        merkleTreeLocal.add(leafValue);
+        merkleTreeLocal.add(leafValue);
+
+        const rootLocalRollup = merkleTreeLocal.getRoot();
+
+        // Try claim with 10 rollup leafs
+        const merkleTreeRollup = new MerkleTreeBridge(height);
+        for (let i = 0; i < 10; i++) {
+            merkleTreeRollup.add(rootLocalRollup);
+        }
+
+        const rootRollup = merkleTreeRollup.getRoot();
+
+        // check only rollup account with update rollup exit root
+        await expect(polygonZkEVMGlobalExitRoot.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
+            polygonZkEVMGlobalExitRoot,
+            "OnlyAllowedContracts"
+        );
+
+        // add rollup Merkle root
+        await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rootRollup))
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .withArgs(mainnetExitRoot, rootRollup);
+
+        // check roots
+        const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
+        expect(rollupExitRootSC).to.be.equal(rootRollup);
+
+        const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
+        expect(computedGlobalExitRoot).to.be.equal(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot());
+
+        // check merkle proof
+
+        // Merkle proof local
+        const indexLocal = 0;
+        const proofLocal = merkleTreeLocal.getProofTreeByIndex(indexLocal);
+
+        // Merkle proof local
+        const indexRollup = 5;
+        const proofRollup = merkleTreeRollup.getProofTreeByIndex(indexRollup);
+
+        // verify merkle proof
+        expect(verifyMerkleProof(leafValue, proofLocal, indexLocal, rootLocalRollup)).to.be.equal(true);
+        expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
+        expect(
+            await polygonZkEVMBridgeContract.verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)
+        ).to.be.equal(true);
+        const globalIndex = computeGlobalIndex(indexLocal, indexRollup, false);
+
+        expect(false).to.be.equal(await polygonZkEVMBridgeContract.isClaimed(indexLocal, indexRollup + 1));
+
+        // claim
+        const tokenWrappedFactory = await ethers.getContractFactory("TokenWrapped");
+        // create2 parameters
+        const salt = ethers.solidityPackedKeccak256(["uint32", "address"], [networkIDRollup, tokenAddress]);
+        const minimalBytecodeProxy = await polygonZkEVMBridgeContract.BASE_INIT_BYTECODE_WRAPPED_TOKEN();
+        const hashInitCode = ethers.solidityPackedKeccak256(["bytes", "bytes"], [minimalBytecodeProxy, metadataToken]);
+        const precalculateWrappedErc20 = await ethers.getCreate2Address(
+            polygonZkEVMBridgeContract.target as string,
+            salt,
+            hashInitCode
+        );
+
+        // Use precalculatedWrapperAddress and check if matches
+        expect(
+            await polygonZkEVMBridgeContract.precalculatedWrapperAddress(
+                networkIDRollup,
+                tokenAddress,
+                tokenName,
+                tokenSymbol,
+                decimals
+            )
+        ).to.be.equal(precalculateWrappedErc20);
+
+        await expect(
+            polygonZkEVMBridgeContract.claimAsset(
+                proofLocal,
+                proofRollup,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "FailedTokenWrappedDeployment");
+    });
     it("should PolygonZkEVMBridge and sync the current root with events", async () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;

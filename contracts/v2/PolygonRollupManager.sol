@@ -3,7 +3,7 @@
 pragma solidity 0.8.20;
 
 import "./interfaces/IPolygonRollupManager.sol";
-import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "../interfaces/IPolygonZkEVMBridge.sol";
 import "./interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IVerifierRollup.sol";
@@ -12,7 +12,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./lib/PolygonTransparentProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "./lib/LegacyZKEVMStateVariables.sol";
-import "./consensus/zkEVM/PolygonZkEVMV2Existent.sol";
+import "./consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
+import "./lib/PolygonConstantsBase.sol";
 
 // review Possible renaming to PolygonL2Manager
 /**
@@ -22,6 +23,7 @@ contract PolygonRollupManager is
     PolygonAccessControlUpgradeable,
     EmergencyManager,
     LegacyZKEVMStateVariables,
+    PolygonConstantsBase,
     IPolygonRollupManager
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -84,13 +86,6 @@ contract PolygonRollupManager is
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
-
-    // If the system a does not verify a batch inside this time window, the contract enters in emergency mode
-    uint64 internal constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
-
-    // Maximum batches that can be verified in one call. It depends on our current metrics
-    // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
-    uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
 
     // Max batch multiplier per verification
     uint256 internal constant _MAX_BATCH_MULTIPLIER = 12;
@@ -161,7 +156,7 @@ contract PolygonRollupManager is
         keccak256("EMERGENCY_COUNCIL_ADMIN");
 
     // Global Exit Root address
-    IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
+    IPolygonZkEVMGlobalExitRootV2 public immutable globalExitRootManager;
 
     // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridge public immutable bridgeAddress;
@@ -214,6 +209,9 @@ contract PolygonRollupManager is
     // Current POL fee per batch sequenced
     // note This variable is internal, since the view function getBatchFee is likely to be ugpraded
     uint256 internal _batchFee;
+
+    // Timestamp when the last emergency state was deactivated
+    uint64 public lastDeactivatedEmergencyStateTimestamp;
 
     /**
      * @dev Emitted when a new rollup type is added
@@ -358,13 +356,16 @@ contract PolygonRollupManager is
      * @param _bridgeAddress Bridge address
      */
     constructor(
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridge _bridgeAddress
     ) {
         globalExitRootManager = _globalExitRootManager;
         pol = _pol;
         bridgeAddress = _bridgeAddress;
+
+        // Disable initalizers on the implementation following the best practices
+        _disableInitializers();
     }
 
     /**
@@ -386,11 +387,11 @@ contract PolygonRollupManager is
         address admin,
         address timelock,
         address emergencyCouncil,
-        PolygonZkEVMV2Existent polygonZkEVM,
+        PolygonZkEVMExistentEtrog polygonZkEVM,
         IVerifierRollup zkEVMVerifier,
         uint64 zkEVMForkID,
         uint64 zkEVMChainID
-    ) external reinitializer(2) {
+    ) external virtual reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
@@ -473,8 +474,7 @@ contract PolygonRollupManager is
             _legacyTrustedSequencer,
             _legacyTrustedSequencerURL,
             _legacyNetworkName,
-            _legacySequencedBatches[zkEVMLastBatchSequenced].accInputHash,
-            _legacyLastTimestamp
+            _legacySequencedBatches[zkEVMLastBatchSequenced].accInputHash
         );
     }
 
@@ -646,6 +646,11 @@ contract PolygonRollupManager is
         // Check chainID nullifier
         if (chainIDToRollupID[chainID] != 0) {
             revert ChainIDAlreadyExist();
+        }
+
+        // Check if rollup address was already added
+        if (rollupAddressToID[address(rollupAddress)] != 0) {
+            revert RollupAddressAlreadyExist();
         }
 
         RollupData storage rollup = _addExistingRollup(
@@ -1256,7 +1261,7 @@ contract PolygonRollupManager is
         );
 
         emit ProveNonDeterministicPendingState(
-            rollup.batchNumToStateRoot[finalNewBatch],
+            rollup.pendingStateTransitions[finalPendingStateNum].stateRoot,
             newStateRoot
         );
 
@@ -1471,13 +1476,16 @@ contract PolygonRollupManager is
 
     /**
      * @notice Function to activate emergency state, which also enables the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
-     * If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period
+     * If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period and an emergency state was not happened in the same period
      */
     function activateEmergencyState() external {
         if (!hasRole(_EMERGENCY_COUNCIL_ROLE, msg.sender)) {
             if (
                 lastAggregationTimestamp == 0 ||
                 lastAggregationTimestamp + _HALT_AGGREGATION_TIMEOUT >
+                block.timestamp ||
+                lastDeactivatedEmergencyStateTimestamp +
+                    _HALT_AGGREGATION_TIMEOUT >
                 block.timestamp
             ) {
                 revert HaltTimeoutNotExpired();
@@ -1493,6 +1501,9 @@ contract PolygonRollupManager is
         external
         onlyRole(_STOP_EMERGENCY_ROLE)
     {
+        // Set last deactivated emergency state
+        lastDeactivatedEmergencyStateTimestamp = uint64(block.timestamp);
+
         // Deactivate emergency state on PolygonZkEVMBridge
         bridgeAddress.deactivateEmergencyState();
 

@@ -23,8 +23,8 @@ import {
     PolygonRollupManager,
     PolygonZkEVMV2,
     PolygonZkEVMBridgeV2,
-    PolygonDataComittee,
-    PolygonDataComitteeEtrog,
+    PolygonValidium,
+    PolygonValidiumEtrog,
 } from "../../typechain-types";
 
 async function main() {
@@ -64,17 +64,24 @@ async function main() {
         adminZkEVM,
         forkID,
         consensusContract,
+        dataAvailabilityProtocol,
     } = createRollupParameters;
 
-    const supportedConensus = [
-        "PolygonZkEVMEtrog",
-        "PolygonZkEVMV2",
-        "PolygonDataComittee",
-        "PolygonDataComitteeEtrog",
-    ];
+    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
 
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
+    }
+
+    const supporteDataAvailabilityProtocols = ["PolygonDataCommittee"];
+
+    if (
+        consensusContract.includes("PolygonValidium") &&
+        !supporteDataAvailabilityProtocols.includes(dataAvailabilityProtocol)
+    ) {
+        throw new Error(
+            `Data availability protocol not supported, supported data availability protocols are: ${supporteDataAvailabilityProtocols}`
+        );
     }
 
     // Load provider
@@ -241,37 +248,39 @@ async function main() {
     console.log("#######################\n");
     console.log("Created new Rollup:", newZKEVMAddress);
 
-    if (consensusContract.includes("DataComittee")) {
+    if (consensusContract.includes("PolygonValidium") && dataAvailabilityProtocol === "PolygonDataCommittee") {
         // deploy data commitee
-        const PolygonDataComittee = (await ethers.getContractFactory("CDKDataCommittee", deployer)) as any;
-        let polygonCDKComittee;
+        const PolygonDataCommitteeContract = (await ethers.getContractFactory("PolygonDataCommittee", deployer)) as any;
+        let polygonDataCommittee;
 
         for (let i = 0; i < attemptsDeployProxy; i++) {
             try {
-                polygonCDKComittee = await upgrades.deployProxy(PolygonDataComittee, []);
+                polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, [], {
+                    unsafeAllow: ["constructor"],
+                });
                 break;
             } catch (error: any) {
                 console.log(`attempt ${i}`);
-                console.log("upgrades.deployProxy of polygonCDKComittee ", error.message);
+                console.log("upgrades.deployProxy of polygonDataCommittee ", error.message);
             }
             // reach limits of attempts
             if (i + 1 === attemptsDeployProxy) {
-                throw new Error("polygonCDKComittee contract has not been deployed");
+                throw new Error("polygonDataCommittee contract has not been deployed");
             }
         }
         // Load data commitee
-        const PolygonDataComiteeContract = (await PolygonconsensusFactory.attach(
-            newZKEVMAddress
-        )) as PolygonDataComittee;
+        const PolygonValidiumContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonValidium;
         // add data commitee to the consensus contract
-        if ((await PolygonDataComiteeContract.admin()) == deployer.address) {
-            await (await PolygonDataComiteeContract.setDataCommittee(polygonCDKComittee?.target as any)).wait();
+        if ((await PolygonValidiumContract.admin()) == deployer.address) {
+            await (
+                await PolygonValidiumContract.setDataAvailabilityProtocol(polygonDataCommittee?.target as any)
+            ).wait();
 
             // Setup data commitee to 0
-            await (await polygonCDKComittee?.setupCommittee(0, [], "0x")).wait();
+            await (await polygonDataCommittee?.setupCommittee(0, [], "0x")).wait();
         }
 
-        outputJson.polygonCDKComittee = polygonCDKComittee?.target;
+        outputJson.polygonDataCommittee = polygonDataCommittee?.target;
     }
 
     // Assert admin address

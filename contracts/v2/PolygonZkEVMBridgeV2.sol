@@ -93,6 +93,48 @@ contract PolygonZkEVMBridgeV2 is
     TokenWrapped public WETHToken;
 
     /**
+     * @dev Emitted when bridge assets or messages to another network
+     */
+    event BridgeEvent(
+        uint8 leafType,
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes metadata,
+        uint32 depositCount
+    );
+
+    /**
+     * @dev Emitted when a claim is done from another network
+     */
+    event ClaimEvent(
+        uint256 globalIndex,
+        uint32 originNetwork,
+        address originAddress,
+        address destinationAddress,
+        uint256 amount
+    );
+
+    /**
+     * @dev Emitted when a new wrapped token is created
+     */
+    event NewWrappedToken(
+        uint32 originNetwork,
+        address originTokenAddress,
+        address wrappedTokenAddress,
+        bytes metadata
+    );
+
+    /**
+     * Disable initalizers on the implementation following the best practices
+     */
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
      * @param _networkID networkID
      * @param _gasTokenAddress gas token address
      * @param _gasTokenNetwork gas token network
@@ -144,41 +186,6 @@ contract PolygonZkEVMBridgeV2 is
         }
         _;
     }
-
-    /**
-     * @dev Emitted when bridge assets or messages to another network
-     */
-    event BridgeEvent(
-        uint8 leafType,
-        uint32 originNetwork,
-        address originAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes metadata,
-        uint32 depositCount
-    );
-
-    /**
-     * @dev Emitted when a claim is done from another network
-     */
-    event ClaimEvent(
-        uint256 globalIndex,
-        uint32 originNetwork,
-        address originAddress,
-        address destinationAddress,
-        uint256 amount
-    );
-
-    /**
-     * @dev Emitted when a new wrapped token is created
-     */
-    event NewWrappedToken(
-        uint32 originNetwork,
-        address originTokenAddress,
-        address wrappedTokenAddress,
-        bytes metadata
-    );
 
     /**
      * @notice Deposit add a new leaf to the merkle tree
@@ -521,14 +528,6 @@ contract PolygonZkEVMBridgeV2 is
 
                     if (wrappedToken == address(0)) {
                         // Get ERC20 metadata
-                        {
-                            // Decode the metadata just as a sanity check of correct encoding
-                            (
-                                string memory name,
-                                string memory symbol,
-                                uint8 decimals
-                            ) = abi.decode(metadata, (string, string, uint8));
-                        }
 
                         // Create a new wrapped erc20 using create2
                         TokenWrapped newWrappedToken = _deployWrappedToken(
