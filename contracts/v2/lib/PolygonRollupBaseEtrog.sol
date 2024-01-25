@@ -5,7 +5,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../../interfaces/IPolygonZkEVMErrors.sol";
-import "../interfaces/IPolygonZkEVMV2Errors.sol";
+import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
 import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
@@ -25,7 +25,7 @@ import "./PolygonConstantsBase.sol";
 contract PolygonRollupBaseEtrog is
     Initializable,
     PolygonConstantsBase,
-    IPolygonZkEVMV2Errors,
+    IPolygonZkEVMVEtrogErrors,
     IPolygonRollupBase
 {
     // Interface cehcks renaming
@@ -172,11 +172,6 @@ contract PolygonRollupBaseEtrog is
     // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minForcedTimestamp)
     mapping(uint64 => bytes32) public forcedBatches;
 
-    // Last sequenced timestamp gap, since this contract could be an upgrade from a non etrog contract
-    // review if not incaberry contracts are deployed, this might be erased
-    /// @custom:oz-renamed-from lastTimestamp
-    uint64 public gapLastTimestamp;
-
     // Last forced batch
     uint64 public lastForceBatch;
 
@@ -186,8 +181,9 @@ contract PolygonRollupBaseEtrog is
     // Force batch timeout
     uint64 public forceBatchTimeout;
 
-    // Indicates if forced batches are allowed
-    bool public isForcedBatchAllowed;
+    // Indicates what address is able to do forced batches
+    // If the address is set to 0, forced batches are open to everyone
+    address public forceBatchAddress;
 
     // Token address that will be used to pay gas fees in this rollup. This variable it's just for read purposes
     address public gasTokenAddress;
@@ -249,9 +245,9 @@ contract PolygonRollupBaseEtrog is
     event SetForceBatchTimeout(uint64 newforceBatchTimeout);
 
     /**
-     * @dev Emitted when activate force batches
+     * @dev Emitted when the admin update the force batch address
      */
-    event ActivateForceBatches();
+    event SetForceBatchAddress(address newForceBatchAddress);
 
     /**
      * @dev Emitted when the admin starts the two-step transfer role setting a new pending admin
@@ -306,11 +302,7 @@ contract PolygonRollupBaseEtrog is
             // Ask for token metadata, the same way is enconded in the bridge
             // Note that this function will revert if the token is not in this network
             // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
-            gasTokenMetadata = abi.encode(
-                _safeName(_gasTokenAddress),
-                _safeSymbol(_gasTokenAddress),
-                _safeDecimals(_gasTokenAddress)
-            );
+            gasTokenMetadata = bridgeAddress.getTokenMetadata(_gasTokenAddress);
 
             // Check gas token address on the bridge
             (
@@ -370,6 +362,8 @@ contract PolygonRollupBaseEtrog is
         trustedSequencerURL = sequencerURL;
         networkName = _networkName;
 
+        forceBatchAddress = _admin;
+
         // Constant deployment variables
         forceBatchTimeout = 5 days;
 
@@ -390,8 +384,12 @@ contract PolygonRollupBaseEtrog is
         _;
     }
 
-    modifier isForceBatchActive() {
-        if (!isForcedBatchAllowed) {
+    modifier isSenderAllowedToForceBatches() {
+        address cacheForceBatchAddress = forceBatchAddress;
+        if (
+            cacheForceBatchAddress != address(0) &&
+            cacheForceBatchAddress != msg.sender
+        ) {
             revert ForceBatchNotAllowed();
         }
         _;
@@ -411,7 +409,8 @@ contract PolygonRollupBaseEtrog is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param l2Coinbase Address that will receive the fees from L2
+     * @param l2Coinbase Address that will receive the fees from L2+
+     * note Pol is not a reentrant token
      */
     function sequenceBatches(
         BatchData[] calldata batches,
@@ -580,7 +579,7 @@ contract PolygonRollupBaseEtrog is
     function forceBatch(
         bytes calldata transactions,
         uint256 polAmount
-    ) public virtual isForceBatchActive {
+    ) public virtual isSenderAllowedToForceBatches {
         // Check if rollup manager is on emergency state
         if (rollupManager.isEmergencyState()) {
             revert ForceBatchesNotAllowedOnEmergencyState();
@@ -637,7 +636,7 @@ contract PolygonRollupBaseEtrog is
      */
     function sequenceForceBatches(
         BatchData[] calldata batches
-    ) external virtual isForceBatchActive {
+    ) external virtual isSenderAllowedToForceBatches {
         // Check if rollup manager is on emergency state
         if (
             rollupManager.lastDeactivatedEmergencyStateTimestamp() +
@@ -768,6 +767,22 @@ contract PolygonRollupBaseEtrog is
     }
 
     /**
+     * @notice Allow the admin to change the force batch address, that will be allowed to force batches
+     * If address 0 is set, then everyone is able to force batches, this action is irreversible
+     * @param newForceBatchAddress New force batch address
+     */
+    function setForceBatchAddress(
+        address newForceBatchAddress
+    ) external onlyAdmin {
+        if (forceBatchAddress == address(0)) {
+            revert ForceBatchesDecentralized();
+        }
+        forceBatchAddress = newForceBatchAddress;
+
+        emit SetForceBatchAddress(newForceBatchAddress);
+    }
+
+    /**
      * @notice Allow the admin to set the forcedBatchTimeout
      * The new value can only be lower, except if emergency state is active
      * @param newforceBatchTimeout New force batch timeout
@@ -787,18 +802,6 @@ contract PolygonRollupBaseEtrog is
 
         forceBatchTimeout = newforceBatchTimeout;
         emit SetForceBatchTimeout(newforceBatchTimeout);
-    }
-
-    /**
-     * @notice Allow the admin to turn on the force batches
-     * This action is not reversible
-     */
-    function activateForceBatches() external onlyAdmin {
-        if (isForcedBatchAllowed) {
-            revert ForceBatchesAlreadyActive();
-        }
-        isForcedBatchAllowed = true;
-        emit ActivateForceBatches();
     }
 
     /**
@@ -920,73 +923,5 @@ contract PolygonRollupBaseEtrog is
         );
 
         return transaction;
-    }
-
-    // Helpers to safely get the metadata from a token, inspired by https://github.com/traderjoe-xyz/joe-core/blob/main/contracts/MasterChefJoeV3.sol#L55-L95
-
-    /**
-     * @notice Provides a safe ERC20.symbol version which returns 'NO_SYMBOL' as fallback string
-     * @param token The address of the ERC-20 token contract
-     */
-    function _safeSymbol(address token) internal view returns (string memory) {
-        (bool success, bytes memory data) = address(token).staticcall(
-            abi.encodeCall(IERC20MetadataUpgradeable.symbol, ())
-        );
-        return success ? _returnDataToString(data) : "NO_SYMBOL";
-    }
-
-    /**
-     * @notice  Provides a safe ERC20.name version which returns 'NO_NAME' as fallback string.
-     * @param token The address of the ERC-20 token contract.
-     */
-    function _safeName(address token) internal view returns (string memory) {
-        (bool success, bytes memory data) = address(token).staticcall(
-            abi.encodeCall(IERC20MetadataUpgradeable.name, ())
-        );
-        return success ? _returnDataToString(data) : "NO_NAME";
-    }
-
-    /**
-     * @notice Provides a safe ERC20.decimals version which returns '18' as fallback value.
-     * Note Tokens with (decimals > 255) are not supported
-     * @param token The address of the ERC-20 token contract
-     */
-    function _safeDecimals(address token) internal view returns (uint8) {
-        (bool success, bytes memory data) = address(token).staticcall(
-            abi.encodeCall(IERC20MetadataUpgradeable.decimals, ())
-        );
-        return success && data.length == 32 ? abi.decode(data, (uint8)) : 18;
-    }
-
-    /**
-     * @notice Function to convert returned data to string
-     * returns 'NOT_VALID_ENCODING' as fallback value.
-     * @param data returned data
-     */
-    function _returnDataToString(
-        bytes memory data
-    ) internal pure returns (string memory) {
-        if (data.length >= 64) {
-            return abi.decode(data, (string));
-        } else if (data.length == 32) {
-            // Since the strings on bytes32 are encoded left-right, check the first zero in the data
-            uint256 nonZeroBytes;
-            while (nonZeroBytes < 32 && data[nonZeroBytes] != 0) {
-                nonZeroBytes++;
-            }
-
-            // If the first one is 0, we do not handle the encoding
-            if (nonZeroBytes == 0) {
-                return "NOT_VALID_ENCODING";
-            }
-            // Create a byte array with nonZeroBytes length
-            bytes memory bytesArray = new bytes(nonZeroBytes);
-            for (uint256 i = 0; i < nonZeroBytes; i++) {
-                bytesArray[i] = data[i];
-            }
-            return string(bytesArray);
-        } else {
-            return "NOT_VALID_ENCODING";
-        }
     }
 }

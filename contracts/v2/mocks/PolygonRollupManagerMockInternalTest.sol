@@ -24,7 +24,7 @@ contract PolygonRollupManagerMockInternalTest is PolygonRollupManager {
         address admin,
         address timelock,
         address emergencyCouncil,
-        PolygonZkEVMV2Existent polygonZkEVM,
+        PolygonZkEVMExistentEtrog polygonZkEVM,
         IVerifierRollup zkEVMVerifier,
         uint64 zkEVMForkID,
         uint64 zkEVMChainID

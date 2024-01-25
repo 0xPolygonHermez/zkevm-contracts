@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 import "../../interfaces/IPolygonZkEVMErrors.sol";
 
-interface IPolygonZkEVMV2Errors is IPolygonZkEVMErrors {
+interface IPolygonZkEVMVEtrogErrors is IPolygonZkEVMErrors {
     /**
      * @dev Thrown when the caller is not the trusted sequencer
      */
@@ -38,4 +38,9 @@ interface IPolygonZkEVMV2Errors is IPolygonZkEVMErrors {
      * @dev Thrown when the try to sequence force batches before the halt timeout period
      */
     error HaltTimeoutNotExpiredAfterEmergencyState();
+
+    /**
+     * @dev Thrown when the try to update the force batch address once is set to address(0)
+     */
+    error ForceBatchesDecentralized();
 }

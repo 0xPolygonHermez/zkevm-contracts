@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./lib/PolygonTransparentProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "./lib/LegacyZKEVMStateVariables.sol";
-import "./consensus/zkEVM/PolygonZkEVMV2Existent.sol";
+import "./consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
 import "./lib/PolygonConstantsBase.sol";
 
 // review Possible renaming to PolygonL2Manager
@@ -387,7 +387,7 @@ contract PolygonRollupManager is
         address admin,
         address timelock,
         address emergencyCouncil,
-        PolygonZkEVMV2Existent polygonZkEVM,
+        PolygonZkEVMExistentEtrog polygonZkEVM,
         IVerifierRollup zkEVMVerifier,
         uint64 zkEVMForkID,
         uint64 zkEVMChainID
@@ -474,8 +474,7 @@ contract PolygonRollupManager is
             _legacyTrustedSequencer,
             _legacyTrustedSequencerURL,
             _legacyNetworkName,
-            _legacySequencedBatches[zkEVMLastBatchSequenced].accInputHash,
-            _legacyLastTimestamp
+            _legacySequencedBatches[zkEVMLastBatchSequenced].accInputHash
         );
     }
 
@@ -1262,7 +1261,7 @@ contract PolygonRollupManager is
         );
 
         emit ProveNonDeterministicPendingState(
-            rollup.batchNumToStateRoot[finalNewBatch],
+            rollup.pendingStateTransitions[finalPendingStateNum].stateRoot,
             newStateRoot
         );
 
