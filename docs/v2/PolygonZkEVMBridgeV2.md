@@ -3,6 +3,15 @@ Contract responsible to manage the token interactions with other networks
 
 
 ## Functions
+### constructor
+```solidity
+  function constructor(
+  ) public
+```
+Disable initalizers on the implementation following the best practices
+
+
+
 ### initialize
 ```solidity
   function initialize(
@@ -42,6 +51,7 @@ note If this function is called with a reentrant token, it would be possible to 
 Reducing the supply of tokens on this contract, and actually locking tokens in the contract.
 Therefore we recommend to third parties bridges that if they do implement reentrant call of `beforeTransfer` of some reentrant tokens
 do not call any external address in that case
+note User/UI must be aware of the existing/available networks when choosing the destination network
 
 
 #### Parameters:
@@ -64,6 +74,7 @@ do not call any external address in that case
   ) external
 ```
 Bridge message and send ETH value
+note User/UI must be aware of the existing/available networks when choosing the destination network
 
 
 #### Parameters:
@@ -85,6 +96,7 @@ Bridge message and send ETH value
   ) external
 ```
 Bridge message and send ETH value
+note User/UI must be aware of the existing/available networks when choosing the destination network
 
 
 #### Parameters:
@@ -143,11 +155,12 @@ Verify merkle proof and withdraw tokens/ether
 |`smtProofLocalExitRoot` | bytes32[32] | Smt proof to proof the leaf agains the exit root
 |`smtProofRollupExitRoot` | bytes32[32] | Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
 |`globalIndex` | uint256 | Global index is defined as:
-[0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex[224, 255]
+| 191 bits |    1 bit     |   32 bits   |     32 bits    |
+|    0     |  mainnetFlag | rollupIndex | localRootIndex |
 note that only the rollup index will be used only in case the mainnet flag is 0
 note that global index do not assert the unused bits to 0.
 This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
-To avoid possible synch attacks
+to avoid possible synch attacks
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
 |`originNetwork` | uint32 | Origin network
@@ -185,11 +198,12 @@ will not trigger any execution
 |`smtProofLocalExitRoot` | bytes32[32] | Smt proof to proof the leaf agains the exit root
 |`smtProofRollupExitRoot` | bytes32[32] | Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
 |`globalIndex` | uint256 | Global index is defined as:
-[0:190] not checked, [191] mainnet flag, rollupIndex [192, 223], localRootIndex [224, 255]
+| 191 bits |    1 bit     |   32 bits   |     32 bits    |
+|    0     |  mainnetFlag | rollupIndex | localRootIndex |
 note that only the rollup index will be used only in case the mainnet flag is 0
 note that global index do not assert the unused bits to 0.
 This means that when synching the events, the globalIndex must be decoded the same way that in the Smart contract
-To avoid possible synch attacks
+to avoid possible synch attacks
 |`mainnetExitRoot` | bytes32 | Mainnet exit root
 |`rollupExitRoot` | bytes32 | Rollup exit root
 |`originNetwork` | uint32 | Origin network
@@ -207,7 +221,7 @@ To avoid possible synch attacks
     string name,
     string symbol,
     uint8 decimals
-  ) external returns (address)
+  ) public returns (address)
 ```
 Returns the precalculated address of a wrapper using the token information
 Note Updating the metadata of a token is not supported.
@@ -298,7 +312,7 @@ Function to check if an index is claimed or not
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`leafIndex` | uint32 | Index
-|`sourceBridgeNetwork` | uint32 | origin network
+|`sourceBridgeNetwork` | uint32 | Origin network
 
 ### updateGlobalExitRoot
 ```solidity
@@ -334,6 +348,23 @@ Function to call token permit method of extended ERC20
 | :--- | :--- | :------------------------------------------------------------------- |
 |`amount` | address | Quantity that is expected to be allowed
 |`permitData` | uint256 | Raw data of the call `permit` of the token
+
+### _deployWrappedToken
+```solidity
+  function _deployWrappedToken(
+    bytes32 salt,
+    bytes constructorArgs
+  ) internal returns (contract TokenWrapped newWrappedToken)
+```
+Internal function that uses create2 to deploy the wrapped tokens
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`salt` | bytes32 | Salt used in create2 params,
+tokenInfoHash will be used as salt for all wrappeds except for bridge native WETH, that will be bytes32(0)
+|`constructorArgs` | bytes | Encoded constructor args for the wrapped token
 
 ### _safeSymbol
 ```solidity
@@ -392,6 +423,41 @@ returns 'NOT_VALID_ENCODING' as fallback value.
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`data` | bytes | returned data
+
+### getTokenMetadata
+```solidity
+  function getTokenMetadata(
+    address token
+  ) public returns (bytes)
+```
+Returns the encoded token metadata
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`token` | address | Address of the token
+
+### calculateTokenWrapperAddress
+```solidity
+  function calculateTokenWrapperAddress(
+    uint32 originNetwork,
+    address originTokenAddress,
+    address token
+  ) external returns (address)
+```
+Returns the precalculated address of a wrapper using the token address
+Note Updating the metadata of a token is not supported.
+Since the metadata has relevance in the address deployed, this function will not return a valid
+wrapped address if the metadata provided is not the original one.
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`originNetwork` | uint32 | Origin network
+|`originTokenAddress` | address | Origin token address, 0 address is reserved for ether
+|`token` | address | Address of the token to calculate the wrapper address
 
 ## Events
 ### BridgeEvent

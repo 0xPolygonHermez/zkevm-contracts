@@ -90,7 +90,7 @@ async function main() {
             },
         );
     } catch (error) {
-        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 
     // verify global exit root address
@@ -106,7 +106,7 @@ async function main() {
             },
         );
     } catch (error) {
-        //expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 
     try {
@@ -154,18 +154,17 @@ async function main() {
         // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 
-        // verify verifier
-        try {
-            await hre.run(
-                'verify:verify',
-                {
-                    address: createRollupOutputParameters.verifierAddress,
-                },
-            );
-        } catch (error) {
-            expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
-        }
-    
+    // verify verifier
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: createRollupOutputParameters.verifierAddress,
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
+    }
 
     // verify zkEVM address
     try {
