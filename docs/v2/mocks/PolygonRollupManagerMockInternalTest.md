@@ -1,4 +1,4 @@
-PolygonRollupManager mock
+PolygonRollupManager Test
 
 
 ## Functions
@@ -19,19 +19,10 @@ PolygonRollupManager mock
 |`_pol` | contract IERC20Upgradeable | MATIC token address
 |`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
 
-### initializeMock
+### initialize
 ```solidity
-  function initializeMock(
+  function initialize(
   ) external
-```
-
-
-
-
-### prepareMockCalculateRoot
-```solidity
-  function prepareMockCalculateRoot(
-  ) public
 ```
 
 

@@ -40,10 +40,37 @@ Return last global exit root
 
 
 
-## Events
-### UpdateGlobalExitRoot
+### getRoot
 ```solidity
-  event UpdateGlobalExitRoot(
+  function getRoot(
+  ) public returns (bytes32)
+```
+Computes and returns the merkle root of the L1InfoTree
+
+
+
+### getLeafValue
+```solidity
+  function getLeafValue(
+    bytes32 newGlobalExitRoot,
+    uint256 lastBlockHash,
+    uint64 timestamp
+  ) public returns (bytes32)
+```
+Given the leaf data returns the leaf hash
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`newGlobalExitRoot` | bytes32 | Last global exit root
+|`lastBlockHash` | uint256 | Last accesible block hash
+|`timestamp` | uint64 | Ethereum timestamp in seconds
+
+## Events
+### UpdateL1InfoTree
+```solidity
+  event UpdateL1InfoTree(
   )
 ```
 
