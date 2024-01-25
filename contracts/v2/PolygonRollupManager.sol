@@ -3,7 +3,7 @@
 pragma solidity 0.8.20;
 
 import "./interfaces/IPolygonRollupManager.sol";
-import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "../interfaces/IPolygonZkEVMBridge.sol";
 import "./interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IVerifierRollup.sol";
@@ -12,7 +12,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "./lib/PolygonTransparentProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "./lib/LegacyZKEVMStateVariables.sol";
-import "./consensus/zkEVM/PolygonZkEVMV2Existent.sol";
+import "./consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
+import "./lib/PolygonConstantsBase.sol";
 
 // review Possible renaming to PolygonL2Manager
 /**
@@ -22,6 +23,7 @@ contract PolygonRollupManager is
     PolygonAccessControlUpgradeable,
     EmergencyManager,
     LegacyZKEVMStateVariables,
+    PolygonConstantsBase,
     IPolygonRollupManager
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -84,13 +86,6 @@ contract PolygonRollupManager is
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
-
-    // If the system a does not verify a batch inside this time window, the contract enters in emergency mode
-    uint64 internal constant _HALT_AGGREGATION_TIMEOUT = 1 weeks;
-
-    // Maximum batches that can be verified in one call. It depends on our current metrics
-    // This should be a protection against someone that tries to generate huge chunk of invalid batches, and we can't prove otherwise before the pending timeout expires
-    uint64 internal constant _MAX_VERIFY_BATCHES = 1000;
 
     // Max batch multiplier per verification
     uint256 internal constant _MAX_BATCH_MULTIPLIER = 12;
@@ -161,7 +156,7 @@ contract PolygonRollupManager is
         keccak256("EMERGENCY_COUNCIL_ADMIN");
 
     // Global Exit Root address
-    IPolygonZkEVMGlobalExitRoot public immutable globalExitRootManager;
+    IPolygonZkEVMGlobalExitRootV2 public immutable globalExitRootManager;
 
     // PolygonZkEVM Bridge Address
     IPolygonZkEVMBridge public immutable bridgeAddress;
@@ -361,13 +356,16 @@ contract PolygonRollupManager is
      * @param _bridgeAddress Bridge address
      */
     constructor(
-        IPolygonZkEVMGlobalExitRoot _globalExitRootManager,
+        IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridge _bridgeAddress
     ) {
         globalExitRootManager = _globalExitRootManager;
         pol = _pol;
         bridgeAddress = _bridgeAddress;
+
+        // Disable initalizers on the implementation following the best practices
+        _disableInitializers();
     }
 
     /**
@@ -389,11 +387,11 @@ contract PolygonRollupManager is
         address admin,
         address timelock,
         address emergencyCouncil,
-        PolygonZkEVMV2Existent polygonZkEVM,
+        PolygonZkEVMExistentEtrog polygonZkEVM,
         IVerifierRollup zkEVMVerifier,
         uint64 zkEVMForkID,
         uint64 zkEVMChainID
-    ) external reinitializer(2) {
+    ) external virtual reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
@@ -476,8 +474,7 @@ contract PolygonRollupManager is
             _legacyTrustedSequencer,
             _legacyTrustedSequencerURL,
             _legacyNetworkName,
-            _legacySequencedBatches[zkEVMLastBatchSequenced].accInputHash,
-            _legacyLastTimestamp
+            _legacySequencedBatches[zkEVMLastBatchSequenced].accInputHash
         );
     }
 
@@ -649,6 +646,11 @@ contract PolygonRollupManager is
         // Check chainID nullifier
         if (chainIDToRollupID[chainID] != 0) {
             revert ChainIDAlreadyExist();
+        }
+
+        // Check if rollup address was already added
+        if (rollupAddressToID[address(rollupAddress)] != 0) {
+            revert RollupAddressAlreadyExist();
         }
 
         RollupData storage rollup = _addExistingRollup(
@@ -1259,7 +1261,7 @@ contract PolygonRollupManager is
         );
 
         emit ProveNonDeterministicPendingState(
-            rollup.batchNumToStateRoot[finalNewBatch],
+            rollup.pendingStateTransitions[finalPendingStateNum].stateRoot,
             newStateRoot
         );
 

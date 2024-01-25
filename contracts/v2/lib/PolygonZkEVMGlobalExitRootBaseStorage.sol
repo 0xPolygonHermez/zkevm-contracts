@@ -17,5 +17,6 @@ abstract contract PolygonZkEVMGlobalExitRootBaseStorage is
     bytes32 public lastMainnetExitRoot;
 
     // Store every global exit root: Root --> blockhash
+    // Note that previously recoded global exit roots in previous versions, timestamp was recorded instead of blockhash
     mapping(bytes32 => uint256) public globalExitRootMap;
 }
