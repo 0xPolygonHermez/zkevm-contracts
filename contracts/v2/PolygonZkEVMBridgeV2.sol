@@ -423,7 +423,6 @@ contract PolygonZkEVMBridgeV2 is
         }
     }
 
-    // Maitain previous approach?¿
     /**
      * @notice Verify merkle proof and withdraw tokens/ether
      * @param smtProofLocalExitRoot Smt proof to proof the leaf agains the exit root
@@ -814,28 +813,7 @@ contract PolygonZkEVMBridgeV2 is
             ) {
                 revert InvalidSmtProof();
             }
-        } else {
-            // it's a rollup, therefore we have to infer the origin network
-            uint32 indexRollup = uint32(globalIndex >> 32);
-            originNetwork = indexRollup + 1;
-
-            // last 32 bits are leafIndex
-            leafIndex = uint32(globalIndex);
-
-            // Verify merkle proof agains rollup exit root
-            if (
-                !verifyMerkleProof(
-                    calculateRoot(leafValue, smtProofLocalExitRoot, leafIndex),
-                    smtProofRollupExitRoot,
-                    indexRollup,
-                    rollupExitRoot
-                )
-            ) {
-                revert InvalidSmtProof();
-            }
         }
-
-        // TODO must calcualte TRUE origin network
 
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);

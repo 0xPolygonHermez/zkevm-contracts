@@ -66,7 +66,7 @@ describe('Deposit Contract', () => {
 
         merkleTree.add(leafValueJs);
 
-        const rootSC = await depositContractMock.getRoot();
+        const rootSC = await depositContractMock.getDepositRoot();
         const rootJS = merkleTree.getRoot();
 
         expect(rootSC).to.be.equal(rootJS);
@@ -159,7 +159,7 @@ describe('Deposit Contract', () => {
         merkleTree.add(leafValueJs);
         merkleTree.add(leafValueJs2);
 
-        const rootSC = await depositContractMock.getRoot();
+        const rootSC = await depositContractMock.getDepositRoot();
         const rootJS = merkleTree.getRoot();
 
         expect(rootSC).to.be.equal(rootJS);
@@ -226,7 +226,7 @@ describe('Deposit Contract', () => {
 
         merkleTree.add(leafValue);
 
-        let rootSC = await depositContractMock.getRoot();
+        let rootSC = await depositContractMock.getDepositRoot();
         let rootJS = merkleTree.getRoot();
 
         expect(rootSC).to.be.equal(rootJS);
@@ -279,7 +279,7 @@ describe('Deposit Contract', () => {
         );
         merkleTree.add(leafValue);
 
-        rootSC = await depositContractMock.getRoot();
+        rootSC = await depositContractMock.getDepositRoot();
         rootJS = merkleTree.getRoot();
 
         expect(rootSC).to.be.equal(rootJS);
@@ -327,7 +327,7 @@ describe('Deposit Contract', () => {
         );
         merkleTree.add(leafValue);
 
-        rootSC = await depositContractMock.getRoot();
+        rootSC = await depositContractMock.getDepositRoot();
         rootJS = merkleTree.getRoot();
 
         expect(rootSC).to.be.equal(rootJS);
@@ -375,7 +375,7 @@ describe('Deposit Contract', () => {
         }
         await Promise.all(results);
         // Check roots
-        rootSC = await depositContractMock.getRoot();
+        rootSC = await depositContractMock.getDepositRoot();
         rootJS = merkleTree.getRoot();
 
         expect(rootSC).to.be.equal(rootJS);

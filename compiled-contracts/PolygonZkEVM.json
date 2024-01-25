@@ -1351,7 +1351,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "historicGlobalExitRoot",
+              "name": "globalExitRoot",
               "type": "bytes32"
             },
             {
@@ -1391,7 +1391,7 @@
             },
             {
               "internalType": "bytes32",
-              "name": "historicGlobalExitRoot",
+              "name": "globalExitRoot",
               "type": "bytes32"
             },
             {

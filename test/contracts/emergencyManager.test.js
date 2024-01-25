@@ -144,6 +144,7 @@ describe('Emergency mode test', () => {
         // Once in emergency state no sequenceBatches/forceBatches can be done
         const l2txData = '0x123456';
         const maticAmount = await polygonZkEVMContract.batchFee();
+        const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
         const sequence = {
             transactions: l2txData,

@@ -110,7 +110,7 @@ describe('PolygonZkEVMBridge Mock Contract', () => {
         expect(await tokenContract.balanceOf(polygonZkEVMBridgeContract.address)).to.be.equal(balanceBridge.add(amount));
 
         // check merkle root with SC
-        const rootSCMainnet = await polygonZkEVMBridgeContract.getRoot();
+        const rootSCMainnet = await polygonZkEVMBridgeContract.getDepositRoot();
         expect(rootSCMainnet).to.be.equal(rootJSMainnet);
 
         // check merkle proof

@@ -133,7 +133,7 @@ describe('PolygonZkEVMBridge Contract', () => {
         expect(await polygonZkEVMBridgeContract.lastUpdatedDepositCount()).to.be.equal(1);
 
         // check merkle root with SC
-        const rootSCMainnet = await polygonZkEVMBridgeContract.getRoot();
+        const rootSCMainnet = await polygonZkEVMBridgeContract.getDepositRoot();
         expect(rootSCMainnet).to.be.equal(rootJSMainnet);
 
         // check merkle proof
@@ -194,7 +194,7 @@ describe('PolygonZkEVMBridge Contract', () => {
             );
 
         // check merkle root with SC
-        const rootSCMainnet = await polygonZkEVMBridgeContract.getRoot();
+        const rootSCMainnet = await polygonZkEVMBridgeContract.getDepositRoot();
         expect(rootSCMainnet).to.be.equal(rootJSMainnet);
 
         // check merkle proof
@@ -260,7 +260,7 @@ describe('PolygonZkEVMBridge Contract', () => {
         expect(await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot()).to.be.equal(ethers.ZeroHash);
 
         // check merkle root with SC
-        const rootSCMainnet = await polygonZkEVMBridgeContract.getRoot();
+        const rootSCMainnet = await polygonZkEVMBridgeContract.getDepositRoot();
         expect(rootSCMainnet).to.be.equal(rootJSMainnet);
 
         // Update global exit root
@@ -666,7 +666,7 @@ describe('PolygonZkEVMBridge Contract', () => {
         expect(await newWrappedToken.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(0);
 
         // check merkle root with SC
-        const rootSCMainnet = await polygonZkEVMBridgeContract.getRoot();
+        const rootSCMainnet = await polygonZkEVMBridgeContract.getDepositRoot();
         expect(rootSCMainnet).to.be.equal(rootJSMainnet);
 
         // check merkle proof
@@ -797,7 +797,7 @@ describe('PolygonZkEVMBridge Contract', () => {
         });
 
         // Check merkle root with SC
-        const rootSC = await polygonZkEVMBridgeContract.getRoot();
+        const rootSC = await polygonZkEVMBridgeContract.getDepositRoot();
         const rootJS = merkleTree.getRoot();
 
         expect(rootSC).to.be.equal(rootJS);
