@@ -17,16 +17,9 @@ const upgradeParameters = require("./upgrade_parameters.json");
 const pathOZUpgradability = path.join(__dirname, `../../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
 
 async function main() {
-    const {
-        admin,
-        trustedAggregator,
-        trustedAggregatorTimeout,
-        pendingStateTimeout,
-        zkEVMOwner,
-        chainID,
-    } = deployParameters;
+    const {admin, trustedAggregator, trustedAggregatorTimeout, pendingStateTimeout, zkEVMOwner, chainID} =
+        deployParameters;
 
-    
     const emergencyCouncilAddress = zkEVMOwner;
 
     const {realVerifier, newForkID, timelockDelay, polTokenAddress} = upgradeParameters;
@@ -35,8 +28,8 @@ async function main() {
 
     const currentBridgeAddress = deployOutputParameters.polygonZkEVMBridgeAddress;
     const currentGlobalExitRootAddress = deployOutputParameters.polygonZkEVMGlobalExitRootAddress;
-    const currentPolygonZkEVMAddress = deployOutputParameters.;
-    const currentTimelockAddress = deployOutputParameters.timelockContrapolygonZkEVMAddressctAddress;
+    const currentPolygonZkEVMAddress = deployOutputParameters.polygonZkEVMAddress;
+    const currentTimelockAddress = deployOutputParameters.timelockContractAddress;
 
     // Load provider
     let currentProvider = ethers.provider;
@@ -87,7 +80,6 @@ async function main() {
     console.log("deploying with: ", deployer.address);
 
     const proxyAdmin = await upgrades.admin.getInstance();
-
 
     // deploy new verifier
     let verifierContract;
@@ -172,7 +164,7 @@ async function main() {
         currentGlobalExitRootAddress,
         polTokenAddress,
         currentBridgeAddress,
-        currentPolygonZkEVMAddress,
+        currentPolygonZkEVMAddress
     );
     await polygonZkEVMEtrogImpl.waitForDeployment();
 
@@ -191,7 +183,11 @@ async function main() {
     ]);
 
     const PolygonTransparentProxy = await ethers.getContractFactory("PolygonTransparentProxy");
-    const newPolygonZkEVMContract = await PolygonTransparentProxy.deploy(polygonZkEVMEtrogImpl, currentPolygonZkEVMAddress, "0x");
+    const newPolygonZkEVMContract = await PolygonTransparentProxy.deploy(
+        polygonZkEVMEtrogImpl.target,
+        currentPolygonZkEVMAddress,
+        "0x"
+    );
     await newPolygonZkEVMContract.waitForDeployment();
     console.log("#######################\n");
     console.log(`new PolygonZkEVM Proxy: ${newPolygonZkEVMContract.target}`);
@@ -201,7 +197,9 @@ async function main() {
         `npx hardhat verify --constructor-args upgrade/arguments.js ${newPolygonZkEVMContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
     );
     console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
-        polygonZkEVMEtrogImpl, currentPolygonZkEVMAddress, "0x"
+        polygonZkEVMEtrogImpl.target,
+        currentPolygonZkEVMAddress,
+        "0x",
     ]);
 
     // Upgrade to rollup manager previous polygonZKEVM
@@ -273,7 +271,7 @@ async function main() {
         scheduleData,
         executeData,
         verifierAddress: verifierContract.target,
-        newPolygonZKEVM: newPolygonZkEVMContract.target
+        newPolygonZKEVM: newPolygonZkEVMContract.target,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
@@ -300,4 +298,3 @@ function genOperation(target: any, value: any, data: any, predecessor: any, salt
         salt,
     };
 }
-
