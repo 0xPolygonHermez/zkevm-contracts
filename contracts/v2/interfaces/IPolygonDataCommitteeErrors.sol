@@ -31,7 +31,7 @@ interface IPolygonDataCommitteeErrors {
     /**
      * @dev Thrown when the signature of a DA hash doesn't belong to any member of the committee
      */
-    error CommitteeAddressDoesntExist();
+    error CommitteeAddressDoesNotExist();
 
     /**
      * @dev Thrown when the addresses and signatures byte array length has an unexpected size

@@ -45,6 +45,13 @@ contract PolygonDataCommittee is
      */
     event CommitteeUpdated(bytes32 committeeHash);
 
+    /**
+     * Disable initalizers on the implementation following the best practices
+     */
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize() external initializer {
         // Initialize OZ contracts
         __Ownable_init_unchained();
@@ -165,7 +172,7 @@ contract PolygonDataCommittee is
             // If an address is not on the comittee, or not enough required signatures are provided
             // This verification reverts
             if (!currentSignerIsPartOfCommittee) {
-                revert CommitteeAddressDoesntExist();
+                revert CommitteeAddressDoesNotExist();
             }
         }
     }

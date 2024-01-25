@@ -528,14 +528,6 @@ contract PolygonZkEVMBridgeV2 is
 
                     if (wrappedToken == address(0)) {
                         // Get ERC20 metadata
-                        {
-                            // Decode the metadata just as a sanity check of correct encoding
-                            (
-                                string memory name,
-                                string memory symbol,
-                                uint8 decimals
-                            ) = abi.decode(metadata, (string, string, uint8));
-                        }
 
                         // Create a new wrapped erc20 using create2
                         TokenWrapped newWrappedToken = _deployWrappedToken(

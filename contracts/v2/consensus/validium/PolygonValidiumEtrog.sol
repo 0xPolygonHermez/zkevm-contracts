@@ -13,10 +13,7 @@ import "../../interfaces/IPolygonValidium.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonValidiumEtrog is
-    PolygonRollupBaseEtrog,
-    IPolygonValidium
-{
+contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -76,16 +73,6 @@ contract PolygonValidiumEtrog is
     // Sequence/Verify batches functions
     ////////////////////////////////////
 
-    function sequenceBatches(
-        BatchData[] calldata batches,
-        address l2Coinbase
-    ) public override {
-        if (!isSequenceWithDataAvailabilityAllowed) {
-            revert SequenceWithDataAvailabilityNotAllowed();
-        }
-        super.sequenceBatches(batches, l2Coinbase);
-    }
-
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
@@ -93,6 +80,7 @@ contract PolygonValidiumEtrog is
      * @param dataAvailabilityMessage Byte array containing the signatures and all the addresses of the committee in ascending order
      * [signature 0, ..., signature requiredAmountOfSignatures -1, address 0, ... address N]
      * note that each ECDSA signatures are used, therefore each one must be 65 bytes
+     * note Pol is not a reentrant token
      */
     function sequenceBatchesValidium(
         ValidiumBatchData[] calldata batches,
@@ -113,7 +101,6 @@ contract PolygonValidiumEtrog is
 
         // Get global batch variables
         bytes32 l1InfoRoot = globalExitRootManager.getRoot();
-        uint64 currentTimestamp = uint64(block.timestamp);
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
@@ -121,6 +108,9 @@ contract PolygonValidiumEtrog is
 
         // Store in a temporal variable, for avoid access again the storage slot
         uint64 initLastForceBatchSequenced = currentLastForceBatchSequenced;
+
+        // Accumulated sequenced transaction hash to verify them afterward against the dataAvailabilityProtocol
+        bytes32 accumulatedNonForcedTransactionsHash = bytes32(0);
 
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
@@ -162,6 +152,14 @@ contract PolygonValidiumEtrog is
                 // Delete forceBatch data since won't be used anymore
                 delete forcedBatches[currentLastForceBatchSequenced];
             } else {
+                // Accumulate non forced transactions hash
+                accumulatedNonForcedTransactionsHash = keccak256(
+                    abi.encodePacked(
+                        accumulatedNonForcedTransactionsHash,
+                        currentBatch.transactionsHash
+                    )
+                );
+
                 // Note that forcedGlobalExitRoot and forcedBlockHashL1 remain unused and unchecked in this path
                 // The synchronizer should be aware of that
 
@@ -171,7 +169,7 @@ contract PolygonValidiumEtrog is
                         currentAccInputHash,
                         currentBatch.transactionsHash,
                         l1InfoRoot,
-                        currentTimestamp,
+                        uint64(block.timestamp),
                         l2Coinbase,
                         bytes32(0)
                     )
@@ -207,24 +205,42 @@ contract PolygonValidiumEtrog is
         }
 
         // Pay collateral for every non-forced batch submitted
-        pol.safeTransferFrom(
-            msg.sender,
-            address(rollupManager),
-            rollupManager.getBatchFee() * nonForcedBatchesSequenced
-        );
+        if (nonForcedBatchesSequenced != 0) {
+            pol.safeTransferFrom(
+                msg.sender,
+                address(rollupManager),
+                rollupManager.getBatchFee() * nonForcedBatchesSequenced
+            );
+
+            // Validate that the data availability protocol accepts the dataAvailabilityMessage
+            // note This is a view function, so there's not much risk even if this contract was vulnerable to reentrant attacks
+            dataAvailabilityProtocol.verifyMessage(
+                accumulatedNonForcedTransactionsHash,
+                dataAvailabilityMessage
+            );
+        }
 
         uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
             uint64(batchesNum),
             currentAccInputHash
         );
 
-        // Validate that the data availability protocol accepts the dataAvailabilityMessage
-        dataAvailabilityProtocol.verifyMessage(
-            currentAccInputHash,
-            dataAvailabilityMessage
-        );
-
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
+    }
+
+    /**
+     * @notice Allows a sequencer to send multiple batches sending all the data, and without using the dataAvailabilityProtocol
+     * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param l2Coinbase Address that will receive the fees from L2
+     */
+    function sequenceBatches(
+        BatchData[] calldata batches,
+        address l2Coinbase
+    ) public override {
+        if (!isSequenceWithDataAvailabilityAllowed) {
+            revert SequenceWithDataAvailabilityNotAllowed();
+        }
+        super.sequenceBatches(batches, l2Coinbase);
     }
 
     //////////////////
@@ -244,11 +260,19 @@ contract PolygonValidiumEtrog is
     }
 
     /**
-     * @notice Allow the admin to turn on the force batches
-     * This action is not reversible
+     * @notice Allow the admin to switch the sequence with data availability
+     * @param newIsSequenceWithDataAvailabilityAllowed Boolean to switch
      */
-    function switchSequenceWithDataAvailability() external onlyAdmin {
-        isSequenceWithDataAvailabilityAllowed = !isSequenceWithDataAvailabilityAllowed;
+    function switchSequenceWithDataAvailability(
+        bool newIsSequenceWithDataAvailabilityAllowed
+    ) external onlyAdmin {
+        if (
+            newIsSequenceWithDataAvailabilityAllowed ==
+            isSequenceWithDataAvailabilityAllowed
+        ) {
+            revert SwitchToSameValue();
+        }
+        isSequenceWithDataAvailabilityAllowed = newIsSequenceWithDataAvailabilityAllowed;
         emit SwitchSequenceWithDataAvailability();
     }
 }
