@@ -14,17 +14,63 @@ const deployParameters = require("./deploy_parameters.json");
 const deployOutputParameters = require("./deploy_output.json");
 const upgradeParameters = require("./upgrade_parameters.json");
 
-const pathOZUpgradability = path.join(__dirname, `../../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
-
 async function main() {
+    /*
+     * Check deploy parameters
+     * Check that every necessary parameter is fullfilled
+     */
+    const mandatoryDeploymentParameters = [
+        "admin",
+        "trustedAggregator",
+        "trustedAggregatorTimeout",
+        "pendingStateTimeout",
+        "zkEVMOwner",
+        "chainID",
+    ];
+
+    for (const parameterName of mandatoryDeploymentParameters) {
+        if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === "") {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
+    }
+
     const {admin, trustedAggregator, trustedAggregatorTimeout, pendingStateTimeout, zkEVMOwner, chainID} =
         deployParameters;
 
     const emergencyCouncilAddress = zkEVMOwner;
 
+    /*
+     * Check upgrade parameters
+     * Check that every necessary parameter is fullfilled
+     */
+    const mandatoryUpgradeParameters = ["realVerifier", "newForkID", "timelockDelay", "polTokenAddress"];
+
+    for (const parameterName of mandatoryUpgradeParameters) {
+        if (upgradeParameters[parameterName] === undefined || upgradeParameters[parameterName] === "") {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
+    }
+
     const {realVerifier, newForkID, timelockDelay, polTokenAddress} = upgradeParameters;
 
     const salt = upgradeParameters.timelockSalt || ethers.ZeroHash;
+
+    /*
+     * Check output parameters
+     * Check that every necessary parameter is fullfilled
+     */
+    const mandatoryOutputParameters = [
+        "polygonZkEVMBridgeAddress",
+        "polygonZkEVMGlobalExitRootAddress",
+        "polygonZkEVMAddress",
+        "timelockContractAddress",
+    ];
+
+    for (const parameterName of mandatoryOutputParameters) {
+        if (deployOutputParameters[parameterName] === undefined || deployOutputParameters[parameterName] === "") {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
+    }
 
     const currentBridgeAddress = deployOutputParameters.polygonZkEVMBridgeAddress;
     const currentGlobalExitRootAddress = deployOutputParameters.polygonZkEVMGlobalExitRootAddress;
@@ -124,7 +170,7 @@ async function main() {
     );
 
     // prepare upgrade global exit root
-    // Prepare Upgrade  PolygonZkEVMBridge
+    // Prepare Upgrade  PolygonZkEVMGlobalExitRootV2
     const polygonGlobalExitRootV2 = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2", deployer);
 
     const newGlobalExitRoortImpl = await upgrades.prepareUpgrade(
@@ -158,7 +204,7 @@ async function main() {
 
     // Update current system to rollup manager
 
-    // deploy polygon
+    // deploy polygon zkEVM impl
     const PolygonZkEVMV2ExistentFactory = await ethers.getContractFactory("PolygonZkEVMExistentEtrog");
     const polygonZkEVMEtrogImpl = await PolygonZkEVMV2ExistentFactory.deploy(
         currentGlobalExitRootAddress,
@@ -182,6 +228,7 @@ async function main() {
         currentPolygonZkEVMAddress,
     ]);
 
+    // deploy polygon zkEVM proxy
     const PolygonTransparentProxy = await ethers.getContractFactory("PolygonTransparentProxy");
     const newPolygonZkEVMContract = await PolygonTransparentProxy.deploy(
         polygonZkEVMEtrogImpl.target,
