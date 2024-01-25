@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 import "../../interfaces/IPolygonZkEVMErrors.sol";
 
-interface IPolygonZkEVMV2Errors is IPolygonZkEVMErrors {
+interface IPolygonZkEVMVEtrogErrors is IPolygonZkEVMErrors {
     /**
      * @dev Thrown when the caller is not the trusted sequencer
      */

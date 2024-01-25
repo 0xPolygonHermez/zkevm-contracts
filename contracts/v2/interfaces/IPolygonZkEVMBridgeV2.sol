@@ -159,4 +159,8 @@ interface IPolygonZkEVMBridgeV2 {
         address _polygonRollupManager,
         bytes memory _gasTokenMetadata
     ) external;
+
+    function getTokenMetadata(
+        address token
+    ) external view returns (bytes memory);
 }
