@@ -30,4 +30,30 @@ contract PolygonRollupManagerEmptyMock is EmergencyManager {
     function getForcedBatchFee() public view returns (uint256) {
         return 10;
     }
+
+    /**
+     * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
+     */
+    function activateEmergencyState() external {
+        // activate emergency state on this contract
+        super._activateEmergencyState();
+    }
+
+    /**
+     * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
+     */
+    function lastDeactivatedEmergencyStateTimestamp()
+        external
+        returns (uint256)
+    {
+        return 0;
+    }
+
+    /**
+     * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
+     */
+    function deactivateEmergencyState() external {
+        // Deactivate emergency state on this contract
+        super._deactivateEmergencyState();
+    }
 }

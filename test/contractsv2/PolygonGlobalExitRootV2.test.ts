@@ -13,7 +13,6 @@ import {
     TokenWrapped,
     Address,
     PolygonZkEVM,
-    PolygonZkEVMV2Existent,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
@@ -43,7 +42,7 @@ function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any,
         [newGlobalExitRoot, lastBlockHash, timestamp]
     );
 }
-describe("Polygon ZK-EVM TestnetV2", () => {
+describe("Polygon Globlal exit root v2", () => {
     let deployer: any;
     let rollupManager: any;
     let bridge: any;

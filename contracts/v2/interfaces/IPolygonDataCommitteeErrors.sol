@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-interface ICDKDataCommitteeErrors {
+interface IPolygonDataCommitteeErrors {
     /**
      * @dev Thrown when the addres bytes doesn't have the expected length
      */
@@ -31,7 +31,7 @@ interface ICDKDataCommitteeErrors {
     /**
      * @dev Thrown when the signature of a DA hash doesn't belong to any member of the committee
      */
-    error CommitteeAddressDoesntExist();
+    error CommitteeAddressDoesNotExist();
 
     /**
      * @dev Thrown when the addresses and signatures byte array length has an unexpected size
