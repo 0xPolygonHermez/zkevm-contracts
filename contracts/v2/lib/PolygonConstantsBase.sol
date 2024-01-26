@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 /**
  * This contract will contain the constants used across different contracts
