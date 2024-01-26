@@ -15,6 +15,8 @@ const deployOutputParameters = require("./deploy_output.json");
 const upgradeParameters = require("./upgrade_parameters.json");
 
 async function main() {
+    upgrades.silenceWarnings();
+
     /*
      * Check deploy parameters
      * Check that every necessary parameter is fullfilled

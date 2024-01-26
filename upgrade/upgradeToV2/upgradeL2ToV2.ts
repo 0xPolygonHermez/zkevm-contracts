@@ -14,6 +14,8 @@ const deployOutputParameters = require("./deploy_output.json");
 const upgradeParameters = require("./upgrade_parameters.json");
 
 async function main() {
+    upgrades.silenceWarnings();
+
     const salt = upgradeParameters.timelockSalt || ethers.ZeroHash;
     const timelockDelay = deployParameters.minDelayTimelock;
     const currentBridgeAddress = deployOutputParameters.polygonZkEVMBridgeAddress;
