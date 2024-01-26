@@ -7,6 +7,7 @@ import fs = require("fs");
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../.env")});
 import {ethers, upgrades} from "hardhat";
+import {PolygonZkEVMTimelock} from "../../typechain-types";
 
 const pathOutputJson = path.join(__dirname, "./upgrade_outputL2.json");
 const deployParameters = require("./deploy_parameters.json");
@@ -17,7 +18,6 @@ async function main() {
     upgrades.silenceWarnings();
 
     const salt = upgradeParameters.timelockSalt || ethers.ZeroHash;
-    const timelockDelay = deployParameters.minDelayTimelock;
     const currentBridgeAddress = deployOutputParameters.polygonZkEVMBridgeAddress;
 
     // Load provider
@@ -73,11 +73,20 @@ async function main() {
 
     // Import OZ upgrades
     await upgrades.forceImport(currentBridgeAddress as string, PreviousBridgeFactory, "transparent" as any);
-
     const proxyAdmin = await upgrades.admin.getInstance();
 
+    // Assert correct admin
+    expect(await upgrades.erc1967.getAdminAddress(currentBridgeAddress as string)).to.be.equal(proxyAdmin.target);
+
+    // Check current timelock address and delay
+    const timelockL2Address = await proxyAdmin.owner();
+
     // load timelock
-    const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
+    const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock");
+    const timelockContract = (await timelockContractFactory.attach(timelockL2Address)) as PolygonZkEVMTimelock;
+    const timelockDelay = timelockContract.getMinDelay();
+
+    console.log("timelockAddress: ", timelockContract.target, {timelockDelay});
 
     // prapare upgrades
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2", deployer);
@@ -125,6 +134,7 @@ async function main() {
     const outputJson = {
         scheduleData,
         executeData,
+        timelockL2Address,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }

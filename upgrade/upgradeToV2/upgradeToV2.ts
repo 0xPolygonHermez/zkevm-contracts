@@ -7,6 +7,7 @@ import fs = require("fs");
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../.env")});
 import {ethers, upgrades} from "hardhat";
+import {PolygonZkEVM} from "../../typechain-types";
 
 const pathOutputJson = path.join(__dirname, "./upgrade_output.json");
 
@@ -16,30 +17,6 @@ const upgradeParameters = require("./upgrade_parameters.json");
 
 async function main() {
     upgrades.silenceWarnings();
-
-    /*
-     * Check deploy parameters
-     * Check that every necessary parameter is fullfilled
-     */
-    const mandatoryDeploymentParameters = [
-        "admin",
-        "trustedAggregator",
-        "trustedAggregatorTimeout",
-        "pendingStateTimeout",
-        "zkEVMOwner",
-        "chainID",
-    ];
-
-    for (const parameterName of mandatoryDeploymentParameters) {
-        if (deployParameters[parameterName] === undefined || deployParameters[parameterName] === "") {
-            throw new Error(`Missing parameter: ${parameterName}`);
-        }
-    }
-
-    const {admin, trustedAggregator, trustedAggregatorTimeout, pendingStateTimeout, zkEVMOwner, chainID} =
-        deployParameters;
-
-    const emergencyCouncilAddress = zkEVMOwner;
 
     /*
      * Check upgrade parameters
@@ -54,7 +31,6 @@ async function main() {
     }
 
     const {realVerifier, newForkID, timelockDelay, polTokenAddress} = upgradeParameters;
-
     const salt = upgradeParameters.timelockSalt || ethers.ZeroHash;
 
     /*
@@ -78,6 +54,26 @@ async function main() {
     const currentGlobalExitRootAddress = deployOutputParameters.polygonZkEVMGlobalExitRootAddress;
     const currentPolygonZkEVMAddress = deployOutputParameters.polygonZkEVMAddress;
     const currentTimelockAddress = deployOutputParameters.timelockContractAddress;
+
+    // Load onchain parameters
+    const polygonZkEVMFactory = await ethers.getContractFactory("PolygonZkEVM");
+    const polygonZkEVMContract = (await polygonZkEVMFactory.attach(currentPolygonZkEVMAddress)) as PolygonZkEVM;
+
+    const admin = await polygonZkEVMContract.admin();
+    const trustedAggregator = await polygonZkEVMContract.trustedAggregator();
+    const trustedAggregatorTimeout = await polygonZkEVMContract.trustedAggregatorTimeout();
+    const pendingStateTimeout = await polygonZkEVMContract.pendingStateTimeout();
+    const chainID = await polygonZkEVMContract.chainID();
+    const emergencyCouncilAddress = await polygonZkEVMContract.owner();
+
+    console.log(
+        {admin},
+        {trustedAggregator},
+        {trustedAggregatorTimeout},
+        {pendingStateTimeout},
+        {chainID},
+        {emergencyCouncilAddress}
+    );
 
     // Load provider
     let currentProvider = ethers.provider;
@@ -129,6 +125,9 @@ async function main() {
 
     const proxyAdmin = await upgrades.admin.getInstance();
 
+    // Assert correct admin
+    expect(await upgrades.erc1967.getAdminAddress(currentPolygonZkEVMAddress as string)).to.be.equal(proxyAdmin.target);
+
     // deploy new verifier
     let verifierContract;
     if (realVerifier === true) {
@@ -146,7 +145,6 @@ async function main() {
 
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
-    const timelockContract = timelockContractFactory.attach(currentTimelockAddress);
 
     // prapare upgrades
 
@@ -282,7 +280,7 @@ async function main() {
                 pendingStateTimeout,
                 trustedAggregatorTimeout,
                 admin,
-                timelockContract.target,
+                currentTimelockAddress,
                 emergencyCouncilAddress,
                 newPolygonZkEVMContract.target,
                 verifierContract.target,
@@ -321,11 +319,10 @@ async function main() {
         executeData,
         verifierAddress: verifierContract.target,
         newPolygonZKEVM: newPolygonZkEVMContract.target,
+        timelockContractAdress: currentTimelockAddress,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
-
-// TODO script verify contracts
 
 main().catch((e) => {
     console.error(e);

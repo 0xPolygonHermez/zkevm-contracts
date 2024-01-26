@@ -97,13 +97,16 @@
     "dockerv2:v1ToV2:contracts": "sudo ./docker/scripts/v1ToV2/deploy-dockerv2.sh",
     "saveDeployment:sepolia": "mkdir -p deployments/sepolia_$(date +%s) && cp -r deployment/v2/deploy_*.json deployments/sepolia_$(date +%s) && cp .openzeppelin/sepolia.json deployments/sepolia_$(date +%s) && cp deployment/v2/genesis.json deployments/sepolia_$(date +%s) && cp deployment/v2/create_rollup_output.json deployments/sepolia_$(date +%s)",
     "testnetPol:upgradeV2:sepolia": "npx hardhat run upgrade/upgradeToV2/testnet/deployTestnetPol.ts --network sepolia",
-    "upgradev2:timelock:goerli": "npx hardhat run upgrade/upgradeToV2/upgradeToV2.ts --network goerli && saveUpgradeV2:goerli",
-    "upgradev2:timelock:sepolia": "npx hardhat run upgrade/upgradeToV2/upgradeToV2.ts --network sepolia && saveUpgradeV2:sepolia",
+    "testnetPol:upgradeV2:goerli": "npx hardhat run upgrade/upgradeToV2/testnet/deployTestnetPol.ts --network goerli",
+    "upgradev2:timelock:goerli": "npx hardhat run upgrade/upgradeToV2/upgradeToV2.ts --network goerli && npm run saveUpgradeV2:goerli",
+    "upgradev2:timelock:sepolia": "npx hardhat run upgrade/upgradeToV2/upgradeToV2.ts --network sepolia && npm run saveUpgradeV2:sepolia",
     "verify:upgradeV2:sepolia": "npx hardhat run upgrade/upgradeToV2/verifyContracts.ts --network sepolia",
     "verify:upgradeV2:goerli": "npx hardhat run upgrade/upgradeToV2/verifyContracts.ts --network goerli",
     "upgradev2L2:timelock:zkevmDevnet": "npx hardhat run upgrade/upgradeToV2/upgradeL2ToV2.ts --network zkevmDevnet",
     "saveUpgradeV2:sepolia": "mkdir -p upgrade/upgradeToV2/sepolia_$(date +%s) && cp -r upgrade/upgradeToV2/upgrade_*.json upgrade/upgradeToV2/sepolia_$(date +%s) && cp -r upgrade/upgradeToV2/deploy_*.json upgrade/upgradeToV2/sepolia_$(date +%s) && cp .openzeppelin/sepolia.json upgrade/upgradeToV2/sepolia_$(date +%s)",
-    "saveUpgradeV2:goerli": "mkdir -p upgrade/upgradeToV2/goerli_$(date +%s) && cp -r upgrade/upgradeToV2/upgrade_*.json upgrade/upgradeToV2/goerli_$(date +%s) && cp -r upgrade/upgradeToV2/deploy_*.json upgrade/upgradeToV2/goerli_$(date +%s) && cp .openzeppelin/goerli.json upgrade/upgradeToV2/goerli_$(date +%s)"
+    "saveUpgradeV2:goerli": "mkdir -p upgrade/upgradeToV2/goerli_$(date +%s) && cp -r upgrade/upgradeToV2/upgrade_*.json upgrade/upgradeToV2/goerli_$(date +%s) && cp -r upgrade/upgradeToV2/deploy_*.json upgrade/upgradeToV2/goerli_$(date +%s) && cp .openzeppelin/goerli.json upgrade/upgradeToV2/goerli_$(date +%s)",
+    "upgradev2L2:timelock:polygonZKEVMTestnet": "npx hardhat run upgrade/upgradeToV2/upgradeL2ToV2.ts --network polygonZKEVMTestnet",
+    "upgradev2L2:timelock:polygonZKEVMMainnet": "npx hardhat run upgrade/upgradeToV2/upgradeL2ToV2.ts --network polygonZKEVMMainnet"
 
   }
 }
