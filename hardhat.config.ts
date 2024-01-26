@@ -222,6 +222,15 @@ const config: HardhatUserConfig = {
                 count: 20,
             },
         },
+        zkevmDevnet: {
+            url: "http://123:123:123:123:123",
+            accounts: {
+                mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+                path: "m/44'/60'/0'/0",
+                initialIndex: 0,
+                count: 20,
+            },
+        },
     },
     gasReporter: {
         enabled: !!process.env.REPORT_GAS,
@@ -235,6 +244,7 @@ const config: HardhatUserConfig = {
             goerli: `${process.env.ETHERSCAN_API_KEY}`,
             sepolia: `${process.env.ETHERSCAN_API_KEY}`,
             mainnet: `${process.env.ETHERSCAN_API_KEY}`,
+            zkevmDevnet: `${process.env.ETHERSCAN_API_KEY}`,
         },
         customChains: [
             {
@@ -251,6 +261,14 @@ const config: HardhatUserConfig = {
                 urls: {
                     apiURL: "https://api-testnet-zkevm.polygonscan.com/api",
                     browserURL: "https://testnet-zkevm.polygonscan.com/",
+                },
+            },
+            {
+                network: "zkevmDevnet",
+                chainId: 123,
+                urls: {
+                    apiURL: "http://123:123:123:123:123/api",
+                    browserURL: "http://123:123:123:123:123",
                 },
             },
         ],

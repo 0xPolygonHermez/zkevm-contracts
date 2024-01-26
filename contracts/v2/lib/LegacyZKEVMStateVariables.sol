@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 /**
  * Since the current contract of PolygonZkEVM will be upgraded to a PolygonRollupManager there's defined

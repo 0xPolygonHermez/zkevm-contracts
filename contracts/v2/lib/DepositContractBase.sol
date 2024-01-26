@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 /**
  * This contract will be used as a helper for all the sparse merkle tree related functions
