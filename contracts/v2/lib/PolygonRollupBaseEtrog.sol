@@ -12,8 +12,6 @@ import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./PolygonConstantsBase.sol";
 
-// review Possible renaming to PolygonL2BaseEtrog
-
 /**
  * Contract responsible for managing the states and the updates of L2 network.
  * There will be a trusted sequencer, which is able to send transactions.
@@ -28,7 +26,6 @@ contract PolygonRollupBaseEtrog is
     IPolygonZkEVMVEtrogErrors,
     IPolygonRollupBase
 {
-    // Interface cehcks renaming
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -148,7 +145,7 @@ contract PolygonRollupBaseEtrog is
     // Rollup manager
     PolygonRollupManager public immutable rollupManager;
 
-    // Address that will be able to adjust contract parameters or stop the emergency state
+    // Address that will be able to adjust contract parameters
     address public admin;
 
     // This account will be able to accept the admin role
@@ -169,7 +166,7 @@ contract PolygonRollupBaseEtrog is
     // Queue of forced batches with their associated data
     // ForceBatchNum --> hashedForcedBatchData
     // hashedForcedBatchData: hash containing the necessary information to force a batch:
-    // keccak256(keccak256(bytes transactions), bytes32 globalExitRoot, unint64 minForcedTimestamp)
+    // keccak256(keccak256(bytes transactions), bytes32 forcedGlobalExitRoot, unint64 forcedTimestamp, bytes32 forcedBlockHashL1)
     mapping(uint64 => bytes32) public forcedBatches;
 
     // Last forced batch
@@ -848,6 +845,7 @@ contract PolygonRollupBaseEtrog is
      * @param networkID Indicates the network identifier that will be used in the bridge
      * @param _gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
      * @param _gasTokenNetwork Indicates the native network of the token address
+     * @param _gasTokenMetadata Abi encoded gas token metadata
      */
     function generateInitializeTransaction(
         uint32 networkID,
@@ -855,8 +853,6 @@ contract PolygonRollupBaseEtrog is
         uint32 _gasTokenNetwork,
         bytes memory _gasTokenMetadata
     ) public view returns (bytes memory) {
-        // Check the ecrecover, as a sanity check, to not allow invalid transactions
-
         bytes memory initializeBrigeData = abi.encodeCall(
             IPolygonZkEVMBridgeV2.initialize,
             (

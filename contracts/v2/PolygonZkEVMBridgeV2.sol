@@ -12,9 +12,8 @@ import "./interfaces/IPolygonZkEVMBridgeV2.sol";
 import "../lib/EmergencyManager.sol";
 import "../lib/GlobalExitRootLib.sol";
 
-// review Possible renaming to PolygonBridge
 /**
- * PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
+ * PolygonZkEVMBridge that will be deployed on Ethereum and all Polygon rollups
  * Contract responsible to manage the token interactions with other networks
  */
 contract PolygonZkEVMBridgeV2 is
@@ -142,6 +141,7 @@ contract PolygonZkEVMBridgeV2 is
      * @param _polygonRollupManager polygonZkEVM address
      * @notice The value of `_polygonRollupManager` on the L2 deployment of the contract will be address(0), so
      * emergency state is not possible for the L2 deployment of the bridge, intentionally
+     * @param _gasTokenMetadata Abi encoded gas token metadata
      */
     function initialize(
         uint32 _networkID,
@@ -425,8 +425,8 @@ contract PolygonZkEVMBridgeV2 is
 
     /**
      * @notice Verify merkle proof and withdraw tokens/ether
-     * @param smtProofLocalExitRoot Smt proof to proof the leaf agains the exit root
-     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
+     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the network exit root
+     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot against the rollups exit root
      * @param globalIndex Global index is defined as:
      * | 191 bits |    1 bit     |   32 bits   |     32 bits    |
      * |    0     |  mainnetFlag | rollupIndex | localRootIndex |
@@ -578,8 +578,8 @@ contract PolygonZkEVMBridgeV2 is
      * If the receiving address is an EOA, the call will result as a success
      * Which means that the amount of ether will be transferred correctly, but the message
      * will not trigger any execution
-     * @param smtProofLocalExitRoot Smt proof to proof the leaf agains the exit root
-     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
+     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the exit root
+     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot against the rollups exit root
      * @param globalIndex Global index is defined as:
      * | 191 bits |    1 bit     |   32 bits   |     32 bits    |
      * |    0     |  mainnetFlag | rollupIndex | localRootIndex |

@@ -2210,6 +2210,10 @@ describe("Polygon Rollup Manager", () => {
 
         await snapshotUpdateRollup.restore();
 
+        expect(await upgrades.erc1967.getImplementationAddress(newZKEVMAddress as string)).to.be.equal(
+            PolygonZKEVMV2Contract.target
+        );
+
         await expect(rollupManagerContract.connect(timelock).updateRollup(newZKEVMAddress, etrogRollupType, "0x"))
             .to.emit(rollupManagerContract, "UpdateRollup")
             .withArgs(newRollupTypeID, etrogRollupType, newVerifiedBatch);
@@ -2228,6 +2232,10 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupDataFinal.lastVerifiedBatchBeforeUpgrade).to.be.equal(newVerifiedBatch);
         expect(rollupDataFinal.rollupTypeID).to.be.equal(etrogRollupType);
         expect(rollupDataFinal.rollupCompatibilityID).to.be.equal(0);
+
+        expect(await upgrades.erc1967.getImplementationAddress(newZKEVMAddress as string)).to.be.equal(
+            PolygonZKEVMEtrogContract.target
+        );
     });
 
     it("should add existing rollup and test full flow", async () => {

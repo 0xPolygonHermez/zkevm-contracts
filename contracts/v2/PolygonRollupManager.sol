@@ -15,9 +15,11 @@ import "./lib/LegacyZKEVMStateVariables.sol";
 import "./consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
 import "./lib/PolygonConstantsBase.sol";
 
-// review Possible renaming to PolygonL2Manager
 /**
- * Contract responsible for managing the exit roots across multiple Rollups
+ * Contract responsible for managing rollups and the verification of their batches.
+ * This contract will create and update rollups and store all the hashed sequenced data from them.
+ * The logic for sequence batches is moved to the `consensus` contracts, while the verification of all of
+ * them will be done in this one. In this way, the proof aggregation of the rollups will be easier on a close future.
  */
 contract PolygonRollupManager is
     PolygonAccessControlUpgradeable,
@@ -200,14 +202,14 @@ contract PolygonRollupManager is
     uint64 public pendingStateTimeout;
 
     // Time target of the verification of a batch
-    // Adaptatly the batchFee will be updated to achieve this target
+    // Adaptively the batchFee will be updated to achieve this target
     uint64 public verifyBatchTimeTarget;
 
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
     uint16 public multiplierBatchFee;
 
     // Current POL fee per batch sequenced
-    // note This variable is internal, since the view function getBatchFee is likely to be ugpraded
+    // note This variable is internal, since the view function getBatchFee is likely to be upgraded
     uint256 internal _batchFee;
 
     // Timestamp when the last emergency state was deactivated
@@ -369,7 +371,7 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @param trustedAggregator Trusted aggregatot address
+     * @param trustedAggregator Trusted aggregator address
      * @param _pendingStateTimeout Pending state timeout
      * @param _trustedAggregatorTimeout Trusted aggregator timeout
      * @param admin Admin of the rollup manager
@@ -423,7 +425,7 @@ contract PolygonRollupManager is
         _setupRole(_STOP_EMERGENCY_ROLE, admin);
         _setupRole(_TWEAK_PARAMETERS_ROLE, admin);
 
-        // admin should be able to update the trsuted aggregator address
+        // admin should be able to update the trusted aggregator address
         _setRoleAdmin(_TRUSTED_AGGREGATOR_ROLE, _TRUSTED_AGGREGATOR_ROLE_ADMIN);
         _setupRole(_TRUSTED_AGGREGATOR_ROLE_ADMIN, admin);
         _setupRole(_SET_FEE_ROLE, admin);
@@ -908,7 +910,7 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Allows an aggregator to verify multiple batches
+     * @notice Allows a trusted aggregator to verify multiple batches
      * @param rollupID Rollup identifier
      * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -972,6 +974,7 @@ contract PolygonRollupManager is
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot New local exit root once the batch is processed
      * @param newStateRoot New State root once the batch is processed
+     * @param beneficiary Address that will receive the verification reward
      * @param proof Fflonk proof
      */
     function _verifyAndRewardBatches(
@@ -1227,7 +1230,7 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
+     * @notice Allows activate the emergency state if its possible to prove a different state root given the same batches
      * @param rollupID Rollup identifier
      * @param initPendingStateNum Init pending state, 0 if consolidated state is used
      * @param finalPendingStateNum Final pending state, that will be used to compare with the newStateRoot
@@ -1475,7 +1478,7 @@ contract PolygonRollupManager is
     ////////////////////////
 
     /**
-     * @notice Function to activate emergency state, which also enables the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
+     * @notice Function to activate emergency state, which also enables the emergency mode on both PolygonRollupManager and PolygonZkEVMBridge contracts
      * If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period and an emergency state was not happened in the same period
      */
     function activateEmergencyState() external {
@@ -1495,7 +1498,7 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
+     * @notice Function to deactivate emergency state on both PolygonRollupManager and PolygonZkEVMBridge contracts
      */
     function deactivateEmergencyState()
         external
@@ -1512,7 +1515,7 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
+     * @notice Internal function to activate emergency state on both PolygonRollupManager and PolygonZkEVMBridge contracts
      */
     function _activateEmergencyState() internal override {
         // Activate emergency state on PolygonZkEVM Bridge
