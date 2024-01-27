@@ -8,13 +8,17 @@ const DEFAULT_NUM_ACCOUNTS = 20;
 
 async function main() {
     const MNEMONIC = process.env.MNEMONIC || DEFAULT_MNEMONIC;
-    const currentProvider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+    const currentProvider = ethers.getDefaultProvider('http://localhost:8545');
     const signerNode = await currentProvider.getSigner();
     const numAccountsToFund = process.env.NUM_ACCOUNTS || DEFAULT_NUM_ACCOUNTS;
 
     for (let i = 0; i < numAccountsToFund; i++) {
         const pathWallet = `m/44'/60'/0'/0/${i}`;
-        const accountWallet = ethers.Wallet.fromMnemonic(MNEMONIC, pathWallet);
+        const accountWallet = ethers.HDNodeWallet.fromMnemonic(
+            ethers.Mnemonic.fromPhrase(MNEMONIC),
+            pathWallet,
+        );
+
         const params = [{
             from: await signerNode.getAddress(),
             to: accountWallet.address,

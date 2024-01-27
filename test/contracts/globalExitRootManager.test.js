@@ -2,7 +2,7 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 
 function calculateGlobalExitRoot(mainnetExitRoot, rollupExitRoot) {
-    return ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
+    return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
 }
 const zero32bytes = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -33,7 +33,7 @@ describe('Global Exit Root', () => {
     });
 
     it('should update root and check global exit root', async () => {
-        const newRootRollup = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+        const newRootRollup = ethers.hexlify(ethers.randomBytes(32));
 
         await expect(polygonZkEVMGlobalExitRoot.updateExitRoot(newRootRollup))
             .to.be.revertedWith('OnlyAllowedContracts');
@@ -47,7 +47,7 @@ describe('Global Exit Root', () => {
             .to.be.equal(calculateGlobalExitRoot(zero32bytes, newRootRollup));
 
         // Update root from the PolygonZkEVMBridge
-        const newRootBridge = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+        const newRootBridge = ethers.hexlify(ethers.randomBytes(32));
         await expect(polygonZkEVMGlobalExitRoot.connect(PolygonZkEVMBridge).updateExitRoot(newRootBridge))
             .to.emit(polygonZkEVMGlobalExitRoot, 'UpdateGlobalExitRoot')
             .withArgs(newRootBridge, newRootRollup);
