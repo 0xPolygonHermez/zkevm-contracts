@@ -1,4 +1,4 @@
-# Verify deployment on testnet Sepolia of the proof verifier smart contract (etrog-fork.7)
+# Verify deployment on Mainnet the proof verifier smart contract (etrog-fork.7)
 
 In order to verify the smart contract, you will need a machine with at least 256GB of RAM and 16 cores.
 
@@ -188,18 +188,18 @@ The result should be:
 
 ## Download bytecode of deployed smartcontract
 
-To download bytecode of deployed smartcontract, need the address of smart contract, in this case it's *0x8d0aAd785905c5c9f942CB18a3AC1e50c4F52786*. Go to Etherscan or Beaconcha to get transaction bytecode.  
+To download bytecode of deployed smartcontract, need the address of smart contract, in this case it's *0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8*. Go to Etherscan or Beaconcha to get transaction bytecode.  
 
-Associated with address *0x8d0aAd785905c5c9f942CB18a3AC1e50c4F52786* found the transacction *0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837*.
+Associated with address *0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8* found the transacction *0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3*.
 
-- ### Etherscan (https://sepolia.etherscan.io)
-    https://sepolia.etherscan.io/address/0x8d0aAd785905c5c9f942CB18a3AC1e50c4F52786
-    https://sepolia.etherscan.io/tx/0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837
+- ### Etherscan (https://etherscan.io)
+    https://etherscan.io/address/0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8
+    https://etherscan.io/tx/0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3
 Click to see more > Input Data > Select all data and copy to clipboard.
 
-- ### Beacocha (https://sepolia.beaconcha.in)
-    https://sepolia.beaconcha.in/address/8d0aAd785905c5c9f942CB18a3AC1e50c4F52786
-    https://sepolia.beaconcha.in/tx/0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837
+- ### Beacocha (https://beaconcha.in)
+    https://beaconcha.in/address/0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8
+    https://beaconcha.in/tx/0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3
 Advanced Info > Call Data > Select all data and copy to clipboard.
 
 *NOTE: Don't use button "Copy Raw Data" because it generated non compatible format.*
