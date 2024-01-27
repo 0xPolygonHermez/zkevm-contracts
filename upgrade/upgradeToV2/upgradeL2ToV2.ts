@@ -84,7 +84,7 @@ async function main() {
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock");
     const timelockContract = (await timelockContractFactory.attach(timelockL2Address)) as PolygonZkEVMTimelock;
-    const timelockDelay = timelockContract.getMinDelay();
+    const timelockDelay = await timelockContract.getMinDelay();
 
     console.log("timelockAddress: ", timelockContract.target, {timelockDelay});
 
