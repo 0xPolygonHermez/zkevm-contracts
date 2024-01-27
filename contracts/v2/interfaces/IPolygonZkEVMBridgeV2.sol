@@ -91,7 +91,7 @@ interface IPolygonZkEVMBridgeV2 {
 
     function wrappedTokenToTokenInfo(
         address destinationAddress
-    ) external returns (uint32, address);
+    ) external view returns (uint32, address);
 
     function updateGlobalExitRoot() external;
 

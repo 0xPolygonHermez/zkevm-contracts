@@ -7,7 +7,6 @@ import "./lib/PolygonZkEVMGlobalExitRootBaseStorage.sol";
 import "../lib/GlobalExitRootLib.sol";
 import "./lib/DepositContractBase.sol";
 
-/// review Possible renaming to PolygonGlobalExitRootManager
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
@@ -30,7 +29,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
     );
 
     /**
-     * @param _rollupManager Rollup contract address
+     * @param _rollupManager Rollup manager contract address
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
     constructor(address _rollupManager, address _bridgeAddress) {
