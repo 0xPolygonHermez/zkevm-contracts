@@ -936,7 +936,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -1035,7 +1035,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -1243,7 +1243,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             aggregator1.address,
@@ -1403,7 +1403,7 @@ describe('Polygon ZK-EVM', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;
@@ -1830,7 +1830,7 @@ describe('Polygon ZK-EVM', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = '0x';
+        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;

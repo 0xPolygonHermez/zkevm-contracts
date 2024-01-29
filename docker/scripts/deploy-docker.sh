@@ -1,5 +1,6 @@
 #!/bin/bash
 sudo rm -rf docker/gethData/geth_data
+rm deployment/deploy_ongoing.json
 DEV_PERIOD=1 docker-compose -f docker/docker-compose.geth.yml up -d geth
 sleep 5
 node docker/scripts/fund-accounts.js

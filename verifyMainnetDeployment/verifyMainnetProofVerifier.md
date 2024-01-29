@@ -94,7 +94,7 @@ cd contract
 npm init -y 
 npm install hardhat
 mkdir -p contracts/verifiers
-echo -e "module.exports={solidity:{compilers:[{version: \"0.8.17\",settings:{optimizer:{enabled:true,runs:999999}}}]}}" > hardhat.config.js
+echo -e "module.exports={solidity:{compilers:[{version: \"0.8.20\",settings:{optimizer:{enabled:true,runs:999999}}}]}}" > hardhat.config.js
 ````
 Once the project structure is created, we proceed to copy the smart contract generated in the previous step. This smart contract was saved on *~/zkevm-proverjs/build/proof*, and must be copied to *contracts/verifiers* with exactly the name *Verifier.sol*. If the name or the path changes, the hash of metadata changes too, for this reason, is essential to respect the name and the path. To do it could execute these commands
 ````bash

@@ -16,11 +16,12 @@ node -v
 
 ## Download zkevm contracts repository
 
-DOwnload and install the zkevm-contracts repository
+DOwnload and install the zkevm-contracts repository and go to the specific commit
 
 ```bash
 git clone https://github.com/0xPolygonHermez/zkevm-contracts
 npm i
+git checkout 7a8d0c1950cf267fb7b10be8a47506754399cd4a
 ```
 
 ## Verify deployment

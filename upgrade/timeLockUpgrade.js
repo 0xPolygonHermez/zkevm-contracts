@@ -6,6 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const fs = require('fs');
 
 const upgradeParameters = require('./upgrade_parameters.json');
+
 const pathOutputJson = path.join(__dirname, `./upgrade_output_${new Date().getTime() / 1000}.json`);
 
 async function main() {
@@ -13,7 +14,7 @@ async function main() {
     let currentProvider = ethers.provider;
     if (upgradeParameters.multiplierGas) {
         if (process.env.HARDHAT_NETWORK !== 'hardhat') {
-            const multiplierGas = upgradeParameters.multiplierGas;
+            const { multiplierGas } = upgradeParameters;
             currentProvider = new ethers.providers.JsonRpcProvider(`https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`);
             async function overrideFeeData() {
                 const feedata = await ethers.provider.getFeeData();
@@ -36,7 +37,7 @@ async function main() {
         deployer = new ethers.Wallet(upgradeParameters.deployerPvtKey, currentProvider);
     } else if (process.env.MNEMONIC) {
         deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC, 'm/44\'/60\'/0\'/0/0').connect(currentProvider);
-        console.log("using mnemonic", deployer.address)
+        console.log('using mnemonic', deployer.address);
     } else {
         [deployer] = (await ethers.getSigners());
     }
@@ -54,7 +55,9 @@ async function main() {
         let newImplPolygonAddress;
 
         if (upgrade.constructorArgs) {
-            newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, polygonZkEVMFactory,
+            newImplPolygonAddress = await upgrades.prepareUpgrade(
+                proxyPolygonAddress,
+                polygonZkEVMFactory,
                 {
                     constructorArgs: upgrade.constructorArgs,
                     unsafeAllow: ['constructor', 'state-variable-immutable'],
@@ -62,14 +65,14 @@ async function main() {
             );
 
             console.log({ newImplPolygonAddress });
-            console.log("you can verify the new impl address with:")
+            console.log('you can verify the new impl address with:');
             console.log(`npx hardhat verify --constructor-args upgrade/arguments.js ${newImplPolygonAddress} --network ${process.env.HARDHAT_NETWORK}\n`);
-            console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", upgrade.constructorArgs)
+            console.log('Copy the following constructor arguments on: upgrade/arguments.js \n', upgrade.constructorArgs);
         } else {
             newImplPolygonAddress = await upgrades.prepareUpgrade(proxyPolygonAddress, polygonZkEVMFactory);
 
             console.log({ newImplPolygonAddress });
-            console.log("you can verify the new impl address with:")
+            console.log('you can verify the new impl address with:');
             console.log(`npx hardhat verify ${newImplPolygonAddress} --network ${process.env.HARDHAT_NETWORK}`);
         }
 
@@ -89,14 +92,12 @@ async function main() {
                         polygonZkEVMFactory.interface.encodeFunctionData(
                             upgrade.callAfterUpgrade.functionName,
                             upgrade.callAfterUpgrade.arguments,
-                        )
+                        ),
                     ],
                 ),
                 ethers.constants.HashZero, // predecesoor
                 salt, // salt
             );
-
-
         } else {
             operation = genOperation(
                 proxyAdmin.address,
@@ -144,8 +145,8 @@ async function main() {
         output.push({
             contractName: upgrade.contractName,
             scheduleData,
-            executeData
-        })
+            executeData,
+        });
     }
 
     fs.writeFileSync(pathOutputJson, JSON.stringify(output, null, 1));
