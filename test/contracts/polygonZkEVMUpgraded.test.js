@@ -17,7 +17,7 @@ describe('PolygonZkEVMUpgraded', () => {
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.parseEther('20000000');
 
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
@@ -68,8 +68,8 @@ describe('PolygonZkEVMUpgraded', () => {
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
         const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
 
-        const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
-        const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        const precalculateBridgeAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
+        const precalculateZkevmAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
         firstDeployment = false;
 
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
@@ -118,7 +118,7 @@ describe('PolygonZkEVMUpgraded', () => {
         );
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('1000'));
+        await maticTokenContract.transfer(trustedSequencer.address, ethers.parseEther('1000'));
     });
 
     it('should check the constructor parameters', async () => {
@@ -221,9 +221,9 @@ describe('PolygonZkEVMUpgraded', () => {
         expect(await polygonZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
         expect(await polygonZkEVMContract.networkName()).to.be.equal(networkName);
 
-        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
-        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
-        expect(await polygonZkEVMContract.getForcedBatchFee()).to.be.equal(ethers.utils.parseEther('10'));
+        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.parseEther('0.1'));
+        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.parseEther('0.1'));
+        expect(await polygonZkEVMContract.getForcedBatchFee()).to.be.equal(ethers.parseEther('10'));
 
         expect(await polygonZkEVMContract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
         expect(await polygonZkEVMContract.isForcedBatchDisallowed()).to.be.equal(true);
@@ -236,7 +236,7 @@ describe('PolygonZkEVMUpgraded', () => {
         const batchesForSequence = 5;
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -258,7 +258,7 @@ describe('PolygonZkEVMUpgraded', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
+        const zkProofFFlonk = new Array(24).fill(ethers.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;
@@ -434,7 +434,7 @@ describe('PolygonZkEVMUpgraded', () => {
         const batchesForSequence = 5;
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -456,7 +456,7 @@ describe('PolygonZkEVMUpgraded', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
+        const zkProofFFlonk = new Array(24).fill(ethers.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;
@@ -527,7 +527,7 @@ describe('PolygonZkEVMUpgraded', () => {
         const batchesForSequence = 5;
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -549,7 +549,7 @@ describe('PolygonZkEVMUpgraded', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
+        const zkProofFFlonk = new Array(24).fill(ethers.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;

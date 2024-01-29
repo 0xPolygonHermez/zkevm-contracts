@@ -21,16 +21,15 @@ describe('Deposit Contract', () => {
         // deploy deposit contract mock
         const depositFactory = await ethers.getContractFactory('DepositContractMock');
         depositContractMock = await depositFactory.deploy();
-        await depositContractMock.deployed();
     });
 
     it('should deposit and verify merkle proof', async () => {
         const originNetwork = 0;
         const tokenAddress = deployer.address;
-        const amount = ethers.utils.parseEther('10');
+        const amount = ethers.parseEther('10');
         const destinationNetwork = 1;
         const destinationAddress = deployer.address;
-        const metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+        const metadataHash = ethers.hexlify(ethers.randomBytes(32));
 
         await depositContractMock.deposit(
             LEAF_TYPE_ASSET,
@@ -90,10 +89,10 @@ describe('Deposit Contract', () => {
     it('should deposit and verify merkle proof with 2 leafs', async () => {
         const originNetwork = 0;
         const tokenAddress = deployer.address;
-        const amount = ethers.utils.parseEther('10');
+        const amount = ethers.parseEther('10');
         const destinationNetwork = 1;
         const destinationAddress = deployer.address;
-        const metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+        const metadataHash = ethers.hexlify(ethers.randomBytes(32));
 
         await depositContractMock.deposit(
             LEAF_TYPE_ASSET,
@@ -186,10 +185,10 @@ describe('Deposit Contract', () => {
          */
         let originNetwork = 0; // mainnet
         let tokenAddress = deployer.address;
-        let amount = ethers.utils.parseEther('10');
+        let amount = ethers.parseEther('10');
         let destinationNetwork = 1;
         let destinationAddress = deployer.address;
-        let metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+        let metadataHash = ethers.hexlify(ethers.randomBytes(32));
 
         await depositContractMock.deposit(
             LEAF_TYPE_ASSET,
@@ -253,10 +252,10 @@ describe('Deposit Contract', () => {
         // Deposit 2 - different address and amount
         originNetwork = 0;
         tokenAddress = deployer.address;
-        amount = ethers.utils.parseEther('1');
+        amount = ethers.parseEther('1');
         destinationNetwork = 1;
         destinationAddress = acc2.address;
-        metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+        metadataHash = ethers.hexlify(ethers.randomBytes(32));
 
         await depositContractMock.connect(acc2).deposit(
             LEAF_TYPE_ASSET,
@@ -300,11 +299,11 @@ describe('Deposit Contract', () => {
 
         // Deposit 3 - deposit ether
         originNetwork = 0;
-        tokenAddress = ethers.constants.AddressZero; // ether
-        amount = ethers.utils.parseEther('100');
+        tokenAddress = ethers.ZeroAddress; // ether
+        amount = ethers.parseEther('100');
         destinationNetwork = 1;
         destinationAddress = acc2.address;
-        metadataHash = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+        metadataHash = ethers.hexlify(ethers.randomBytes(32));
 
         await depositContractMock.connect(acc2).deposit(
             LEAF_TYPE_ASSET,
@@ -349,7 +348,7 @@ describe('Deposit Contract', () => {
         // Deposit lots of transactions
         const txCount = 100;
         const depositCount = Number(await depositContractMock.depositCount());
-        amount = ethers.utils.parseEther('0.01');
+        amount = ethers.parseEther('0.01');
         leafValue = getLeafValue(
             LEAF_TYPE_ASSET,
             originNetwork,

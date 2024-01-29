@@ -16,7 +16,7 @@ describe('Polygon ZK-EVM TestnetV2', () => {
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.parseEther('20000000');
 
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
@@ -63,8 +63,8 @@ describe('Polygon ZK-EVM TestnetV2', () => {
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
         const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
 
-        const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
-        const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        const precalculateBridgeAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
+        const precalculateZkevmAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
         firstDeployment = false;
 
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
@@ -112,7 +112,7 @@ describe('Polygon ZK-EVM TestnetV2', () => {
         );
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('1000'));
+        await maticTokenContract.transfer(trustedSequencer.address, ethers.parseEther('1000'));
     });
 
     it('should check the constructor parameters', async () => {
