@@ -319,6 +319,7 @@ async function main() {
     outputJson.createRollupBlock = blockDeploymentRollup.number;
     outputJson.rollupAddress = newZKEVMAddress;
     outputJson.verifierAddress = verifierContract.target;
+    outputJson.consensusContract = consensusContract;
 
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
