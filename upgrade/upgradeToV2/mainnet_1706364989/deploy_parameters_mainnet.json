@@ -1,0 +1,20 @@
+{
+  "realVerifier": true,
+  "trustedSequencerURL": "https://zkevm-rpc.com/",
+  "networkName": "polygon zkEVM",
+  "version": "v1.1.0-fork.4",
+  "trustedSequencer": "0x148Ee7dAF16574cD020aFa34CC658f8F3fbd2800",
+  "chainID": 1101,
+  "trustedAggregator": "0xdA87c4a76922598Ac0272F4D9503a35071D686eA",
+  "trustedAggregatorTimeout": 432000,
+  "pendingStateTimeout": 432000,
+  "forkID": 4,
+  "admin": "0x242daE44F5d8fb54B198D03a94dA45B5a4413e21",
+  "zkEVMOwner": "0x242daE44F5d8fb54B198D03a94dA45B5a4413e21",
+  "timelockAddress": "0x4c1665d6651ecEfa59B9B3041951608468b18891",
+  "minDelayTimelock": 864000,
+  "salt": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa",
+  "zkEVMDeployerAddress": "0xCB19eDdE626906eB1EE52357a27F62dd519608C2",
+  "initialZkEVMDeployerOwner": "0x4c1665d6651ecEfa59B9B3041951608468b18891",
+  "maticTokenAddress": "0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0"
+ }

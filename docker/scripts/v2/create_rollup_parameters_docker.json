@@ -1,0 +1,16 @@
+{
+    "realVerifier": false,
+    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
+    "networkName": "zkevm",
+    "description": "0.0.1",
+    "trustedSequencer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "chainID": 1001,
+    "adminZkEVM": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "forkID": 7,
+    "consensusContract": "PolygonZkEVMEtrog",
+    "gasTokenAddress":"",
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": ""
+}

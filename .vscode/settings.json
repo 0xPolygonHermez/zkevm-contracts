@@ -1,6 +1,16 @@
 {
-  "editor.formatOnSave": false,
+  "editor.formatOnSave": true,
   "solidity.linter": "solhint",
-  "solidity.compileUsingRemoteVersion": "v0.8.20+commit.e14f2714",
-  "solidity.remappings": ["@openzeppelin/=node_modules/@openzeppelin"],
+  "solidity.compileUsingRemoteVersion": "v0.8.20+commit.a1b79de6",
+  "solidity.remappings": [
+    "@openzeppelin/=node_modules/@openzeppelin"
+  ],
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[solidity]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
 }

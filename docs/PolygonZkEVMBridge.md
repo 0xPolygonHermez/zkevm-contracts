@@ -34,6 +34,10 @@ emergency state is not possible for the L2 deployment of the bridge, intentional
   ) public
 ```
 Deposit add a new leaf to the merkle tree
+note If this function is called with a reentrant token, it would be possible to `claimTokens` in the same call
+Reducing the supply of tokens on this contract, and actually locking tokens in the contract.
+Therefore we recommend to third parties bridges that if they do implement reentrant call of `beforeTransfer` of some reentrant tokens
+do not call any external address in that case
 
 
 #### Parameters:

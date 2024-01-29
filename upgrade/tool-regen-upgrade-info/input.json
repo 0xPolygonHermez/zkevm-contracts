@@ -1,0 +1,13 @@
+{
+    "proxyAddress": "0xaddress",
+    "implementationName": "PolygonZkEVMUpgraded",
+    "constructorArgs": [
+        "0xaddress",
+        "0xaddress",
+        "0xaddress",
+        "0xaddress",
+        0,
+        0,
+        0
+    ]
+}
