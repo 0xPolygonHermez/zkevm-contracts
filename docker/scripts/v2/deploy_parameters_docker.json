@@ -1,4 +1,5 @@
 {
+ "test": true,
  "timelockAdminAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
  "minDelayTimelock": 3600,
  "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",

@@ -126,7 +126,7 @@ const config: HardhatUserConfig = {
                     evmVersion: "paris",
                 }, // try yul optimizer
             },
-            "contracts/v2/mocks/PolygonRollupManagerMockInternalTest.sol": {
+            "contracts/v2/newDeployments/PolygonRollupManagerNotUpgraded.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {

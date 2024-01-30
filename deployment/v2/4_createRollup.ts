@@ -137,6 +137,13 @@ async function main() {
         deployOutput.polygonRollupManager
     ) as PolygonRollupManager;
 
+    const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
+    if ((await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)) == false) {
+        throw new Error(
+            `Deployer does not have admin role. Use the test flag on deploy_parameters if this is a test deployment`
+        );
+    }
+
     let verifierContract;
     if (realVerifier === true) {
         const VerifierRollup = await ethers.getContractFactory("FflonkVerifier", deployer);
@@ -155,6 +162,7 @@ async function main() {
     const CREATE_ROLLUP_ROLE = ethers.id("CREATE_ROLLUP_ROLE");
 
     // Check role:
+
     if ((await rollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, deployer.address)) == false)
         await rollupManagerContract.grantRole(ADD_ROLLUP_TYPE_ROLE, deployer.address);
 

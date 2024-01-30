@@ -5,7 +5,7 @@ import "../PolygonZkEVM.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
- * This contract will NOT BE USED IN PRODUCTION, will be used only in testnet enviroment
+ * This contract will NOT BE USED IN PRODUCTION, will be used only in testnet environment
  */
 contract PolygonZkEVMTestnetClearStorage is PolygonZkEVM {
     // Indicates the current version
@@ -49,8 +49,8 @@ contract PolygonZkEVMTestnetClearStorage is PolygonZkEVM {
         isForcedBatchDisallowed = true;
         assembly {
             sstore(version.slot, 0)
-            sstore(add(version.slot,1), 0)
-            sstore(add(version.slot,2), 0)
+            sstore(add(version.slot, 1), 0)
+            sstore(add(version.slot, 2), 0)
         }
     }
 }
