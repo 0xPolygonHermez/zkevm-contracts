@@ -276,7 +276,7 @@ describe('Polygon ZK-EVM', () => {
         // Check that is the v0 contract
         await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
 
-        // Transaction cna be executed, delay is reduced to 0, but fails bc this timelock is not owner
+        // Transaction can be executed, delay is reduced to 0, but fails bc this timelock is not owner
         await expect(timelockContract.execute(
             operation.target,
             operation.value,
@@ -338,7 +338,7 @@ describe('Polygon ZK-EVM', () => {
 
         /*
          * Put zkevmcontract on emergency mode
-         * Does not affect thsi deployment
+         * Does not affect this deployment
          */
         await polygonZkEVMContract.activateEmergencyState(0);
 
@@ -367,7 +367,7 @@ describe('Polygon ZK-EVM', () => {
         // Check that is the v0 contract
         await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
 
-        // Transaction cna be executed, delay is reduced to 0, but fails bc this timelock is not owner
+        // Transaction can be executed, delay is reduced to 0, but fails bc this timelock is not owner
         await expect(timelockContractL2.execute(
             operation.target,
             operation.value,

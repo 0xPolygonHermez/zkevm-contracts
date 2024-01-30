@@ -612,7 +612,7 @@ describe('PolygonZkEVMBridge Contract', () => {
          * const height = 32;
          */
         const merkleTreeMainnet = new MerkleTreeBridge(height);
-        // Imporant calcualte leaf with origin token address no wrapped token address
+        // Important calculate leaf with origin token address no wrapped token address
         const originTokenAddress = tokenAddress;
         const metadataMainnet = '0x'; // since the token does not belong to this network
         const metadataHashMainnet = ethers.solidityPackedKeccak256(['bytes'], [metadataMainnet]);

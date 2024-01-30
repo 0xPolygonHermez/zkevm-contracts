@@ -13,7 +13,7 @@ sudo apt update
 sudo apt install -y tmux git curl
 ````
 
-## Tweeking the OS to accept high amount of memory.
+## Tweaking the OS to accept high amount of memory.
 
 ````bash
 echo "vm.max_map_count=655300" | sudo tee -a /etc/sysctl.conf
