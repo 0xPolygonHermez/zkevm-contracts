@@ -406,10 +406,7 @@ async function main() {
     console.log("timelockContract:", timelockContract.target);
     console.log("emergencyCouncilAddress:", emergencyCouncilAddress);
 
-    const PolygonRollupManagerFactory = await ethers.getContractFactory(
-        "PolygonRollupManagerMockInternalTest",
-        deployer
-    );
+    const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManagerNotUpgraded", deployer);
 
     let polygonRollupManagerContract: any;
     let deploymentBlockNumber;
