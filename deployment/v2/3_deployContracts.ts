@@ -390,6 +390,8 @@ async function main() {
         expect(precalculateRollupManager).to.be.equal(await polygonZkEVMGlobalExitRoot.rollupManager());
     }
 
+    const timelockAddressRollupManager = deployParameters.test ? deployer.address : timelockContract.target;
+
     // deploy Rollup Manager
     console.log("\n#######################");
     console.log("##### Deployment Rollup Manager #####");
@@ -403,7 +405,7 @@ async function main() {
     console.log("pendingStateTimeout:", pendingStateTimeout);
     console.log("trustedAggregatorTimeout:", trustedAggregatorTimeout);
     console.log("admin:", admin);
-    console.log("timelockContract:", timelockContract.target);
+    console.log("timelockContract:", timelockAddressRollupManager);
     console.log("emergencyCouncilAddress:", emergencyCouncilAddress);
 
     const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManagerNotUpgraded", deployer);
@@ -420,7 +422,7 @@ async function main() {
                         pendingStateTimeout,
                         trustedAggregatorTimeout,
                         admin,
-                        timelockContract.target,
+                        timelockAddressRollupManager,
                         emergencyCouncilAddress,
                         ethers.ZeroAddress, // unused parameter
                         ethers.ZeroAddress, // unused parameter
@@ -493,12 +495,18 @@ async function main() {
     console.log("trustedAggregatorTimeout:", await polygonRollupManagerContract.trustedAggregatorTimeout());
 
     // Check roles
-    expect(await polygonRollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelockContract.target)).to.be.equal(true);
-    expect(await polygonRollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, timelockContract.target)).to.be.equal(true);
-    expect(await polygonRollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, timelockContract.target)).to.be.equal(true);
-    expect(await polygonRollupManagerContract.hasRole(ADD_EXISTING_ROLLUP_ROLE, timelockContract.target)).to.be.equal(
+    expect(await polygonRollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelockAddressRollupManager)).to.be.equal(
         true
     );
+    expect(await polygonRollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, timelockAddressRollupManager)).to.be.equal(
+        true
+    );
+    expect(await polygonRollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, timelockAddressRollupManager)).to.be.equal(
+        true
+    );
+    expect(
+        await polygonRollupManagerContract.hasRole(ADD_EXISTING_ROLLUP_ROLE, timelockAddressRollupManager)
+    ).to.be.equal(true);
     expect(await polygonRollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE, trustedAggregator)).to.be.equal(true);
 
     expect(await polygonRollupManagerContract.hasRole(OBSOLETE_ROLLUP_TYPE_ROLE, admin)).to.be.equal(true);
