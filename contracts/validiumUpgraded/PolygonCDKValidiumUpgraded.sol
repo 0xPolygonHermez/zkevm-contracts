@@ -28,7 +28,7 @@ contract PolygonCDKValidiumUpgraded is CDKValidium {
         IERC20Upgradeable _matic,
         IVerifierRollup _rollupVerifier,
         IPolygonZkEVMBridge _bridgeAddress,
-                ICDKDataCommittee _dataCommitteeAddress,
+        ICDKDataCommittee _dataCommitteeAddress,
         uint64 _chainID,
         uint64 _forkID,
         uint256 versionBeforeUpgrade
