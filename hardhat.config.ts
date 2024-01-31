@@ -28,16 +28,6 @@ const config: HardhatUserConfig = {
     solidity: {
         compilers: [
             {
-                version: "0.8.23",
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 999999,
-                    },
-                    viaIR: true,
-                },
-            },
-            {
                 version: "0.8.17",
                 settings: {
                     optimizer: {
@@ -135,6 +125,17 @@ const config: HardhatUserConfig = {
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
+            },
+            "contracts/v2/utils/ClaimCompressor.sol": {
+                version: "0.8.20",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 999999,
+                    },
+                    evmVersion: "shanghai",
+                    viaIR: true,
+                },
             },
         },
     },
