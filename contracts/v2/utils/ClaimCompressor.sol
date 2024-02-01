@@ -153,7 +153,7 @@ contract ClaimCompressor {
                 uint64(globalIndex[i]),
                 // mainnetExitRoot,
                 // rollupExitRoot,
-                originNetwork[i], // for first version this is ok
+                originNetwork[i],
                 originAddress[i],
                 // destinationNetwork
                 destinationAddress[i],

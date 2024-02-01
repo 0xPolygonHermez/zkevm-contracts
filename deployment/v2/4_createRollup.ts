@@ -286,6 +286,8 @@ async function main() {
 
             // Setup data commitee to 0
             await (await polygonDataCommittee?.setupCommittee(0, [], "0x")).wait();
+        } else {
+            await (await polygonDataCommittee?.transferOwnership(adminZkEVM)).wait();
         }
 
         outputJson.polygonDataCommittee = polygonDataCommittee?.target;
