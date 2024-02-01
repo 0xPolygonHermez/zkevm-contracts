@@ -65,6 +65,18 @@ module.exports = {
                 },
             },
         ],
+        overrides: {
+            "contracts/validiumUpgraded/PolygonCDKValidiumUpgraded.sol": {
+                version: "0.8.20",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 9999,
+                    },
+                    evmVersion: "shanghai",
+                }, 
+            },
+        }
     },
     networks: {
         mainnet: {
