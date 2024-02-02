@@ -19,10 +19,13 @@ contract ClaimCompressor {
     // Mainnet identifier
     uint32 private constant _MAINNET_NETWORK_ID = 0;
 
-    bytes4 private constant _CLAIM_ASSET_SIGNATURE =
+    // Indicate where's the mainnet flag bit in the global index
+    uint256 private constant _GLOBAL_INDEX_MAINNET_FLAG = 2 ** 64;
+
+    bytes32 private constant _CLAIM_ASSET_SIGNATURE =
         PolygonZkEVMBridgeV2.claimAsset.selector;
 
-    bytes4 private constant _CLAIM_MESSAGE_SIGNATURE =
+    bytes32 private constant _CLAIM_MESSAGE_SIGNATURE =
         PolygonZkEVMBridgeV2.claimMessage.selector;
 
     // Bytes that will be added to the snark input for every rollup aggregated
@@ -42,6 +45,12 @@ contract ClaimCompressor {
     // mainnetExitRoot,
     // rollupExitRoot
     uint256 internal constant _CONSTANT_VARIABLES_LENGTH = 32 * 32 * 2 + 32 * 2;
+
+    // 32*32 bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot
+    // 32*32 bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot
+    // 32*8 Rest constant parameters
+    // 32 bytes position
+    uint256 internal constant _METADATA_OFSSET = 32 * 32 * 2 + 8 * 32 + 32;
 
     // function claimAsset(
     //     bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
@@ -76,6 +85,22 @@ contract ClaimCompressor {
 
     // Mainnet identifier
     uint32 private immutable _networkID;
+
+    /**
+     * @notice Struct which will be used to call sequenceBatches
+     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
+     * @param globalExitRoot Global exit root of the batch
+     * @param timestamp Sequenced timestamp of the batch
+     * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
+     */
+    struct BatchData {
+        bytes transactions;
+        bytes32 globalExitRoot;
+        uint64 timestamp;
+        uint64 minForcedTimestamp;
+    }
 
     /**
      * @param __bridgeAddress PolygonZkEVMBridge contract address
@@ -117,7 +142,7 @@ contract ClaimCompressor {
         // common parameters for all the claims
         bytes memory totalCompressedClaim = abi.encodePacked(
             smtProofLocalExitRoots[0],
-            smtProofRollupExitRoots,
+            smtProofRollupExitRoots, // coudl be encoded like (uint8 len, first len [])
             mainnetExitRoot,
             rollupExitRoot
         );
@@ -146,10 +171,11 @@ contract ClaimCompressor {
             }
 
             bytes memory compressedClaimCall = abi.encodePacked(
-                isMessage[i],
+                uint8(isMessage[i] ? 1 : 0), // define byte with all small values TODO
                 uint8(lastDifferentLevel),
                 smtProofCompressed,
-                bytes1(bytes32(globalIndex[i] << 191)), // get the 65th bit, so 256 - 65 = 191
+                uint8(globalIndex[i] >> 64), // define byte with all small values TODO
+                //bool(globalIndex[i] & _GLOBAL_INDEX_MAINNET_FLAG != 0), // get isMainnet bool
                 uint64(globalIndex[i]),
                 // mainnetExitRoot,
                 // rollupExitRoot,
@@ -179,27 +205,24 @@ contract ClaimCompressor {
         // mainnetExitRoot  bytes32
         // rollupExitRoot   bytes32
 
-        // will copy them afterwards when needed, the idea will be to reacraete the call in assembly
+        // Load "dynamic" constant and immutables since are not accesible from assembly
+        uint256 destinationNetwork = _networkID;
+        address bridgeAddress = _bridgeAddress;
 
-        // // This pointer will be the current position to write on accumulateSnarkBytes
-        // uint256 ptrCompressedClaimCall;
-        // // Total length of the accumulateSnarkBytes, ByesPerRollup * rollupToVerify + 20 bytes (msg.sender)
-        // uint256 totalSnarkLength = _SNARK_BYTES_PER_ROLLUP_AGGREGATED *
-        //     verifyBatchesData.length +
-        //     20;
-
-        uint256 destinationAddress = _networkID;
+        bytes32 claimAssetSignature = _CLAIM_ASSET_SIGNATURE;
+        bytes32 claimMessageSignature = _CLAIM_MESSAGE_SIGNATURE;
 
         // no need to be memory-safe, since the rest of the function will happen on assembly ¿?
         assembly ("memory-safe") {
             // Get the last free memory pointer ( i might use 0 aswell)
-            //let freeMemPointer := mload(0x40)
+            let freeMemPointer := mload(0x40)
 
             // no need to reserve memory since the rest of the funcion will happen on assembly
             let compressedClaimCallsOffset := compressedClaimCalls.offset
             let compressedClaimCallsLen := compressedClaimCalls.length
 
-            // Calldata claimMessage
+            // THe final calldata should be something like:
+            // Calldata claimMessage /claimAsset
             //   function claimMessage(
             //         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
             //         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot, --> constant
@@ -217,6 +240,7 @@ contract ClaimCompressor {
             // Encoded compressed Data:
 
             // Constant parameters:
+
             // smtProofLocalExitRoots[0],
             // smtProofRollupExitRoots,
             // mainnetExitRoot,
@@ -224,18 +248,19 @@ contract ClaimCompressor {
 
             // Parameters per claim tx
             // [
-            //     isMessage[i],
+            //     uint8(isMessage[i] ? 1 : 0), // define byte with all small values TODO
             //     uint8(lastDifferentLevel),
             //     smtProofCompressed,
-            //     bytes1(bytes32(globalIndex[i] << 191)), // get the 65th bit, so 256 - 65 = 191
+            //     uint8(globalIndex[i] >> 64), // define byte with all small values TODO
             //     uint64(globalIndex[i]),
-            //     originNetwork[i], // for first version this is ok
+            //     originNetwork[i],
             //     originAddress[i],
             //     destinationAddress[i],
             //     amount[i], // could compress to 128 bits
             //     uint32(metadata[i].length),
             //     metadata[i]
             // ]
+
             // Write the constant parameters for all claims in this call
 
             // Copy smtProofRollupExitRoot
@@ -263,7 +288,13 @@ contract ClaimCompressor {
 
             // Memory offset, signature + smtProofLocalExitRoot + smtProofRollupExitRoot +
             // globalIndex + mainnetExitRoot + rollupExitRoot + originNetwork + originAddress = 69 * 32 bytes + 4 bytes
-            mstore(add(4, mul(69, 32)), destinationAddress)
+            mstore(add(4, mul(69, 32)), destinationNetwork)
+
+            // Copy metadata offset
+            // Memory offset, signature + smtProofLocalExitRoot + smtProofRollupExitRoot +
+            // globalIndex + mainnetExitRoot + rollupExitRoot + originNetwork + originAddress +
+            //destinationNetwork + destinationAddress + amount = 72 * 32 bytes + 4 bytes
+            mstore(add(4, mul(72, 32)), _METADATA_OFSSET)
 
             // Skip constant parameters
 
@@ -279,26 +310,179 @@ contract ClaimCompressor {
                 // after iteration block, empty
             } {
                 // loop block, non empty ;)
-                // x := add(x, mload(i))
-                // i := add(i, 0x20)
+
+                // Read uint8 isMessageBool
+                switch shr(248, calldataload(currentCalldataPointer))
+                case 0 {
+                    // Write asset signature
+                    mstore8(0, claimAssetSignature)
+                    mstore8(1, shr(1, claimAssetSignature))
+                    mstore8(2, shr(2, claimAssetSignature))
+                    mstore8(3, shr(3, claimAssetSignature))
+                }
+                case 1 {
+                    mstore8(0, claimMessageSignature)
+                    mstore8(1, shr(1, claimMessageSignature))
+                    mstore8(2, shr(2, claimMessageSignature))
+                    mstore8(3, shr(3, claimMessageSignature))
+                }
+
+                // Add 1 byte of isMessage TODO
+                currentCalldataPointer := add(currentCalldataPointer, 1)
+
+                // Mem pointer where the current data must be written
+                let memPointer := 4
+
+                // load lastDifferentLevel
+                let smtProofBytesToCopy := mul(
+                    shr(
+                        248, // 256 - 8(lastDifferentLevel) = 248
+                        calldataload(currentCalldataPointer)
+                    ),
+                    32
+                )
+
+                // Add 1 byte of lastDifferentLevel
+                currentCalldataPointer := add(currentCalldataPointer, 1)
+
+                calldatacopy(
+                    4, // Memory offset = 4 bytes
+                    currentCalldataPointer, // calldata offset
+                    smtProofBytesToCopy // Copy smtProofBytesToCopy len
+                )
+
+                // Add smtProofBytesToCopy bits of smtProofCompressed
+                currentCalldataPointer := add(
+                    currentCalldataPointer,
+                    smtProofBytesToCopy
+                )
+                // mem pointer, add smtProofLocalExitRoot(current) + smtProofRollupExitRoot(constant)
+                memPointer := add(memPointer, mul(32, 64))
+
+                // Copy global index
+                //     bool(globalIndex[i] & _GLOBAL_INDEX_MAINNET_FLAG != 0), // get isMainnet bool
+                //     uint64(globalIndex[i]),
+
+                // Since we cannot copy 65 bits, copy first mainnet flag
+
+                // global exit root --> first 23 bytes to 0
+                // | 191 bits |    1 bit     |   32 bits   |     32 bits    |
+                // |  mainnetFlag | rollupIndex | localRootIndex |
+                mstore8(
+                    add(memPointer, 23), // 23 bytes globalIndex Offset
+                    shr(255, calldataload(currentCalldataPointer))
+                )
+
+                // Add 1 bytes of uint8(globalIndex[i] >> 64
+                currentCalldataPointer := add(currentCalldataPointer, 1)
+
+                // Copy the next 64 bytes for the uint64(globalIndex[i]),
+                calldatacopy(
+                    add(memPointer, 23), // 24 bytes globalIndex Offset
+                    currentCalldataPointer, // calldata offset
+                    8 // Copy uint64(globalIndex[i])
+                )
+                currentCalldataPointer := add(currentCalldataPointer, 8)
+
+                // mem pointer, add globalIndex(current) + mainnetExitRoot(constant) + rollupExitRoot(constant) = 32*3 bytes
+                memPointer := add(memPointer, 96)
+
+                // Copy the next 4 bytes for the originNetwork[i]
+                calldatacopy(
+                    add(memPointer, 28), //  28 uint32 offset
+                    currentCalldataPointer, // calldata offset
+                    4 // Copy originNetwork[i]
+                )
+                currentCalldataPointer := add(currentCalldataPointer, 4)
+
+                // mem pointer, add originNetwork(current)
+                memPointer := add(memPointer, 32)
+
+                // Copy the next 20 bytes for the originAddress[i]
+                calldatacopy(
+                    add(memPointer, 12), // 12 address offset
+                    currentCalldataPointer, // calldata offset
+                    20 // Copy originAddress[i]
+                )
+                currentCalldataPointer := add(currentCalldataPointer, 20)
+
+                // mem pointer, add originAddress(current) + destinationNetwork (constant)
+                memPointer := add(memPointer, 64)
+
+                //     amount[i], // could compress to 128 bits
+                //     uint32(metadata[i].length),
+                //     metadata[i]
+
+                // Copy the next 20 bytes for the destinationAddress[i]
+                calldatacopy(
+                    add(memPointer, 12), // 12 address offset
+                    currentCalldataPointer, // calldata offset
+                    20 // Copy destinationAddress[i]
+                )
+                currentCalldataPointer := add(currentCalldataPointer, 20)
+
+                // mem pointer, add destinationAddress(current)
+                memPointer := add(memPointer, 32)
+
+                // Copy the next 32 bytes for the amount[i]
+                calldatacopy(
+                    memPointer, // 0 uint256 offset
+                    currentCalldataPointer, // calldata offset
+                    32 // Copy amount[i]
+                )
+                currentCalldataPointer := add(currentCalldataPointer, 32)
+
+                // mem pointer, add amount(current), add metadataOffset (constant)
+                memPointer := add(memPointer, 64)
+
+                // Copy the next 4 bytes for the uint32(metadata[i].length)
+
+                // load metadataLen
+                let metadataLen := shr(
+                    248, // 256 - 32(uint32(metadata[i].length)) = 224
+                    calldataload(currentCalldataPointer)
+                )
+
+                mstore(memPointer, metadataLen)
+
+                currentCalldataPointer := add(currentCalldataPointer, 4)
+
+                // mem pointer, add originNetwork(current)
+                memPointer := add(memPointer, 32)
+
+                // Write metadata
+
+                // Copy the next metadataLen bytes for themetadata
+                calldatacopy(
+                    memPointer, //  mem offset
+                    currentCalldataPointer, // calldata offset
+                    metadataLen // Copy metadataLen bytes
+                )
+
+                currentCalldataPointer := add(
+                    currentCalldataPointer,
+                    metadataLen
+                )
+
+                memPointer := add(memPointer, metadataLen)
+
+                // clean mem just in case
+                mstore(memPointer, 0)
+
+                // len args should be a multiple of 32 bytes
+                metadataLen := add(metadataLen, mod(metadataLen, 32))
+
+                // SHould i limit the gas TODO or the call
+                let success := call(
+                    gas(), // gas
+                    bridgeAddress, // address
+                    0, // value
+                    0, // args offset
+                    add(_CONSTANT_BYTES_PER_CLAIM, metadataLen), // argsSize
+                    0, // retOffset
+                    0 // retSize
+                )
             }
-
-            // Set the pointer on the start of the actual byte array
-            //ptrAccumulateInputSnarkBytes := add(accumulateSnarkBytes, 0x20)
-
-            //call(gas(), bridgeAddress, 0, 0, add(_CONSTANT_BYTES_PER_CLAIM, metadataLen), 0, 0)
         }
-        // gas
-        // address
-        // value
-        // argsOffset
-        // argsSize
-        // retOffset
-        // retSize
-        // assembly {
-        //     // store oldStateRoot
-        //     mstore(ptr, oldStateRoot)
-        //     ptr := add(ptr, 32)
-        // }
     }
 }
