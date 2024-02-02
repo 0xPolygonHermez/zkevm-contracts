@@ -137,19 +137,25 @@ describe("PolygonZkEVMBridge Contract", () => {
         const metadatas = [metadata];
         const isMessage = [false];
 
+        const sequenceForced = {
+            smtProofLocalExitRoot: proofLocal,
+            globalIndex: index,
+            originNetwork: originNetwork,
+            originAddress: tokenAddress,
+            destinationAddress: destinationAddress,
+            amount: amount,
+            metadata: metadata,
+            isMessage: false,
+        } as any;
+
+        console.log(proofs[0], mainnetExitRoot, ethers.ZeroHash, [sequenceForced]);
         const compressedMultipleBytes = await claimCompressor.compressClaimCall(
             proofs[0],
             mainnetExitRoot,
             ethers.ZeroHash,
-            proofs,
-            indexes,
-            originNetworks,
-            tokenAddresses,
-            destinationAddresses,
-            amounts,
-            metadatas,
-            isMessage
+            [sequenceForced]
         );
+        console.log({compressedMultipleBytes});
 
         const receipt = await (await claimCompressor.decompressClaimCall(compressedMultipleBytes)).wait();
 

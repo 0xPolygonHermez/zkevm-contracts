@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 import "../PolygonZkEVMBridgeV2.sol";
-
 pragma solidity 0.8.20;
 
 /**
@@ -159,7 +158,7 @@ contract BridgeReceiverMock {
         );
     }
 
-    fallback(bytes calldata input) external returns (bytes memory) {
-        emit FallbackEvent(input);
+    fallback() external {
+        emit FallbackEvent(msg.data);
     }
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 import "../PolygonZkEVMBridgeV2.sol";
+import "hardhat/console.sol";
 
 pragma solidity 0.8.20;
 
@@ -22,10 +23,10 @@ contract ClaimCompressor {
     // Indicate where's the mainnet flag bit in the global index
     uint256 private constant _GLOBAL_INDEX_MAINNET_FLAG = 2 ** 64;
 
-    bytes32 private constant _CLAIM_ASSET_SIGNATURE =
+    bytes4 private constant _CLAIM_ASSET_SIGNATURE =
         PolygonZkEVMBridgeV2.claimAsset.selector;
 
-    bytes32 private constant _CLAIM_MESSAGE_SIGNATURE =
+    bytes4 private constant _CLAIM_MESSAGE_SIGNATURE =
         PolygonZkEVMBridgeV2.claimMessage.selector;
 
     // Bytes that will be added to the snark input for every rollup aggregated
@@ -87,19 +88,27 @@ contract ClaimCompressor {
     uint32 private immutable _networkID;
 
     /**
-     * @notice Struct which will be used to call sequenceBatches
-     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param globalExitRoot Global exit root of the batch
-     * @param timestamp Sequenced timestamp of the batch
-     * @param minForcedTimestamp Minimum timestamp of the force batch data, empty when non forced batch
+     * @param smtProofRollupExitRoots Smt proof
+     * @param globalIndex Index of the leaf
+     * @param mainnetExitRoot Mainnet exit root
+     * @param rollupExitRoot Rollup exit root
+     * @param originNetwork Origin network
+     * @param originAddress Origin address
+     * param destinationNetwork Network destination
+     * @param destinationAddress Address destination
+     * @param amount message value
+     * @param metadata Abi encoded metadata if any, empty otherwise
+     * @param isMessage Bool indicating if it's a message
      */
-    struct BatchData {
-        bytes transactions;
-        bytes32 globalExitRoot;
-        uint64 timestamp;
-        uint64 minForcedTimestamp;
+    struct CompressClaimCallData {
+        bytes32[32] smtProofLocalExitRoot;
+        uint256 globalIndex;
+        uint32 originNetwork;
+        address originAddress;
+        address destinationAddress;
+        uint256 amount;
+        bytes metadata;
+        bool isMessage;
     }
 
     /**
@@ -113,49 +122,36 @@ contract ClaimCompressor {
 
     /**
      * @notice Foward all the claim parameters to compress them inside the contrat
-     * @param smtProofLocalExitRoots Smt proof
-     * @param smtProofRollupExitRoots Smt proof
-     * @param globalIndex Index of the leaf
+     * @param smtProofRollupExitRoot Smt proof
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
-     * @param originNetwork Origin network
-     * @param originAddress Origin address
-     * param destinationNetwork Network destination
-     * @param destinationAddress Address destination
-     * @param amount message value
-     * @param metadata Abi encoded metadata if any, empty otherwise
-     * @param isMessage Bool indicating if it's a message
-     */
+     * @param compressClaimCalldata compress claim calldata
+     **/
     function compressClaimCall(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoots,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH][] calldata smtProofLocalExitRoots, // struct
-        uint256[] calldata globalIndex,
-        uint32[] calldata originNetwork,
-        address[] calldata originAddress,
-        address[] calldata destinationAddress,
-        uint256[] calldata amount,
-        bytes[] calldata metadata,
-        bool[] calldata isMessage
+        CompressClaimCallData[] calldata compressClaimCalldata
     ) external pure returns (bytes memory) {
         // common parameters for all the claims
         bytes memory totalCompressedClaim = abi.encodePacked(
-            smtProofLocalExitRoots[0],
-            smtProofRollupExitRoots, // coudl be encoded like (uint8 len, first len [])
+            compressClaimCalldata[0].smtProofLocalExitRoot,
+            smtProofRollupExitRoot, // coudl be encoded like (uint8 len, first len [])
             mainnetExitRoot,
             rollupExitRoot
         );
 
         // If the memory cost goes crazy, might need to do it in assembly D:
-        for (uint256 i = 0; i < isMessage.length; i++) {
+        for (uint256 i = 0; i < compressClaimCalldata.length; i++) {
             // Byte array that will be returned
-
+            CompressClaimCallData
+                memory currentCompressClaimCalldata = compressClaimCalldata[i];
             // compare smt proof against the first one
             uint256 lastDifferentLevel = 0;
             for (uint256 j = 0; j < _DEPOSIT_CONTRACT_TREE_DEPTH; j++) {
                 if (
-                    smtProofLocalExitRoots[i][j] != smtProofLocalExitRoots[0][j]
+                    currentCompressClaimCalldata.smtProofLocalExitRoot[j] !=
+                    compressClaimCalldata[0].smtProofLocalExitRoot[j]
                 ) {
                     lastDifferentLevel = j;
                 }
@@ -166,26 +162,26 @@ contract ClaimCompressor {
             for (uint256 j = 0; j < lastDifferentLevel; j++) {
                 smtProofCompressed = abi.encodePacked(
                     smtProofCompressed,
-                    smtProofLocalExitRoots[0][i]
+                    currentCompressClaimCalldata.smtProofLocalExitRoot[i]
                 );
             }
 
             bytes memory compressedClaimCall = abi.encodePacked(
-                uint8(isMessage[i] ? 1 : 0), // define byte with all small values TODO
+                uint8(currentCompressClaimCalldata.isMessage ? 1 : 0), // define byte with all small values TODO
                 uint8(lastDifferentLevel),
                 smtProofCompressed,
-                uint8(globalIndex[i] >> 64), // define byte with all small values TODO
-                //bool(globalIndex[i] & _GLOBAL_INDEX_MAINNET_FLAG != 0), // get isMainnet bool
-                uint64(globalIndex[i]),
+                uint8(currentCompressClaimCalldata.globalIndex >> 64), // define byte with all small values TODO
+                //bool(globalIndex & _GLOBAL_INDEX_MAINNET_FLAG != 0), // get isMainnet bool
+                uint64(currentCompressClaimCalldata.globalIndex),
                 // mainnetExitRoot,
                 // rollupExitRoot,
-                originNetwork[i],
-                originAddress[i],
+                currentCompressClaimCalldata.originNetwork,
+                currentCompressClaimCalldata.originAddress,
                 // destinationNetwork
-                destinationAddress[i],
-                amount[i], // could compress to 128 bits
-                uint32(metadata[i].length),
-                metadata[i]
+                currentCompressClaimCalldata.destinationAddress,
+                currentCompressClaimCalldata.amount, // could compress to 128 bits
+                uint32(currentCompressClaimCalldata.metadata.length),
+                currentCompressClaimCalldata.metadata
             );
 
             // Accumulate all claim calls
@@ -201,7 +197,7 @@ contract ClaimCompressor {
         // Starts with the common parameters for all the claims:
 
         // smtProofLocalExitRoots bytes32[32]
-        // smtProofRollupExitRoots  bytes32[32]
+        // smtProofRollupExitRoot  bytes32[32]
         // mainnetExitRoot  bytes32
         // rollupExitRoot   bytes32
 
@@ -209,13 +205,13 @@ contract ClaimCompressor {
         uint256 destinationNetwork = _networkID;
         address bridgeAddress = _bridgeAddress;
 
-        bytes32 claimAssetSignature = _CLAIM_ASSET_SIGNATURE;
-        bytes32 claimMessageSignature = _CLAIM_MESSAGE_SIGNATURE;
+        uint256 claimAssetSignature = uint32(_CLAIM_ASSET_SIGNATURE);
+        uint256 claimMessageSignature = uint32(_CLAIM_MESSAGE_SIGNATURE);
 
         // no need to be memory-safe, since the rest of the function will happen on assembly ¿?
-        assembly ("memory-safe") {
+        assembly {
             // Get the last free memory pointer ( i might use 0 aswell)
-            let freeMemPointer := mload(0x40)
+            // let freeMemPointer := mload(0x40)
 
             // no need to reserve memory since the rest of the funcion will happen on assembly
             let compressedClaimCallsOffset := compressedClaimCalls.offset
