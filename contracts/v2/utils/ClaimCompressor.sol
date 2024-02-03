@@ -30,12 +30,13 @@ contract ClaimCompressor {
         PolygonZkEVMBridgeV2.claimMessage.selector;
 
     // Bytes that will be added to the snark input for every rollup aggregated
+    // 4 bytes signature
     // 32*32 bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot
     // 32*32 bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot
     // 32*8 Rest constant parameters
-    // 32 bytes position, 32 bytes length, + length bytes = 32*32*2 + 32*8 + 32*2 + length metadata = totalLen
+    // 32 bytes position, 32 bytes length, + length bytes = 4 + 32*32*2 + 32*8 + 32*2 + length metadata = totalLen
     uint256 internal constant _CONSTANT_BYTES_PER_CLAIM =
-        32 * 32 * 2 + 8 * 32 + 32 * 2;
+        4 + 32 * 32 * 2 + 8 * 32 + 32 * 2;
 
     // Bytes len of arrays of 32 positions, of 32 bytes bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH]
     uint256 internal constant _BYTE_LEN_CONSTANT_ARRAYS = 32 * 32;
@@ -259,6 +260,13 @@ contract ClaimCompressor {
 
             // Write the constant parameters for all claims in this call
 
+            // Copy smtProofLocalExitRoot
+            calldatacopy(
+                4, // Memory offset, signature = 4 bytes
+                compressedClaimCallsOffset, // calldata offset
+                _BYTE_LEN_CONSTANT_ARRAYS // Copy smtProofRollupExitRoot len
+            )
+
             // Copy smtProofRollupExitRoot
             calldatacopy(
                 add(4, _BYTE_LEN_CONSTANT_ARRAYS), // Memory offset, signature + smtProofLocalExitRoot = 32 * 32 bytes + 4 bytes
@@ -298,11 +306,17 @@ contract ClaimCompressor {
             // smtProofRollupExitRoots,
             // mainnetExitRoot,
             // rollupExitRoot
-            let currentCalldataPointer := _CONSTANT_VARIABLES_LENGTH
+            let currentCalldataPointer := add(
+                compressedClaimCallsOffset,
+                _CONSTANT_VARIABLES_LENGTH
+            )
 
             for {
                 // initialization block, empty
-            } lt(currentCalldataPointer, compressedClaimCallsLen) {
+            } lt(
+                currentCalldataPointer,
+                add(compressedClaimCallsOffset, compressedClaimCallsLen)
+            ) {
                 // after iteration block, empty
             } {
                 // loop block, non empty ;)
@@ -311,16 +325,16 @@ contract ClaimCompressor {
                 switch shr(248, calldataload(currentCalldataPointer))
                 case 0 {
                     // Write asset signature
-                    mstore8(0, claimAssetSignature)
-                    mstore8(1, shr(1, claimAssetSignature))
-                    mstore8(2, shr(2, claimAssetSignature))
-                    mstore8(3, shr(3, claimAssetSignature))
+                    mstore8(3, claimAssetSignature)
+                    mstore8(2, shr(8, claimAssetSignature))
+                    mstore8(1, shr(16, claimAssetSignature))
+                    mstore8(0, shr(24, claimAssetSignature))
                 }
                 case 1 {
-                    mstore8(0, claimMessageSignature)
-                    mstore8(1, shr(1, claimMessageSignature))
-                    mstore8(2, shr(2, claimMessageSignature))
-                    mstore8(3, shr(3, claimMessageSignature))
+                    mstore8(3, claimMessageSignature)
+                    mstore8(2, shr(8, claimMessageSignature))
+                    mstore8(1, shr(16, claimMessageSignature))
+                    mstore8(0, shr(24, claimMessageSignature))
                 }
 
                 // Add 1 byte of isMessage TODO
@@ -374,7 +388,7 @@ contract ClaimCompressor {
 
                 // Copy the next 64 bytes for the uint64(globalIndex[i]),
                 calldatacopy(
-                    add(memPointer, 23), // 24 bytes globalIndex Offset
+                    add(memPointer, 24), // 24 bytes globalIndex Offset
                     currentCalldataPointer, // calldata offset
                     8 // Copy uint64(globalIndex[i])
                 )
@@ -435,7 +449,7 @@ contract ClaimCompressor {
 
                 // load metadataLen
                 let metadataLen := shr(
-                    248, // 256 - 32(uint32(metadata[i].length)) = 224
+                    224, // 256 - 32(uint32(metadata[i].length)) = 224
                     calldataload(currentCalldataPointer)
                 )
 
@@ -443,7 +457,7 @@ contract ClaimCompressor {
 
                 currentCalldataPointer := add(currentCalldataPointer, 4)
 
-                // mem pointer, add originNetwork(current)
+                // mem pointer, add metadata len
                 memPointer := add(memPointer, 32)
 
                 // Write metadata
@@ -462,11 +476,14 @@ contract ClaimCompressor {
 
                 memPointer := add(memPointer, metadataLen)
 
-                // clean mem just in case
+                // clean mem
                 mstore(memPointer, 0)
 
                 // len args should be a multiple of 32 bytes
-                metadataLen := add(metadataLen, mod(metadataLen, 32))
+                let totalLenCall := add(
+                    _CONSTANT_BYTES_PER_CLAIM,
+                    add(metadataLen, mod(metadataLen, 32))
+                )
 
                 // SHould i limit the gas TODO or the call
                 let success := call(
@@ -474,7 +491,7 @@ contract ClaimCompressor {
                     bridgeAddress, // address
                     0, // value
                     0, // args offset
-                    add(_CONSTANT_BYTES_PER_CLAIM, metadataLen), // argsSize
+                    totalLenCall, // argsSize
                     0, // retOffset
                     0 // retSize
                 )

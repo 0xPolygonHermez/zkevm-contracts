@@ -67,7 +67,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         const originNetwork = networkIDMainnet;
         const tokenAddress = ethers.hexlify(ethers.randomBytes(20));
         const amount = ethers.parseEther("10");
-        const destinationNetwork = networkIDMainnet;
+        const destinationNetwork = networkID;
         const destinationAddress = acc1.address;
         const metadata = metadataToken;
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
@@ -95,6 +95,26 @@ describe("PolygonZkEVMBridge Contract", () => {
 
         const indexRandom = 3;
 
+        const proofs = [proofLocal];
+        const indexes = [index];
+        const originNetworks = [originNetwork];
+        const tokenAddresses = [tokenAddress];
+        const destinationAddresses = [destinationAddress];
+        const amounts = [amount];
+        const metadatas = [metadata];
+        const isMessage = [false];
+
+        const sequenceForced = {
+            smtProofLocalExitRoot: proofLocal,
+            globalIndex: indexRandom,
+            originNetwork: originNetwork,
+            originAddress: tokenAddress,
+            destinationAddress: destinationAddress,
+            amount: amount,
+            metadata: metadata,
+            isMessage: false,
+        } as any;
+
         const encodedCall = BridgeFactory.interface.encodeFunctionData("claimAsset", [
             proofLocal,
             proofLocal,
@@ -109,63 +129,26 @@ describe("PolygonZkEVMBridge Contract", () => {
             metadata,
         ]);
 
-        const newWallet = ethers.HDNodeWallet.fromMnemonic(
-            ethers.Mnemonic.fromPhrase("test test test test test test test test test test test junk"),
-            `m/44'/60'/0'/0/0`
-        );
-
-        const tx = {
-            data: encodedCall,
-            to: bridge.address,
-            nonce: 1,
-            gasLimit: 200000,
-            gasPrice: ethers.parseUnits("10", "gwei"),
-            chainId: 5,
-        };
-
-        const txSigned = await newWallet.signTransaction(tx);
-
-        // Get claim tx bytes calldata
-        const customSignedTx = processorUtils.rawTxToCustomRawTx(txSigned);
-
-        const proofs = [proofLocal];
-        const indexes = [index];
-        const originNetworks = [originNetwork];
-        const tokenAddresses = [tokenAddress];
-        const destinationAddresses = [destinationAddress];
-        const amounts = [amount];
-        const metadatas = [metadata];
-        const isMessage = [false];
-
-        const sequenceForced = {
-            smtProofLocalExitRoot: proofLocal,
-            globalIndex: index,
-            originNetwork: originNetwork,
-            originAddress: tokenAddress,
-            destinationAddress: destinationAddress,
-            amount: amount,
-            metadata: metadata,
-            isMessage: false,
-        } as any;
-
-        console.log(proofs[0], mainnetExitRoot, ethers.ZeroHash, [sequenceForced]);
+        //console.log(proofs[0], mainnetExitRoot, ethers.ZeroHash, [sequenceForced]);
         const compressedMultipleBytes = await claimCompressor.compressClaimCall(
             proofs[0],
             mainnetExitRoot,
             ethers.ZeroHash,
             [sequenceForced]
         );
-        console.log({compressedMultipleBytes});
+        //console.log({compressedMultipleBytes});
 
+        //console.log(await claimCompressor.decompressClaimCall(compressedMultipleBytes));
         const receipt = await (await claimCompressor.decompressClaimCall(compressedMultipleBytes)).wait();
 
         for (const log of receipt?.logs) {
             const parsedLog = bridgeReceiverMock.interface.parseLog(log);
-            console.log({parsedLog});
+            //console.log({parsedLog});
+            expect(parsedLog?.args[0]).to.be.equal(encodedCall);
         }
         await expect(claimCompressor.decompressClaimCall(compressedMultipleBytes))
             .to.emit(bridgeReceiverMock, "FallbackEvent")
-            .withArgs("0x");
+            .withArgs(encodedCall);
         // .to.emit(bridgeReceiverMock, "ClaimAsset")
         // .withArgs(
         //     proofs[0],
@@ -181,13 +164,14 @@ describe("PolygonZkEVMBridge Contract", () => {
         //     isMessage[0]
         // );
     });
+
     it("should check Compression", async () => {
         const BridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
 
         const originNetwork = networkIDMainnet;
         const tokenAddress = ethers.hexlify(ethers.randomBytes(20));
         const amount = ethers.parseEther("10");
-        const destinationNetwork = networkIDMainnet;
+        const destinationNetwork = networkID;
         const destinationAddress = acc1.address;
         const metadata = metadataToken;
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
@@ -249,43 +233,59 @@ describe("PolygonZkEVMBridge Contract", () => {
         const customSignedTx = processorUtils.rawTxToCustomRawTx(txSigned);
 
         // Compute calldatas
-        for (let i = 1; i < 0; i++) {
-            const proofs = [] as any;
-            const indexes = [] as any;
-            const originNetworks = [];
-            const tokenAddresses = [];
-            const destinationAddresses = [];
-            const amounts = [];
-            const metadatas = [];
-            const isMessage = [];
+        for (let i = 1; i < 20; i++) {
+            const sequenceForcedStructs = [] as any;
 
             for (let j = 0; j < i; j++) {
                 const index = i;
                 const proofLocal = merkleTreeLocal.getProofTreeByIndex(i);
 
-                proofs.push(proofLocal);
-                indexes.push(index);
-                originNetworks.push(originNetwork);
-                tokenAddresses.push(tokenAddress);
-                destinationAddresses.push(destinationAddress);
-                amounts.push(amount);
-                metadatas.push(metadata);
-                isMessage.push(false);
+                const sequenceForced = {
+                    smtProofLocalExitRoot: proofLocal,
+                    globalIndex: index,
+                    originNetwork: originNetwork,
+                    originAddress: tokenAddress,
+                    destinationAddress: destinationAddress,
+                    amount: amount,
+                    metadata: metadata,
+                    isMessage: false,
+                } as any;
+
+                sequenceForcedStructs.push(sequenceForced);
             }
 
             const compressedMultipleBytes = await claimCompressor.compressClaimCall(
-                proofs[0],
+                proofLocal,
                 mainnetExitRoot,
                 ethers.ZeroHash,
-                proofs,
-                indexes,
-                originNetworks,
-                tokenAddresses,
-                destinationAddresses,
-                amounts,
-                metadatas,
-                isMessage
+                sequenceForcedStructs
             );
+
+            // ASsert correctness
+            const receipt = await (await claimCompressor.decompressClaimCall(compressedMultipleBytes)).wait();
+            for (let k = 0; k < receipt?.logs.length; k++) {
+                const currentLog = receipt?.logs[k];
+                const currenSequenceForcedStructs = sequenceForcedStructs[k];
+
+                const decodeFunctionName = currenSequenceForcedStructs.isMessage ? "claimMessage" : "claimAsset";
+
+                const encodedCall = BridgeFactory.interface.encodeFunctionData(decodeFunctionName, [
+                    currenSequenceForcedStructs.smtProofLocalExitRoot,
+                    proofLocal,
+                    currenSequenceForcedStructs.globalIndex,
+                    mainnetExitRoot,
+                    ethers.ZeroHash,
+                    currenSequenceForcedStructs.originNetwork,
+                    currenSequenceForcedStructs.originAddress,
+                    destinationNetwork, // constant
+                    currenSequenceForcedStructs.destinationAddress,
+                    currenSequenceForcedStructs.amount,
+                    currenSequenceForcedStructs.metadata,
+                ]);
+
+                const parsedLog = bridgeReceiverMock.interface.parseLog(currentLog);
+                expect(parsedLog?.args[0]).to.be.equal(encodedCall);
+            }
 
             const txCompressedMultiple = {
                 data: compressedMultipleBytes,
@@ -304,6 +304,7 @@ describe("PolygonZkEVMBridge Contract", () => {
 
             console.log({
                 numClaims: i,
+                gasUsed: receipt?.gasUsed,
                 dataClaimCall: encodedCall.length * i,
                 dataCompressedCall: compressedMultipleBytes.length,
                 ratioData: compressedMultipleBytes.length / (encodedCall.length * i),
