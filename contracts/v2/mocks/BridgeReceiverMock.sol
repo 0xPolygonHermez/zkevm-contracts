@@ -65,7 +65,7 @@ contract BridgeReceiverMock {
      * @param amount Amount of tokens
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
-    function claimAssetAA(
+    function claimAsset(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
@@ -116,7 +116,7 @@ contract BridgeReceiverMock {
      * @param amount message value
      * @param metadata Abi encoded metadata if any, empty otherwise
      */
-    function claimMessageBB(
+    function claimMessage(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,

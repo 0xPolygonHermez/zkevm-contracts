@@ -154,7 +154,7 @@ contract ClaimCompressor {
                     currentCompressClaimCalldata.smtProofLocalExitRoot[j] !=
                     compressClaimCalldata[0].smtProofLocalExitRoot[j]
                 ) {
-                    lastDifferentLevel = j;
+                    lastDifferentLevel = j + 1;
                 }
             }
 
@@ -163,7 +163,7 @@ contract ClaimCompressor {
             for (uint256 j = 0; j < lastDifferentLevel; j++) {
                 smtProofCompressed = abi.encodePacked(
                     smtProofCompressed,
-                    currentCompressClaimCalldata.smtProofLocalExitRoot[i]
+                    currentCompressClaimCalldata.smtProofLocalExitRoot[j]
                 );
             }
 
@@ -324,6 +324,7 @@ contract ClaimCompressor {
                 // Read uint8 isMessageBool
                 switch shr(248, calldataload(currentCalldataPointer))
                 case 0 {
+                    // TODO optimization
                     // Write asset signature
                     mstore8(3, claimAssetSignature)
                     mstore8(2, shr(8, claimAssetSignature))
@@ -482,10 +483,10 @@ contract ClaimCompressor {
                 // len args should be a multiple of 32 bytes
                 let totalLenCall := add(
                     _CONSTANT_BYTES_PER_CLAIM,
-                    add(metadataLen, mod(metadataLen, 32))
+                    add(metadataLen, mod(sub(32, mod(metadataLen, 32)), 32))
                 )
 
-                // SHould i limit the gas TODO or the call
+                // SHould i limit the gas TODO of the call
                 let success := call(
                     gas(), // gas
                     bridgeAddress, // address
@@ -494,6 +495,13 @@ contract ClaimCompressor {
                     totalLenCall, // argsSize
                     0, // retOffset
                     0 // retSize
+                )
+
+                // Reset smtProofLocalExitRoot
+                calldatacopy(
+                    4, // Memory offset = 4 bytes
+                    compressedClaimCallsOffset, // calldata offset
+                    smtProofBytesToCopy // Copy smtProofBytesToCopy len
                 )
             }
         }

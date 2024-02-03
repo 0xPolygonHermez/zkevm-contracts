@@ -61,108 +61,126 @@ describe("PolygonZkEVMBridge Contract", () => {
         await claimCompressor.waitForDeployment();
     });
 
-    it("should check it works", async () => {
+    it("should check random values", async () => {
         const BridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
-
-        const originNetwork = networkIDMainnet;
-        const tokenAddress = ethers.hexlify(ethers.randomBytes(20));
-        const amount = ethers.parseEther("10");
-        const destinationNetwork = networkID;
-        const destinationAddress = acc1.address;
-        const metadata = metadataToken;
-        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
 
         // compute root merkle tree in Js
         const height = 32;
         const merkleTreeLocal = new MerkleTreeBridge(height);
-        const leafValue = getLeafValue(
-            LEAF_TYPE_ASSET,
-            originNetwork,
-            tokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadataHash
-        );
-        for (let i = 0; i < 8; i++) {
+
+        const totalLeafsMerkleTree = 20;
+
+        const leafs = [];
+        for (let i = 0; i < totalLeafsMerkleTree; i++) {
+            // Create a random merkle tree
+            const originNetwork = ethers.hexlify(ethers.randomBytes(4));
+            const tokenAddress = ethers.hexlify(ethers.randomBytes(20));
+            const amount = ethers.parseEther("10");
+            const destinationNetwork = networkID; // fixed by contract
+            const destinationAddress = ethers.hexlify(ethers.randomBytes(20));
+            const metadata = ethers.hexlify(ethers.randomBytes(Math.floor(Math.random() * 1000)));
+            const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+            const leafType = Math.floor(Math.random() * 2);
+            const leafValue = getLeafValue(
+                leafType,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadataHash
+            );
             merkleTreeLocal.add(leafValue);
+            leafs.push({
+                leafType,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+            });
         }
 
         const mainnetExitRoot = merkleTreeLocal.getRoot();
+        const rollupExitRoot = ethers.hexlify(ethers.randomBytes(32));
 
-        const index = 0;
-        const proofLocal = merkleTreeLocal.getProofTreeByIndex(index);
+        // Mock rollup root, not necessary now
+        const randomIndex = 10;
+        const proofLocal = merkleTreeLocal.getProofTreeByIndex(randomIndex);
 
-        const indexRandom = 3;
+        // Compute calldatas
+        for (let i = 1; i < totalLeafsMerkleTree; i++) {
+            const sequenceForcedStructs = [] as any;
 
-        const proofs = [proofLocal];
-        const indexes = [index];
-        const originNetworks = [originNetwork];
-        const tokenAddresses = [tokenAddress];
-        const destinationAddresses = [destinationAddress];
-        const amounts = [amount];
-        const metadatas = [metadata];
-        const isMessage = [false];
+            for (let j = 0; j < i; j++) {
+                const index = j;
+                const currentLeaf = leafs[j];
+                const proofLocal = merkleTreeLocal.getProofTreeByIndex(j);
 
-        const sequenceForced = {
-            smtProofLocalExitRoot: proofLocal,
-            globalIndex: indexRandom,
-            originNetwork: originNetwork,
-            originAddress: tokenAddress,
-            destinationAddress: destinationAddress,
-            amount: amount,
-            metadata: metadata,
-            isMessage: false,
-        } as any;
+                const sequenceForced = {
+                    smtProofLocalExitRoot: proofLocal,
+                    globalIndex: index,
+                    originNetwork: currentLeaf.originNetwork,
+                    originAddress: currentLeaf.tokenAddress,
+                    destinationAddress: currentLeaf.destinationAddress,
+                    amount: currentLeaf.amount,
+                    metadata: currentLeaf.metadata,
+                    isMessage: currentLeaf.leafType,
+                } as any;
 
-        const encodedCall = BridgeFactory.interface.encodeFunctionData("claimAsset", [
-            proofLocal,
-            proofLocal,
-            indexRandom,
-            mainnetExitRoot,
-            ethers.ZeroHash,
-            originNetwork,
-            tokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata,
-        ]);
+                sequenceForcedStructs.push(sequenceForced);
+            }
 
-        //console.log(proofs[0], mainnetExitRoot, ethers.ZeroHash, [sequenceForced]);
-        const compressedMultipleBytes = await claimCompressor.compressClaimCall(
-            proofs[0],
-            mainnetExitRoot,
-            ethers.ZeroHash,
-            [sequenceForced]
-        );
-        //console.log({compressedMultipleBytes});
+            const compressedMultipleBytes = await claimCompressor.compressClaimCall(
+                proofLocal,
+                mainnetExitRoot,
+                rollupExitRoot,
+                sequenceForcedStructs
+            );
 
-        //console.log(await claimCompressor.decompressClaimCall(compressedMultipleBytes));
-        const receipt = await (await claimCompressor.decompressClaimCall(compressedMultipleBytes)).wait();
+            // ASsert correctness
+            const receipt = await (await claimCompressor.decompressClaimCall(compressedMultipleBytes)).wait();
+            for (let k = 0; k < receipt?.logs.length; k++) {
+                const currentLog = receipt?.logs[k];
+                const currenSequenceForcedStructs = sequenceForcedStructs[k];
 
-        for (const log of receipt?.logs) {
-            const parsedLog = bridgeReceiverMock.interface.parseLog(log);
-            //console.log({parsedLog});
-            expect(parsedLog?.args[0]).to.be.equal(encodedCall);
+                const decodeFunctionName = currenSequenceForcedStructs.isMessage ? "claimMessage" : "claimAsset";
+
+                const encodedCall = BridgeFactory.interface.encodeFunctionData(decodeFunctionName, [
+                    currenSequenceForcedStructs.smtProofLocalExitRoot,
+                    proofLocal,
+                    currenSequenceForcedStructs.globalIndex,
+                    mainnetExitRoot,
+                    rollupExitRoot,
+                    currenSequenceForcedStructs.originNetwork,
+                    currenSequenceForcedStructs.originAddress,
+                    networkID, // constant
+                    currenSequenceForcedStructs.destinationAddress,
+                    currenSequenceForcedStructs.amount,
+                    currenSequenceForcedStructs.metadata,
+                ]);
+
+                const parsedLog = bridgeReceiverMock.interface.parseLog(currentLog);
+                expect(parsedLog?.args.smtProofLocalExitRoot).to.be.deep.equal(
+                    currenSequenceForcedStructs.smtProofLocalExitRoot
+                );
+                expect(parsedLog?.args.smtProofRollupExitRoot).to.be.deep.equal(proofLocal);
+                expect(parsedLog?.args.globalIndex).to.be.equal(currenSequenceForcedStructs.globalIndex);
+                expect(parsedLog?.args.mainnetExitRoot).to.be.equal(mainnetExitRoot);
+                expect(parsedLog?.args.rollupExitRoot).to.be.equal(rollupExitRoot);
+                expect(parsedLog?.args.originNetwork).to.be.equal(currenSequenceForcedStructs.originNetwork);
+                expect(parsedLog?.args.originTokenAddress.toLowerCase()).to.be.equal(
+                    currenSequenceForcedStructs.originAddress
+                );
+                expect(parsedLog?.args.destinationNetwork).to.be.equal(networkID);
+                expect(parsedLog?.args.destinationAddress.toLowerCase()).to.be.equal(
+                    currenSequenceForcedStructs.destinationAddress
+                );
+                expect(parsedLog?.args.amount).to.be.equal(currenSequenceForcedStructs.amount);
+                expect(parsedLog?.args.metadata).to.be.equal(currenSequenceForcedStructs.metadata);
+            }
         }
-        await expect(claimCompressor.decompressClaimCall(compressedMultipleBytes))
-            .to.emit(bridgeReceiverMock, "FallbackEvent")
-            .withArgs(encodedCall);
-        // .to.emit(bridgeReceiverMock, "ClaimAsset")
-        // .withArgs(
-        //     proofs[0],
-        //     mainnetExitRoot,
-        //     ethers.ZeroHash,
-        //     proofs[0],
-        //     indexes[0],
-        //     originNetworks[0],
-        //     tokenAddresses[0],
-        //     destinationAddresses[0],
-        //     amounts[0],
-        //     metadatas[0],
-        //     isMessage[0]
-        // );
     });
 
     it("should check Compression", async () => {
@@ -284,7 +302,25 @@ describe("PolygonZkEVMBridge Contract", () => {
                 ]);
 
                 const parsedLog = bridgeReceiverMock.interface.parseLog(currentLog);
-                expect(parsedLog?.args[0]).to.be.equal(encodedCall);
+                //expect(parsedLog?.args[0]).to.be.equal(encodedCall);
+
+                expect(parsedLog?.args.smtProofLocalExitRoot).to.be.deep.equal(
+                    currenSequenceForcedStructs.smtProofLocalExitRoot
+                );
+                expect(parsedLog?.args.smtProofRollupExitRoot).to.be.deep.equal(proofLocal);
+                expect(parsedLog?.args.globalIndex).to.be.equal(currenSequenceForcedStructs.globalIndex);
+                expect(parsedLog?.args.mainnetExitRoot).to.be.equal(mainnetExitRoot);
+                expect(parsedLog?.args.rollupExitRoot).to.be.equal(ethers.ZeroHash);
+                expect(parsedLog?.args.originNetwork).to.be.equal(currenSequenceForcedStructs.originNetwork);
+                expect(parsedLog?.args.originTokenAddress.toLowerCase()).to.be.equal(
+                    currenSequenceForcedStructs.originAddress
+                );
+                expect(parsedLog?.args.destinationNetwork).to.be.equal(networkID);
+                expect(parsedLog?.args.destinationAddress.toLowerCase()).to.be.equal(
+                    currenSequenceForcedStructs.destinationAddress.toLowerCase()
+                );
+                expect(parsedLog?.args.amount).to.be.equal(currenSequenceForcedStructs.amount);
+                expect(parsedLog?.args.metadata).to.be.equal(currenSequenceForcedStructs.metadata);
             }
 
             const txCompressedMultiple = {
