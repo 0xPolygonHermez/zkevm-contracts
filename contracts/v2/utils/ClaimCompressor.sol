@@ -203,6 +203,7 @@ contract ClaimCompressor {
     function sendCompressedClaims(
         bytes calldata compressedClaimCalls
     ) external {
+        // TODO get metadata tokens ( max len metadata)
         // TODO first rollupExitRoot, instead of zeroes, could be zero hashes,  Codecopy?¿
 
         // Load "dynamic" constant and immutables since are not accesible from assembly

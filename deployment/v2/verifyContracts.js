@@ -168,7 +168,7 @@ async function main() {
 
     // verify zkEVM address or validium
 
-    if (createRollupOutputParameters.consensusContract == "PolygonZkEVMEtrog") {
+    if (createRollupOutputParameters.consensusContract === 'PolygonZkEVMEtrog') {
         try {
             await hre.run(
                 'verify:verify',
@@ -186,28 +186,25 @@ async function main() {
         } catch (error) {
             // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
         }
-    } else {
-        if(createRollupOutputParameters.consensusContract == "PolygonValidiumEtrog") {
-            try {
-                await hre.run(
-                    'verify:verify',
-                    {
-                        contract: 'contracts/v2/consensus/validium/PolygonValidiumEtrog.sol:PolygonValidiumEtrog',
-                        address: createRollupOutputParameters.rollupAddress,
-                        constructorArguments: [
-                            deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
-                            deployOutputParameters.polTokenAddress,
-                            deployOutputParameters.polygonZkEVMBridgeAddress,
-                            deployOutputParameters.polygonRollupManager,
-                        ],
-                    },
-                );
-            } catch (error) {
-                // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
-            }
+    } else if (createRollupOutputParameters.consensusContract === 'PolygonValidiumEtrog') {
+        try {
+            await hre.run(
+                'verify:verify',
+                {
+                    contract: 'contracts/v2/consensus/validium/PolygonValidiumEtrog.sol:PolygonValidiumEtrog',
+                    address: createRollupOutputParameters.rollupAddress,
+                    constructorArguments: [
+                        deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
+                        deployOutputParameters.polTokenAddress,
+                        deployOutputParameters.polygonZkEVMBridgeAddress,
+                        deployOutputParameters.polygonRollupManager,
+                    ],
+                },
+            );
+        } catch (error) {
+            // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
         }
     }
- 
 }
 
 main()
