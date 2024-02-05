@@ -4,48 +4,52 @@ In order to verify the smart contract, you will need a machine with at least 256
 
 In this tutorial we will give instructions for a r6a.8xlarge aws instance. This instance has 16 cores 32 threads, 512GB of SSD. The instance will use Ubuntu 22.04 LTS and the cost of the instance is about 1.82 $/h. This process is quite long, it takes approximately 5-6 hours.
 
-So lets start by launching and instance. 
+So lets start by launching and instance.
 
 ## Basic OS preparation
 
-````bash
+```bash
 sudo apt update
-sudo apt install -y tmux git curl
-````
+sudo apt install -y tmux git curl jq
+```
 
 ## Tweaking the OS to accept high amount of memory.
 
-````bash
+```bash
 echo "vm.max_map_count=655300" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -w vm.max_map_count=655300
 export NODE_OPTIONS="--max-old-space-size=230000"
-````
+```
 
 ## Install version of node and npm
 
-
-````bash
+```bash
 curl -sL https://deb.nodesource.com/setup_18.x -o nodesource_setup.sh
 sudo bash nodesource_setup.sh
 sudo apt install -y nodejs
 node -v
-````
+```
+
 The version of node should be: 18 (e.g. 18.19.0 )
 
 ## Download and prepare circom
+
 To compile circuits, we need circom installed.
-````bash
+
+```bash
 cd ~
 git clone https://github.com/iden3/circom.git
 cd circom
 git checkout v2.1.8
 git log --pretty=format:'%H' -n 1
-````
+```
+
 The hash of the commit should be: f0deda416abe91e5dd906c55507c737cd9986ab5
 
-
 Install and compile circom (RUST)
-````bash
+
+```bash
+cd ~
 sudo apt install -y cargo
 cd circom
 cargo build --release
@@ -53,13 +57,13 @@ cargo install --path circom
 export PATH=$PATH:~/.cargo/bin
 echo 'PATH=$PATH:~/.cargo/bin' >> ~/.profile
 circom --version
-````
-The version of circom should be: 2.1.8
+```
 
+The version of circom should be: 2.1.8
 
 ## Prepare fast build constant tree tool
 
-````bash
+```bash
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-prover.git
 cd zkevm-prover
@@ -68,35 +72,43 @@ git submodule init
 git submodule update
 sudo apt install -y build-essential libomp-dev libgmp-dev nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev grpc-proto libsodium-dev uuid-dev libsecp256k1-dev
 make -j bctree
-````
+```
+
 this step takes less than 1 minute.
 
 ## Prepare and launch setup (zkevm-proverjs)
 
-````bash
+```bash
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-proverjs.git
 cd zkevm-proverjs
 git checkout ede545493ca4ab6cbd136dbcc452c7794d01bb08
 npm install
 tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree"
-````
+```
+
 This step is quite long, it takes approximately 4.5 hours. 2 out of 4.5 hours are for the powersOfTau28_hez_final.ptau download, a file of 288GB that it's loaded only once.
-> NOTE: At the end of the document there is a table with all the hashes of the files generated during this process. 
+
+> NOTE: At the end of the document there is a table with all the hashes of the files generated during this process.
 
 ## Compile generated verifier smartcontract (solidity)
 
-As a final result of the previous steps, the smart contract that verifies the test has been generated. This file is *final.fflonk.verifier.sol*. At this point, it is possible to verify the smart contract using the source code or verify that the bytecode is the same. **To verify the bytecode**, you must compile with the precisely same version, compiler, and parameters to be sure that even the metadata hash contained in the bytecode is exactly the same. The following instructions generate a project to build using the **hardhat** tool.
-````bash
+As a final result of the previous steps, the smart contract that verifies the test has been generated. This file is _final.fflonk.verifier.sol_. At this point, it is possible to verify the smart contract using the source code or verify that the bytecode is the same. **To verify the bytecode**, you must compile with the precisely same version, compiler, and parameters to be sure that even the metadata hash contained in the bytecode is exactly the same. The following instructions generate a project to build using the **hardhat** tool.
+
+```bash
 cd ~
 mkdir contract
 cd contract
-npm init -y 
+npm init -y
 npm install hardhat
 mkdir -p contracts/verifiers
-````
-To generate the same bycode it's important recover exactlly same options used during compilation, we found this information with contract information on etherscan (Settings). For this smartcode compilation settings are:
-```jsonld
+```
+
+To generate the same bycode it's important recover exactlly same options used during compilation, we found this information with contract information on etherscan (Settings). Copy this information inside the file ~/contract/settings.json, as follows:
+
+```bash
+cd ~/contract
+cat <<EOF >settings.json
 {
   "optimizer": {
     "enabled": true,
@@ -117,32 +129,43 @@ To generate the same bycode it's important recover exactlly same options used du
   },
   "libraries": {}
 }
+EOF
 ```
-Copy this information inside the file ~/contract/settings.json. To do it, use the editor as nano or vi. After that, execute the following commands.
-````bash
+
+After that, execute the following commands.
+
+```bash
 cd ~/contract
 echo -e "module.exports={solidity:{compilers:[{version: \"0.8.20\",settings:$(cat settings.json)}]}}" > hardhat.config.js
-````
-Once the project structure is created, we proceed to copy the smart contract generated in the previous step. This smart contract was saved on *~/zkevm-proverjs/build/proof*, and must be copied to *contracts/verifiers* with exactly the name *Verifier.sol*. If the name or the path changes, the hash of metadata changes too, for this reason, is essential to respect the name and the path. To do it could execute these commands
-````bash
+```
+
+Once the project structure is created, we proceed to copy the smart contract generated in the previous step. This smart contract was saved on _~/zkevm-proverjs/build/proof_, and must be copied to _contracts/verifiers_ with exactly the name _Verifier.sol_. If the name or the path changes, the hash of metadata changes too, for this reason, is essential to respect the name and the path. To do it could execute these commands
+
+```bash
 cd ~/contract
 cp ~/zkevm-proverjs/build/proof/final.fflonk.verifier.sol contracts/verifiers/FflonkVerifier.sol
 sha256sum contracts/verifiers/FflonkVerifier.sol
-````
+```
+
 The result should be:
-````
+
+```
 8ae7baadd9f2ffb07862b0a74c20e1ad1cc2d4136e416ce5beac82a4e9a44923
-````
+```
+
 To compile smartcontract execute following command:
-````bash
+
+```bash
 npx hardhat compile
-````
+```
+
 > NOTE: During compilation warning is shown:
 > Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
->   --> contracts/verifiers/FflonkVerifier.sol:162:26:
+> --> contracts/verifiers/FflonkVerifier.sol:162:26:
 
-Bytecode of smartcontract was on bytecode property of json file *Verifier.json* generated on path *artifacts/contracts/verifiers/FflonkVerifier.sol*
-````
+Bytecode of smartcontract was on bytecode property of json file _FflonkVerifier_ generated on path _artifacts/contracts/verifiers/FflonkVerifier.sol/_
+
+```
 608060405234801561000f575f80fd5b506159c7
 806200001e5f395ff3fe60806040523480156100
 0f575f80fd5b5060043610610029575f3560e01c
@@ -165,68 +188,87 @@ Bytecode of smartcontract was on bytecode property of json file *Verifier.json* 
 a2646970667358221220761b1f07d5034592f204
 cb3439dbfabc28fb771c6e1bc6c8016e3d7b42ad
 5a2164736f6c63430008140033
-````
-To extract bytecode on file in one line. If you prefer do it , you cold copy and paste in a file.
-````bash
-cd ~/contract
-grep bytecode artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json |sed 's/.*"\(0x.*\)".*/\1/' > ~/contract/FflonkVerifier.sol.compiled.bytecode
-````
-> NOTE: if you prefer you can copy by hand the content of the bytecode of the file *artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json* over files *FflonkVerifier.sol.compiled.bytecode*. Remember to copy only the content inside the double quotes (without double quotes).
-
-> NOTE: to see bytecode divided by lines could use following commands.
-> sed "s/^0x//;s/\([0-9a-f]\{40\}\)/\1\n/g" ~/contract/FflonkVerifier.sol.compiled.bytecode | head
-> sed "s/^0x//;s/\([0-9a-f]\{40\}\)/\1\n/g" ~/contract/FflonkVerifier.sol.compiled.bytecode | tail
+```
 
 Verify bytecode compiled:
-````
-sha256sum ~/contract/FflonkVerifier.sol.compiled.bytecode
-````
+
+```
+cd ~/contract
+cat ./artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json | jq .bytecode -r | tee FflonkVerifier.sol.compiled.bytecode | sha256sum
+```
+
 The result should be:
-````
+
+```
 34c11f41d424eb821b42630183c4b97dc8689163276ca50095e5918202950703
-````
+```
 
 ## Download bytecode of deployed smartcontract
 
-To download bytecode of deployed smartcontract, need the address of smart contract, in this case it's *0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8*. Go to Etherscan or Beaconcha to get transaction bytecode.  
+To download bytecode of deployed smartcontract, need the address of smart contract, in this case it's _0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8_.
 
-Associated with address *0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8* found the transacction *0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3*.
+### Download by copying data manually
 
-- ### Etherscan (https://etherscan.io)
-    https://etherscan.io/address/0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8
-    https://etherscan.io/tx/0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3
-Click to see more > Input Data > Select all data and copy to clipboard.
+Go to Etherscan or Beaconcha to get transaction bytecode.
 
-- ### Beacocha (https://beaconcha.in)
-    https://beaconcha.in/address/0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8
-    https://beaconcha.in/tx/0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3
-Advanced Info > Call Data > Select all data and copy to clipboard.
+Associated with address _0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8_ found the transacction _0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3_.
 
-*NOTE: Don't use button "Copy Raw Data" because it generated non compatible format.*
+-   ### Etherscan (https://etherscan.io)
 
-Some applications running on the terminal may limit the amount of input they will accept before their input buffers overflow. To avoid this situation create file *FflonkVerifier.sol.explorer.bytecode* with editor as nano or vi.
+        https://etherscan.io/address/0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8
+        https://etherscan.io/tx/0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3
 
-````bash
+    Click to see more > Input Data > Select all data and copy to clipboard.
+
+-   ### Beacocha (https://beaconcha.in)
+        https://beaconcha.in/address/0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8
+        https://beaconcha.in/tx/0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3
+    Advanced Info > Call Data > Select all data and copy to clipboard.
+
+_NOTE: Don't use button "Copy Raw Data" because it generated non compatible format._
+
+Some applications running on the terminal may limit the amount of input they will accept before their input buffers overflow. To avoid this situation create file _FflonkVerifier.sol.explorer.bytecode_ with editor as nano or vi.
+
+```bash
 cd ~/contract
 nano FflonkVerifier.sol.explorer.bytecode
-````
-In nano, to paste the clipboard to the file use CTRL+P, save content using CTRL+X, and finally press Y. To compare if two files are the same, you could use diff.
-````bash
+```
+
+In nano, to paste the clipboard to the file use CTRL+P, save content using CTRL+X, and finally press Y.
+
+### Download through L1 endpoint call
+
+```bash
+cd ~/contract
+L1_ENDPOINT=<YOUR_L1_ENDPOINT_HERE>
+ curl -s -X POST -H "Content-Type: application/json" --data '{"method":"eth_getTransactionByHash","params":["0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3"], "id":1,"jsonrpc":"2.0"}' $L1_ENDPOINT | jq .result.input -r > FflonkVerifier.sol.explorer.bytecode
+```
+
+## Compare bytecodes
+
+To compare if two files are the same, you could use diff.
+
+```bash
 cd ~/contract
 diff FflonkVerifier.sol.compiled.bytecode FflonkVerifier.sol.explorer.bytecode
-````
+```
+
 Alternatively, you could check content using sha256sum:
-````bash
+
+```bash
 cd ~/contract
 sha256sum FflonkVerifier.sol.*.bytecode
-````
+```
+
 The result should be:
-````
+
+```
 34c11f41d424eb821b42630183c4b97dc8689163276ca50095e5918202950703  FflonkVerifier.sol.compiled.bytecode
 34c11f41d424eb821b42630183c4b97dc8689163276ca50095e5918202950703  FflonkVerifier.sol.explorer.bytecode
-````
+```
 
 ## Generated files hash
+
 <font size=2>
 <table>
 <tr><th>step/file</th><th>sha256</th></tr>
