@@ -33,11 +33,9 @@ contract ClaimCompressor {
     uint256 internal constant _BYTE_LEN_CONSTANT_ARRAYS = 32 * 32;
 
     // The following parameters are constant in the encoded compressed claim call
-    // smtProofLocalExitRoots[0],
-    // smtProofRollupExitRoots,
     // mainnetExitRoot,
     // rollupExitRoot
-    uint256 internal constant _CONSTANT_VARIABLES_LENGTH = 32 * 32 * 2 + 32 * 2;
+    uint256 internal constant _CONSTANT_VARIABLES_LENGTH = 32 * 2;
 
     // 32*32 bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot
     // 32*32 bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot
@@ -52,7 +50,8 @@ contract ClaimCompressor {
     uint32 private immutable _networkID;
 
     /**
-     * @param smtProofRollupExitRoots Smt proof
+     * @param smtProofLocalExitRoot Smt proof
+     * @param smtProofRollupExitRoot Smt proof
      * @param globalIndex Index of the leaf
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
@@ -66,6 +65,7 @@ contract ClaimCompressor {
      */
     struct CompressClaimCallData {
         bytes32[32] smtProofLocalExitRoot;
+        bytes32[32] smtProofRollupExitRoot;
         uint256 globalIndex;
         uint32 originNetwork;
         address originAddress;
@@ -86,54 +86,101 @@ contract ClaimCompressor {
 
     /**
      * @notice Foward all the claim parameters to compress them inside the contrat
-     * @param smtProofRollupExitRoot Smt proof
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param compressClaimCalldata compress claim calldata
      **/
     function compressClaimCall(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot, // TODO remove, is not unique
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
         CompressClaimCallData[] calldata compressClaimCalldata
     ) external pure returns (bytes memory) {
         // common parameters for all the claims
         bytes memory totalCompressedClaim = abi.encodePacked(
-            compressClaimCalldata[0].smtProofLocalExitRoot,
-            smtProofRollupExitRoot, // coudl be encoded like (uint8 len, first len [])
             mainnetExitRoot,
             rollupExitRoot
         );
+        bool isRollupSmtSet;
 
         // If the memory cost goes crazy, might need to do it in assembly D:
         for (uint256 i = 0; i < compressClaimCalldata.length; i++) {
-            // Byte array that will be returned
             CompressClaimCallData
                 memory currentCompressClaimCalldata = compressClaimCalldata[i];
-            // compare smt proof against the first one
+
+            // Compute Local Root compressed
+
+            // compare smt proof against the last one
             uint256 lastDifferentLevel = 0;
-            for (uint256 j = 0; j < _DEPOSIT_CONTRACT_TREE_DEPTH; j++) {
-                if (
-                    currentCompressClaimCalldata.smtProofLocalExitRoot[j] !=
-                    compressClaimCalldata[0].smtProofLocalExitRoot[j]
-                ) {
-                    lastDifferentLevel = j + 1;
+            if (i == 0) {
+                // compare against hashes of zeroes, TODO, set hashes zeroes on start
+                lastDifferentLevel = 32;
+            } else {
+                for (uint256 j = 0; j < _DEPOSIT_CONTRACT_TREE_DEPTH; j++) {
+                    if (
+                        currentCompressClaimCalldata.smtProofLocalExitRoot[j] !=
+                        compressClaimCalldata[i - 1].smtProofLocalExitRoot[j]
+                    ) {
+                        lastDifferentLevel = j + 1;
+                    }
                 }
             }
-
-            bytes memory smtProofCompressed;
-
+            bytes memory currentSmtCompressed = abi.encodePacked(
+                uint8(lastDifferentLevel)
+            );
             for (uint256 j = 0; j < lastDifferentLevel; j++) {
-                smtProofCompressed = abi.encodePacked(
-                    smtProofCompressed,
+                currentSmtCompressed = abi.encodePacked(
+                    currentSmtCompressed,
                     currentCompressClaimCalldata.smtProofLocalExitRoot[j]
                 );
             }
 
+            // Compute Rollup Root compressed
+            lastDifferentLevel = 0;
+            if (
+                currentCompressClaimCalldata.smtProofRollupExitRoot[0] !=
+                bytes32(0)
+            ) {
+                if (i == 0 || !isRollupSmtSet) {
+                    // compare against hashes of zeroes, TODO
+                    lastDifferentLevel = 32;
+                } else {
+                    for (uint256 j = 0; j < _DEPOSIT_CONTRACT_TREE_DEPTH; j++) {
+                        if (
+                            currentCompressClaimCalldata.smtProofRollupExitRoot[
+                                j
+                            ] !=
+                            compressClaimCalldata[i - 1].smtProofRollupExitRoot[
+                                j
+                            ]
+                        ) {
+                            lastDifferentLevel = j + 1;
+                        }
+                    }
+                }
+                isRollupSmtSet = true;
+            }
+
+            currentSmtCompressed = abi.encodePacked(
+                currentSmtCompressed,
+                uint8(lastDifferentLevel)
+            );
+
+            for (uint256 j = 0; j < lastDifferentLevel; j++) {
+                currentSmtCompressed = abi.encodePacked(
+                    currentSmtCompressed,
+                    currentCompressClaimCalldata.smtProofRollupExitRoot[j]
+                );
+            }
+
+            // currentSmtCompressed:
+            //  uint8(lastDifferentLevelLocal)
+            //  smtProofCompressedLocal
+            //  uint8(lastDifferentLevelRollup)
+            //  smtProofCompressedRollup
+
             bytes memory compressedClaimCall = abi.encodePacked(
                 uint8(currentCompressClaimCalldata.isMessage ? 1 : 0), // define byte with all small values TODO
-                uint8(lastDifferentLevel),
-                smtProofCompressed,
+                currentSmtCompressed,
                 uint8(currentCompressClaimCalldata.globalIndex >> 64), // define byte with all small values TODO
                 uint64(currentCompressClaimCalldata.globalIndex),
                 currentCompressClaimCalldata.originNetwork,
@@ -156,8 +203,8 @@ contract ClaimCompressor {
     function sendCompressedClaims(
         bytes calldata compressedClaimCalls
     ) external {
-        // TODO first rollupExitRoot, instead of zeroes, could be zero hashes
-        // Codecopy?¿
+        // TODO first rollupExitRoot, instead of zeroes, could be zero hashes,  Codecopy?¿
+
         // Load "dynamic" constant and immutables since are not accesible from assembly
         uint256 destinationNetwork = _networkID;
         address bridgeAddress = _bridgeAddress;
@@ -178,8 +225,6 @@ contract ClaimCompressor {
 
             // Constant parameters:
 
-            // smtProofLocalExitRoots[0],
-            // smtProofRollupExitRoots,
             // mainnetExitRoot,
             // rollupExitRoot
 
@@ -187,7 +232,11 @@ contract ClaimCompressor {
             // [
             // uint8(currentCompressClaimCalldata.isMessage ? 1 : 0),
             // uint8(lastDifferentLevel),
-            // smtProofCompressed,
+            // smtProofCompressed:
+            //   uint8(lastDifferentLevelLocal)
+            //   smtProofCompressedLocal
+            //   uint8(lastDifferentLevelRollup)
+            //   smtProofCompressedRollup
             // uint8(currentCompressClaimCalldata.globalIndex >> 64),
             // uint64(currentCompressClaimCalldata.globalIndex),
             // currentCompressClaimCalldata.originNetwork,
@@ -200,31 +249,33 @@ contract ClaimCompressor {
 
             // Write the constant parameters for all claims in this call
 
-            // Copy smtProofLocalExitRoot
-            calldatacopy(
-                4, // Memory offset, signature = 4 bytes
-                compressedClaimCallsOffset, // calldata offset
-                _BYTE_LEN_CONSTANT_ARRAYS // Copy smtProofRollupExitRoot len
-            )
+            // TODO set both arrays to zero hashes
+            // Trick to emtpy the memory, copyng calldata out of bounds,
+            // set smtProofLocalExitRoot to all zeroes
+            // calldatacopy(
+            //     4, // Memory offset, signature = 4 bytes
+            //     calldatasize(), // calldata size
+            //     _BYTE_LEN_CONSTANT_ARRAYS // Copy smtProofRollupExitRoot len
+            // )
 
-            // Copy smtProofRollupExitRoot
-            calldatacopy(
-                add(4, _BYTE_LEN_CONSTANT_ARRAYS), // Memory offset, signature + smtProofLocalExitRoot = 32 * 32 bytes + 4 bytes
-                add(compressedClaimCallsOffset, _BYTE_LEN_CONSTANT_ARRAYS), // calldata offset
-                _BYTE_LEN_CONSTANT_ARRAYS // Copy smtProofRollupExitRoot len
-            )
+            // // Copy smtProofRollupExitRoot
+            // calldatacopy(
+            //     add(4, _BYTE_LEN_CONSTANT_ARRAYS), // Memory offset, signature + smtProofLocalExitRoot = 32 * 32 bytes + 4 bytes
+            //     add(compressedClaimCallsOffset, _BYTE_LEN_CONSTANT_ARRAYS), // calldata offset
+            //     _BYTE_LEN_CONSTANT_ARRAYS // Copy smtProofRollupExitRoot len
+            // )
 
             // Copy mainnetExitRoot
             calldatacopy(
                 add(4, mul(65, 32)), // Memory offset, signature + smtProofLocalExitRoot + smtProofRollupExitRoot + globalIndex = 65 * 32 bytes + 4 bytes
-                add(compressedClaimCallsOffset, mul(64, 32)), // calldata offset, smtProofLocalExitRoots[0] + smtProofRollupExitRoots = 64*32
+                compressedClaimCallsOffset, // calldata offset
                 32 // Copy mainnetExitRoot len
             )
 
             // Copy rollupExitRoot
             calldatacopy(
                 add(4, mul(66, 32)), // Memory offset, signature + smtProofLocalExitRoot + smtProofRollupExitRoot + globalIndex + mainnetExitRoot = 66 * 32 bytes + 4 bytes
-                add(compressedClaimCallsOffset, mul(65, 32)), // calldata offset, smtProofLocalExitRoots[0] + smtProofRollupExitRoots + mainnetExitRoot = 65*32
+                add(compressedClaimCallsOffset, 32), // calldata offset, mainnetExitRoot = 32
                 32 // Copy rollupExitRoot len
             )
 
@@ -295,20 +346,20 @@ contract ClaimCompressor {
                 // Mem pointer where the current data must be written
                 let memPointer := 4
 
-                // load lastDifferentLevel
+                // load lastDifferentLevelLocal
                 let smtProofBytesToCopy := mul(
                     shr(
-                        248, // 256 - 8(lastDifferentLevel) = 248
+                        248, // 256 - 8(lastDifferentLevelLocal) = 248
                         calldataload(currentCalldataPointer)
                     ),
                     32
                 )
 
-                // Add 1 byte of lastDifferentLevel
+                // Add 1 byte of lastDifferentLevelLocal
                 currentCalldataPointer := add(currentCalldataPointer, 1)
 
                 calldatacopy(
-                    4, // Memory offset = 4 bytes
+                    memPointer, // Memory offset
                     currentCalldataPointer, // calldata offset
                     smtProofBytesToCopy // Copy smtProofBytesToCopy len
                 )
@@ -318,8 +369,35 @@ contract ClaimCompressor {
                     currentCalldataPointer,
                     smtProofBytesToCopy
                 )
-                // mem pointer, add smtProofLocalExitRoot(current) + smtProofRollupExitRoot(constant)
-                memPointer := add(memPointer, mul(32, 64))
+                // mem pointer, add smtProofLocalExitRoot(current)
+                memPointer := add(memPointer, mul(32, 32))
+
+                // load lastDifferentLevelRollup
+                smtProofBytesToCopy := mul(
+                    shr(
+                        248, // 256 - 8(lastDifferentLevelRollup) = 248
+                        calldataload(currentCalldataPointer)
+                    ),
+                    32
+                )
+
+                // Add 1 byte of lastDifferentLevelRollup
+                currentCalldataPointer := add(currentCalldataPointer, 1)
+
+                calldatacopy(
+                    memPointer, // Memory offset
+                    currentCalldataPointer, // calldata offset
+                    smtProofBytesToCopy // Copy smtProofBytesToCopy len
+                )
+
+                // Add smtProofBytesToCopy bits of smtProofCompressed
+                currentCalldataPointer := add(
+                    currentCalldataPointer,
+                    smtProofBytesToCopy
+                )
+
+                // mem pointer, add smtProofRollupExitRoot(current)
+                memPointer := add(memPointer, mul(32, 32))
 
                 // Copy global index
                 //     bool(globalIndex[i] & _GLOBAL_INDEX_MAINNET_FLAG != 0), // get isMainnet bool
@@ -446,13 +524,6 @@ contract ClaimCompressor {
                     totalLenCall, // argsSize
                     0, // retOffset
                     0 // retSize
-                )
-
-                // Reset smtProofLocalExitRoot
-                calldatacopy(
-                    4, // Memory offset = 4 bytes
-                    compressedClaimCallsOffset, // calldata offset
-                    smtProofBytesToCopy // Copy smtProofBytesToCopy len
                 )
             }
         }

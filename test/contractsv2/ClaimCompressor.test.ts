@@ -157,6 +157,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 const proofLocal = merkleTreeLocal.getProofTreeByIndex(j);
 
                 const sequenceForced = {
+                    smtProofRollupExitRoot: proofLocal,
                     smtProofLocalExitRoot: proofLocal,
                     globalIndex: index,
                     originNetwork: currentLeaf.originNetwork,
@@ -171,7 +172,6 @@ describe("PolygonZkEVMBridge Contract", () => {
             }
 
             const compressedMultipleBytes = await claimCompressor.compressClaimCall(
-                proofLocal,
                 mainnetExitRoot,
                 rollupExitRoot,
                 sequenceForcedStructs
@@ -203,7 +203,9 @@ describe("PolygonZkEVMBridge Contract", () => {
                 expect(parsedLog?.args.smtProofLocalExitRoot).to.be.deep.equal(
                     currenSequenceForcedStructs.smtProofLocalExitRoot
                 );
-                expect(parsedLog?.args.smtProofRollupExitRoot).to.be.deep.equal(proofLocal);
+                expect(parsedLog?.args.smtProofRollupExitRoot).to.be.deep.equal(
+                    currenSequenceForcedStructs.smtProofRollupExitRoot
+                );
                 expect(parsedLog?.args.globalIndex).to.be.equal(currenSequenceForcedStructs.globalIndex);
                 expect(parsedLog?.args.mainnetExitRoot).to.be.equal(mainnetExitRoot);
                 expect(parsedLog?.args.rollupExitRoot).to.be.equal(rollupExitRoot);
@@ -232,7 +234,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         const height = 32;
         const merkleTreeLocal = new MerkleTreeBridge(height);
 
-        const totalLeafsMerkleTree = 20;
+        const totalLeafsMerkleTree = 10;
 
         const leafs = [];
         for (let i = 0; i < totalLeafsMerkleTree; i++) {
@@ -305,6 +307,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 const globalIndex = computeGlobalIndex(index, 0, true);
 
                 const sequenceForced = {
+                    smtProofRollupExitRoot: proofLocal,
                     smtProofLocalExitRoot: proofLocal,
                     globalIndex: globalIndex,
                     originNetwork: currentLeaf.originNetwork,
@@ -349,7 +352,6 @@ describe("PolygonZkEVMBridge Contract", () => {
             }
 
             const compressedMultipleBytes = await realClaimCompressor.compressClaimCall(
-                proofLocalFirst,
                 mainnetExitRoot,
                 rollupExitRootSC,
                 sequenceForcedStructs
@@ -427,9 +429,10 @@ describe("PolygonZkEVMBridge Contract", () => {
 
         const indexRandom = 3;
 
+        const proofZeroes = new Array(32).fill(ethers.ZeroHash);
         const encodedCall = BridgeFactory.interface.encodeFunctionData("claimAsset", [
             proofLocal,
-            proofLocal,
+            proofZeroes,
             indexRandom,
             mainnetExitRoot,
             ethers.ZeroHash,
@@ -470,6 +473,7 @@ describe("PolygonZkEVMBridge Contract", () => {
 
                 const sequenceForced = {
                     smtProofLocalExitRoot: proofLocal,
+                    smtProofRollupExitRoot: proofZeroes,
                     globalIndex: index,
                     originNetwork: originNetwork,
                     originAddress: tokenAddress,
@@ -483,13 +487,14 @@ describe("PolygonZkEVMBridge Contract", () => {
             }
 
             const compressedMultipleBytes = await claimCompressor.compressClaimCall(
-                proofLocal,
                 mainnetExitRoot,
                 ethers.ZeroHash,
                 sequenceForcedStructs
             );
 
             // ASsert correctness
+            let lastSmtRollupCopied = new Array(32).fill(ethers.ZeroHash); // TODO could be set to zero hashes
+
             const receipt = await (await claimCompressor.sendCompressedClaims(compressedMultipleBytes)).wait();
             for (let k = 0; k < receipt?.logs.length; k++) {
                 const currentLog = receipt?.logs[k];
@@ -517,7 +522,24 @@ describe("PolygonZkEVMBridge Contract", () => {
                 expect(parsedLog?.args.smtProofLocalExitRoot).to.be.deep.equal(
                     currenSequenceForcedStructs.smtProofLocalExitRoot
                 );
-                expect(parsedLog?.args.smtProofRollupExitRoot).to.be.deep.equal(proofLocal);
+
+                let isZeroArray = true;
+
+                for (const element of parsedLog?.args.smtProofRollupExitRoot) {
+                    if (element != ethers.ZeroHash) {
+                        isZeroArray = false;
+                    }
+                }
+
+                if (isZeroArray) {
+                    expect(parsedLog?.args.smtProofRollupExitRoot).to.be.deep.equal(lastSmtRollupCopied);
+                } else {
+                    expect(parsedLog?.args.smtProofRollupExitRoot).to.be.deep.equal(
+                        currenSequenceForcedStructs.smtProofRollupExitRoot
+                    );
+                    lastSmtRollupCopied = currenSequenceForcedStructs.smtProofRollupExitRoot;
+                }
+
                 expect(parsedLog?.args.globalIndex).to.be.equal(currenSequenceForcedStructs.globalIndex);
                 expect(parsedLog?.args.mainnetExitRoot).to.be.equal(mainnetExitRoot);
                 expect(parsedLog?.args.rollupExitRoot).to.be.equal(ethers.ZeroHash);
@@ -554,9 +576,9 @@ describe("PolygonZkEVMBridge Contract", () => {
                 dataClaimCall: encodedCall.length * i,
                 dataCompressedCall: compressedMultipleBytes.length,
                 ratioData: compressedMultipleBytes.length / (encodedCall.length * i),
-                dataTotalTxClaimCall: customSignedTx.length * i,
+                dataTotalTxClaimCall: (customSignedTx.length / 2) * i,
                 costCalldataTxClaimCall: customSignedCost * i,
-                dataTotalTxCompressedCall: customtxCompressedMultipleSigned.length,
+                dataTotalTxCompressedCall: customtxCompressedMultipleSigned.length / 2,
                 calldataCostTxCompressed: customCompressedMultipleCost,
                 ratioTxData: customtxCompressedMultipleSigned.length / (customSignedTx.length * i),
                 ratioTxDataCost: customCompressedMultipleCost / (customSignedCost * i),
