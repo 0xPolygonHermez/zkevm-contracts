@@ -18,12 +18,17 @@ const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = con
 const MerkleTreeBridge = MTBridge;
 const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
 import {MemDB, ZkEVMDB, getPoseidon, smtUtils, processorUtils} from "@0xpolygonhermez/zkevm-commonjs";
+import {deploy} from "@openzeppelin/hardhat-upgrades/dist/utils";
+import {parse} from "yargs";
 
 describe("PolygonZkEVMBridge Contract", () => {
     upgrades.silenceWarnings();
 
     let claimCompressor: ClaimCompressor;
     let bridgeReceiverMock: BridgeReceiverMock;
+    let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
+    let polTokenContract: ERC20PermitMock;
+    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
 
     const networkID = 1;
 
@@ -59,6 +64,39 @@ describe("PolygonZkEVMBridge Contract", () => {
         const ClaimCompressorFactory = await ethers.getContractFactory("ClaimCompressor");
         claimCompressor = await ClaimCompressorFactory.deploy(bridgeReceiverMock.target, networkID);
         await claimCompressor.waitForDeployment();
+
+        // Deploy bridge contracts
+        // deploy PolygonZkEVMBridge
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
+        polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
+            initializer: false,
+            unsafeAllow: ["constructor"],
+        })) as unknown as PolygonZkEVMBridgeV2;
+
+        // deploy global exit root manager
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRoot");
+        polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
+            rollupManager.address,
+            polygonZkEVMBridgeContract.target
+        );
+
+        await polygonZkEVMBridgeContract.initialize(
+            networkID,
+            ethers.ZeroAddress, // zero for ether
+            ethers.ZeroAddress, // zero for ether
+            polygonZkEVMGlobalExitRoot.target,
+            rollupManager.address,
+            "0x"
+        );
+
+        // deploy token
+        const maticTokenFactory = await ethers.getContractFactory("ERC20PermitMock");
+        polTokenContract = await maticTokenFactory.deploy(
+            tokenName,
+            tokenSymbol,
+            deployer.address,
+            tokenInitialBalance
+        );
     });
 
     it("should check random values", async () => {
@@ -140,7 +178,7 @@ describe("PolygonZkEVMBridge Contract", () => {
             );
 
             // ASsert correctness
-            const receipt = await (await claimCompressor.decompressClaimCall(compressedMultipleBytes)).wait();
+            const receipt = await (await claimCompressor.sendCompressedClaims(compressedMultipleBytes)).wait();
             for (let k = 0; k < receipt?.logs.length; k++) {
                 const currentLog = receipt?.logs[k];
                 const currenSequenceForcedStructs = sequenceForcedStructs[k];
@@ -183,6 +221,178 @@ describe("PolygonZkEVMBridge Contract", () => {
         }
     });
 
+    it("should test against bridge", async () => {
+        const BridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
+
+        const ClaimCompressorFactory = await ethers.getContractFactory("ClaimCompressor");
+        const realClaimCompressor = await ClaimCompressorFactory.deploy(polygonZkEVMBridgeContract.target, networkID);
+        await realClaimCompressor.waitForDeployment();
+
+        // compute root merkle tree in Js
+        const height = 32;
+        const merkleTreeLocal = new MerkleTreeBridge(height);
+
+        const totalLeafsMerkleTree = 20;
+
+        const leafs = [];
+        for (let i = 0; i < totalLeafsMerkleTree; i++) {
+            // Create a random merkle tree
+            const leafType = Math.floor(Math.random() * 2);
+            const originNetwork = ethers.hexlify(ethers.randomBytes(4));
+            const tokenAddress = ethers.hexlify(ethers.randomBytes(20));
+            const amount = leafType == 0 ? ethers.hexlify(ethers.randomBytes(32)) : 0;
+            const destinationNetwork = networkID; // fixed by contract
+            const destinationAddress = ethers.hexlify(ethers.randomBytes(20));
+            const metadata = metadataToken;
+            const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
+            const leafValue = getLeafValue(
+                leafType,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadataHash
+            );
+            merkleTreeLocal.add(leafValue);
+            leafs.push({
+                leafType,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+            });
+        }
+
+        const rollupExitRoot = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
+        const mainnetExitRoot = merkleTreeLocal.getRoot();
+
+        // add rollup Merkle root
+        await ethers.provider.send("hardhat_impersonateAccount", [polygonZkEVMBridgeContract.target]);
+        const bridgemoCK = await ethers.getSigner(polygonZkEVMBridgeContract.target as any);
+
+        await expect(polygonZkEVMGlobalExitRoot.connect(bridgemoCK).updateExitRoot(mainnetExitRoot, {gasPrice: 0}))
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .withArgs(mainnetExitRoot, rollupExitRoot);
+
+        // check roots
+        const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
+        expect(rollupExitRootSC).to.be.equal(rollupExitRoot);
+        const mainnetExitRootSC = await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot();
+        expect(mainnetExitRootSC).to.be.equal(mainnetExitRoot);
+        const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
+        expect(computedGlobalExitRoot).to.be.equal(await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot());
+
+        // Merkle proof local
+        const proofLocalFirst = merkleTreeLocal.getProofTreeByIndex(0);
+
+        const snapshot = await takeSnapshot();
+
+        // Compute calldatas
+        for (let i = 1; i < totalLeafsMerkleTree; i++) {
+            await snapshot.restore();
+
+            const sequenceForcedStructs = [] as any;
+
+            for (let j = 0; j < i; j++) {
+                const index = j;
+                const currentLeaf = leafs[j];
+                const proofLocal = merkleTreeLocal.getProofTreeByIndex(j);
+
+                const globalIndex = computeGlobalIndex(index, 0, true);
+
+                const sequenceForced = {
+                    smtProofLocalExitRoot: proofLocal,
+                    globalIndex: globalIndex,
+                    originNetwork: currentLeaf.originNetwork,
+                    originAddress: currentLeaf.tokenAddress,
+                    destinationAddress: currentLeaf.destinationAddress,
+                    amount: currentLeaf.amount,
+                    metadata: currentLeaf.metadata,
+                    isMessage: currentLeaf.leafType,
+                } as any;
+
+                sequenceForcedStructs.push(sequenceForced);
+
+                if (currentLeaf.leafType == 0) {
+                    await polygonZkEVMBridgeContract.claimAsset.estimateGas(
+                        proofLocal,
+                        proofLocalFirst,
+                        globalIndex,
+                        mainnetExitRoot,
+                        rollupExitRootSC,
+                        currentLeaf.originNetwork,
+                        currentLeaf.tokenAddress,
+                        networkID,
+                        currentLeaf.destinationAddress,
+                        currentLeaf.amount,
+                        currentLeaf.metadata
+                    );
+                } else {
+                    await polygonZkEVMBridgeContract.claimMessage.estimateGas(
+                        proofLocal,
+                        proofLocalFirst,
+                        globalIndex,
+                        mainnetExitRoot,
+                        rollupExitRootSC,
+                        currentLeaf.originNetwork,
+                        currentLeaf.tokenAddress,
+                        networkID,
+                        currentLeaf.destinationAddress,
+                        currentLeaf.amount,
+                        currentLeaf.metadata
+                    );
+                }
+            }
+
+            const compressedMultipleBytes = await realClaimCompressor.compressClaimCall(
+                proofLocalFirst,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                sequenceForcedStructs
+            );
+
+            // ASsert correctness
+            const receipt = await (await realClaimCompressor.sendCompressedClaims(compressedMultipleBytes)).wait();
+
+            console.log({
+                numClaims: i,
+                gasUsed: receipt?.gasUsed,
+            });
+
+            let currentSequenceForcedStructs = 0;
+            for (let k = 0; k < receipt?.logs.length; k++) {
+                const currentLog = receipt?.logs[k];
+                if (currentLog?.address != polygonZkEVMBridgeContract.target) {
+                    continue;
+                } else {
+                    const parsedLog = BridgeFactory.interface.parseLog(currentLog);
+                    if (parsedLog.name == "NewWrappedToken") {
+                        continue;
+                    }
+                }
+                const currenSequenceForcedStructs = sequenceForcedStructs[currentSequenceForcedStructs];
+
+                const parsedLog = BridgeFactory.interface.parseLog(currentLog);
+
+                expect(parsedLog?.args.globalIndex).to.be.deep.equal(currenSequenceForcedStructs.globalIndex);
+                expect(parsedLog?.args.originNetwork).to.be.equal(currenSequenceForcedStructs.originNetwork);
+                expect(parsedLog?.args.originAddress.toLowerCase()).to.be.equal(
+                    currenSequenceForcedStructs.originAddress
+                );
+                expect(parsedLog?.args.destinationAddress.toLowerCase()).to.be.equal(
+                    currenSequenceForcedStructs.destinationAddress
+                );
+                expect(parsedLog?.args.amount).to.be.equal(currenSequenceForcedStructs.amount);
+                currentSequenceForcedStructs++;
+            }
+
+            expect(currentSequenceForcedStructs).to.be.equal(sequenceForcedStructs.length);
+        }
+    }).timeout(1000000);
     it("should check Compression", async () => {
         const BridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
 
@@ -280,7 +490,7 @@ describe("PolygonZkEVMBridge Contract", () => {
             );
 
             // ASsert correctness
-            const receipt = await (await claimCompressor.decompressClaimCall(compressedMultipleBytes)).wait();
+            const receipt = await (await claimCompressor.sendCompressedClaims(compressedMultipleBytes)).wait();
             for (let k = 0; k < receipt?.logs.length; k++) {
                 const currentLog = receipt?.logs[k];
                 const currenSequenceForcedStructs = sequenceForcedStructs[k];
@@ -367,4 +577,17 @@ function calculateCallDataCost(calldataBytes: string): number {
     }
 
     return totalCost;
+}
+
+function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
+    return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [mainnetExitRoot, rollupExitRoot]);
+}
+const _GLOBAL_INDEX_MAINNET_FLAG = 2n ** 64n;
+
+function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolean) {
+    if (isMainnet === true) {
+        return BigInt(indexLocal) + _GLOBAL_INDEX_MAINNET_FLAG;
+    } else {
+        return BigInt(indexLocal) + BigInt(indexRollup) * 2n ** 32n;
+    }
 }

@@ -11,15 +11,6 @@ pragma solidity 0.8.20;
 contract ClaimCompressor {
     uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
-    // Leaf type asset
-    uint8 private constant _LEAF_TYPE_ASSET = 0;
-
-    // Leaf type message
-    uint8 private constant _LEAF_TYPE_MESSAGE = 1;
-
-    // Mainnet identifier
-    uint32 private constant _MAINNET_NETWORK_ID = 0;
-
     // Indicate where's the mainnet flag bit in the global index
     uint256 private constant _GLOBAL_INDEX_MAINNET_FLAG = 2 ** 64;
 
@@ -53,34 +44,6 @@ contract ClaimCompressor {
     // 32*8 Rest constant parameters
     // 32 bytes position
     uint256 internal constant _METADATA_OFSSET = 32 * 32 * 2 + 8 * 32 + 32;
-
-    // function claimAsset(
-    //     bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
-    //     bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
-    //     uint256 globalIndex,
-    //     bytes32 mainnetExitRoot,
-    //     bytes32 rollupExitRoot,
-    //     uint32 originNetwork,
-    //     address originTokenAddress,
-    //     uint32 destinationNetwork,
-    //     address destinationAddress,
-    //     uint256 amount,
-    //     bytes calldata metadata
-    // )
-
-    //   function claimMessage(
-    //         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
-    //         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
-    //         uint256 globalIndex,
-    //         bytes32 mainnetExitRoot,
-    //         bytes32 rollupExitRoot,
-    //         uint32 originNetwork,
-    //         address originAddress,
-    //         uint32 destinationNetwork,
-    //         address destinationAddress,
-    //         uint256 amount,
-    //         bytes calldata metadata
-    //     )
 
     // PolygonZkEVMBridge address
     address private immutable _bridgeAddress;
@@ -129,7 +92,7 @@ contract ClaimCompressor {
      * @param compressClaimCalldata compress claim calldata
      **/
     function compressClaimCall(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot, // TODO remove, is not unique
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
         CompressClaimCallData[] calldata compressClaimCalldata
@@ -172,13 +135,9 @@ contract ClaimCompressor {
                 uint8(lastDifferentLevel),
                 smtProofCompressed,
                 uint8(currentCompressClaimCalldata.globalIndex >> 64), // define byte with all small values TODO
-                //bool(globalIndex & _GLOBAL_INDEX_MAINNET_FLAG != 0), // get isMainnet bool
                 uint64(currentCompressClaimCalldata.globalIndex),
-                // mainnetExitRoot,
-                // rollupExitRoot,
                 currentCompressClaimCalldata.originNetwork,
                 currentCompressClaimCalldata.originAddress,
-                // destinationNetwork
                 currentCompressClaimCalldata.destinationAddress,
                 currentCompressClaimCalldata.amount, // could compress to 128 bits
                 uint32(currentCompressClaimCalldata.metadata.length),
@@ -194,14 +153,11 @@ contract ClaimCompressor {
         return totalCompressedClaim;
     }
 
-    function decompressClaimCall(bytes calldata compressedClaimCalls) external {
-        // Starts with the common parameters for all the claims:
-
-        // smtProofLocalExitRoots bytes32[32]
-        // smtProofRollupExitRoot  bytes32[32]
-        // mainnetExitRoot  bytes32
-        // rollupExitRoot   bytes32
-
+    function sendCompressedClaims(
+        bytes calldata compressedClaimCalls
+    ) external {
+        // TODO first rollupExitRoot, instead of zeroes, could be zero hashes
+        // Codecopy?¿
         // Load "dynamic" constant and immutables since are not accesible from assembly
         uint256 destinationNetwork = _networkID;
         address bridgeAddress = _bridgeAddress;
@@ -209,30 +165,14 @@ contract ClaimCompressor {
         uint256 claimAssetSignature = uint32(_CLAIM_ASSET_SIGNATURE);
         uint256 claimMessageSignature = uint32(_CLAIM_MESSAGE_SIGNATURE);
 
-        // no need to be memory-safe, since the rest of the function will happen on assembly ¿?
+        // no need to be memory-safe, since the rest of the function will happen on assembly
         assembly {
-            // Get the last free memory pointer ( i might use 0 aswell)
+            // Get the last free memory pointer
             // let freeMemPointer := mload(0x40)
-
             // no need to reserve memory since the rest of the funcion will happen on assembly
+
             let compressedClaimCallsOffset := compressedClaimCalls.offset
             let compressedClaimCallsLen := compressedClaimCalls.length
-
-            // THe final calldata should be something like:
-            // Calldata claimMessage /claimAsset
-            //   function claimMessage(
-            //         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
-            //         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot, --> constant
-            //         uint256 globalIndex,
-            //         bytes32 mainnetExitRoot,  --> constant
-            //         bytes32 rollupExitRoot,  --> constant
-            //         uint32 originNetwork,
-            //         address originAddress,
-            //         uint32 destinationNetwork,  --> constant
-            //         address destinationAddress,
-            //         uint256 amount,
-            //         bytes calldata metadata
-            //     )
 
             // Encoded compressed Data:
 
@@ -243,19 +183,19 @@ contract ClaimCompressor {
             // mainnetExitRoot,
             // rollupExitRoot
 
-            // Parameters per claim tx
+            // Parameters per claim tx:
             // [
-            //     uint8(isMessage[i] ? 1 : 0), // define byte with all small values TODO
-            //     uint8(lastDifferentLevel),
-            //     smtProofCompressed,
-            //     uint8(globalIndex[i] >> 64), // define byte with all small values TODO
-            //     uint64(globalIndex[i]),
-            //     originNetwork[i],
-            //     originAddress[i],
-            //     destinationAddress[i],
-            //     amount[i], // could compress to 128 bits
-            //     uint32(metadata[i].length),
-            //     metadata[i]
+            // uint8(currentCompressClaimCalldata.isMessage ? 1 : 0),
+            // uint8(lastDifferentLevel),
+            // smtProofCompressed,
+            // uint8(currentCompressClaimCalldata.globalIndex >> 64),
+            // uint64(currentCompressClaimCalldata.globalIndex),
+            // currentCompressClaimCalldata.originNetwork,
+            // currentCompressClaimCalldata.originAddress,
+            // currentCompressClaimCalldata.destinationAddress,
+            // currentCompressClaimCalldata.amount, // could compress to 128 bits
+            // uint32(currentCompressClaimCalldata.metadata.length),
+            // currentCompressClaimCalldata.metadata
             // ]
 
             // Write the constant parameters for all claims in this call
@@ -288,24 +228,20 @@ contract ClaimCompressor {
                 32 // Copy rollupExitRoot len
             )
 
-            // Copy destinationAddress, since is constant, just use mstore
+            // Copy destinationNetwork
 
             // Memory offset, signature + smtProofLocalExitRoot + smtProofRollupExitRoot +
             // globalIndex + mainnetExitRoot + rollupExitRoot + originNetwork + originAddress = 69 * 32 bytes + 4 bytes
             mstore(add(4, mul(69, 32)), destinationNetwork)
 
             // Copy metadata offset
+
             // Memory offset, signature + smtProofLocalExitRoot + smtProofRollupExitRoot +
             // globalIndex + mainnetExitRoot + rollupExitRoot + originNetwork + originAddress +
             //destinationNetwork + destinationAddress + amount = 72 * 32 bytes + 4 bytes
             mstore(add(4, mul(72, 32)), _METADATA_OFSSET)
 
-            // Skip constant parameters
-
-            // smtProofLocalExitRoots[0],
-            // smtProofRollupExitRoots,
-            // mainnetExitRoot,
-            // rollupExitRoot
+            // Start the calldata pointer after the constant parameters
             let currentCalldataPointer := add(
                 compressedClaimCallsOffset,
                 _CONSTANT_VARIABLES_LENGTH
@@ -320,6 +256,21 @@ contract ClaimCompressor {
                 // after iteration block, empty
             } {
                 // loop block, non empty ;)
+
+                // THe final calldata should be something like:
+                //   function claimMessage/claimAsset(
+                //         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
+                //         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot, --> constant
+                //         uint256 globalIndex,
+                //         bytes32 mainnetExitRoot,  --> constant
+                //         bytes32 rollupExitRoot,  --> constant
+                //         uint32 originNetwork,
+                //         address originAddress,
+                //         uint32 destinationNetwork,  --> constant
+                //         address destinationAddress,
+                //         uint256 amount,
+                //         bytes calldata metadata
+                //     )
 
                 // Read uint8 isMessageBool
                 switch shr(248, calldataload(currentCalldataPointer))
@@ -378,16 +329,16 @@ contract ClaimCompressor {
 
                 // global exit root --> first 23 bytes to 0
                 // | 191 bits |    1 bit     |   32 bits   |     32 bits    |
-                // |  mainnetFlag | rollupIndex | localRootIndex |
+                // |    0     |  mainnetFlag | rollupIndex | localRootIndex |
                 mstore8(
                     add(memPointer, 23), // 23 bytes globalIndex Offset
-                    shr(255, calldataload(currentCalldataPointer))
+                    shr(248, calldataload(currentCalldataPointer)) // 256 - 8(lastDifferentLevel) = 248
                 )
 
-                // Add 1 bytes of uint8(globalIndex[i] >> 64
+                // Add 1 bytes of uint8(globalIndex[i] >> 64)
                 currentCalldataPointer := add(currentCalldataPointer, 1)
 
-                // Copy the next 64 bytes for the uint64(globalIndex[i]),
+                // Copy the next 64 bits for the uint64(globalIndex[i]),
                 calldatacopy(
                     add(memPointer, 24), // 24 bytes globalIndex Offset
                     currentCalldataPointer, // calldata offset
@@ -480,7 +431,7 @@ contract ClaimCompressor {
                 // clean mem
                 mstore(memPointer, 0)
 
-                // len args should be a multiple of 32 bytes
+                // metadata len should be a multiple of 32 bytes
                 let totalLenCall := add(
                     _CONSTANT_BYTES_PER_CLAIM,
                     add(metadataLen, mod(sub(32, mod(metadataLen, 32)), 32))
