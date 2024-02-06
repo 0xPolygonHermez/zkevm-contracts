@@ -1,10 +1,10 @@
 {
-  "name": "@0xpolygonhermez/zkevm-contracts",
-  "description": "Core contracts for the Polygon Hermez zkEVM",
+  "name": "@RealityETH/zkevm-contracts",
+  "description": "Core contracts for the Polygon Hermez zkEVM, forked from https://github.com/0xPolygonHermez/contracts-zkEVM for Backstop L2.",
   "version": "3.0.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/0xPolygonHermez/contracts-zkEVM.git"
+    "url": "git+https://github.com/RealityETH/zkevm-contracts.git"
   },
   "main": "index.js",
   "keywords": [
@@ -25,9 +25,9 @@
     "src"
   ],
   "bugs": {
-    "url": "https://github.com/0xPolygonHermez/contracts-zkEVM/issues"
+    "url": "https://github.com/RealityETH/zkevm-contracts/issues"
   },
-  "homepage": "https://github.com/0xPolygonHermez/contracts-zkEVM#readme",
+  "homepage": "https://github.com/RealityETH/zkevm-contracts#readme",
   "license": "pending",
   "dependencies": {
     "chai": "^4.3.7",
