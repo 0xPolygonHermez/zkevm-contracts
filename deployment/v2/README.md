@@ -55,6 +55,7 @@ A new folder will be created witth the following name `deployments/${network}_$(
 
 ## deploy-parameters.json
 
+-   `test` : bool, Indicate if it's a test deployment, which will fund the deployer address with pre minted ether and will give more powers to the deployer address to make easier the flow.
 -   `timelockAdminAddress`: address, Timelock owner address, able to send start an upgradability process via timelock
 -   `minDelayTimelock`: number, Minimum timelock delay,
 -   `salt`: bytes32, Salt used in `PolygonZkEVMDeployer` to deploy deterministic contracts, such as the PolygonZkEVMBridge

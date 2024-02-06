@@ -406,7 +406,7 @@ contract PolygonRollupBaseEtrog is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param l2Coinbase Address that will receive the fees from L2+
+     * @param l2Coinbase Address that will receive the fees from L2
      * note Pol is not a reentrant token
      */
     function sequenceBatches(
