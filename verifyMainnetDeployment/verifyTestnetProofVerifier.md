@@ -1,4 +1,4 @@
-# Verify deployment on Mainnet the proof verifier smart contract (etrog-fork.7)
+# Verify deployment on testnet Sepolia of the proof verifier smart contract (etrog-fork.7)
 
 In order to verify the smart contract, you will need a machine with at least 256GB of RAM and 16 cores.
 
@@ -13,7 +13,7 @@ sudo apt update
 sudo apt install -y tmux git curl jq
 ```
 
-## Tweaking the OS to accept high amount of memory.
+## Tweeking the OS to accept high amount of memory.
 
 ```bash
 echo "vm.max_map_count=655300" | sudo tee -a /etc/sysctl.conf
@@ -74,7 +74,7 @@ sudo apt install -y build-essential libomp-dev libgmp-dev nlohmann-json3-dev lib
 make -j bctree
 ```
 
-this step takes less than 1 minute.
+This step takes less than 1 minute.
 
 ## Prepare and launch setup (zkevm-proverjs)
 
@@ -164,7 +164,7 @@ npx hardhat compile
 > Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
 > --> contracts/verifiers/FflonkVerifier.sol:162:26:
 
-Bytecode of smartcontract was on bytecode property of json file _FflonkVerifier_ generated on path _artifacts/contracts/verifiers/FflonkVerifier.sol/_
+Bytecode of smartcontract was on bytecode property of json file _FflonkVerifier.json_ generated on path _artifacts/contracts/verifiers/FflonkVerifier.sol/_
 
 ```
 608060405234801561000f575f80fd5b506159c7
@@ -193,9 +193,9 @@ cb3439dbfabc28fb771c6e1bc6c8016e3d7b42ad
 
 Verify bytecode compiled:
 
-```
+```bash
 cd ~/contract
-cat ./artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json | jq .bytecode -r | tee FflonkVerifier.sol.compiled.bytecode | sha256sum
+cat ./artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json | jq .bytecode -r | sha256sum
 ```
 
 The result should be:
@@ -206,24 +206,24 @@ The result should be:
 
 ## Download bytecode of deployed smartcontract
 
-To download bytecode of deployed smartcontract, need the address of smart contract, in this case it's _0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8_.
+To download bytecode of deployed smartcontract, need the address of smart contract, in this case it's _0x8d0aAd785905c5c9f942CB18a3AC1e50c4F52786_.
 
 ### Download by copying data manually
 
 Go to Etherscan or Beaconcha to get transaction bytecode.
 
-Associated with address _0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8_ found the transacction _0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3_.
+Associated with address _0x8d0aAd785905c5c9f942CB18a3AC1e50c4F52786_ found the transacction _0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837_.
 
--   ### Etherscan (https://etherscan.io)
+-   ### Etherscan (https://sepolia.etherscan.io)
 
-        https://etherscan.io/address/0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8
-        https://etherscan.io/tx/0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3
+        https://sepolia.etherscan.io/address/0x8d0aAd785905c5c9f942CB18a3AC1e50c4F52786
+        https://sepolia.etherscan.io/tx/0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837
 
     Click to see more > Input Data > Select all data and copy to clipboard.
 
--   ### Beacocha (https://beaconcha.in)
-        https://beaconcha.in/address/0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8
-        https://beaconcha.in/tx/0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3
+-   ### Beacocha (https://sepolia.beaconcha.in)
+        https://sepolia.beaconcha.in/address/8d0aAd785905c5c9f942CB18a3AC1e50c4F52786
+        https://sepolia.beaconcha.in/tx/0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837
     Advanced Info > Call Data > Select all data and copy to clipboard.
 
 _NOTE: Don't use button "Copy Raw Data" because it generated non compatible format._
@@ -242,7 +242,7 @@ In nano, to paste the clipboard to the file use CTRL+P, save content using CTRL+
 ```bash
 cd ~/contract
 L1_ENDPOINT=<YOUR_L1_ENDPOINT_HERE>
- curl -s -X POST -H "Content-Type: application/json" --data '{"method":"eth_getTransactionByHash","params":["0x2f0ce26dd454211f84df373e7b37be2d683cb71532bc6d0ec63d6fcdbaa4c5e3"], "id":1,"jsonrpc":"2.0"}' $L1_ENDPOINT | jq .result.input -r > FflonkVerifier.sol.explorer.bytecode
+ curl -s -X POST -H "Content-Type: application/json" --data '{"method":"eth_getTransactionByHash","params":["0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837"], "id":1,"jsonrpc":"2.0"}' $L1_ENDPOINT | jq .result.input -r > FflonkVerifier.sol.explorer.bytecode
 ```
 
 ## Compare bytecodes
