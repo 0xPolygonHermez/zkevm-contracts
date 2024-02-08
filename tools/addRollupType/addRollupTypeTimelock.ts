@@ -22,6 +22,7 @@ async function main() {
      * Check that every necessary parameter is fullfilled
      */
     const mandatoryDeploymentParameters = [
+        "description",
         "forkID",
         "consensusContract",
         "polygonRollupManagerAddress",
@@ -40,6 +41,7 @@ async function main() {
     }
 
     const {
+        description,
         rollupCompatibilityID,
         forkID,
         consensusContract,
@@ -105,6 +107,8 @@ async function main() {
         [deployer] = await ethers.getSigners();
     }
 
+    console.log("Using with: ", deployer.address);
+
     // Load Rollup manager
     const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager", deployer);
 
@@ -120,6 +124,20 @@ async function main() {
     );
     await PolygonconsensusContract.waitForDeployment();
 
+    console.log("#######################\n");
+    console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContract.target}`);
+
+    console.log("you can verify the new impl address with:");
+    console.log(
+        `npx hardhat verify --constructor-args upgrade/arguments.js ${PolygonconsensusContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
+    );
+    console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
+        polygonZkEVMGlobalExitRootAddress,
+        polTokenAddress,
+        polygonZkEVMBridgeAddress,
+        polygonRollupManagerAddress,
+    ]);
+
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
 
@@ -132,7 +150,7 @@ async function main() {
             forkID,
             rollupCompatibilityID,
             genesis.root,
-            JSON.stringify(genesis),
+            description,
         ]),
         ethers.ZeroHash, // predecesoor
         salt // salt
