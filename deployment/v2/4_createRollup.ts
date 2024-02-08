@@ -276,6 +276,8 @@ async function main() {
                 throw new Error("polygonDataCommittee contract has not been deployed");
             }
         }
+        await polygonDataCommittee?.waitForDeployment();
+
         // Load data commitee
         const PolygonValidiumContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonValidium;
         // add data commitee to the consensus contract

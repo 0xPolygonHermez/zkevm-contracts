@@ -116,7 +116,7 @@ async function main() {
             to: trustedSequencer,
             value: minEtherBalance,
         };
-        await deployer.sendTransaction(params);
+        await (await deployer.sendTransaction(params)).wait();
     }
     const tokensBalance = ethers.parseEther("100000");
     await (await polTokenContract.transfer(trustedSequencer, tokensBalance)).wait();
@@ -128,7 +128,7 @@ async function main() {
             to: trustedAggregator,
             value: minEtherBalance,
         };
-        await deployer.sendTransaction(params);
+        await (await deployer.sendTransaction(params)).wait();
     }
 
     deployParameters.polTokenAddress = polTokenContract.target;

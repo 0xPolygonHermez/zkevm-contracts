@@ -1,0 +1,7 @@
+{
+    "realVerifier": true,
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": ""
+}
