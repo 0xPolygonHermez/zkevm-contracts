@@ -64,7 +64,6 @@ async function main() {
         adminZkEVM,
         forkID,
         consensusContract,
-        dataAvailabilityProtocol,
     } = createRollupParameters;
 
     const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
@@ -72,6 +71,8 @@ async function main() {
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
     }
+
+    const dataAvailabilityProtocol = createRollupParameters.dataAvailabilityProtocol || "PolygonDataCommittee";
 
     const supporteDataAvailabilityProtocols = ["PolygonDataCommittee"];
 

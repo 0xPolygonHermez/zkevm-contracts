@@ -87,6 +87,7 @@ A new folder will be created witth the following name `deployments/${network}_$(
 -   `maxFeePerGas`:string, Set `maxFeePerGas`, must define aswell `maxPriorityFeePerGas` to use it
 -   `maxPriorityFeePerGas`:string, Set `maxPriorityFeePerGas`, must define aswell `maxFeePerGas` to use it
 -   `multiplierGas`: number, Gas multiplier with 3 decimals. If `maxFeePerGas` and `maxPriorityFeePerGas` are set, this will not take effect
+-   `dataAvailabilityProtocol`: string, Data availability protocol, only mandatory/used when consensus contract is a Validiums, currently the only supported value is: `PolygonDataCommittee`
 
 ## Notes
 
