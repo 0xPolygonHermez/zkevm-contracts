@@ -7,14 +7,12 @@ import fs = require("fs");
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../.env")});
 import {ethers, upgrades} from "hardhat";
-import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 
 const addRollupParameters = require("./add_rollup_type.json");
 const genesis = require("./genesis.json");
 
 const pathOutputJson = path.join(__dirname, "./add_rollup_type_output.json");
-
-import {PolygonRollupManager} from "../../typechain-types";
+import "../../deployment/helpers/utils";
 
 async function main() {
     const outputJson = {} as any;
@@ -24,13 +22,6 @@ async function main() {
      * Check that every necessary parameter is fullfilled
      */
     const mandatoryDeploymentParameters = [
-        "realVerifier",
-        "trustedSequencerURL",
-        "networkName",
-        "description",
-        "trustedSequencer",
-        "chainID",
-        "adminZkEVM",
         "forkID",
         "consensusContract",
         "polygonRollupManagerAddress",
@@ -38,6 +29,7 @@ async function main() {
         "polygonZkEVMGlobalExitRootAddress",
         "polTokenAddress",
         "verifierAddress",
+        "rollupCompatibilityID",
         "timelockDelay",
     ];
 
@@ -48,7 +40,7 @@ async function main() {
     }
 
     const {
-        description,
+        rollupCompatibilityID,
         forkID,
         consensusContract,
         polygonRollupManagerAddress,
@@ -131,7 +123,6 @@ async function main() {
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
 
-    const rollupCompatibilityID = 0;
     const operation = genOperation(
         polygonRollupManagerAddress,
         0, // value
@@ -141,7 +132,7 @@ async function main() {
             forkID,
             rollupCompatibilityID,
             genesis.root,
-            description,
+            JSON.stringify(genesis),
         ]),
         ethers.ZeroHash, // predecesoor
         salt // salt

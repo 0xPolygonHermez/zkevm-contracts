@@ -7,7 +7,6 @@ import fs = require("fs");
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../.env")});
 import {ethers, upgrades} from "hardhat";
-import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 
 const addRollupParameters = require("./add_rollup_type.json");
 const genesis = require("./genesis.json");
@@ -15,10 +14,9 @@ const genesis = require("./genesis.json");
 const pathOutputJson = path.join(__dirname, "./add_rollup_type_output.json");
 
 import {PolygonRollupManager} from "../../typechain-types";
+import "../../deployment/helpers/utils";
 
 async function main() {
-    const attemptsDeployProxy = 20;
-
     const outputJson = {} as any;
 
     /*
@@ -26,13 +24,6 @@ async function main() {
      * Check that every necessary parameter is fullfilled
      */
     const mandatoryDeploymentParameters = [
-        "realVerifier",
-        "trustedSequencerURL",
-        "networkName",
-        "description",
-        "trustedSequencer",
-        "chainID",
-        "adminZkEVM",
         "forkID",
         "consensusContract",
         "polygonRollupManagerAddress",
@@ -40,6 +31,7 @@ async function main() {
         "polygonZkEVMGlobalExitRootAddress",
         "polTokenAddress",
         "verifierAddress",
+        "rollupCompatibilityID",
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -49,8 +41,7 @@ async function main() {
     }
 
     const {
-        realVerifier,
-        description,
+        rollupCompatibilityID,
         forkID,
         consensusContract,
         polygonRollupManagerAddress,
@@ -145,17 +136,18 @@ async function main() {
     await PolygonconsensusContract.waitForDeployment();
 
     // Add a new rollup type with timelock
-    const rollupCompatibilityID = 0;
-    await (
-        await rollupManagerContract.addNewRollupType(
-            PolygonconsensusContract.target,
-            verifierAddress,
-            forkID,
-            rollupCompatibilityID,
-            genesis.root,
-            description
-        )
-    ).wait();
+    console.log(
+        await (
+            await rollupManagerContract.addNewRollupType(
+                PolygonconsensusContract.target,
+                verifierAddress,
+                forkID,
+                rollupCompatibilityID,
+                genesis.root,
+                JSON.stringify(genesis)
+            )
+        ).wait()
+    );
 
     console.log("#######################\n");
     console.log("Added new Rollup Type deployed");
