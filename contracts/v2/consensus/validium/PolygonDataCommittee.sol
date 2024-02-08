@@ -6,6 +6,10 @@ import "../../interfaces/IDataAvailabilityProtocol.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
+/*
+ * Contract responsible managing the data committee that will verify that the data sent for a validium is singed by a committee
+ * It is advised to give the owner of the contract to a timelock contract once the data committee is set
+ */
 contract PolygonDataCommittee is
     IDataAvailabilityProtocol,
     IPolygonDataCommitteeErrors,
