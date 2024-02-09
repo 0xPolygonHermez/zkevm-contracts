@@ -287,8 +287,8 @@ async function main() {
                 await PolygonValidiumContract.setDataAvailabilityProtocol(polygonDataCommittee?.target as any)
             ).wait();
 
-            // Setup data commitee to 0
-            await (await polygonDataCommittee?.setupCommittee(0, [], "0x")).wait();
+            // // Setup data commitee to 0
+            // await (await polygonDataCommittee?.setupCommittee(0, [], "0x")).wait();
         } else {
             await (await polygonDataCommittee?.transferOwnership(adminZkEVM)).wait();
         }
