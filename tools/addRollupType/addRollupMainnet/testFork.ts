@@ -11,9 +11,9 @@ import {PolygonRollupManager, PolygonZkEVMTimelock} from "../../../typechain-typ
 
 import {takeSnapshot, time, reset, setBalance, setStorageAt} from "@nomicfoundation/hardhat-network-helpers";
 
-const deployParameters = require("./deploy_parameters_mainnet.json");
 const deployOutputParameters = require("./deploy_output_mainnet.json");
 const upgradeOutput = require("./upgrade_output.json");
+const addRollupTypeOutput = require("./add_rollup_type_output.json");
 
 async function main() {
     const polTokenAddress = "0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6"; // mainnet address
@@ -75,54 +75,36 @@ async function main() {
     // Deploy a validium
     const verifierAddress = upgradeOutput.verifierAddress;
 
-    // impersonate timelock
-    await ethers.provider.send("hardhat_impersonateAccount", [deployOutputParameters.timelockContractAddress]);
-    const tiemelockSigner = await ethers.getSigner(deployOutputParameters.timelockContractAddress as any);
-    await setBalance(deployOutputParameters.timelockContractAddress, 100n ** 18n);
-
-    // Create consensus implementation
-    const PolygonconsensusFactory = (await ethers.getContractFactory("PolygonValidiumEtrog", deployer)) as any;
-    let PolygonconsensusContract = await PolygonconsensusFactory.deploy(
-        deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
-        polTokenAddress,
-        deployOutputParameters.polygonZkEVMBridgeAddress,
-        deployOutputParameters.polygonZkEVMAddress
-    );
-    await PolygonconsensusContract.waitForDeployment();
-
-    // Add a new rollup type with timelock
-    const rollupCompatibilityID = 0;
-    await (
-        await rollupManager.connect(tiemelockSigner).addNewRollupType(
-            PolygonconsensusContract.target,
-            verifierAddress,
-            7,
-            rollupCompatibilityID,
-            deployOutputParameters.genesisRoot, // should recalculate root!!!
-            "super description"
-        )
-    ).wait();
+    // send mutlsig transaction
+    const txAddRollupType = {
+        to: timelockContract.target,
+        data: addRollupTypeOutput.executeData,
+    };
+    const receiptAddRollupType = await (await multisigSigner.sendTransaction(txAddRollupType)).wait();
 
     expect(await rollupManager.rollupTypeCount()).to.be.equal(1);
 
     // Create new rollup
     const chainID = 123213;
     const txDeployRollup = await rollupManager.connect(multisigSigner).createNewRollup(
-        1,
+        1, // rollupType
         chainID,
         deployer.address, // admin
         deployer.address, // sequencer
-        ethers.ZeroAddress,
+        ethers.ZeroAddress, // gas token address
         "trustedsequencer url",
         "network name"
     );
 
-    console.log("Validum deployed");
+    console.log("Validum added");
 
     const receiptDeployRollup = (await txDeployRollup.wait()) as any;
     expect(await rollupManager.rollupCount()).to.be.equal(2);
 
     // Update rollup to this type: this is just a test is NOT intended to update our zkevm to a validium
+    await ethers.provider.send("hardhat_impersonateAccount", [deployOutputParameters.timelockContractAddress]);
+    const tiemelockSigner = await ethers.getSigner(deployOutputParameters.timelockContractAddress as any);
+    await setBalance(deployOutputParameters.timelockContractAddress, 100n ** 18n);
     const txUpdateRollup = await rollupManager.connect(tiemelockSigner).updateRollup(
         upgradeOutput.newPolygonZKEVM, //new poylgon zkevm
         1, // new rollupTypeID
