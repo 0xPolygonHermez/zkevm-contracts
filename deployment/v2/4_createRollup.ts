@@ -64,7 +64,6 @@ async function main() {
         adminZkEVM,
         forkID,
         consensusContract,
-        dataAvailabilityProtocol,
     } = createRollupParameters;
 
     const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
@@ -72,6 +71,8 @@ async function main() {
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
     }
+
+    const dataAvailabilityProtocol = createRollupParameters.dataAvailabilityProtocol || "PolygonDataCommittee";
 
     const supporteDataAvailabilityProtocols = ["PolygonDataCommittee"];
 
@@ -276,6 +277,8 @@ async function main() {
                 throw new Error("polygonDataCommittee contract has not been deployed");
             }
         }
+        await polygonDataCommittee?.waitForDeployment();
+
         // Load data commitee
         const PolygonValidiumContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonValidium;
         // add data commitee to the consensus contract
@@ -284,8 +287,8 @@ async function main() {
                 await PolygonValidiumContract.setDataAvailabilityProtocol(polygonDataCommittee?.target as any)
             ).wait();
 
-            // Setup data commitee to 0
-            await (await polygonDataCommittee?.setupCommittee(0, [], "0x")).wait();
+            // // Setup data commitee to 0
+            // await (await polygonDataCommittee?.setupCommittee(0, [], "0x")).wait();
         } else {
             await (await polygonDataCommittee?.transferOwnership(adminZkEVM)).wait();
         }
