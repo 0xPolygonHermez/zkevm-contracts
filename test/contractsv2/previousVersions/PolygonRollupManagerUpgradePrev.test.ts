@@ -13,14 +13,12 @@ import {
     Address,
     PolygonZkEVM,
     PolygonZkEVMExistentEtrog,
-    PolygonRollupManager,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
 const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
 
 type BatchDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
-type VerifyBatchData = PolygonRollupManager.VerifyBatchData;
 
 const MerkleTreeBridge = MTBridge;
 const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
@@ -43,7 +41,7 @@ const EFFECTIVE_PERCENTAGE_BYTES = 1;
 const _MAX_VERIFY_BATCHES = 1000;
 const _HALT_AGGREGATION_TIMEOUT = 60 * 60 * 24 * 7;
 
-describe("Polygon Rollup manager upgraded", () => {
+describe("Polygon Rollup manager upgraded Previous", () => {
     let deployer: any;
     let timelock: any;
     let emergencyCouncil: any;
@@ -177,7 +175,7 @@ describe("Polygon Rollup manager upgraded", () => {
         expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.target);
         expect(precalculatezkEVM).to.be.equal(polygonZkEVMContract.target);
 
-        const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManagerMock");
+        const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManagerMockPrevious");
         rollupManagerContract = PolygonRollupManagerFactory.attach(polygonZkEVMContract.target) as any;
 
         await polygonZkEVMContract.initialize(
@@ -349,24 +347,6 @@ describe("Polygon Rollup manager upgraded", () => {
             .withArgs(ethers.parseEther("10"));
 
         expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther("10"));
-
-        // batch Fee
-        expect(await rollupManagerContract.aggregateRollupVerifier()).to.be.equal(ethers.ZeroAddress);
-
-        await expect(rollupManagerContract.setAggregateRollupVerifier(deployer.address)).to.be.revertedWithCustomError(
-            rollupManagerContract,
-            "AddressDoNotHaveRequiredRole"
-        );
-
-        await expect(
-            rollupManagerContract.connect(admin).setAggregateRollupVerifier(deployer.address)
-        ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
-
-        await expect(rollupManagerContract.connect(timelock).setAggregateRollupVerifier(deployer.address))
-            .to.emit(rollupManagerContract, "SetAggregateRollupVerifier")
-            .withArgs(deployer.address);
-
-        expect(await rollupManagerContract.aggregateRollupVerifier()).to.be.equal(deployer.address);
     });
 
     it("should check full flow etrog", async () => {
@@ -654,13 +634,8 @@ describe("Polygon Rollup manager upgraded", () => {
         );
 
         // Sequence Batches
-        const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        let currentLastBatchSequenced = 1;
-
         await expect(
-            newZkEVMContract
-                .connect(trustedSequencer)
-                .sequenceBatches([sequence], currentTime, currentLastBatchSequenced++, trustedSequencer.address)
+            newZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address)
         ).to.emit(newZkEVMContract, "SequenceBatches");
 
         const lastBlock = await ethers.provider.getBlock("latest");
@@ -681,7 +656,7 @@ describe("Polygon Rollup manager upgraded", () => {
             expectedAccInputHash,
             ethers.keccak256(l2txData),
             rootSC,
-            currentTime,
+            lastBlock?.timestamp,
             trustedSequencer.address,
             ethers.ZeroHash
         );
@@ -733,20 +708,50 @@ describe("Polygon Rollup manager upgraded", () => {
         const currentVerifiedBatch = 0;
 
         const initialAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
-        const VerifyBatchData = {
-            rollupID: newCreatedRollupID,
-            pendingStateNum: pendingState,
-            initNumBatch: currentVerifiedBatch,
-            finalNewBatch: newVerifiedBatch,
-            newLocalExitRoot: newLocalExitRoot,
-            newStateRoot: newStateRoot,
-        } as VerifyBatchData;
-
         await expect(
             rollupManagerContract
                 .connect(deployer)
-                .verifyBatchesTrustedAggregatorMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    currentVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBatchBelowLastVerifiedBatch");
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    3,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
 
         // Calcualte new globalExitroot
         const merkleTreeRollups = new MerkleTreeBridge(height);
@@ -758,7 +763,16 @@ describe("Polygon Rollup manager upgraded", () => {
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyBatchesTrustedAggregatorMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
@@ -964,9 +978,7 @@ describe("Polygon Rollup manager upgraded", () => {
         const snapshot3 = await takeSnapshot();
         // Sequence Batches
         await expect(
-            newZkEVMContract
-                .connect(trustedSequencer)
-                .sequenceBatches([sequenceForced], currentTime, currentLastBatchSequenced++, trustedSequencer.address)
+            newZkEVMContract.connect(trustedSequencer).sequenceBatches([sequenceForced], trustedSequencer.address)
         ).to.emit(newZkEVMContract, "SequenceBatches");
 
         const expectedAccInputHash3 = calculateAccInputHashetrog(
@@ -1328,13 +1340,8 @@ describe("Polygon Rollup manager upgraded", () => {
         );
 
         // Sequence Batches
-        const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const currentLastBatchSequenced = 1;
-
         await expect(
-            newZkEVMContract
-                .connect(trustedSequencer)
-                .sequenceBatches([sequence], currentTime, currentLastBatchSequenced, trustedSequencer.address)
+            newZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address)
         ).to.emit(newZkEVMContract, "SequenceBatches");
 
         const sequencedBatchData2 = await rollupManagerContract.getRollupSequencedBatches(newCreatedRollupID, 2);
@@ -1356,7 +1363,7 @@ describe("Polygon Rollup manager upgraded", () => {
             expectedAccInputHash,
             ethers.keccak256(l2txData),
             rootSC,
-            currentTime,
+            lastBlock?.timestamp,
             trustedSequencer.address,
             ethers.ZeroHash
         );
@@ -1407,53 +1414,89 @@ describe("Polygon Rollup manager upgraded", () => {
         const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
         const currentVerifiedBatch = 0;
 
-        const VerifyBatchData = {
-            rollupID: newCreatedRollupID,
-            pendingStateNum: pendingState,
-            initNumBatch: currentVerifiedBatch,
-            finalNewBatch: newVerifiedBatch,
-            newLocalExitRoot: newLocalExitRoot,
-            newStateRoot: newStateRoot,
-        } as VerifyBatchData;
-
         const initialAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
 
         await expect(
+            rollupManagerContract.getInputSnarkBytes(
+                newCreatedRollupID,
+                3,
+                4,
+                newLocalExitRoot,
+                ethers.ZeroHash,
+                newStateRoot
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OldAccInputHashDoesNotExist");
+
+        await expect(
+            rollupManagerContract.getInputSnarkBytes(
+                newCreatedRollupID,
+                2,
+                3,
+                newLocalExitRoot,
+                ethers.ZeroHash,
+                newStateRoot
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
+
+        await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyBatchesMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
+                .verifyBatches(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
         ).to.be.revertedWithCustomError(rollupManagerContract, "TrustedAggregatorTimeoutNotExpired");
 
         await rollupManagerContract.connect(admin).setTrustedAggregatorTimeout(0);
-        VerifyBatchData.finalNewBatch = currentVerifiedBatch + _MAX_VERIFY_BATCHES + 1;
-        await expect(
-            rollupManagerContract
-                .connect(trustedAggregator)
-                .verifyBatchesMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
-        ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
-
-        VerifyBatchData.finalNewBatch = currentVerifiedBatch;
 
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyBatchesMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
+                .verifyBatches(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    currentVerifiedBatch + _MAX_VERIFY_BATCHES + 1,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "ExceedMaxVerifyBatches");
+
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatches(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    currentVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
         ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBatchBelowLastVerifiedBatch");
-        VerifyBatchData.finalNewBatch = 3;
 
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
-        ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
-
-        VerifyBatchData.finalNewBatch = newVerifiedBatch;
-
-        await expect(
-            rollupManagerContract.verifyBatchesMultiProof(
-                [VerifyBatchData, VerifyBatchData],
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                pendingState,
+                currentVerifiedBatch,
+                3,
+                newLocalExitRoot,
+                newStateRoot,
                 beneficiary.address,
                 zkProofFFlonk
             )
-        ).to.be.revertedWithCustomError(rollupManagerContract, "RollupIDNotAscendingOrder");
+        ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
 
         // Calcualte new globalExitroot
         const merkleTreeRollups = new MerkleTreeBridge(height);
@@ -1463,7 +1506,16 @@ describe("Polygon Rollup manager upgraded", () => {
 
         // Verify batch
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                pendingState,
+                currentVerifiedBatch,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
         )
             .to.emit(rollupManagerContract, "VerifyBatches")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, deployer.address);
@@ -1476,95 +1528,79 @@ describe("Polygon Rollup manager upgraded", () => {
         const snapshotVerify = await takeSnapshot();
         await rollupManagerContract.connect(admin).setPendingStateTimeout(0);
 
-        const VerifyBatchData2 = {
-            rollupID: newCreatedRollupID,
-            pendingStateNum: 0,
-            initNumBatch: 5,
-            finalNewBatch: 6,
-            newLocalExitRoot: newLocalExitRoot,
-            newStateRoot: newStateRoot,
-        } as VerifyBatchData;
-
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof([VerifyBatchData2], beneficiary.address, zkProofFFlonk)
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                0,
+                5,
+                6,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "OldStateRootDoesNotExist");
 
-        const VerifyBatchData3 = {
-            rollupID: newCreatedRollupID,
-            pendingStateNum: 0,
-            initNumBatch: newVerifiedBatch,
-            finalNewBatch: 0,
-            newLocalExitRoot: newLocalExitRoot,
-            newStateRoot: newStateRoot,
-        } as VerifyBatchData;
-
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof([VerifyBatchData3], beneficiary.address, zkProofFFlonk)
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                0,
+                newVerifiedBatch,
+                0,
+                newLocalExitRoot,
+                newStateRoot,
+                beneficiary.address,
+                zkProofFFlonk
+            )
         ).to.be.reverted;
 
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof(
-                [
-                    {
-                        rollupID: newCreatedRollupID,
-                        pendingStateNum: createdPendingState + 1,
-                        initNumBatch: currentVerifiedBatch,
-                        finalNewBatch: newVerifiedBatch + 1,
-                        newLocalExitRoot: newLocalExitRoot,
-                        newStateRoot: newStateRoot,
-                    },
-                ],
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState + 1,
+                currentVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
                 beneficiary.address,
                 zkProofFFlonk
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "PendingStateDoesNotExist");
 
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof(
-                [
-                    {
-                        rollupID: newCreatedRollupID,
-                        pendingStateNum: createdPendingState,
-                        initNumBatch: currentVerifiedBatch,
-                        finalNewBatch: newVerifiedBatch + 1,
-                        newLocalExitRoot: newLocalExitRoot,
-                        newStateRoot: newStateRoot,
-                    },
-                ],
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState,
+                currentVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
                 beneficiary.address,
                 zkProofFFlonk
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "InitNumBatchDoesNotMatchPendingState");
 
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof(
-                [
-                    {
-                        rollupID: newCreatedRollupID,
-                        pendingStateNum: createdPendingState,
-                        initNumBatch: newVerifiedBatch,
-                        finalNewBatch: newVerifiedBatch + 1,
-                        newLocalExitRoot: newLocalExitRoot,
-                        newStateRoot: ethers.toQuantity(ethers.MaxUint256),
-                    },
-                ],
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState,
+                newVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                ethers.toQuantity(ethers.MaxUint256),
                 beneficiary.address,
                 zkProofFFlonk
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "NewStateRootNotInsidePrime");
 
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof(
-                [
-                    {
-                        rollupID: newCreatedRollupID,
-                        pendingStateNum: createdPendingState,
-                        initNumBatch: newVerifiedBatch,
-                        finalNewBatch: newVerifiedBatch + 1,
-                        newLocalExitRoot: newLocalExitRoot,
-                        newStateRoot: newStateRoot,
-                    },
-                ],
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState,
+                newVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
                 beneficiary.address,
                 zkProofFFlonk
             )
@@ -1582,37 +1618,31 @@ describe("Polygon Rollup manager upgraded", () => {
         expect(rollupDataV.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
 
         await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyBatchesTrustedAggregatorMultiProof(
-                [
-                    {
-                        rollupID: newCreatedRollupID,
-                        pendingStateNum: 0,
-                        initNumBatch: 0,
-                        finalNewBatch: newVerifiedBatch,
-                        newLocalExitRoot: newLocalExitRoot,
-                        newStateRoot: newStateRoot,
-                    },
-                ],
-                beneficiary.address,
-                zkProofFFlonk
-            )
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    0,
+                    0,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
         ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBatchBelowLastVerifiedBatch");
 
         await snapshotVerify.restore();
         await rollupManagerContract.connect(admin).setPendingStateTimeout(1);
 
         await expect(
-            rollupManagerContract.verifyBatchesMultiProof(
-                [
-                    {
-                        rollupID: newCreatedRollupID,
-                        pendingStateNum: createdPendingState,
-                        initNumBatch: newVerifiedBatch,
-                        finalNewBatch: newVerifiedBatch + 1,
-                        newLocalExitRoot: newLocalExitRoot,
-                        newStateRoot: newStateRoot,
-                    },
-                ],
+            rollupManagerContract.verifyBatches(
+                newCreatedRollupID,
+                createdPendingState,
+                newVerifiedBatch,
+                newVerifiedBatch + 1,
+                newLocalExitRoot,
+                newStateRoot,
                 beneficiary.address,
                 zkProofFFlonk
             )
@@ -1631,20 +1661,18 @@ describe("Polygon Rollup manager upgraded", () => {
         await snapshotVerify.restore();
 
         await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyBatchesTrustedAggregatorMultiProof(
-                [
-                    {
-                        rollupID: newCreatedRollupID,
-                        pendingStateNum: pendingState,
-                        initNumBatch: currentVerifiedBatch,
-                        finalNewBatch: newVerifiedBatch + 1,
-                        newLocalExitRoot: newLocalExitRoot,
-                        newStateRoot: newStateRoot,
-                    },
-                ],
-                beneficiary.address,
-                zkProofFFlonk
-            )
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch + 1,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(
