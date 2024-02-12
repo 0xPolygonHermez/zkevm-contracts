@@ -2,18 +2,18 @@
 
 pragma solidity 0.8.20;
 
-import "./interfaces/IPolygonRollupManager.sol";
-import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
-import "../interfaces/IPolygonZkEVMBridge.sol";
-import "./interfaces/IPolygonRollupBase.sol";
-import "../interfaces/IVerifierRollup.sol";
-import "../lib/EmergencyManager.sol";
+import "../interfaces/IPolygonRollupManager.sol";
+import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
+import "../../interfaces/IPolygonZkEVMBridge.sol";
+import "../interfaces/IPolygonRollupBase.sol";
+import "../../interfaces/IVerifierRollup.sol";
+import "../../lib/EmergencyManager.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "./lib/PolygonTransparentProxy.sol";
-import "./lib/PolygonAccessControlUpgradeable.sol";
-import "./lib/LegacyZKEVMStateVariables.sol";
-import "./consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
-import "./lib/PolygonConstantsBase.sol";
+import "../lib/PolygonTransparentProxy.sol";
+import "../lib/PolygonAccessControlUpgradeable.sol";
+import "../lib/LegacyZKEVMStateVariables.sol";
+import "../consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
+import "../lib/PolygonConstantsBase.sol";
 
 /**
  * Contract responsible for managing rollups and the verification of their batches.
@@ -21,7 +21,7 @@ import "./lib/PolygonConstantsBase.sol";
  * The logic for sequence batches is moved to the `consensus` contracts, while the verification of all of
  * them will be done in this one. In this way, the proof aggregation of the rollups will be easier on a close future.
  */
-contract PolygonRollupManager is
+contract PolygonRollupManagerPrevious is
     PolygonAccessControlUpgradeable,
     EmergencyManager,
     LegacyZKEVMStateVariables,
@@ -85,23 +85,6 @@ contract PolygonRollupManager is
         uint8 rollupCompatibilityID;
     }
 
-    /**
-     * @param rollupID Rollup identifier
-     * @param pendingStateNum Init pending state, 0 if consolidated state is used
-     * @param initNumBatch Batch which the aggregator starts the verification
-     * @param finalNewBatch Last batch aggregator intends to verify
-     * @param newLocalExitRoot New local exit root once the batch is processed
-     * @param newStateRoot New State root once the batch is processed
-     **/
-    struct VerifyBatchData {
-        uint32 rollupID;
-        uint64 pendingStateNum;
-        uint64 initNumBatch;
-        uint64 finalNewBatch;
-        bytes32 newLocalExitRoot;
-        bytes32 newStateRoot;
-    }
-
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
@@ -124,11 +107,6 @@ contract PolygonRollupManager is
     // Exit merkle tree levels
     uint256 internal constant _EXIT_TREE_DEPTH = 32;
 
-    // Bytes that will be added to the snark input for every rollup aggregated
-    // |   32 bytes   |    32 bytes      |   8 bytes    |   8 bytes  |   8 bytes  |  32 bytes      |    32 bytes         | 32 bytes         | 8 bytes       |
-    // | oldStateRoot |  oldAccInputHash | initNumBatch |   chainID  |   forkID   |  newStateRoot  |   newAccInputHash   | newLocalExitRoot | finalNewBatch |
-    uint256 internal constant _SNARK_BYTES_PER_ROLLUP_AGGREGATED =
-        32 + 32 + 8 + 8 + 8 + 32 + 32 + 32 + 8;
     // Roles
 
     // Be able to add a new rollup type
@@ -237,9 +215,6 @@ contract PolygonRollupManager is
     // Timestamp when the last emergency state was deactivated
     uint64 public lastDeactivatedEmergencyStateTimestamp;
 
-    // Aggregate rollup verifier, can verify a proof for multiple rollups
-    IVerifierRollup public aggregateRollupVerifier; // TODO set multiple?¿
-
     /**
      * @dev Emitted when a new rollup type is added
      */
@@ -307,11 +282,6 @@ contract PolygonRollupManager is
     );
 
     /**
-     * @dev Emitted when the aggregator verifies batches
-     */
-    event VerifyBatchesMultiProof(address indexed aggregator);
-
-    /**
      * @dev Emitted when the trusted aggregator verifies batches
      */
     event VerifyBatchesTrustedAggregator(
@@ -321,11 +291,6 @@ contract PolygonRollupManager is
         bytes32 exitRoot,
         address indexed aggregator
     );
-
-    /**
-     * @dev Emitted when the trusted aggregator verifies batches
-     */
-    event VerifyBatchesTrustedAggregatorMultiProof(address indexed aggregator); // TODO check?¿
 
     /**
      * @dev Emitted when pending state is consolidated
@@ -386,11 +351,6 @@ contract PolygonRollupManager is
      * @dev Emitted when is updated the batch fee
      */
     event SetBatchFee(uint256 newBatchFee);
-
-    /**
-     * @dev Emitted when the aggregated rollup verifier is updated
-     */
-    event SetAggregateRollupVerifier(IVerifierRollup aggregateRollupVerifier);
 
     /**
      * @param _globalExitRootManager Global exit root manager address
@@ -860,343 +820,179 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Allows an aggregator to verify multiple batches of multiple rollups
-     * @param verifyBatchesData Struct that contains all the necessary data to verify batches
+     * @notice Allows an aggregator to verify multiple batches
+     * @param rollupID Rollup identifier
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
      * @param beneficiary Address that will receive the verification reward
      * @param proof Fflonk proof
      */
-    function verifyBatchesMultiProof(
-        VerifyBatchData[] calldata verifyBatchesData,
+    function verifyBatches(
+        uint32 rollupID,
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
         address beneficiary,
         bytes32[24] calldata proof
     ) external ifNotEmergencyState {
-        // aggregateInput and verify the zkproof
-        _aggregateInputAndVerifyProof(verifyBatchesData, beneficiary, proof);
+        RollupData storage rollup = rollupIDToRollupData[rollupID];
 
-        // Consolidate state of every rollup
-        for (uint256 i = 0; i < verifyBatchesData.length; i++) {
-            VerifyBatchData memory currentVerifyBatchData = verifyBatchesData[
-                i
-            ];
-
-            RollupData storage currentRollup = rollupIDToRollupData[
-                currentVerifyBatchData.rollupID
-            ];
-
-            // Check if the trusted aggregator timeout expired,
-            // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
-            if (
-                currentRollup
-                    .sequencedBatches[currentVerifyBatchData.finalNewBatch]
-                    .sequencedTimestamp +
-                    trustedAggregatorTimeout >
-                block.timestamp
-            ) {
-                revert TrustedAggregatorTimeoutNotExpired();
-            }
-
-            // TODO sanity check
-            if (
-                currentVerifyBatchData.finalNewBatch -
-                    currentVerifyBatchData.initNumBatch >
-                _MAX_VERIFY_BATCHES
-            ) {
-                revert ExceedMaxVerifyBatches();
-            }
-
-            // Update batch fees
-            _updateBatchFee(
-                currentRollup,
-                currentVerifyBatchData.finalNewBatch
-            );
-
-            if (pendingStateTimeout == 0) {
-                // Set last verify batch
-                currentRollup.lastVerifiedBatch = currentVerifyBatchData
-                    .finalNewBatch;
-
-                // Set new state root
-                currentRollup.batchNumToStateRoot[
-                    currentVerifyBatchData.finalNewBatch
-                ] = currentVerifyBatchData.newStateRoot;
-
-                // Set new local exit root
-                currentRollup.lastLocalExitRoot = currentVerifyBatchData
-                    .newLocalExitRoot;
-
-                // Clean pending state if any
-                if (currentRollup.lastPendingState > 0) {
-                    currentRollup.lastPendingState = 0;
-                    currentRollup.lastPendingStateConsolidated = 0;
-                }
-            } else {
-                // Consolidate pending state if possible
-                _tryConsolidatePendingState(currentRollup);
-
-                // Update pending state
-                currentRollup.lastPendingState++;
-                currentRollup.pendingStateTransitions[
-                    currentRollup.lastPendingState
-                ] = PendingState({
-                    timestamp: uint64(block.timestamp),
-                    lastVerifiedBatch: currentVerifyBatchData.finalNewBatch,
-                    exitRoot: currentVerifyBatchData.newLocalExitRoot,
-                    stateRoot: currentVerifyBatchData.newStateRoot
-                });
-            }
-
-            // Emit events
-            rollupIDToRollupData[currentVerifyBatchData.rollupID]
-                .rollupContract
-                .onVerifyBatches(
-                    currentVerifyBatchData.finalNewBatch,
-                    currentVerifyBatchData.newStateRoot,
-                    msg.sender
-                );
-
-            // emit an event for every rollupID? // review
-            // emit a global event? ( then the sychronizer must synch all this events and )
-            emit VerifyBatches(
-                currentVerifyBatchData.rollupID,
-                currentVerifyBatchData.finalNewBatch,
-                currentVerifyBatchData.newStateRoot,
-                currentVerifyBatchData.newLocalExitRoot,
-                msg.sender
-            );
+        // Check if the trusted aggregator timeout expired,
+        // Note that the sequencedBatches struct must exists for this finalNewBatch, if not newAccInputHash will be 0
+        if (
+            rollup.sequencedBatches[finalNewBatch].sequencedTimestamp +
+                trustedAggregatorTimeout >
+            block.timestamp
+        ) {
+            revert TrustedAggregatorTimeoutNotExpired();
         }
-        // Interact with globalExitRootManager
-        globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
-        //emit VerifyBatchesMultiProof(msg.sender);
+        if (finalNewBatch - initNumBatch > _MAX_VERIFY_BATCHES) {
+            revert ExceedMaxVerifyBatches();
+        }
+
+        _verifyAndRewardBatches(
+            rollup,
+            pendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            beneficiary,
+            proof
+        );
+
+        // Update batch fees
+        _updateBatchFee(rollup, finalNewBatch);
+
+        if (pendingStateTimeout == 0) {
+            // Consolidate state
+            rollup.lastVerifiedBatch = finalNewBatch;
+            rollup.batchNumToStateRoot[finalNewBatch] = newStateRoot;
+            rollup.lastLocalExitRoot = newLocalExitRoot;
+
+            // Clean pending state if any
+            if (rollup.lastPendingState > 0) {
+                rollup.lastPendingState = 0;
+                rollup.lastPendingStateConsolidated = 0;
+            }
+
+            // Interact with globalExitRootManager
+            globalExitRootManager.updateExitRoot(getRollupExitRoot());
+        } else {
+            // Consolidate pending state if possible
+            _tryConsolidatePendingState(rollup);
+
+            // Update pending state
+            rollup.lastPendingState++;
+            rollup.pendingStateTransitions[
+                rollup.lastPendingState
+            ] = PendingState({
+                timestamp: uint64(block.timestamp),
+                lastVerifiedBatch: finalNewBatch,
+                exitRoot: newLocalExitRoot,
+                stateRoot: newStateRoot
+            });
+        }
+
+        emit VerifyBatches(
+            rollupID,
+            finalNewBatch,
+            newStateRoot,
+            newLocalExitRoot,
+            msg.sender
+        );
     }
 
     /**
-     * @notice Allows an aggregator to verify multiple batches of multiple rollups
-     * @param verifyBatchesData Struct that contains all the necessary data to verify batches
+     * @notice Allows a trusted aggregator to verify multiple batches
+     * @param rollupID Rollup identifier
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
      * @param beneficiary Address that will receive the verification reward
      * @param proof Fflonk proof
      */
-    function verifyBatchesTrustedAggregatorMultiProof(
-        VerifyBatchData[] calldata verifyBatchesData,
+    function verifyBatchesTrustedAggregator(
+        uint32 rollupID,
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
         address beneficiary,
         bytes32[24] calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
-        // review, check if it's 0 the length?¿, it will fail since the proof will be a hash of the msg.sender
-        // aggregateInput and verify the zkproof
-        _aggregateInputAndVerifyProof(verifyBatchesData, beneficiary, proof);
+        RollupData storage rollup = rollupIDToRollupData[rollupID];
 
-        // Consolidate state of every rollup
-        for (uint256 i = 0; i < verifyBatchesData.length; i++) {
-            VerifyBatchData memory currentVerifyBatchData = verifyBatchesData[
-                i
-            ];
+        _verifyAndRewardBatches(
+            rollup,
+            pendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            beneficiary,
+            proof
+        );
 
-            RollupData storage currentRollup = rollupIDToRollupData[
-                currentVerifyBatchData.rollupID
-            ];
+        // Consolidate state
+        rollup.lastVerifiedBatch = finalNewBatch;
+        rollup.batchNumToStateRoot[finalNewBatch] = newStateRoot;
+        rollup.lastLocalExitRoot = newLocalExitRoot;
 
-            // Set last verify batch
-            currentRollup.lastVerifiedBatch = currentVerifyBatchData
-                .finalNewBatch;
-
-            // Set new state root
-            currentRollup.batchNumToStateRoot[
-                currentVerifyBatchData.finalNewBatch
-            ] = currentVerifyBatchData.newStateRoot;
-
-            // Set new local exit root
-            currentRollup.lastLocalExitRoot = currentVerifyBatchData
-                .newLocalExitRoot;
-
-            // Clean pending state if any
-            if (currentRollup.lastPendingState > 0) {
-                currentRollup.lastPendingState = 0;
-                currentRollup.lastPendingStateConsolidated = 0;
-            }
-
-            rollupIDToRollupData[currentVerifyBatchData.rollupID]
-                .rollupContract
-                .onVerifyBatches(
-                    currentVerifyBatchData.finalNewBatch,
-                    currentVerifyBatchData.newStateRoot,
-                    msg.sender
-                );
-
-            // emit an event for every rollupID? // review
-            // emit a global event? ( then the sychronizer must synch all this events and )
-            emit VerifyBatchesTrustedAggregator(
-                currentVerifyBatchData.rollupID,
-                currentVerifyBatchData.finalNewBatch,
-                currentVerifyBatchData.newStateRoot,
-                currentVerifyBatchData.newLocalExitRoot,
-                msg.sender
-            );
+        // Clean pending state if any
+        if (rollup.lastPendingState > 0) {
+            rollup.lastPendingState = 0;
+            rollup.lastPendingStateConsolidated = 0;
         }
 
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
-        // review not global event
-        //emit VerifyBatchesTrustedAggregatorMultiProof(msg.sender);
-    }
-
-    /**
-     * @notice Intenral function with the common logic to aggregate the snark input and verify proofs
-     * @param verifyBatchesData Struct that contains all the necessary data to verify batches
-     * @param beneficiary Address that will receive the verification reward
-     * @param proof Fflonk proof
-     */
-    function _aggregateInputAndVerifyProof(
-        VerifyBatchData[] calldata verifyBatchesData,
-        address beneficiary,
-        bytes32[24] calldata proof
-    ) internal {
-        // Create a snark input byte array
-        bytes memory accumulateSnarkBytes;
-
-        // This pointer will be the current position to write on accumulateSnarkBytes
-        uint256 ptrAccumulateInputSnarkBytes;
-
-        // Total length of the accumulateSnarkBytes, ByesPerRollup * rollupToVerify + 20 bytes (msg.sender)
-        uint256 totalSnarkLength = _SNARK_BYTES_PER_ROLLUP_AGGREGATED *
-            verifyBatchesData.length +
-            20;
-
-        // Use assembly to rever memory and get the memory pointer
-        assembly {
-            // Set accumulateSnarkBytes to the next free memory space
-            accumulateSnarkBytes := mload(0x40)
-
-            // Reserve the memory: 32 bytes for the byte array length + 32 bytes extra for byte manipulation (0x40) +
-            // the length of the input snark bytes
-            mstore(0x40, add(add(accumulateSnarkBytes, 0x40), totalSnarkLength))
-
-            // Set the length of the input bytes
-            mstore(accumulateSnarkBytes, totalSnarkLength)
-
-            // Set the pointer on the start of the actual byte array
-            ptrAccumulateInputSnarkBytes := add(accumulateSnarkBytes, 0x20)
-        }
-
-        uint32 lastRollupID;
-        uint64 newVerifiedBatches;
-
-        // Loop through all rollups
-        for (uint256 i = 0; i < verifyBatchesData.length; i++) {
-            uint32 currentRollupID = verifyBatchesData[i].rollupID;
-            // Check that same rollup can't be used twice in this call
-            // Security considerations: RollupExitRoot could not be the final D:, little bit inconsisten events
-            if (currentRollupID <= lastRollupID) {
-                revert RollupIDNotAscendingOrder();
-            }
-            // Update lastRollupID,
-            lastRollupID = currentRollupID;
-
-            // Append the current rollup verification data to the accumulateSnarkBytes
-            uint64 verifiedBatches;
-            (
-                verifiedBatches,
-                ptrAccumulateInputSnarkBytes
-            ) = _checkAndAccumulateVerifyBatchesData(
-                verifyBatchesData[i],
-                ptrAccumulateInputSnarkBytes
-            );
-            newVerifiedBatches += verifiedBatches;
-        }
-
-        // Append msg.sender to the input snark bytes
-        _appendSenderToInputSnarkBytes(ptrAccumulateInputSnarkBytes);
-
-        // Calulate the snark input
-        uint256 inputSnark = uint256(sha256(accumulateSnarkBytes)) % _RFIELD;
-
-        // Select verifier
-        IVerifierRollup verifier;
-        if (verifyBatchesData.length == 1) {
-            // Get the verifier rollup specific
-            verifier = rollupIDToRollupData[verifyBatchesData[0].rollupID]
-                .verifier;
-        } else {
-            // Get the aggregated verifier
-            verifier = aggregateRollupVerifier;
-        }
-
-        if (!verifier.verifyProof(proof, [inputSnark])) {
-            revert InvalidProof();
-        }
-
-        // Pay POL rewards
-        pol.safeTransfer(
-            beneficiary,
-            calculateRewardPerBatch() * newVerifiedBatches
+        emit VerifyBatchesTrustedAggregator(
+            rollupID,
+            finalNewBatch,
+            newStateRoot,
+            newLocalExitRoot,
+            msg.sender
         );
-
-        // Update global aggregation parameters
-        totalVerifiedBatches += newVerifiedBatches;
-        lastAggregationTimestamp = uint64(block.timestamp);
     }
 
     /**
      * @notice Verify and reward batches internal function
-     * @param verifyBatchData Struct that contains all the necessary data to verify batches
-     * @param ptrAccumulateInputSnarkBytes Memory pointer to the bytes array that will accumulate all rollups data to finally be used as the snark input
-     */
-    function _checkAndAccumulateVerifyBatchesData(
-        VerifyBatchData memory verifyBatchData,
-        uint256 ptrAccumulateInputSnarkBytes
-    ) internal view virtual returns (uint64, uint256) {
-        RollupData storage rollup = rollupIDToRollupData[
-            verifyBatchData.rollupID
-        ];
-
-        bytes32 oldStateRoot = _checkAndRetrieveOldStateRoot(
-            rollup,
-            verifyBatchData.pendingStateNum,
-            verifyBatchData.initNumBatch
-        );
-
-        uint64 currentLastVerifiedBatch = _getLastVerifiedBatch(rollup);
-
-        // Check final batch
-        if (verifyBatchData.finalNewBatch <= currentLastVerifiedBatch) {
-            revert FinalNumBatchBelowLastVerifiedBatch();
-        }
-
-        // Get snark bytes
-        // review use struct instead?¿
-        uint256 currentPtr = _appendDataToInputSnarkBytes(
-            rollup,
-            verifyBatchData.initNumBatch,
-            verifyBatchData.finalNewBatch,
-            verifyBatchData.newLocalExitRoot,
-            oldStateRoot,
-            verifyBatchData.newStateRoot,
-            ptrAccumulateInputSnarkBytes
-        );
-
-        // Return verified batches
-        return (
-            verifyBatchData.finalNewBatch - currentLastVerifiedBatch,
-            currentPtr
-        );
-    }
-
-    /**
-     * @notice Internal function with common logic to retrieve the old state root from a rollup, a pending state num and initNumBatch
-     * @param rollup Rollup data storage pointer
+     * @param rollup Rollup Data storage pointer that will be used to the verification
      * @param pendingStateNum Init pending state, 0 if consolidated state is used
      * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param beneficiary Address that will receive the verification reward
+     * @param proof Fflonk proof
      */
-    function _checkAndRetrieveOldStateRoot(
+    function _verifyAndRewardBatches(
         RollupData storage rollup,
         uint64 pendingStateNum,
-        uint64 initNumBatch
-    ) internal view returns (bytes32) {
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        address beneficiary,
+        bytes32[24] calldata proof
+    ) internal virtual {
+        bytes32 oldStateRoot;
+        uint64 currentLastVerifiedBatch = _getLastVerifiedBatch(rollup);
+
         if (initNumBatch < rollup.lastVerifiedBatchBeforeUpgrade) {
             revert InitBatchMustMatchCurrentForkID();
         }
-
-        bytes32 oldStateRoot;
 
         // Use pending state if specified, otherwise use consolidated state
         if (pendingStateNum != 0) {
@@ -1224,9 +1020,54 @@ contract PolygonRollupManager is
             if (oldStateRoot == bytes32(0)) {
                 revert OldStateRootDoesNotExist();
             }
+
+            // Check initNumBatch is inside the range, sanity check
+            if (initNumBatch > currentLastVerifiedBatch) {
+                revert InitNumBatchAboveLastVerifiedBatch();
+            }
         }
 
-        return oldStateRoot;
+        // Check final batch
+        if (finalNewBatch <= currentLastVerifiedBatch) {
+            revert FinalNumBatchBelowLastVerifiedBatch();
+        }
+
+        // Get snark bytes
+        bytes memory snarkHashBytes = _getInputSnarkBytes(
+            rollup,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            oldStateRoot,
+            newStateRoot
+        );
+
+        // Calulate the snark input
+        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
+
+        // Verify proof
+        if (!rollup.verifier.verifyProof(proof, [inputSnark])) {
+            revert InvalidProof();
+        }
+
+        // Pay POL rewards
+        uint64 newVerifiedBatches = finalNewBatch - currentLastVerifiedBatch;
+
+        pol.safeTransfer(
+            beneficiary,
+            calculateRewardPerBatch() * newVerifiedBatches
+        );
+
+        // Update aggregation parameters
+        totalVerifiedBatches += newVerifiedBatches;
+        lastAggregationTimestamp = uint64(block.timestamp);
+
+        // Callback to the rollup address
+        rollup.rollupContract.onVerifyBatches(
+            finalNewBatch,
+            newStateRoot,
+            msg.sender
+        );
     }
 
     /**
@@ -1311,7 +1152,7 @@ contract PolygonRollupManager is
         // Update pending state
         rollup.lastPendingStateConsolidated = pendingStateNum;
 
-        // Interact with globalExitRootManager  // TODO review, update global after event?¿
+        // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
         emit ConsolidatePendingState(
@@ -1452,11 +1293,43 @@ contract PolygonRollupManager is
         bytes32 newStateRoot,
         bytes32[24] calldata proof
     ) internal view virtual {
-        bytes32 oldStateRoot = _checkAndRetrieveOldStateRoot(
-            rollup,
-            initPendingStateNum,
-            initNumBatch
-        );
+        bytes32 oldStateRoot;
+
+        if (initNumBatch < rollup.lastVerifiedBatchBeforeUpgrade) {
+            revert InitBatchMustMatchCurrentForkID();
+        }
+
+        // Use pending state if specified, otherwise use consolidated state
+        if (initPendingStateNum != 0) {
+            // Check that pending state exist
+            // Already consolidated pending states can be used aswell
+            if (initPendingStateNum > rollup.lastPendingState) {
+                revert PendingStateDoesNotExist();
+            }
+
+            // Check choosen pending state
+            PendingState storage initPendingState = rollup
+                .pendingStateTransitions[initPendingStateNum];
+
+            // Get oldStateRoot from init pending state
+            oldStateRoot = initPendingState.stateRoot;
+
+            // Check initNumBatch matches the init pending state
+            if (initNumBatch != initPendingState.lastVerifiedBatch) {
+                revert InitNumBatchDoesNotMatchPendingState();
+            }
+        } else {
+            // Use consolidated state
+            oldStateRoot = rollup.batchNumToStateRoot[initNumBatch];
+            if (oldStateRoot == bytes32(0)) {
+                revert OldStateRootDoesNotExist();
+            }
+
+            // Check initNumBatch is inside the range, sanity check
+            if (initNumBatch > rollup.lastVerifiedBatch) {
+                revert InitNumBatchAboveLastVerifiedBatch();
+            }
+        }
 
         // Assert final pending state num is in correct range
         // - exist ( has been added)
@@ -1480,47 +1353,18 @@ contract PolygonRollupManager is
             revert FinalNumBatchDoesNotMatchPendingState();
         }
 
-        // Create a snark input byte array
-        bytes memory accumulateSnarkBytes;
-
-        // This pointer will be the current position to write on accumulateSnarkBytes
-        uint256 ptrAccumulateInputSnarkBytes;
-
-        // Total length of the accumulateSnarkBytes, ByesPerRollup + 20 bytes (msg.sender)
-        uint256 totalSnarkLength = _SNARK_BYTES_PER_ROLLUP_AGGREGATED + 20;
-
-        // Use assembly to rever memory and get the memory pointer
-        assembly {
-            // Set accumulateSnarkBytes to the next free memory space
-            accumulateSnarkBytes := mload(0x40)
-
-            // Reserve the memory: 32 bytes for the byte array length + 32 bytes extra for byte manipulation (0x40) +
-            // the length of the input snark bytes
-            mstore(0x40, add(add(accumulateSnarkBytes, 0x40), totalSnarkLength))
-
-            // Set the length of the input bytes
-            mstore(accumulateSnarkBytes, totalSnarkLength)
-
-            // Set the pointer on the start of the actual byte array
-            ptrAccumulateInputSnarkBytes := add(accumulateSnarkBytes, 0x20)
-        }
-
         // Get snark bytes
-        ptrAccumulateInputSnarkBytes = _appendDataToInputSnarkBytes(
+        bytes memory snarkHashBytes = _getInputSnarkBytes(
             rollup,
             initNumBatch,
             finalNewBatch,
             newLocalExitRoot,
             oldStateRoot,
-            newStateRoot,
-            ptrAccumulateInputSnarkBytes
+            newStateRoot
         );
 
-        // Append sender to the snark bytes
-        _appendSenderToInputSnarkBytes(ptrAccumulateInputSnarkBytes);
-
         // Calulate the snark input
-        uint256 inputSnark = uint256(sha256(accumulateSnarkBytes)) % _RFIELD;
+        uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
         if (!rollup.verifier.verifyProof(proof, [inputSnark])) {
@@ -1538,7 +1382,6 @@ contract PolygonRollupManager is
     /**
      * @notice Function to update the batch fee based on the new verified batches
      * The batch fee will not be updated when the trusted aggregator verifies batches
-     * @param rollup Rollup storage pointer
      * @param newLastVerifiedBatch New last verified batch
      */
     function _updateBatchFee(
@@ -1685,18 +1528,6 @@ contract PolygonRollupManager is
     //////////////////
     // Setter functions
     //////////////////
-
-    /**
-     * @notice Set the aggregated rollup verifier of the system
-     * @param newAggregateRollupVerifier new aggregated rollup verifier
-     */
-    function setAggregateRollupVerifier(
-        IVerifierRollup newAggregateRollupVerifier
-    ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
-        aggregateRollupVerifier = newAggregateRollupVerifier;
-
-        emit SetAggregateRollupVerifier(newAggregateRollupVerifier);
-    }
 
     /**
      * @notice Set a new pending state timeout
@@ -1940,25 +1771,50 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Function to append the current rollup data to the input snark bytes
-     * @param rollup Rollup storage pointer
-     * @param initNumBatch Storage pointer to a rollup
+     * @notice Function to calculate the input snark bytes
+     * @param rollupID Rollup id used to calculate the input snark bytes
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot New local exit root once the batch is processed
      * @param oldStateRoot State root before batch is processed
      * @param newStateRoot New State root once the batch is processed
-     * @param ptrAccumulateInputSnarkBytes Memory pointer to the bytes array that will accumulate all rollups data to finally be used as the snark input
      */
-    function _appendDataToInputSnarkBytes(
+    function getInputSnarkBytes(
+        uint32 rollupID,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 oldStateRoot,
+        bytes32 newStateRoot
+    ) public view returns (bytes memory) {
+        return
+            _getInputSnarkBytes(
+                rollupIDToRollupData[rollupID],
+                initNumBatch,
+                finalNewBatch,
+                newLocalExitRoot,
+                oldStateRoot,
+                newStateRoot
+            );
+    }
+
+    /**
+     * @notice Function to calculate the input snark bytes
+     * @param rollup Rollup data storage pointer
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot New local exit root once the batch is processed
+     * @param oldStateRoot State root before batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     */
+    function _getInputSnarkBytes(
         RollupData storage rollup,
         uint64 initNumBatch,
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
         bytes32 oldStateRoot,
-        bytes32 newStateRoot,
-        uint256 ptrAccumulateInputSnarkBytes
-    ) internal view returns (uint256) {
+        bytes32 newStateRoot
+    ) internal view returns (bytes memory) {
         // Sanity check
         bytes32 oldAccInputHash = rollup
             .sequencedBatches[initNumBatch]
@@ -1981,62 +1837,20 @@ contract PolygonRollupManager is
         if (!_checkStateRootInsidePrime(uint256(newStateRoot))) {
             revert NewStateRootNotInsidePrime();
         }
-        uint256 ptr = ptrAccumulateInputSnarkBytes;
 
-        assembly {
-            // store oldStateRoot
-            mstore(ptr, oldStateRoot)
-            ptr := add(ptr, 32)
-
-            // store oldAccInputHash
-            mstore(ptr, oldAccInputHash)
-            ptr := add(ptr, 32)
-
-            // store initNumBatch
-            mstore(ptr, shl(192, initNumBatch)) // 256-64 = 192
-            ptr := add(ptr, 8)
-
-            // store chainID
-            // chainID is stored inside the rollup struct, on the first storage slot with 32 -(8 + 20) = 4 bytes offset
-            mstore(ptr, shl(32, sload(rollup.slot)))
-            ptr := add(ptr, 8)
-
-            // store forkID
-            // chainID is stored inside the rollup struct, on the second storage slot with 32 -(8 + 20) = 4 bytes offset
-            mstore(ptr, shl(32, sload(add(rollup.slot, 1))))
-            ptr := add(ptr, 8)
-
-            // store newStateRoot
-            mstore(ptr, newStateRoot)
-            ptr := add(ptr, 32)
-
-            // store newAccInputHash
-            mstore(ptr, newAccInputHash)
-            ptr := add(ptr, 32)
-
-            // store newLocalExitRoot
-            mstore(ptr, newLocalExitRoot)
-            ptr := add(ptr, 32)
-
-            // store finalNewBatch
-            mstore(ptr, shl(192, finalNewBatch)) // 256-64 = 192
-            ptr := add(ptr, 8)
-        }
-
-        return ptr;
-    }
-
-    /**
-     * @notice Function to append the msg.sender to the snark bytes array
-     * @param ptrAccumulateInputSnarkBytes Memory pointer to the bytes array that will accumulate all rollups data to finally be used as the snark input
-     */
-    function _appendSenderToInputSnarkBytes(
-        uint256 ptrAccumulateInputSnarkBytes
-    ) internal view {
-        assembly {
-            // store msg.sender, there's an extra 32 bytes at the end of the array for word manipulation, no need to worry about that bytes
-            mstore(ptrAccumulateInputSnarkBytes, shl(96, caller())) // 256-160 = 96
-        }
+        return
+            abi.encodePacked(
+                msg.sender,
+                oldStateRoot,
+                oldAccInputHash,
+                initNumBatch,
+                rollup.chainID,
+                rollup.forkID,
+                newStateRoot,
+                newAccInputHash,
+                newLocalExitRoot,
+                finalNewBatch
+            );
     }
 
     /**
