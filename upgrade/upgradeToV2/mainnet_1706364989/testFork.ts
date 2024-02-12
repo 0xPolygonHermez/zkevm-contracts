@@ -44,6 +44,8 @@ async function main() {
     )) as PolygonZkEVM;
 
     const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+    const emergencyCouncilAddress = await polygonZkEVMContract.owner();
+    const trustedAggregator = await polygonZkEVMContract.trustedAggregator();
 
     await setStorageAt(polygonZkEVMContract.target, 116, lastBatchSequenced);
 
@@ -158,6 +160,60 @@ async function main() {
     expect(rollupDataFinal.rollupCompatibilityID).to.be.equal(0);
 
     console.log("Updated zkevm Succedd");
+
+    //roles
+    const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
+    const ADD_ROLLUP_TYPE_ROLE = ethers.id("ADD_ROLLUP_TYPE_ROLE");
+    const OBSOLETE_ROLLUP_TYPE_ROLE = ethers.id("OBSOLETE_ROLLUP_TYPE_ROLE");
+    const CREATE_ROLLUP_ROLE = ethers.id("CREATE_ROLLUP_ROLE");
+    const ADD_EXISTING_ROLLUP_ROLE = ethers.id("ADD_EXISTING_ROLLUP_ROLE");
+    const UPDATE_ROLLUP_ROLE = ethers.id("UPDATE_ROLLUP_ROLE");
+    const TRUSTED_AGGREGATOR_ROLE = ethers.id("TRUSTED_AGGREGATOR_ROLE");
+    const TRUSTED_AGGREGATOR_ROLE_ADMIN = ethers.id("TRUSTED_AGGREGATOR_ROLE_ADMIN");
+    const TWEAK_PARAMETERS_ROLE = ethers.id("TWEAK_PARAMETERS_ROLE");
+    const SET_FEE_ROLE = ethers.id("SET_FEE_ROLE");
+    const STOP_EMERGENCY_ROLE = ethers.id("STOP_EMERGENCY_ROLE");
+    const EMERGENCY_COUNCIL_ROLE = ethers.id("EMERGENCY_COUNCIL_ROLE");
+    const EMERGENCY_COUNCIL_ADMIN = ethers.id("EMERGENCY_COUNCIL_ADMIN");
+
+    expect(await rollupManager.globalExitRootManager()).to.be.equal(
+        deployOutputParameters.polygonZkEVMGlobalExitRootAddress
+    );
+    expect(await rollupManager.pol()).to.be.equal(polTokenAddress);
+    expect(await rollupManager.bridgeAddress()).to.be.equal(deployOutputParameters.polygonZkEVMBridgeAddress);
+
+    expect(await rollupManager.pendingStateTimeout()).to.be.equal(deployParameters.pendingStateTimeout);
+    expect(await rollupManager.trustedAggregatorTimeout()).to.be.equal(deployParameters.trustedAggregatorTimeout);
+
+    expect(await rollupManager.getBatchFee()).to.be.equal(ethers.parseEther("0.1"));
+    expect(await rollupManager.getForcedBatchFee()).to.be.equal(ethers.parseEther("10"));
+    expect(await rollupManager.calculateRewardPerBatch()).to.be.equal(0);
+
+    // Check roles
+    expect(await rollupManager.hasRole(DEFAULT_ADMIN_ROLE, deployOutputParameters.timelockContractAddress)).to.be.equal(
+        true
+    );
+    expect(
+        await rollupManager.hasRole(ADD_ROLLUP_TYPE_ROLE, deployOutputParameters.timelockContractAddress)
+    ).to.be.equal(true);
+    expect(await rollupManager.hasRole(UPDATE_ROLLUP_ROLE, deployOutputParameters.timelockContractAddress)).to.be.equal(
+        true
+    );
+    expect(
+        await rollupManager.hasRole(ADD_EXISTING_ROLLUP_ROLE, deployOutputParameters.timelockContractAddress)
+    ).to.be.equal(true);
+
+    expect(await rollupManager.hasRole(TRUSTED_AGGREGATOR_ROLE, trustedAggregator)).to.be.equal(true);
+
+    expect(await rollupManager.hasRole(OBSOLETE_ROLLUP_TYPE_ROLE, deployParameters.admin)).to.be.equal(true);
+    expect(await rollupManager.hasRole(CREATE_ROLLUP_ROLE, deployParameters.admin)).to.be.equal(true);
+    expect(await rollupManager.hasRole(TRUSTED_AGGREGATOR_ROLE_ADMIN, deployParameters.admin)).to.be.equal(true);
+    expect(await rollupManager.hasRole(TWEAK_PARAMETERS_ROLE, deployParameters.admin)).to.be.equal(true);
+    expect(await rollupManager.hasRole(SET_FEE_ROLE, deployParameters.admin)).to.be.equal(true);
+    expect(await rollupManager.hasRole(STOP_EMERGENCY_ROLE, deployParameters.admin)).to.be.equal(true);
+
+    expect(await rollupManager.hasRole(EMERGENCY_COUNCIL_ROLE, emergencyCouncilAddress)).to.be.equal(true);
+    expect(await rollupManager.hasRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncilAddress)).to.be.equal(true);
 }
 
 main().catch((e) => {

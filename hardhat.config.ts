@@ -216,7 +216,7 @@ const config: HardhatUserConfig = {
             },
         },
         polygonZKEVMTestnet: {
-            url: "https://rpc.public.zkevm-test.net",
+            url: "https://rpc.cardona.zkevm-rpc.com",
             accounts: {
                 mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
                 path: "m/44'/60'/0'/0",
@@ -268,10 +268,10 @@ const config: HardhatUserConfig = {
             },
             {
                 network: "polygonZKEVMTestnet",
-                chainId: 1442,
+                chainId: 2442,
                 urls: {
-                    apiURL: "https://api-testnet-zkevm.polygonscan.com/api",
-                    browserURL: "https://testnet-zkevm.polygonscan.com/",
+                    apiURL: "https://explorer-ui.cardona.zkevm-rpc.com/api",
+                    browserURL: "https://explorer-ui.cardona.zkevm-rpc.com",
                 },
             },
             {
