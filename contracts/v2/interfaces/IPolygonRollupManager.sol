@@ -167,4 +167,9 @@ interface IPolygonRollupManager {
      * @dev When adding an existing rollup where the rollup address already was added
      */
     error RollupAddressAlreadyExist();
+
+    /**
+     * @dev When verifying proof for multiple roolups and they are not ordered by ID
+     */
+    error RollupIDNotAscendingOrder();
 }
