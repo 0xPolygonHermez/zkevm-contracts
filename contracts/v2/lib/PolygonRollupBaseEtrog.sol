@@ -191,6 +191,15 @@ abstract contract PolygonRollupBaseEtrog is
     // Native network of the token address of the gas tokena address. This variable it's just for read purposes
     uint32 public gasTokenNetwork;
 
+    // Sequence number, usedas a safety measure for the sequencer, to avoid possible problems with reorgs
+    uint256 public sequenceNumber;
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
+    uint256[50] private _gap;
+
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.

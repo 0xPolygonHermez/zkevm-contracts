@@ -5,6 +5,8 @@ import "../../lib/PolygonRollupBaseEtrog.sol";
 import "../../interfaces/IDataAvailabilityProtocol.sol";
 import "../../interfaces/IPolygonValidium.sol";
 
+// MAKvalidum upgradable D: TTT
+// Make a reiniitalize that's able to get teh previosu data commitee and set to 0 afterwarfs
 /**
  * Contract responsible for managing the states and the updates of L2 network.
  * There will be a trusted sequencer, which is able to send transactions.
