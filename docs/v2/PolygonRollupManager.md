@@ -1,4 +1,7 @@
-Contract responsible for managing the exit roots across multiple Rollups
+Contract responsible for managing rollups and the verification of their batches.
+This contract will create and update rollups and store all the hashed sequenced data from them.
+The logic for sequence batches is moved to the `consensus` contracts, while the verification of all of
+them will be done in this one. In this way, the proof aggregation of the rollups will be easier on a close future.
 
 
 ## Functions
@@ -39,7 +42,7 @@ Contract responsible for managing the exit roots across multiple Rollups
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`trustedAggregator` | address | Trusted aggregatot address
+|`trustedAggregator` | address | Trusted aggregator address
 |`_pendingStateTimeout` | uint64 | Pending state timeout
 |`_trustedAggregatorTimeout` | uint64 | Trusted aggregator timeout
 |`admin` | address | Admin of the rollup manager
@@ -238,7 +241,7 @@ Allows an aggregator to verify multiple batches
     bytes32[24] proof
   ) external
 ```
-Allows an aggregator to verify multiple batches
+Allows a trusted aggregator to verify multiple batches
 
 
 #### Parameters:
@@ -262,7 +265,8 @@ Allows an aggregator to verify multiple batches
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
     bytes32 newStateRoot,
-    address proof
+    address beneficiary,
+    bytes32[24] proof
   ) internal
 ```
 Verify and reward batches internal function
@@ -277,7 +281,8 @@ Verify and reward batches internal function
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
 |`newStateRoot` | bytes32 | New State root once the batch is processed
-|`proof` | address | Fflonk proof
+|`beneficiary` | address | Address that will receive the verification reward
+|`proof` | bytes32[24] | Fflonk proof
 
 ### _tryConsolidatePendingState
 ```solidity
@@ -364,7 +369,7 @@ if it's possible to prove a different state root given the same batches
     bytes32[24] proof
   ) external
 ```
-Allows to halt the PolygonZkEVM if its possible to prove a different state root given the same batches
+Allows activate the emergency state if its possible to prove a different state root given the same batches
 
 
 #### Parameters:
@@ -427,7 +432,7 @@ The batch fee will not be updated when the trusted aggregator verifies batches
   function activateEmergencyState(
   ) external
 ```
-Function to activate emergency state, which also enables the emergency mode on both PolygonZkEVM and PolygonZkEVMBridge contracts
+Function to activate emergency state, which also enables the emergency mode on both PolygonRollupManager and PolygonZkEVMBridge contracts
 If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_TIMEOUT period and an emergency state was not happened in the same period
 
 
@@ -437,7 +442,7 @@ If not called by the owner must not have been aggregated in a _HALT_AGGREGATION_
   function deactivateEmergencyState(
   ) external
 ```
-Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
+Function to deactivate emergency state on both PolygonRollupManager and PolygonZkEVMBridge contracts
 
 
 
@@ -446,7 +451,7 @@ Function to deactivate emergency state on both PolygonZkEVM and PolygonZkEVMBrid
   function _activateEmergencyState(
   ) internal
 ```
-Internal function to activate emergency state on both PolygonZkEVM and PolygonZkEVMBridge contracts
+Internal function to activate emergency state on both PolygonRollupManager and PolygonZkEVMBridge contracts
 
 
 
