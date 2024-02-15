@@ -1,4 +1,4 @@
-PolygonZkEVMBridge that will be deployed on both networks Ethereum and Polygon zkEVM
+PolygonZkEVMBridge that will be deployed on Ethereum and all Polygon rollups
 Contract responsible to manage the token interactions with other networks
 
 
@@ -19,11 +19,13 @@ Disable initalizers on the implementation following the best practices
     address _gasTokenAddress,
     uint32 _gasTokenNetwork,
     contract IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
-    address _polygonRollupManager
+    address _polygonRollupManager,
+    bytes _gasTokenMetadata
   ) external
 ```
 The value of `_polygonRollupManager` on the L2 deployment of the contract will be address(0), so
 emergency state is not possible for the L2 deployment of the bridge, intentionally
+
 
 #### Parameters:
 | Name | Type | Description                                                          |
@@ -33,7 +35,7 @@ emergency state is not possible for the L2 deployment of the bridge, intentional
 |`_gasTokenNetwork` | uint32 | gas token network
 |`_globalExitRootManager` | contract IBasePolygonZkEVMGlobalExitRoot | global exit root manager address
 |`_polygonRollupManager` | address | polygonZkEVM address
-
+|`_gasTokenMetadata` | bytes | Abi encoded gas token metadata
 
 ### bridgeAsset
 ```solidity
@@ -152,8 +154,8 @@ Verify merkle proof and withdraw tokens/ether
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProofLocalExitRoot` | bytes32[32] | Smt proof to proof the leaf agains the exit root
-|`smtProofRollupExitRoot` | bytes32[32] | Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
+|`smtProofLocalExitRoot` | bytes32[32] | Smt proof to proof the leaf against the network exit root
+|`smtProofRollupExitRoot` | bytes32[32] | Smt proof to proof the rollupLocalExitRoot against the rollups exit root
 |`globalIndex` | uint256 | Global index is defined as:
 | 191 bits |    1 bit     |   32 bits   |     32 bits    |
 |    0     |  mainnetFlag | rollupIndex | localRootIndex |
@@ -195,8 +197,8 @@ will not trigger any execution
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`smtProofLocalExitRoot` | bytes32[32] | Smt proof to proof the leaf agains the exit root
-|`smtProofRollupExitRoot` | bytes32[32] | Smt proof to proof the rollupLocalExitRoot agains the RollupExitRoot
+|`smtProofLocalExitRoot` | bytes32[32] | Smt proof to proof the leaf against the exit root
+|`smtProofRollupExitRoot` | bytes32[32] | Smt proof to proof the rollupLocalExitRoot against the rollups exit root
 |`globalIndex` | uint256 | Global index is defined as:
 | 191 bits |    1 bit     |   32 bits   |     32 bits    |
 |    0     |  mainnetFlag | rollupIndex | localRootIndex |
