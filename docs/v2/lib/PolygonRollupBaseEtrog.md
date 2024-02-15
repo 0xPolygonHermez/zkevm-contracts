@@ -64,7 +64,7 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
-|`l2Coinbase` | address | Address that will receive the fees from L2+
+|`l2Coinbase` | address | Address that will receive the fees from L2
 note Pol is not a reentrant token
 
 ### onVerifyBatches
@@ -215,7 +215,8 @@ Function to calculate the reward for a forced batch
   function generateInitializeTransaction(
     uint32 networkID,
     address _gasTokenAddress,
-    uint32 _gasTokenNetwork
+    uint32 _gasTokenNetwork,
+    bytes _gasTokenMetadata
   ) public returns (bytes)
 ```
 Generate Initialize transaction for hte bridge on L2
@@ -227,6 +228,7 @@ Generate Initialize transaction for hte bridge on L2
 |`networkID` | uint32 | Indicates the network identifier that will be used in the bridge
 |`_gasTokenAddress` | address | Indicates the token address that will be used to pay gas fees in the new rollup
 |`_gasTokenNetwork` | uint32 | Indicates the native network of the token address
+|`_gasTokenMetadata` | bytes | Abi encoded gas token metadata
 
 ## Events
 ### SequenceBatches
