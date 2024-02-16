@@ -5,6 +5,8 @@ import "../../lib/PolygonRollupBaseEtrog.sol";
 import "../../interfaces/IDataAvailabilityProtocol.sol";
 import "../../interfaces/IPolygonValidium.sol";
 
+// MAKvalidum upgradable D: TTT
+// Make a reiniitalize that's able to get teh previosu data commitee and set to 0 afterwarfs
 /**
  * Contract responsible for managing the states and the updates of L2 network.
  * There will be a trusted sequencer, which is able to send transactions.
@@ -77,6 +79,10 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
+     * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
+     * @param currentSequenceNumber This parameter must match the current sequenceNumber, which will be a counter of sequences.
+     * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * @param dataAvailabilityMessage Byte array containing the signatures and all the addresses of the committee in ascending order
      * [signature 0, ..., signature requiredAmountOfSignatures -1, address 0, ... address N]
@@ -85,6 +91,8 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
      */
     function sequenceBatchesValidium(
         ValidiumBatchData[] calldata batches,
+        uint64 maxSequenceTimestamp,
+        uint256 currentSequenceNumber,
         address l2Coinbase,
         bytes calldata dataAvailabilityMessage
     ) external onlyTrustedSequencer {
@@ -96,6 +104,21 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         if (batchesNum > _MAX_VERIFY_BATCHES) {
             revert ExceedMaxVerifyBatches();
         }
+
+        // Check sequence Number
+        if (sequenceNumber != currentSequenceNumber) {
+            revert SequenceNumberInvalid();
+        }
+
+        // Check max sequence timestamp inside of range
+        if (
+            uint256(maxSequenceTimestamp) > (block.timestamp + TIMESTAMP_RANGE)
+        ) {
+            revert MaxTimestampSequenceInvalid();
+        }
+
+        // Update sequence number
+        sequenceNumber++;
 
         // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
@@ -170,7 +193,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
                         currentAccInputHash,
                         currentBatch.transactionsHash,
                         l1InfoRoot,
-                        uint64(block.timestamp),
+                        maxSequenceTimestamp,
                         l2Coinbase,
                         bytes32(0)
                     )
@@ -236,12 +259,19 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
      */
     function sequenceBatches(
         BatchData[] calldata batches,
+        uint64 maxSequenceTimestamp,
+        uint256 currentSequenceNumber,
         address l2Coinbase
     ) public override {
         if (!isSequenceWithDataAvailabilityAllowed) {
             revert SequenceWithDataAvailabilityNotAllowed();
         }
-        super.sequenceBatches(batches, l2Coinbase);
+        super.sequenceBatches(
+            batches,
+            maxSequenceTimestamp,
+            currentSequenceNumber,
+            l2Coinbase
+        );
     }
 
     //////////////////
