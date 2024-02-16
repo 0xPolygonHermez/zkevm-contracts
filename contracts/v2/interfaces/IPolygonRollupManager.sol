@@ -172,4 +172,9 @@ interface IPolygonRollupManager {
      * @dev When verifying proof for multiple roolups and they are not ordered by ID
      */
     error RollupIDNotAscendingOrder();
+
+    /**
+     * @dev When try to create a new rollup and set a chainID bigger than 32 bits
+     */
+    error ChainIDOutOfRange();
 }

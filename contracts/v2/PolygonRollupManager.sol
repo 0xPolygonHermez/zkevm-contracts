@@ -588,7 +588,7 @@ contract PolygonRollupManager is
     /**
      * @notice Create a new rollup
      * @param rollupTypeID Rollup type to deploy
-     * @param chainID ChainID of the rollup, must be a new one
+     * @param chainID ChainID of the rollup, must be a new one, can not have more than 32 bits
      * @param admin Admin of the new created rollup
      * @param sequencer Sequencer of the new created rollup
      * @param gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
@@ -614,6 +614,12 @@ contract PolygonRollupManager is
         RollupType storage rollupType = rollupTypeMap[rollupTypeID];
         if (rollupType.obsolete == true) {
             revert RollupTypeObsolete();
+        }
+
+        // check chainID max value
+        // Currently we have this limitation by the circuit, might be removed in a future
+        if (chainID > type(uint32).max) {
+            revert ChainIDOutOfRange();
         }
 
         // Check chainID nullifier
