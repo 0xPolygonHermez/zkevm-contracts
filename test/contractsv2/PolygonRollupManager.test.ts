@@ -1570,7 +1570,7 @@ describe("Polygon Rollup Manager", () => {
         // In order to create a new rollup type, create an implementation of the contract
 
         // Create zkEVM implementation
-        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrog");
+        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrogPrevious");
         const PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
             polygonZkEVMGlobalExitRoot.target,
             polTokenContract.target,
@@ -1846,9 +1846,7 @@ describe("Polygon Rollup Manager", () => {
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
         let currentSequenceNumber = 0;
         await expect(
-            newZkEVMContract
-                .connect(trustedSequencer)
-                .sequenceBatches([sequence], currentTime, currentSequenceNumber++, trustedSequencer.address)
+            newZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address)
         ).to.emit(newZkEVMContract, "SequenceBatches");
 
         const lastBlock = await ethers.provider.getBlock("latest");
@@ -1859,7 +1857,7 @@ describe("Polygon Rollup Manager", () => {
             expectedAccInputHash,
             ethers.keccak256(l2txData),
             rootSC,
-            currentTime,
+            lastBlock?.timestamp,
             trustedSequencer.address,
             ethers.ZeroHash
         );
