@@ -133,6 +133,9 @@ contract PolygonRollupBaseEtrog is
             0xa40D5f56745a118D0906a34E69aeC8C0Db1cB8fA
         );
 
+    // Timestamp range that's given to the sequencer as a safety measure to avoid reverts if the transaction is mined to quickly
+    uint256 public constant TIMESTAMP_RANGE = 36;
+
     // POL token address
     IERC20Upgradeable public immutable pol;
 
@@ -187,6 +190,15 @@ contract PolygonRollupBaseEtrog is
 
     // Native network of the token address of the gas tokena address. This variable it's just for read purposes
     uint32 public gasTokenNetwork;
+
+    // Sequence number, usedas a safety measure for the sequencer, to avoid possible problems with reorgs
+    uint256 public sequenceNumber;
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
+    uint256[50] private _gap;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -406,11 +418,17 @@ contract PolygonRollupBaseEtrog is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
+     * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
+     * @param currentSequenceNumber This parameter must match the current sequenceNumber, which will be a counter of sequences.
+     * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * note Pol is not a reentrant token
      */
     function sequenceBatches(
         BatchData[] calldata batches,
+        uint64 maxSequenceTimestamp,
+        uint256 currentSequenceNumber,
         address l2Coinbase
     ) public virtual onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
@@ -422,12 +440,26 @@ contract PolygonRollupBaseEtrog is
             revert ExceedMaxVerifyBatches();
         }
 
+        // Check sequence Number
+        if (sequenceNumber != currentSequenceNumber) {
+            revert SequenceNumberInvalid();
+        }
+
+        // Check max sequence timestamp inside of range
+        if (
+            uint256(maxSequenceTimestamp) > (block.timestamp + TIMESTAMP_RANGE)
+        ) {
+            revert MaxTimestampSequenceInvalid();
+        }
+
+        // Update sequence number
+        sequenceNumber++;
+
         // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
 
         // Get global batch variables
         bytes32 l1InfoRoot = globalExitRootManager.getRoot();
-        uint64 currentTimestamp = uint64(block.timestamp);
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
@@ -496,7 +528,7 @@ contract PolygonRollupBaseEtrog is
                         currentAccInputHash,
                         currentTransactionsHash,
                         l1InfoRoot,
-                        currentTimestamp,
+                        maxSequenceTimestamp,
                         l2Coinbase,
                         bytes32(0)
                     )
