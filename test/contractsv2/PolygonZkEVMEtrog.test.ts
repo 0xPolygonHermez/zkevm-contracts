@@ -412,13 +412,43 @@ describe("PolygonZkEVMEtrog", () => {
         ).to.emit(polTokenContract, "Approval");
 
         // Sequence Batches
+        const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
+        const currentSequenceNumber = 0;
 
         await expect(
-            PolygonZKEVMV2Contract.sequenceBatches([sequence], trustedSequencer.address)
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
+                [sequence],
+                currentTime + 38,
+                currentSequenceNumber,
+                trustedSequencer.address
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "MaxTimestampSequenceInvalid");
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
+                [sequence],
+                currentTime + 10,
+                1,
+                trustedSequencer.address
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceNumberInvalid");
+
+        await expect(
+            PolygonZKEVMV2Contract.sequenceBatches(
+                [sequence],
+                currentTime,
+                currentSequenceNumber,
+                trustedSequencer.address
+            )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "OnlyTrustedSequencer");
 
         await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches([], trustedSequencer.address)
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
+                [],
+                currentTime,
+                currentSequenceNumber,
+                trustedSequencer.address
+            )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceZeroBatches");
 
         const hugeBatchArray = new Array(_MAX_VERIFY_BATCHES + 1).fill({
@@ -429,7 +459,12 @@ describe("PolygonZkEVMEtrog", () => {
         });
 
         await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(hugeBatchArray, trustedSequencer.address)
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
+                hugeBatchArray,
+                currentTime,
+                currentSequenceNumber,
+                trustedSequencer.address
+            )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ExceedMaxVerifyBatches");
 
         // Create a huge sequence
@@ -443,6 +478,8 @@ describe("PolygonZkEVMEtrog", () => {
                         forcedBlockHashL1: ethers.ZeroHash,
                     },
                 ],
+                currentTime,
+                currentSequenceNumber,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "TransactionsLengthAboveMax");
@@ -458,12 +495,19 @@ describe("PolygonZkEVMEtrog", () => {
                         forcedBlockHashL1: ethers.ZeroHash,
                     },
                 ],
+                currentTime,
+                currentSequenceNumber,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForcedDataDoesNotMatch");
 
         await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address)
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
+                [sequence],
+                currentTime,
+                currentSequenceNumber,
+                trustedSequencer.address
+            )
         ).to.emit(PolygonZKEVMV2Contract, "SequenceBatches");
 
         const currentTimestampSequenced = (await ethers.provider.getBlock("latest"))?.timestamp;
@@ -472,7 +516,7 @@ describe("PolygonZkEVMEtrog", () => {
             expectedAccInputHash,
             ethers.keccak256(l2txData),
             await polygonZkEVMGlobalExitRoot.getRoot(),
-            currentTimestampSequenced,
+            currentTime,
             trustedSequencer.address,
             ethers.ZeroHash
         );
