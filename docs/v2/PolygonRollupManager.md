@@ -48,7 +48,7 @@ them will be done in this one. In this way, the proof aggregation of the rollups
 |`admin` | address | Admin of the rollup manager
 |`timelock` | address | Timelock address
 |`emergencyCouncil` | address | Emergency council address
-|`polygonZkEVM` | contract PolygonZkEVMExistentEtrog | New deployed Polygon zkEVM which will be initialized wiht previous values
+|`polygonZkEVM` | contract PolygonZkEVMExistentEtrog | New deployed Polygon zkEVM which will be initialized with previous values
 |`zkEVMVerifier` | contract IVerifierRollup | Verifier of the new zkEVM deployed
 |`zkEVMForkID` | uint64 | Fork id of the new zkEVM deployed
 |`zkEVMChainID` | uint64 | Chain id of the new zkEVM deployed
@@ -772,7 +772,7 @@ Emitted when an existing rollup is added
   )
 ```
 
-Emitted when a rollup is udpated
+Emitted when a rollup is updated
 
 ### OnSequenceBatches
 ```solidity
