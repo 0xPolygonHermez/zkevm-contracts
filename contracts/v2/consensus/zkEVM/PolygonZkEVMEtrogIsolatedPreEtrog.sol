@@ -30,14 +30,36 @@ contract PolygonZkEVMEtrogIsolatedPreEtrog is PolygonRollupBaseEtrog {
         uint64 minForcedTimestamp;
     }
 
+    /**
+     * @notice Struct which will be stored for every batch sequence
+     * @param sequencedBatches New sequenced batches
+     * @param accInputHash Hash chain that contains all the information to process a batch:
+     */
+    struct StoredSequencedBatchData {
+        uint64 sequencedBatches;
+        bytes32 accInputHash;
+    }
+
+    // Be able to that has priority to verify batches and consolidates the state instantly
+    bytes32 internal constant _TRUSTED_AGGREGATOR_ROLE =
+        keccak256("TRUSTED_AGGREGATOR_ROLE");
+
     // Last sequenced timestamp
     uint64 public lastTimestamp;
 
     // View variable returning the last batch sequenced
     uint64 public lastBatchSequenced;
 
-    // Keep track of the current sequenced batches before this rollup would be added to the rollup manager
-    uint64 public accSequencedBatches;
+    // sequenced stored
+    uint64 public storedSequencedNum;
+
+    // Last sent accumulated sequenced num
+    uint64 public lastSentStoredSequencedNum;
+
+    // Queue of batches that defines the virtual state
+    // SequenceBatchNum --> SequencedBatchData
+    mapping(uint64 => StoredSequencedBatchData)
+        public storedSequencedBatchesData;
 
     // chainID
     uint64 public chainID;
@@ -60,6 +82,16 @@ contract PolygonZkEVMEtrogIsolatedPreEtrog is PolygonRollupBaseEtrog {
      */
     error NotAllowedInPreEtrog();
 
+    /**
+     * @dev Thrown when sender is not a trusted aggregator
+     */
+    error NotAllowedTrustedAggregator();
+
+    /**
+     * @dev Thrown when try to send an invalid accumulated sequenced
+     */
+    error InvalidLastStoredSequenceToSend();
+
     // View functions needed for legacy node
 
     function getBatchFee() public view returns (uint256) {
@@ -67,7 +99,12 @@ contract PolygonZkEVMEtrogIsolatedPreEtrog is PolygonRollupBaseEtrog {
     }
 
     function lastVerifiedBatch() public view returns (uint64) {
-        return 0;
+        uint32 rollupID = rollupManager.rollupAddressToID(address(this));
+        if (rollupID == 0) {
+            return 0;
+        } else {
+            return rollupManager.getLastVerifiedBatch(rollupID);
+        }
     }
 
     /**
@@ -148,13 +185,7 @@ contract PolygonZkEVMEtrogIsolatedPreEtrog is PolygonRollupBaseEtrog {
 
         // Get global batch variables
         uint64 currentTimestamp = lastTimestamp;
-
-        // Store storage variables in memory, to save gas, because will be overrided multiple times
-        uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
         bytes32 currentAccInputHash = lastAccInputHash;
-
-        // Store in a temporal variable, for avoid access again the storage slot
-        uint64 initLastForceBatchSequenced = currentLastForceBatchSequenced;
 
         for (uint256 i = 0; i < batchesNum; i++) {
             // Load current sequence
@@ -167,31 +198,7 @@ contract PolygonZkEVMEtrogIsolatedPreEtrog is PolygonRollupBaseEtrog {
 
             // Check if it's a forced batch
             if (currentBatch.minForcedTimestamp > 0) {
-                currentLastForceBatchSequenced++;
-
-                // Check forced data matches
-                bytes32 hashedForcedBatchData = keccak256(
-                    abi.encodePacked(
-                        currentTransactionsHash,
-                        currentBatch.globalExitRoot,
-                        currentBatch.minForcedTimestamp
-                    )
-                );
-
-                if (
-                    hashedForcedBatchData !=
-                    forcedBatches[currentLastForceBatchSequenced]
-                ) {
-                    revert ForcedDataDoesNotMatch();
-                }
-
-                // Delete forceBatch data since won't be used anymore
-                delete forcedBatches[currentLastForceBatchSequenced];
-
-                // Check timestamp is bigger than min timestamp
-                if (currentBatch.timestamp < currentBatch.minForcedTimestamp) {
-                    revert SequencedTimestampBelowForcedTimestamp();
-                }
+                revert NotAllowedInPreEtrog();
             } else {
                 // Check global exit root exists with proper batch length. These checks are already done in the forceBatches call
                 // Note that the sequencer can skip setting a global exit root putting zeros
@@ -236,65 +243,146 @@ contract PolygonZkEVMEtrogIsolatedPreEtrog is PolygonRollupBaseEtrog {
             currentTimestamp = currentBatch.timestamp;
         }
 
-        // Sanity check, should be unreachable
-        if (currentLastForceBatchSequenced > lastForceBatch) {
-            revert ForceBatchesOverflow();
-        }
-
         // Store back the storage variables
         lastAccInputHash = currentAccInputHash;
         lastTimestamp = currentTimestamp;
 
-        uint256 nonForcedBatchesSequenced = batchesNum;
+        if (rollupManager.rollupAddressToID(address(this)) == 0) {
+            // This rollup is not yet added to the rollup Manager
 
-        // Check if there has been forced batches
-        if (currentLastForceBatchSequenced != initLastForceBatchSequenced) {
-            uint64 forcedBatchesSequenced = currentLastForceBatchSequenced -
-                initLastForceBatchSequenced;
-            // substract forced batches
-            nonForcedBatchesSequenced -= forcedBatchesSequenced;
+            // Add an accumulated sequence number
+            uint64 currentstoredSequencedNum = storedSequencedNum++;
+            storedSequencedBatchesData[
+                currentstoredSequencedNum
+            ] = StoredSequencedBatchData({
+                sequencedBatches: uint64(batchesNum),
+                accInputHash: currentAccInputHash
+            });
 
-            // Transfer pol for every forced batch submitted
-            pol.safeTransfer(
-                address(rollupManager),
-                calculatePolPerForceBatch() * (forcedBatchesSequenced)
-            );
+            lastBatchSequenced = lastBatchSequenced + uint64(batchesNum);
+        } else {
+            // This rollup is added to the rollup manager
 
-            // Store new last force batch sequenced
-            lastForceBatchSequenced = currentLastForceBatchSequenced;
-        }
+            // Send all stored sequenced
+            _sendAccumulatedSequences(storedSequencedNum);
 
-        uint64 newBatches = accSequencedBatches + uint64(batchesNum);
-        (bool success, bytes memory returnData) = address(rollupManager).call(
-            abi.encodeCall(
-                PolygonRollupManager.onSequenceBatches,
-                (newBatches, currentAccInputHash)
-            )
-        );
-
-        uint64 currentBatchSequenced;
-
-        if (success) {
-            // Pay collateral for every non-forced batch submitted
             pol.safeTransferFrom(
                 msg.sender,
                 address(rollupManager),
-                rollupManager.getBatchFee() * newBatches
+                rollupManager.getBatchFee() * batchesNum
             );
 
-            // Clean acc sequenced batches
-            accSequencedBatches = 0;
-
-            // Decode total sequenced batches from polygon rollup manager
-            currentBatchSequenced = abi.decode(returnData, (uint64));
-        } else {
-            currentBatchSequenced = newBatches;
-            accSequencedBatches = currentBatchSequenced;
+            lastBatchSequenced = rollupManager.onSequenceBatches(
+                uint64(batchesNum),
+                currentAccInputHash
+            );
         }
 
-        lastBatchSequenced = currentBatchSequenced;
+        emit SequenceBatches(lastBatchSequenced);
+    }
 
-        emit SequenceBatches(currentBatchSequenced);
+    // Proxy trusted aggregator calls
+
+    /**
+     * @notice Allows an aggregator to proxy the call to verify batches and bre retro compatible
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used
+     * @param initNumBatch Batch which the aggregator starts the verification
+     * @param finalNewBatch Last batch aggregator intends to verify
+     * @param newLocalExitRoot  New local exit root once the batch is processed
+     * @param newStateRoot New State root once the batch is processed
+     * @param proof fflonk proof
+     */
+    function verifyBatchesTrustedAggregator(
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        bytes32[24] calldata proof
+    ) external {
+        if (!rollupManager.hasRole(_TRUSTED_AGGREGATOR_ROLE, msg.sender)) {
+            revert NotAllowedTrustedAggregator();
+        }
+
+        rollupManager.verifyBatchesTrustedAggregator(
+            rollupManager.rollupAddressToID(address(this)),
+            pendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            msg.sender,
+            proof
+        );
+    }
+
+    /**
+     * @notice Send to the rollup manager the accumulated sequenced datas
+     * @param lastStoredSequenceToSend Send stored sequenced datas until this one
+     */
+    function sendAccumulatedSequences(uint64 lastStoredSequenceToSend) public {
+        _sendAccumulatedSequences(lastStoredSequenceToSend);
+    }
+
+    /**
+     * @notice Send to the rollup manager the accumulated sequenced datas
+     * @param lastStoredSequenceToSend Send accumualated sequenced datas until this one
+     */
+    function _sendAccumulatedSequences(
+        uint64 lastStoredSequenceToSend
+    ) internal {
+        if (lastStoredSequenceToSend > storedSequencedNum) {
+            revert InvalidLastStoredSequenceToSend();
+        }
+
+        // Check if there are pending stored sequences that are not sent and
+        // if the indicated per the function parameter is already sent
+        if (
+            storedSequencedNum > lastSentStoredSequencedNum &&
+            lastStoredSequenceToSend > lastSentStoredSequencedNum
+        ) {
+            // The sequences must be sent until arrive to the lastStoredSequenceToSend
+            uint256 sequencesToSend = lastStoredSequenceToSend -
+                lastSentStoredSequencedNum;
+
+            uint64 accumulatedBatchesSent;
+            uint256 cacheLastSentStoredSequencedNum = lastSentStoredSequencedNum;
+
+            for (uint256 i = 0; i < sequencesToSend; i++) {
+                StoredSequencedBatchData
+                    memory currentAccSequencedData = storedSequencedBatchesData[
+                        uint64(cacheLastSentStoredSequencedNum + i)
+                    ];
+
+                // Sequence pending sequence
+                rollupManager.onSequenceBatches(
+                    currentAccSequencedData.sequencedBatches,
+                    currentAccSequencedData.accInputHash
+                );
+
+                // Add the sequenced batches to the accumulated
+                accumulatedBatchesSent += currentAccSequencedData
+                    .sequencedBatches;
+
+                // delete the sent sequenced data
+                delete storedSequencedBatchesData[
+                    uint64(cacheLastSentStoredSequencedNum + i)
+                ];
+            }
+
+            // Set back the last send stored sequenced number
+            lastSentStoredSequencedNum = lastStoredSequenceToSend;
+
+            // Transfer all the POL to the rollup manager
+            pol.safeTransferFrom(
+                msg.sender,
+                address(rollupManager),
+                rollupManager.getBatchFee() * accumulatedBatchesSent
+            );
+
+            // Update last batch sequenced
+            lastBatchSequenced = lastBatchSequenced + accumulatedBatchesSent;
+        }
     }
 
     // Dissable etrog functions

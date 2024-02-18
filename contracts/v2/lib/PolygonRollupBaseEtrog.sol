@@ -192,7 +192,7 @@ contract PolygonRollupBaseEtrog is
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      */
-    uint256[51] private _gap;
+    uint256[50] private _gap;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
