@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../../lib/PolygonRollupBaseEtrog.sol";
-import "../../interfaces/IDataAvailabilityProtocol.sol";
-import "../../interfaces/IPolygonValidium.sol";
+import "./PolygonValidiumEtrog.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -12,43 +10,12 @@ import "../../interfaces/IPolygonValidium.sol";
  * The sequenced state is deterministic and can be precalculated before it's actually verified by a zkProof.
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
- * It is advised to use timelocks for the admin address in case of Validium since if can change the dataAvailabilityProtocol
  */
-contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
+contract PolygonValidiumEtrogIsolated is PolygonValidiumEtrog {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    /**
-     * @notice Struct which will be used to call sequenceBatches
-     * @param transactionsHash keccak256 hash of the L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
-     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param forcedGlobalExitRoot Global exit root, empty when sequencing a non forced batch
-     * @param forcedTimestamp Minimum timestamp of the force batch data, empty when sequencing a non forced batch
-     * @param forcedBlockHashL1 blockHash snapshot of the force batch data, empty when sequencing a non forced batch
-     */
-    struct ValidiumBatchData {
-        bytes32 transactionsHash;
-        bytes32 forcedGlobalExitRoot;
-        uint64 forcedTimestamp;
-        bytes32 forcedBlockHashL1;
-    }
-
-    // Data Availability Protocol Address
-    IDataAvailabilityProtocol public dataAvailabilityProtocol;
-
-    // Indicates if sequence with data avialability is allowed
-    // This allow the sequencer to post the data and skip the Data comittee
-    bool public isSequenceWithDataAvailabilityAllowed;
-
-    /**
-     * @dev Emitted when the admin updates the data availability protocol
-     */
-    event SetDataAvailabilityProtocol(address newDataAvailabilityProtocol);
-
-    /**
-     * @dev Emitted when switch the ability to sequence with data availability
-     */
-    event SwitchSequenceWithDataAvailability();
+    // Keep track of the current sequenced batches before this rollup would be added to the rollup manager
+    uint256 public sequencedBatches;
 
     /**
      * @param _globalExitRootManager Global exit root manager address
@@ -62,7 +29,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         IPolygonZkEVMBridgeV2 _bridgeAddress,
         PolygonRollupManager _rollupManager
     )
-        PolygonRollupBaseEtrog(
+        PolygonValidiumEtrog(
             _globalExitRootManager,
             _pol,
             _bridgeAddress,
@@ -70,9 +37,92 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         )
     {}
 
-    /////////////////////////////////////
-    // Sequence/Verify batches functions
-    ////////////////////////////////////
+    /**
+     * @param _admin Admin address
+     * @param sequencer Trusted sequencer address
+     * @param networkID Indicates the network identifier that will be used in the bridge
+     * @param _gasTokenAddress Indicates the token address in mainnet that will be used as a gas token
+     * Note if a wrapped token of the bridge is used, the original network and address of this wrapped are used instead
+     * @param sequencerURL Trusted sequencer URL
+     * @param _networkName L2 network name
+     */
+    function initialize(
+        address _admin,
+        address sequencer,
+        uint32 networkID,
+        address _gasTokenAddress,
+        string memory sequencerURL,
+        string memory _networkName
+    ) external override initializer {
+        bytes memory gasTokenMetadata;
+
+        if (_gasTokenAddress != address(0)) {
+            // Ask for token metadata, the same way is enconded in the bridge
+            // Note that this function will revert if the token is not in this network
+            // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
+            gasTokenMetadata = bridgeAddress.getTokenMetadata(_gasTokenAddress);
+
+            // Check gas token address on the bridge
+            (
+                uint32 originWrappedNetwork,
+                address originWrappedAddress
+            ) = bridgeAddress.wrappedTokenToTokenInfo(_gasTokenAddress);
+
+            if (originWrappedNetwork != 0) {
+                // It's a wrapped token, get the wrapped parameters
+                gasTokenAddress = originWrappedAddress;
+                gasTokenNetwork = originWrappedNetwork;
+            } else {
+                // gasTokenNetwork will be mainnet, for instance 0
+                gasTokenAddress = _gasTokenAddress;
+            }
+        }
+        // Sequence transaction to initilize the bridge
+
+        // Calculate transaction to initialize the bridge
+        bytes memory transaction = generateInitializeTransaction(
+            networkID,
+            gasTokenAddress,
+            gasTokenNetwork,
+            gasTokenMetadata
+        );
+
+        bytes32 currentTransactionsHash = keccak256(transaction);
+
+        // Get current timestamp and global exit root
+        uint64 currentTimestamp = uint64(block.timestamp);
+        bytes32 lastGlobalExitRoot = globalExitRootManager
+            .getLastGlobalExitRoot();
+
+        // Add the transaction to the sequence as if it was a force transaction
+        bytes32 newAccInputHash = keccak256(
+            abi.encodePacked(
+                bytes32(0), // Current acc Input hash
+                currentTransactionsHash,
+                lastGlobalExitRoot, // Global exit root
+                currentTimestamp,
+                sequencer,
+                blockhash(block.number - 1)
+            )
+        );
+
+        lastAccInputHash = newAccInputHash;
+        sequencedBatches = 1; // num total batches
+
+        // Set initialize variables
+        admin = _admin;
+        trustedSequencer = sequencer;
+
+        trustedSequencerURL = sequencerURL;
+        networkName = _networkName;
+
+        forceBatchAddress = _admin;
+
+        // Constant deployment variables
+        forceBatchTimeout = 5 days;
+
+        emit InitialSequenceBatches(transaction, lastGlobalExitRoot, sequencer);
+    }
 
     /**
      * @notice Allows a sequencer to send multiple batches
@@ -87,7 +137,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         ValidiumBatchData[] calldata batches,
         address l2Coinbase,
         bytes calldata dataAvailabilityMessage
-    ) external virtual onlyTrustedSequencer {
+    ) external override onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
             revert SequenceZeroBatches();
@@ -221,59 +271,23 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
             );
         }
 
-        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
-            uint64(batchesNum),
-            currentAccInputHash
+        (bool success, bytes memory returnData) = address(rollupManager).call(
+            abi.encodeCall(
+                PolygonRollupManager.onSequenceBatches,
+                (uint64(sequencedBatches + batchesNum), currentAccInputHash)
+            )
         );
 
+        uint64 currentBatchSequenced;
+
+        if (success) {
+            sequencedBatches = 0;
+            currentBatchSequenced = abi.decode(returnData, (uint64));
+        } else {
+            currentBatchSequenced = uint64(sequencedBatches + batchesNum);
+            sequencedBatches = currentBatchSequenced;
+        }
+
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
-    }
-
-    /**
-     * @notice Allows a sequencer to send multiple batches sending all the data, and without using the dataAvailabilityProtocol
-     * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param l2Coinbase Address that will receive the fees from L2
-     */
-    function sequenceBatches(
-        BatchData[] calldata batches,
-        address l2Coinbase
-    ) public override {
-        if (!isSequenceWithDataAvailabilityAllowed) {
-            revert SequenceWithDataAvailabilityNotAllowed();
-        }
-        super.sequenceBatches(batches, l2Coinbase);
-    }
-
-    //////////////////
-    // admin functions
-    //////////////////
-
-    /**
-     * @notice Allow the admin to set a new data availability protocol
-     * @param newDataAvailabilityProtocol Address of the new data availability protocol
-     */
-    function setDataAvailabilityProtocol(
-        IDataAvailabilityProtocol newDataAvailabilityProtocol
-    ) external onlyAdmin {
-        dataAvailabilityProtocol = newDataAvailabilityProtocol;
-
-        emit SetDataAvailabilityProtocol(address(newDataAvailabilityProtocol));
-    }
-
-    /**
-     * @notice Allow the admin to switch the sequence with data availability
-     * @param newIsSequenceWithDataAvailabilityAllowed Boolean to switch
-     */
-    function switchSequenceWithDataAvailability(
-        bool newIsSequenceWithDataAvailabilityAllowed
-    ) external onlyAdmin {
-        if (
-            newIsSequenceWithDataAvailabilityAllowed ==
-            isSequenceWithDataAvailabilityAllowed
-        ) {
-            revert SwitchToSameValue();
-        }
-        isSequenceWithDataAvailabilityAllowed = newIsSequenceWithDataAvailabilityAllowed;
-        emit SwitchSequenceWithDataAvailability();
     }
 }

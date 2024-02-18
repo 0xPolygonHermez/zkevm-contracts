@@ -1,0 +1,18 @@
+{
+    "consensusContract": "PolygonZkEVMEtrogIsolatedPreEtrog",
+    "polygonRollupManagerAddress": "0x8F51d3AC0Ef8C5ad35088ACF06a1199A039ba3CB",
+    "polygonZkEVMBridgeAddress": "0xcc93F692e332a13AF6D8e30D466d3F9846e46149",
+    "polygonZkEVMGlobalExitRootAddress": "0xBE0c79Fd1AAE1987ab1ea42cA1BB0C262835864B",
+    "polTokenAddress": "0xB4312253a292023Dd4a3ED916f92e21F3483Eeb9",
+    "adminZkEVM": "0x0cae25c8623761783Fe4CE241C9b428126A7612A",
+    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
+    "trustedSequencer": "0x5756827844C1bfc8950EaCd701A711B3dEA70be3",
+    "chainID": "11500",
+    "networkName": "jedus network",
+    "version": "0.0.1",
+    "timelockSalt": "",
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": ""
+}
