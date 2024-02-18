@@ -1,0 +1,21 @@
+{
+ "test": true,
+ "timelockAdminAddress": "0x0cae25c8623761783Fe4CE241C9b428126A7612A",
+ "minDelayTimelock": 30,
+ "salt": "0x1100000000000000000000000000fff000000000000000000000000000000000",
+ "initialZkEVMDeployerOwner": "0x0cae25c8623761783Fe4CE241C9b428126A7612A",
+ "admin": "0x0cae25c8623761783Fe4CE241C9b428126A7612A",
+ "trustedAggregator": "0xc36cCe18376fE98D4AF1C7B928380100549dE8b2",
+ "trustedAggregatorTimeout": 604799,
+ "pendingStateTimeout": 604799,
+ "emergencyCouncilAddress": "0x0cae25c8623761783Fe4CE241C9b428126A7612A",
+ "polTokenAddress": "0xB4312253a292023Dd4a3ED916f92e21F3483Eeb9",
+ "zkEVMDeployerAddress": "0x363330f6aF9C702AE90E2319A59d5200Ac9d7246",
+ "networkID": 2,
+ "gasTokenAddress": "",
+ "gasTokenNetwork": 0,
+ "deployerPvtKey": "",
+ "maxFeePerGas": "",
+ "maxPriorityFeePerGas": "",
+ "multiplierGas": ""
+}

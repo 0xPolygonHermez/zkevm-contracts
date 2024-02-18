@@ -22,8 +22,12 @@ process.env.MNEMONIC = argv.test ? DEFAULT_MNEMONIC : process.env.MNEMONIC;
 import {ethers, upgrades} from "hardhat";
 import {MemDB, ZkEVMDB, getPoseidon, smtUtils} from "@0xpolygonhermez/zkevm-commonjs";
 
-import {deployPolygonZkEVMDeployer, create2Deployment, getCreate2Address} from "../helpers/deployment-helpers";
-import {ProxyAdmin} from "../../typechain-types";
+import {
+    deployPolygonZkEVMDeployer,
+    create2Deployment,
+    getCreate2Address,
+} from "../../../deployment/helpers/deployment-helpers";
+import {ProxyAdmin} from "../../../typechain-types";
 import {Addressable} from "ethers";
 
 import "../helpers/utils";
@@ -112,6 +116,7 @@ async function main() {
             "minDelayTimelock",
             "salt",
             "initialZkEVMDeployerOwner",
+            "networkID",
         ];
 
         for (const parameterName of mandatoryDeploymentParameters) {
@@ -199,7 +204,7 @@ async function main() {
     ).data;
 
     const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData("initialize", [
-        2,
+        deployParameters.networkID,
         ethers.ZeroAddress, // gas token address
         0, // gas token network
         globalExitRootL2Address,
