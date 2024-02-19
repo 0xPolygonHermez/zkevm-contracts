@@ -45,9 +45,9 @@ interface IPolygonZkEVMVEtrogErrors is IPolygonZkEVMErrors {
     error ForceBatchesDecentralized();
 
     /**
-     * @dev Thrown when the sequence number does not match with the one on the contract
+     * @dev Thrown when the last sequenced batch nmber does nto match the init sequeced batch number
      */
-    error SequenceNumberInvalid();
+    error InitSequencedBatchDoesNotMatch();
 
     /**
      * @dev Thrown when the max timestamp is out of range
