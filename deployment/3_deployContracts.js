@@ -556,7 +556,7 @@ async function main() {
         forkID,
         salt,
         version,
-        polygonDataCommittee
+        polygonDataCommittee: polygonDataCommittee.address
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 

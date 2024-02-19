@@ -183,6 +183,7 @@ module.exports = {
             polygonZKEVMTestnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
             polygonZKEVMMainnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
             goerli: `${process.env.ETHERSCAN_API_KEY}`,
+            sepolia: `${process.env.ETHERSCAN_API_KEY}`,
             mainnet: `${process.env.ETHERSCAN_API_KEY}`,
         },
         customChains: [
