@@ -153,25 +153,6 @@ async function main() {
         verifierContract = VerifierRollupFactory.attach(ongoingDeployment.verifierContract);
     }
 
-    // Deploy cdk commitee
-    const PolygonDataCommitteeContract = await ethers.getContractFactory("CDKDataCommittee", deployer);
-    let polygonDataCommittee;
-
-    for (let i = 0; i < attemptsDeployProxy; i++) {
-        try {
-            polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, [], {});
-            break;
-        } catch (error) {
-            console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of polygonDataCommittee ', error.message);
-        }
-
-        // reach limits of attempts
-        if (i + 1 === attemptsDeployProxy) {
-            throw new Error('polygonDataCommittee contract has not been deployed');
-        }
-    }
-    
     /*
      * Deploy Bridge
      * Deploy admin --> implementation --> proxy
@@ -235,7 +216,7 @@ async function main() {
     // Nonce globalExitRoot: currentNonce + 1 (deploy bridge proxy) + 1(impl globalExitRoot) = +2
     const nonceProxyGlobalExitRoot = Number((await ethers.provider.getTransactionCount(deployer.address))) + 2;
     // nonceProxyZkevm :Nonce globalExitRoot + 1 (proxy globalExitRoot) + 1 (impl Zkevm) = +2
-    const nonceProxyZkevm = nonceProxyGlobalExitRoot + 2;
+    const nonceProxyZkevm = nonceProxyGlobalExitRoot + 4;
 
     let precalculateGLobalExitRootAddress; let
         precalculateZkevmAddress;
@@ -373,6 +354,25 @@ async function main() {
     console.log('forkID:', forkID);
 
  
+       // Deploy cdk commitee
+       const PolygonDataCommitteeContract = await ethers.getContractFactory("CDKDataCommittee", deployer);
+       let polygonDataCommittee;
+   
+       for (let i = 0; i < attemptsDeployProxy; i++) {
+           try {
+               polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, [], {});
+               break;
+           } catch (error) {
+               console.log(`attempt ${i}`);
+               console.log('upgrades.deployProxy of polygonDataCommittee ', error.message);
+           }
+   
+           // reach limits of attempts
+           if (i + 1 === attemptsDeployProxy) {
+               throw new Error('polygonDataCommittee contract has not been deployed');
+           }
+       }
+       
 
     const PolygonZkEVMFactory = await ethers.getContractFactory('CDKValidium', deployer);
 
