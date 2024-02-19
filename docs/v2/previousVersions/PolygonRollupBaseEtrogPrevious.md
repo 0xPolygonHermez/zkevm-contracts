@@ -53,9 +53,7 @@ Note if a wrapped token of the bridge is used, the original network and address 
 ### sequenceBatches
 ```solidity
   function sequenceBatches(
-    struct PolygonRollupBaseEtrog.BatchData[] batches,
-    uint64 maxSequenceTimestamp,
-    uint64 initSequencedBatch,
+    struct PolygonRollupBaseEtrogPrevious.BatchData[] batches,
     address l2Coinbase
   ) public
 ```
@@ -65,11 +63,7 @@ Allows a sequencer to send multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
-|`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
-This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-|`initSequencedBatch` | uint64 | This parameter must match the current last batch sequenced.
-This will be a protection for the sequencer to avoid sending undesired data
+|`batches` | struct PolygonRollupBaseEtrogPrevious.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
 |`l2Coinbase` | address | Address that will receive the fees from L2
 note Pol is not a reentrant token
 
@@ -114,7 +108,7 @@ with the same nonce
 ### sequenceForceBatches
 ```solidity
   function sequenceForceBatches(
-    struct PolygonRollupBaseEtrog.BatchData[] batches
+    struct PolygonRollupBaseEtrogPrevious.BatchData[] batches
   ) external
 ```
 Allows anyone to sequence forced Batches if the trusted sequencer has not done so in the timeout period
@@ -123,7 +117,7 @@ Allows anyone to sequence forced Batches if the trusted sequencer has not done s
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append force batches
+|`batches` | struct PolygonRollupBaseEtrogPrevious.BatchData[] | Struct array which holds the necessary data to append force batches
 
 ### setTrustedSequencer
 ```solidity
