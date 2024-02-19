@@ -153,6 +153,25 @@ async function main() {
         verifierContract = VerifierRollupFactory.attach(ongoingDeployment.verifierContract);
     }
 
+    // Deploy cdk commitee
+    const PolygonDataCommitteeContract = await ethers.getContractFactory("CDKDataCommittee", deployer);
+    let polygonDataCommittee;
+
+    for (let i = 0; i < attemptsDeployProxy; i++) {
+        try {
+            polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, [], {});
+            break;
+        } catch (error) {
+            console.log(`attempt ${i}`);
+            console.log('upgrades.deployProxy of polygonDataCommittee ', error.message);
+        }
+
+        // reach limits of attempts
+        if (i + 1 === attemptsDeployProxy) {
+            throw new Error('polygonDataCommittee contract has not been deployed');
+        }
+    }
+    
     /*
      * Deploy Bridge
      * Deploy admin --> implementation --> proxy
@@ -353,23 +372,7 @@ async function main() {
     console.log('networkName:', networkName);
     console.log('forkID:', forkID);
 
-    const PolygonDataCommitteeContract = await ethers.getContractFactory("CDKDataCommittee", deployer);
-    let polygonDataCommittee;
-
-    for (let i = 0; i < attemptsDeployProxy; i++) {
-        try {
-            polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, [], {});
-            break;
-        } catch (error) {
-            console.log(`attempt ${i}`);
-            console.log('upgrades.deployProxy of polygonDataCommittee ', error.message);
-        }
-
-        // reach limits of attempts
-        if (i + 1 === attemptsDeployProxy) {
-            throw new Error('polygonDataCommittee contract has not been deployed');
-        }
-    }
+ 
 
     const PolygonZkEVMFactory = await ethers.getContractFactory('CDKValidium', deployer);
 
