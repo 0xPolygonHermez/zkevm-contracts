@@ -7,7 +7,7 @@ import fs = require("fs");
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../../.env")});
 import {ethers, upgrades} from "hardhat";
-const deployParameters = require("../deploy_verifier_parameters.json");
+const deployParameters = require("./deploy_verifier_parameters.json");
 
 async function main() {
     // Load provider

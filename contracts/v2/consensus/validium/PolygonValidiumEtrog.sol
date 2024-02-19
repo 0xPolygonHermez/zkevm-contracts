@@ -79,7 +79,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-     * @param currentSequenceNumber This parameter must match the current sequenceNumber, which will be a counter of sequences.
+     * @param initSequencedBatch This parameter must match the current last batch sequenced.
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * @param dataAvailabilityMessage Byte array containing the signatures and all the addresses of the committee in ascending order
@@ -90,7 +90,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
     function sequenceBatchesValidium(
         ValidiumBatchData[] calldata batches,
         uint64 maxSequenceTimestamp,
-        uint256 currentSequenceNumber,
+        uint64 initSequencedBatch,
         address l2Coinbase,
         bytes calldata dataAvailabilityMessage
     ) external onlyTrustedSequencer {
@@ -103,20 +103,12 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
             revert ExceedMaxVerifyBatches();
         }
 
-        // Check sequence Number
-        if (sequenceNumber != currentSequenceNumber) {
-            revert SequenceNumberInvalid();
-        }
-
         // Check max sequence timestamp inside of range
         if (
             uint256(maxSequenceTimestamp) > (block.timestamp + TIMESTAMP_RANGE)
         ) {
             revert MaxTimestampSequenceInvalid();
         }
-
-        // Update sequence number
-        sequenceNumber++;
 
         // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
@@ -247,18 +239,30 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
             currentAccInputHash
         );
 
+        // Check init sequenced batch
+        if (
+            initSequencedBatch != (currentBatchSequenced - uint64(batchesNum))
+        ) {
+            revert InitSequencedBatchDoesNotMatch();
+        }
+
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
     }
 
     /**
-     * @notice Allows a sequencer to send multiple batches sending all the data, and without using the dataAvailabilityProtocol
+     * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
+     * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
+     * @param initSequencedBatch This parameter must match the current last batch sequenced.
+     * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
+     * note Pol is not a reentrant token
      */
     function sequenceBatches(
         BatchData[] calldata batches,
         uint64 maxSequenceTimestamp,
-        uint256 currentSequenceNumber,
+        uint64 initSequencedBatch,
         address l2Coinbase
     ) public override {
         if (!isSequenceWithDataAvailabilityAllowed) {
@@ -267,7 +271,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         super.sequenceBatches(
             batches,
             maxSequenceTimestamp,
-            currentSequenceNumber,
+            initSequencedBatch,
             l2Coinbase
         );
     }
