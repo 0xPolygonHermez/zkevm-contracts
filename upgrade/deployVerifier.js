@@ -24,11 +24,11 @@ async function main() {
     if (deployParameters.realVerifier === true) {
         const VerifierRollup = await ethers.getContractFactory("FflonkVerifier", deployer);
         verifierContract = await VerifierRollup.deploy();
-        await verifierContract.waitForDeployment();
+        await verifierContract.deployed();
     } else {
         const VerifierRollupHelperFactory = await ethers.getContractFactory("VerifierRollupHelperMock", deployer);
         verifierContract = await VerifierRollupHelperFactory.deploy();
-        await verifierContract.waitForDeployment();
+        await verifierContract.deployed();
     }
 
     console.log('#######################\n');
