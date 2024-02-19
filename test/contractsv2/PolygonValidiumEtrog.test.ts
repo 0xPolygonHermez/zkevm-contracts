@@ -579,7 +579,7 @@ describe("PolygonZkEVMEtrog", () => {
         ).to.emit(polTokenContract, "Approval");
 
         // Sequence Batches
-        const currentLastBatchSequenced = 0;
+        const currentLastBatchSequenced = 1;
 
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
@@ -786,7 +786,7 @@ describe("PolygonZkEVMEtrog", () => {
 
         // Sequence Batches
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const currentLastBatchSequenced = 0;
+        let currentLastBatchSequenced = 1;
         await expect(
             PolygonZKEVMV2Contract.sequenceBatchesValidium(
                 [sequenceValidium],
@@ -1305,7 +1305,7 @@ describe("PolygonZkEVMEtrog", () => {
             .withArgs(commiteeHash);
 
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const currentLastBatchSequenced = 0;
+        const currentLastBatchSequenced = 1;
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatchesValidium(
                 [sequenceForced],
@@ -1662,7 +1662,7 @@ describe("PolygonZkEVMEtrog", () => {
         // sequence force batch
         await expect(PolygonZKEVMV2Contract.connect(admin).sequenceForceBatches([sequenceForced]))
             .to.emit(PolygonZKEVMV2Contract, "SequenceForceBatches")
-            .withArgs(1);
+            .withArgs(2);
 
         const expectedAccInputHash3 = calculateAccInputHashetrog(
             expectedAccInputHash,
