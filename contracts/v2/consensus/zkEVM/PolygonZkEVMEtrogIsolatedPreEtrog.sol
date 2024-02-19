@@ -218,17 +218,17 @@ contract PolygonZkEVMEtrogIsolatedPreEtrog is PolygonRollupBaseEtrog {
         // Calculate the total number of batches so add them on the sequence
         // Add the accumulated batches to the current sequenced batches
         uint64 newBatches = accSequencedBatches + uint64(batchesNum);
-        (bool success, bytes memory returnData) = address(rollupManager).call(
-            abi.encodeCall(
-                PolygonRollupManager.onSequenceBatches,
-                (newBatches, currentAccInputHash)
-            )
-        );
 
-        uint64 currentBatchSequenced;
+        if (rollupManager.rollupAddressToID(address(this)) == 0) {
+            // The rollup is not yed added to the rollup manager
+            accSequencedBatches = newBatches;
+            lastBatchSequenced = lastBatchSequenced + uint64(batchesNum);
+        } else {
+            // The rollup is added to the rollup manager
 
-        // If the call succeed means that the rollup is added to the Rollup manager
-        if (success) {
+            // Clean acc sequenced batches
+            accSequencedBatches = 0;
+
             // Pay collateral for every non-forced batch submitted
             pol.safeTransferFrom(
                 msg.sender,
@@ -236,20 +236,13 @@ contract PolygonZkEVMEtrogIsolatedPreEtrog is PolygonRollupBaseEtrog {
                 rollupManager.getBatchFee() * newBatches
             );
 
-            // Clean acc sequenced batches
-            accSequencedBatches = 0;
-
-            // Decode total sequenced batches from polygon rollup manager
-            currentBatchSequenced = abi.decode(returnData, (uint64));
-        } else {
-            // If the call does not succeed means that the rollup is not added yet to the Rollup manager
-            currentBatchSequenced = newBatches;
-            accSequencedBatches = currentBatchSequenced;
+            lastBatchSequenced = rollupManager.onSequenceBatches(
+                uint64(newBatches),
+                currentAccInputHash
+            );
         }
-        // TODO check
-        lastBatchSequenced = currentBatchSequenced;
 
-        emit SequenceBatches(currentBatchSequenced);
+        emit SequenceBatches(lastBatchSequenced);
     }
 
     // Dissable etrog functions
