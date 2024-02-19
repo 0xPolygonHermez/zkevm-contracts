@@ -4,6 +4,8 @@
 const { ethers } = require('hardhat');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const deployParameters = require("./deploy_verifier_parameters.json");
+
 async function main() {
     let currentProvider = ethers.provider;
     let deployer;
@@ -17,9 +19,17 @@ async function main() {
     /*
      * Deploy verifier
      */
-    const VerifierRollup = await ethers.getContractFactory('FflonkVerifier', deployer);
-    const verifierContract = await VerifierRollup.deploy();
-    await verifierContract.deployed();
+
+    let verifierContract;
+    if (deployParameters.realVerifier === true) {
+        const VerifierRollup = await ethers.getContractFactory("FflonkVerifier", deployer);
+        verifierContract = await VerifierRollup.deploy();
+        await verifierContract.waitForDeployment();
+    } else {
+        const VerifierRollupHelperFactory = await ethers.getContractFactory("VerifierRollupHelperMock", deployer);
+        verifierContract = await VerifierRollupHelperFactory.deploy();
+        await verifierContract.waitForDeployment();
+    }
 
     console.log('#######################\n');
     console.log('Verifier deployed to:', verifierContract.address);
