@@ -55,6 +55,9 @@ async function main() {
         minDelayTimelock,
         salt,
         initialZkEVMDeployerOwner,
+        gasTokenAddress,
+        gasTokenNetwork,
+        gasTokenMetadata
     } = deployParameters;
 
     // Load deployer
@@ -102,14 +105,19 @@ async function main() {
         initializeEmptyDataProxy,
     )).data;
 
+    // Get token metadata 
     const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData(
         'initialize',
         [
             networkIDL2,
+            gasTokenAddress ? gasTokenAddress : ethers.constants.AddressZero,
+            gasTokenNetwork ? gasTokenNetwork : 0,
             globalExitRootL2Address,
             zkevmAddressL2,
+            gasTokenMetadata ? gasTokenMetadata : "0x"
         ],
     );
+    
     const [proxyBridgeAddress] = await create2Deployment(zkEVMDeployerContract, salt, deployTransactionProxy, dataCallProxy, deployer);
 
     // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)

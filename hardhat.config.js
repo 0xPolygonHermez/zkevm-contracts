@@ -76,6 +76,16 @@ module.exports = {
                     evmVersion: "shanghai",
                 }, 
             },
+            "contracts/PolygonZkEVMBridge.sol": {
+                version: "0.8.20",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 9999,
+                    },
+                    evmVersion: "shanghai",
+                }, 
+            }
         }
     },
     networks: {
@@ -99,6 +109,15 @@ module.exports = {
         },
         goerli: {
             url: process.env.GOERLI_PROVIDER ? process.env.GOERLI_PROVIDER : `https://goerli.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+            accounts: {
+                mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+                path: "m/44'/60'/0'/0",
+                initialIndex: 0,
+                count: 20,
+            },
+        },
+        sepolia: {
+            url: process.env.SEPOLIA_PROVIDER ? process.env.SEPOLIA_PROVIDER : `https://sepolia.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
             accounts: {
                 mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
                 path: "m/44'/60'/0'/0",

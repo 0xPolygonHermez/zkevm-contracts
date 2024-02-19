@@ -79,7 +79,7 @@ async function main() {
         minDelayTimelock,
         salt,
         zkEVMDeployerAddress,
-        maticTokenAddress,
+        maticTokenAddress
     } = deployParameters;
 
     // Load provider
@@ -240,10 +240,14 @@ async function main() {
         'initialize',
         [
             networkIDMainnet,
+            ethers.constants.AddressZero, // gasTokenAddress:ether 
+            0, // gasTokenAddress:ether  
             precalculateGLobalExitRootAddress,
             precalculateZkevmAddress,
+            "0x" // gasTokenAddress:ether 
         ],
-    );
+    ); 
+
     const [proxyBridgeAddress, isBridgeProxyDeployed] = await create2Deployment(
         zkEVMDeployerContract,
         salt,
@@ -349,7 +353,25 @@ async function main() {
     console.log('networkName:', networkName);
     console.log('forkID:', forkID);
 
-    const PolygonZkEVMFactory = await ethers.getContractFactory('PolygonZkEVM', deployer);
+    const PolygonDataCommitteeContract = await ethers.getContractFactory("CDKDataCommittee", deployer);
+    let polygonDataCommittee;
+
+    for (let i = 0; i < attemptsDeployProxy; i++) {
+        try {
+            polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, [], {});
+            break;
+        } catch (error) {
+            console.log(`attempt ${i}`);
+            console.log('upgrades.deployProxy of polygonDataCommittee ', error.message);
+        }
+
+        // reach limits of attempts
+        if (i + 1 === attemptsDeployProxy) {
+            throw new Error('polygonDataCommittee contract has not been deployed');
+        }
+    }
+
+    const PolygonZkEVMFactory = await ethers.getContractFactory('CDKValidium', deployer);
 
     let polygonZkEVMContract;
     let deploymentBlockNumber;
@@ -377,6 +399,7 @@ async function main() {
                             maticTokenAddress,
                             verifierContract.address,
                             polygonZkEVMBridgeContract.address,
+                            polygonDataCommittee.address,
                             chainID,
                             forkID,
                         ],
@@ -530,6 +553,7 @@ async function main() {
         forkID,
         salt,
         version,
+        polygonDataCommittee
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 

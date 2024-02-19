@@ -68,6 +68,31 @@ interface IPolygonZkEVMBridge {
      */
     error NotValidSignature();
 
+    /**
+     * @dev Thrown when sender is not the rollup manager
+     */
+    error OnlyRollupManager();
+
+    /**
+     * @dev Thrown when the permit data contains an invalid signature
+     */
+    error NativeTokenIsEther();
+
+    /**
+     * @dev Thrown when the permit data contains an invalid signature
+     */
+    error NoValueInMessagesOnGasTokenNetworks();
+
+    /**
+     * @dev Thrown when the permit data contains an invalid signature
+     */
+    error GasTokenNetworkMustBeZeroOnEther();
+
+    /**
+     * @dev Thrown when the wrapped token deployment fails
+     */
+    error FailedTokenWrappedDeployment();
+
     function bridgeAsset(
         uint32 destinationNetwork,
         address destinationAddress,
