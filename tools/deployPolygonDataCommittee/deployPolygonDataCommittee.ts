@@ -106,7 +106,7 @@ async function main() {
     await (await proxyAdmin.transferOwnership(deployParameters.admin)).wait();
     await (await polygonDataCommittee?.transferOwnership(deployParameters.admin)).wait();
 
-    outputJson.polygonDataCommittee = polygonDataCommittee?.target;
+    outputJson.polygonDataCommitteeAddress = polygonDataCommittee?.target;
     outputJson.proxyAdmin = proxyAdmin.target;
 
     fs.writeFileSync(pathOutput, JSON.stringify(outputJson, null, 1));
