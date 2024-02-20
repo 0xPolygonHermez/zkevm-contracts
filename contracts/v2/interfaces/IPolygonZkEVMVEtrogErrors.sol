@@ -45,7 +45,7 @@ interface IPolygonZkEVMVEtrogErrors is IPolygonZkEVMErrors {
     error ForceBatchesDecentralized();
 
     /**
-     * @dev Thrown when the last sequenced batch nmber does nto match the init sequeced batch number
+     * @dev Thrown when the last sequenced batch nmber does not match the init sequeced batch number
      */
     error InitSequencedBatchDoesNotMatch();
 
