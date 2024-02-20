@@ -8,11 +8,23 @@ import "../../lib/EmergencyManager.sol";
  * PolygonRollupManager used only to test conensus contracts
  */
 contract PolygonRollupManagerEmptyMock is EmergencyManager {
+    uint256 currentSequenceBatches;
+
+    bool acceptSequenceBatches = true;
+
+    function setAcceptSequenceBatches(bool newAcceptSequenceBatches) public {
+        acceptSequenceBatches = newAcceptSequenceBatches;
+    }
+
     function onSequenceBatches(
         uint64 newSequencedBatches,
         bytes32 newAccInputHash
     ) external returns (uint64) {
-        return 1;
+        if (!acceptSequenceBatches) {
+            revert();
+        }
+        currentSequenceBatches = currentSequenceBatches + newSequencedBatches;
+        return uint64(currentSequenceBatches);
     }
 
     function onVerifyBatches(

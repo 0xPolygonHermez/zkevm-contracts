@@ -2,6 +2,15 @@ PolygonRollupManager used only to test conensus contracts
 
 
 ## Functions
+### setAcceptSequenceBatches
+```solidity
+  function setAcceptSequenceBatches(
+  ) public
+```
+
+
+
+
 ### onSequenceBatches
 ```solidity
   function onSequenceBatches(

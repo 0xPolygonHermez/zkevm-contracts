@@ -579,13 +579,13 @@ describe("PolygonZkEVMEtrog", () => {
         ).to.emit(polTokenContract, "Approval");
 
         // Sequence Batches
-        const currentSequenceNumber = 0;
+        const currentLastBatchSequenced = 1;
 
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
                 0,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceWithDataAvailabilityNotAllowed");
@@ -603,7 +603,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
                 currentTime + 38,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "MaxTimestampSequenceInvalid");
@@ -612,7 +612,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.sequenceBatches(
                 [sequence],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "OnlyTrustedSequencer");
@@ -621,7 +621,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceZeroBatches");
@@ -637,7 +637,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 hugeBatchArray,
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ExceedMaxVerifyBatches");
@@ -654,7 +654,7 @@ describe("PolygonZkEVMEtrog", () => {
                     },
                 ],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "TransactionsLengthAboveMax");
@@ -671,7 +671,7 @@ describe("PolygonZkEVMEtrog", () => {
                     },
                 ],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForcedDataDoesNotMatch");
@@ -680,7 +680,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address
             )
         ).to.emit(PolygonZKEVMV2Contract, "SequenceBatches");
@@ -786,12 +786,12 @@ describe("PolygonZkEVMEtrog", () => {
 
         // Sequence Batches
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const currentSequenceNumber = 0;
+        let currentLastBatchSequenced = 1;
         await expect(
             PolygonZKEVMV2Contract.sequenceBatchesValidium(
                 [sequenceValidium],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 "0x1233"
             )
@@ -801,7 +801,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatchesValidium(
                 [],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 "0x1233"
             )
@@ -818,7 +818,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatchesValidium(
                 hugeBatchArray,
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 "0x"
             )
@@ -836,7 +836,7 @@ describe("PolygonZkEVMEtrog", () => {
                     },
                 ],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 "0x"
             )
@@ -846,7 +846,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatchesValidium(
                 [sequenceValidium],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 "0x1233"
             )
@@ -899,7 +899,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatchesValidium(
                 [sequenceValidium],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 badDataAvMessage
             )
@@ -909,7 +909,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatchesValidium(
                 [sequenceValidium],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 badDataAvMessage.slice(0, -2)
             )
@@ -919,7 +919,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatchesValidium(
                 [sequenceValidium],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 dataAvailabilityMessage
             )
@@ -1305,12 +1305,12 @@ describe("PolygonZkEVMEtrog", () => {
             .withArgs(commiteeHash);
 
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const currentSequenceNumber = 0;
+        const currentLastBatchSequenced = 1;
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatchesValidium(
                 [sequenceForced],
                 currentTime,
-                currentSequenceNumber,
+                currentLastBatchSequenced,
                 trustedSequencer.address,
                 "0x12"
             )
@@ -1662,7 +1662,7 @@ describe("PolygonZkEVMEtrog", () => {
         // sequence force batch
         await expect(PolygonZKEVMV2Contract.connect(admin).sequenceForceBatches([sequenceForced]))
             .to.emit(PolygonZKEVMV2Contract, "SequenceForceBatches")
-            .withArgs(1);
+            .withArgs(2);
 
         const expectedAccInputHash3 = calculateAccInputHashetrog(
             expectedAccInputHash,

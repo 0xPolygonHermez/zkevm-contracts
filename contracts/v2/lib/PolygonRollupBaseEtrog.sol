@@ -191,9 +191,6 @@ contract PolygonRollupBaseEtrog is
     // Native network of the token address of the gas tokena address. This variable it's just for read purposes
     uint32 public gasTokenNetwork;
 
-    // Sequence number, usedas a safety measure for the sequencer, to avoid possible problems with reorgs
-    uint256 public sequenceNumber;
-
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
@@ -420,7 +417,7 @@ contract PolygonRollupBaseEtrog is
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-     * @param currentSequenceNumber This parameter must match the current sequenceNumber, which will be a counter of sequences.
+     * @param initSequencedBatch This parameter must match the current last batch sequenced.
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * note Pol is not a reentrant token
@@ -428,7 +425,7 @@ contract PolygonRollupBaseEtrog is
     function sequenceBatches(
         BatchData[] calldata batches,
         uint64 maxSequenceTimestamp,
-        uint256 currentSequenceNumber,
+        uint64 initSequencedBatch,
         address l2Coinbase
     ) public virtual onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
@@ -440,20 +437,12 @@ contract PolygonRollupBaseEtrog is
             revert ExceedMaxVerifyBatches();
         }
 
-        // Check sequence Number
-        if (sequenceNumber != currentSequenceNumber) {
-            revert SequenceNumberInvalid();
-        }
-
         // Check max sequence timestamp inside of range
         if (
             uint256(maxSequenceTimestamp) > (block.timestamp + TIMESTAMP_RANGE)
         ) {
             revert MaxTimestampSequenceInvalid();
         }
-
-        // Update sequence number
-        sequenceNumber++;
 
         // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
@@ -574,6 +563,13 @@ contract PolygonRollupBaseEtrog is
             uint64(batchesNum),
             currentAccInputHash
         );
+
+        // Check init sequenced batch
+        if (
+            initSequencedBatch != (currentBatchSequenced - uint64(batchesNum))
+        ) {
+            revert InitSequencedBatchDoesNotMatch();
+        }
 
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
     }

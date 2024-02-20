@@ -7,9 +7,22 @@ import fs = require("fs");
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../../.env")});
 import {ethers, upgrades} from "hardhat";
-const deployParameters = require("./deploy_verifier_parameters.json");
+const deployParameters = require("./deploy_dataCommittee_parameters.json");
+const pathOZUpgradability = path.join(__dirname, `../../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
+const pathOutput = path.join(__dirname, `./deploy_dataCommittee_output.json`);
 
 async function main() {
+    const outputJson = {} as any;
+
+    const attemptsDeployProxy = 20;
+
+    // Check that there's no previous OZ deployment
+    if (fs.existsSync(pathOZUpgradability)) {
+        throw new Error(
+            `There's upgradability information from previous deployments, it's mandatory to erase them before start a new one, path: ${pathOZUpgradability}`
+        );
+    }
+
     // Load provider
     let currentProvider = ethers.provider;
     if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
@@ -61,22 +74,42 @@ async function main() {
     /*
      *Deployment pol
      */
-    let verifierContract;
-    if (deployParameters.realVerifier === true) {
-        const VerifierRollup = await ethers.getContractFactory("FflonkVerifier", deployer);
-        verifierContract = await VerifierRollup.deploy();
-        await verifierContract.waitForDeployment();
-    } else {
-        const VerifierRollupHelperFactory = await ethers.getContractFactory("VerifierRollupHelperMock", deployer);
-        verifierContract = await VerifierRollupHelperFactory.deploy();
-        await verifierContract.waitForDeployment();
+    const PolygonDataCommitteeContract = (await ethers.getContractFactory("PolygonDataCommittee", deployer)) as any;
+    let polygonDataCommittee;
+
+    for (let i = 0; i < attemptsDeployProxy; i++) {
+        try {
+            polygonDataCommittee = await upgrades.deployProxy(PolygonDataCommitteeContract, [], {
+                unsafeAllow: ["constructor"],
+            });
+            break;
+        } catch (error: any) {
+            console.log(`attempt ${i}`);
+            console.log("upgrades.deployProxy of polygonDataCommittee ", error.message);
+        }
+        // reach limits of attempts
+        if (i + 1 === attemptsDeployProxy) {
+            throw new Error("polygonDataCommittee contract has not been deployed");
+        }
     }
+    await polygonDataCommittee?.waitForDeployment();
+
     console.log("#######################\n");
-    console.log("Verifier deployed to:", verifierContract.target);
+    console.log("PolygonDataCommittee deployed to:", polygonDataCommittee?.target);
     console.log("#######################\n");
-    console.log("verifierContract deployed to:", verifierContract.target);
-    console.log("you can verify the new verifierContract address with:");
-    console.log(`npx hardhat verify ${verifierContract.target} --network ${process.env.HARDHAT_NETWORK}\n`);
+    console.log("polygonDataCommittee deployed to:", polygonDataCommittee?.target);
+    console.log("you can verify the new polygonDataCommittee address with:");
+    console.log(`npx hardhat verify ${polygonDataCommittee?.target} --network ${process.env.HARDHAT_NETWORK}\n`);
+
+    // tranfer ownership of the contract, and the proxy
+    const proxyAdmin = await upgrades.admin.getInstance(); //await upgrades.erc1967.getAdminAddress(polygonDataCommittee.target);
+    await (await proxyAdmin.transferOwnership(deployParameters.admin)).wait();
+    await (await polygonDataCommittee?.transferOwnership(deployParameters.admin)).wait();
+
+    outputJson.polygonDataCommittee = polygonDataCommittee?.target;
+    outputJson.proxyAdmin = proxyAdmin.target;
+
+    fs.writeFileSync(pathOutput, JSON.stringify(outputJson, null, 1));
 }
 
 main().catch((e) => {
