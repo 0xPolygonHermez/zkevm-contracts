@@ -21,7 +21,7 @@ describe('Polygon ZK-EVM', () => {
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.parseEther('20000000');
 
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
@@ -73,8 +73,8 @@ describe('Polygon ZK-EVM', () => {
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
         const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
 
-        const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
-        const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        const precalculateBridgeAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
+        const precalculateZkevmAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
         firstDeployment = false;
 
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
@@ -122,7 +122,7 @@ describe('Polygon ZK-EVM', () => {
         );
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('1000'));
+        await maticTokenContract.transfer(trustedSequencer.address, ethers.parseEther('1000'));
     });
 
     it('should check the constructor parameters', async () => {
@@ -143,9 +143,9 @@ describe('Polygon ZK-EVM', () => {
         expect(await polygonZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
         expect(await polygonZkEVMContract.networkName()).to.be.equal(networkName);
 
-        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
-        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.utils.parseEther('0.1'));
-        expect(await polygonZkEVMContract.getForcedBatchFee()).to.be.equal(ethers.utils.parseEther('10'));
+        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.parseEther('0.1'));
+        expect(await polygonZkEVMContract.batchFee()).to.be.equal(ethers.parseEther('0.1'));
+        expect(await polygonZkEVMContract.getForcedBatchFee()).to.be.equal(ethers.parseEther('10'));
 
         expect(await polygonZkEVMContract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
         expect(await polygonZkEVMContract.isForcedBatchDisallowed()).to.be.equal(true);
@@ -334,7 +334,7 @@ describe('Polygon ZK-EVM', () => {
         // Transfer admin role
 
         // First set pending Admin
-        expect(await polygonZkEVMContract.pendingAdmin()).to.be.equal(ethers.constants.AddressZero);
+        expect(await polygonZkEVMContract.pendingAdmin()).to.be.equal(ethers.ZeroAddress);
         await expect(polygonZkEVMContract.transferAdminRole(deployer.address))
             .to.be.revertedWith('OnlyAdmin');
 
@@ -393,7 +393,7 @@ describe('Polygon ZK-EVM', () => {
 
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: ethers.BigNumber.from(currentTimestamp),
             minForcedTimestamp: 0,
         };
@@ -421,10 +421,10 @@ describe('Polygon ZK-EVM', () => {
         await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([], trustedSequencer.address))
             .to.be.revertedWith('SequenceZeroBatches');
 
-        sequence.globalExitRoot = ethers.constants.MaxUint256;
+        sequence.globalExitRoot = ethers.MaxUint256;
         await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
             .to.be.revertedWith('GlobalExitRootNotExist');
-        sequence.globalExitRoot = ethers.constants.HashZero;
+        sequence.globalExitRoot = ethers.HashZero;
 
         // Sequence batch
         await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], deployer.address))
@@ -464,14 +464,14 @@ describe('Polygon ZK-EVM', () => {
 
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
 
         const sequence2 = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -505,21 +505,21 @@ describe('Polygon ZK-EVM', () => {
         const batchAccInputHash = sequencedBatchData.accInputHash;
 
         // Only last batch is added to the mapping
-        expect(batchAccInputHash).to.be.equal(ethers.constants.HashZero);
+        expect(batchAccInputHash).to.be.equal(ethers.HashZero);
 
         const sequencedBatchData2 = await polygonZkEVMContract.sequencedBatches(2);
         const batchAccInputHash2 = sequencedBatchData2.accInputHash;
 
-        // Calcultate input Hahs for batch 1
+        // Calculate input Hahs for batch 1
         let batchAccInputHashJs = calculateAccInputHash(
-            ethers.constants.HashZero,
+            ethers.HashZero,
             calculateBatchHashData(sequence.transactions),
             sequence.globalExitRoot,
             sequence.timestamp,
             trustedSequencer.address,
         );
 
-        // Calcultate input Hahs for batch 2
+        // Calculate input Hahs for batch 2
         batchAccInputHashJs = calculateAccInputHash(
             batchAccInputHashJs,
             calculateBatchHashData(sequence2.transactions),
@@ -541,7 +541,7 @@ describe('Polygon ZK-EVM', () => {
         await sendDataContract.deployed();
 
         // transfer matic
-        await maticTokenContract.transfer(sendDataContract.address, ethers.utils.parseEther('1000'));
+        await maticTokenContract.transfer(sendDataContract.address, ethers.parseEther('1000'));
 
         // Approve matic
         const approveTx = await maticTokenContract.populateTransaction.approve(polygonZkEVMContract.address, maticAmount);
@@ -597,7 +597,7 @@ describe('Polygon ZK-EVM', () => {
 
         const sequence2 = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -652,21 +652,21 @@ describe('Polygon ZK-EVM', () => {
         // Check batch mapping
         const batchAccInputHash = (await polygonZkEVMContract.sequencedBatches(1)).accInputHash;
         // Only last batch is added to the mapping
-        expect(batchAccInputHash).to.be.equal(ethers.constants.HashZero);
+        expect(batchAccInputHash).to.be.equal(ethers.HashZero);
 
         /*
          * Check batch mapping
-         * Calcultate input Hahs for batch 1
+         * Calculate input Hahs for batch 1
          */
         let batchAccInputHashJs = calculateAccInputHash(
-            ethers.constants.HashZero,
+            ethers.HashZero,
             calculateBatchHashData(sequence.transactions),
             sequence.globalExitRoot,
             sequence.timestamp,
             trustedSequencer.address,
         );
 
-        // Calcultate input Hahs for batch 2
+        // Calculate input Hahs for batch 2
         batchAccInputHashJs = calculateAccInputHash(
             batchAccInputHashJs,
             calculateBatchHashData(sequence2.transactions),
@@ -686,14 +686,14 @@ describe('Polygon ZK-EVM', () => {
 
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: 0,
             minForcedTimestamp: 0,
         };
 
         const sequence2 = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: 0,
             minForcedTimestamp: 0,
         };
@@ -712,7 +712,7 @@ describe('Polygon ZK-EVM', () => {
         let currentTimestamp = (await ethers.provider.getBlock()).timestamp;
         await ethers.provider.send('evm_increaseTime', [1]); // evm_setNextBlockTimestamp
 
-        sequence.timestamp = currentTimestamp + 2; // bigger than current block tiemstamp
+        sequence.timestamp = currentTimestamp + 2; // bigger than current block timestamp
 
         // revert because timestamp is more than the current one
         await expect(polygonZkEVMContract.connect(trustedSequencer).sequenceBatches([sequence], trustedSequencer.address))
@@ -792,7 +792,7 @@ describe('Polygon ZK-EVM', () => {
         const batchHash = await polygonZkEVMContract.forcedBatches(1);
         const timestampForceBatch = (await ethers.provider.getBlock()).timestamp;
 
-        const batchHashJs = ethers.utils.solidityKeccak256(
+        const batchHashJs = ethers.solidityPackedKeccak256(
             ['bytes32', 'bytes32', 'uint64'],
             [
                 calculateBatchHashData(l2txData),
@@ -827,7 +827,7 @@ describe('Polygon ZK-EVM', () => {
 
         const forceBatchHash = await polygonZkEVMContract.forcedBatches(1);
 
-        const batchHashJs = ethers.utils.solidityKeccak256(
+        const batchHashJs = ethers.solidityPackedKeccak256(
             ['bytes32', 'bytes32', 'uint64'],
             [
                 calculateBatchHashData(l2txData),
@@ -871,7 +871,7 @@ describe('Polygon ZK-EVM', () => {
             .to.be.revertedWith('ForcedDataDoesNotMatch');
         forceBatchStructBad.minForcedTimestamp -= 1;
 
-        forceBatchStructBad.globalExitRoot = ethers.constants.HashZero;
+        forceBatchStructBad.globalExitRoot = ethers.HashZero;
         await expect(polygonZkEVMContract.sequenceForceBatches([forceBatchStructBad]))
             .to.be.revertedWith('ForcedDataDoesNotMatch');
         forceBatchStructBad.globalExitRoot = lastGlobalExitRoot;
@@ -899,7 +899,7 @@ describe('Polygon ZK-EVM', () => {
         const batchAccInputHash = (await polygonZkEVMContract.sequencedBatches(1)).accInputHash;
 
         const batchAccInputHashJs = calculateAccInputHash(
-            ethers.constants.HashZero,
+            ethers.HashZero,
             calculateBatchHashData(l2txData),
             lastGlobalExitRoot,
             timestampSequenceBatch,
@@ -915,7 +915,7 @@ describe('Polygon ZK-EVM', () => {
 
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -936,7 +936,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
+        const zkProofFFlonk = new Array(24).fill(ethers.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -1035,7 +1035,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
+        const zkProofFFlonk = new Array(24).fill(ethers.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             trustedAggregator.address,
@@ -1072,7 +1072,7 @@ describe('Polygon ZK-EVM', () => {
 
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -1222,7 +1222,7 @@ describe('Polygon ZK-EVM', () => {
 
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -1243,7 +1243,7 @@ describe('Polygon ZK-EVM', () => {
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
         const numBatch = (await polygonZkEVMContract.lastVerifiedBatch()) + 1;
-        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
+        const zkProofFFlonk = new Array(24).fill(ethers.HashZero);
 
         const initialAggregatorMatic = await maticTokenContract.balanceOf(
             aggregator1.address,
@@ -1381,7 +1381,7 @@ describe('Polygon ZK-EVM', () => {
         const batchesForSequence = 5;
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -1403,7 +1403,7 @@ describe('Polygon ZK-EVM', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
+        const zkProofFFlonk = new Array(24).fill(ethers.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;
@@ -1505,7 +1505,7 @@ describe('Polygon ZK-EVM', () => {
         ).to.be.revertedWith('PendingStateDoesNotExist');
 
         // Since this pending state was not consolidated, the currentNumBatch does not have stored root
-        expect(ethers.constants.HashZero).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentNumBatch));
+        expect(ethers.HashZero).to.be.equal(await polygonZkEVMContract.batchNumToStateRoot(currentNumBatch));
         await expect(
             polygonZkEVMContract.connect(trustedAggregator).verifyBatchesTrustedAggregator(
                 currentPendingState,
@@ -1759,7 +1759,7 @@ describe('Polygon ZK-EVM', () => {
 
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: ethers.BigNumber.from(currentTimestamp),
             minForcedTimestamp: 0,
         };
@@ -1796,7 +1796,7 @@ describe('Polygon ZK-EVM', () => {
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [sequencedTimestmap + haltTimeout]);
 
-        // Succesfully acitvate emergency state
+        // Successfully activate emergency state
         await expect(polygonZkEVMContract.connect(aggregator1).activateEmergencyState(1))
             .to.emit(polygonZkEVMContract, 'EmergencyStateActivated');
     });
@@ -1808,7 +1808,7 @@ describe('Polygon ZK-EVM', () => {
         const batchesForSequence = 5;
         const sequence = {
             transactions: l2txData,
-            globalExitRoot: ethers.constants.HashZero,
+            globalExitRoot: ethers.HashZero,
             timestamp: currentTimestamp,
             minForcedTimestamp: 0,
         };
@@ -1830,7 +1830,7 @@ describe('Polygon ZK-EVM', () => {
         // Forge first sequence with verifyBAtches
         const newLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const newStateRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const zkProofFFlonk = new Array(24).fill(ethers.constants.HashZero);
+        const zkProofFFlonk = new Array(24).fill(ethers.HashZero);
 
         let currentPendingState = 0;
         let currentNumBatch = 0;
@@ -2000,7 +2000,7 @@ describe('Polygon ZK-EVM', () => {
     });
 
     it('Test batch fees properly', async () => {
-        const accInputData = ethers.constants.HashZero;
+        const accInputData = ethers.HashZero;
         const verifyBatchTimeTarget = Number(await polygonZkEVMContract.verifyBatchTimeTarget());
         const currentTimestamp = (await ethers.provider.getBlock()).timestamp;
 
@@ -2024,7 +2024,7 @@ describe('Polygon ZK-EVM', () => {
 
         // Assert currentFee
         let currentBatchFee = await polygonZkEVMContract.batchFee();
-        expect(currentBatchFee).to.be.equal(ethers.utils.parseEther('0.1'));
+        expect(currentBatchFee).to.be.equal(ethers.parseEther('0.1'));
 
         await ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + verifyBatchTimeTarget * 2]);
 

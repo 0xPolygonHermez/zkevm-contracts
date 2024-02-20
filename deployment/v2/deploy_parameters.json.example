@@ -1,0 +1,18 @@
+{
+    "test": true,
+    "timelockAdminAddress": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "minDelayTimelock": 3600,
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "initialZkEVMDeployerOwner" :"0xaddress",
+    "admin":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "trustedAggregator":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "trustedAggregatorTimeout": 604799,
+    "pendingStateTimeout": 604799,
+    "emergencyCouncilAddress": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "polTokenAddress":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "zkEVMDeployerAddress":"",
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": ""
+}

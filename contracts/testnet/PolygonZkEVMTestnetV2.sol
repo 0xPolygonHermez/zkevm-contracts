@@ -5,7 +5,7 @@ import "../PolygonZkEVM.sol";
 
 /**
  * Contract responsible for managing the state and the updates of the L2 network
- * This contract will NOT BE USED IN PRODUCTION, will be used only in testnet enviroment
+ * This contract will NOT BE USED IN PRODUCTION, will be used only in testnet environment
  */
 contract PolygonZkEVMTestnetV2 is PolygonZkEVM {
     // Indicates the current version

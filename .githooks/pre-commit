@@ -22,6 +22,20 @@ if npm run lint; then
     cp artifacts/@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
     cp artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json compiled-contracts/
+    
+    cp artifacts/contracts/v2/PolygonRollupManager.sol/PolygonRollupManager.json compiled-contracts/
+    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMock.sol/PolygonRollupManagerMock.json compiled-contracts/
+    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMockInternalTest.sol/PolygonRollupManagerMockInternalTest.json compiled-contracts/
+
+    cp artifacts/contracts/v2/PolygonZkEVMBridgeV2.sol/PolygonZkEVMBridgeV2.json compiled-contracts/
+    cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
+
+    cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol/PolygonZkEVMEtrog.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMExistentEtrog.sol/PolygonZkEVMExistentEtrog.json compiled-contracts/
+
+    cp artifacts/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol/PolygonValidiumEtrog.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/validium/PolygonDataCommittee.sol/PolygonDataCommittee.json compiled-contracts/
     git add compiled-contracts
     exit 0
 else

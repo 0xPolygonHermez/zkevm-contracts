@@ -16,13 +16,13 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
     const tokenName = 'Matic Token';
     const tokenSymbol = 'MATIC';
     const decimals = 18;
-    const tokenInitialBalance = ethers.utils.parseEther('20000000');
+    const tokenInitialBalance = ethers.parseEther('20000000');
 
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
     const LEAF_TYPE_ASSET = 0;
 
-    const polygonZkEVMAddress = ethers.constants.AddressZero;
+    const polygonZkEVMAddress = ethers.ZeroAddress;
 
     beforeEach('Deploy contracts', async () => {
         // load signers
@@ -56,8 +56,8 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const nameWeird = 'nameToken';
         const symbolWeird = 'NTK';
 
-        const nameWeirdBytes32 = ethers.utils.formatBytes32String(nameWeird);
-        const symbolWeirdBytes = ethers.utils.toUtf8Bytes(symbolWeird);
+        const nameWeirdBytes32 = ethers.formatBytes32String(nameWeird);
+        const symbolWeirdBytes = ethers.toUtf8Bytes(symbolWeird);
         const decimalsWeird = 14;
 
         const weirdTokenContract = await weirdErc20Metadata.deploy(
@@ -74,16 +74,16 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
         const tokenAddress = weirdTokenContract.address;
-        const amount = ethers.utils.parseEther('10');
+        const amount = ethers.parseEther('10');
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
-        const metadata = ethers.utils.defaultAbiCoder.encode(
+        const metadata = ethers.AbiCoder.defaultAbiCoder().encode(
             ['string', 'string', 'uint8'],
             [nameWeird, symbolWeird, decimalsWeird],
         );
 
-        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
+        const metadataHash = ethers.solidityPackedKeccak256(['bytes'], [metadata]);
 
         // pre compute root merkle tree in Js
         const height = 32;
@@ -113,9 +113,9 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const nameWeird = 'nameToken';
         const symbolWeird = 'NTK';
 
-        const nameWeirdBytes32 = ethers.utils.formatBytes32String(nameWeird);
-        const symbolWeirdBytes = ethers.utils.toUtf8Bytes(symbolWeird);
-        const decimalsWeird = ethers.constants.MaxUint256;
+        const nameWeirdBytes32 = ethers.formatBytes32String(nameWeird);
+        const symbolWeirdBytes = ethers.toUtf8Bytes(symbolWeird);
+        const decimalsWeird = ethers.MaxUint256;
 
         const weirdTokenContract = await weirdErc20Metadata.deploy(
             nameWeirdBytes32, // bytes32
@@ -131,7 +131,7 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
         const tokenAddress = weirdTokenContract.address;
-        const amount = ethers.utils.parseEther('10');
+        const amount = ethers.parseEther('10');
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
@@ -144,12 +144,12 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const nameRevert = 'NO_NAME';
         const symbolRevert = 'NO_SYMBOL';
         const decimalsTooRevert = 18;
-        const metadata = ethers.utils.defaultAbiCoder.encode(
+        const metadata = ethers.AbiCoder.defaultAbiCoder().encode(
             ['string', 'string', 'uint8'],
             [nameRevert, symbolRevert, decimalsTooRevert],
         );
 
-        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
+        const metadataHash = ethers.solidityPackedKeccak256(['bytes'], [metadata]);
 
         // pre compute root merkle tree in Js
         const height = 32;
@@ -179,8 +179,8 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const nameWeird = '';
         const symbolWeird = '';
 
-        const nameWeirdBytes32 = ethers.utils.formatBytes32String(nameWeird);
-        const symbolWeirdBytes = ethers.utils.toUtf8Bytes(symbolWeird);
+        const nameWeirdBytes32 = ethers.formatBytes32String(nameWeird);
+        const symbolWeirdBytes = ethers.toUtf8Bytes(symbolWeird);
         const decimalsWeird = 255;
 
         const weirdTokenContract = await weirdErc20Metadata.deploy(
@@ -197,7 +197,7 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const depositCount = await polygonZkEVMBridgeContract.depositCount();
         const originNetwork = networkIDMainnet;
         const tokenAddress = weirdTokenContract.address;
-        const amount = ethers.utils.parseEther('10');
+        const amount = ethers.parseEther('10');
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
 
@@ -205,12 +205,12 @@ describe('PolygonZkEVMBridge Contract werid metadata', () => {
         const nameEmpty = 'NOT_VALID_ENCODING'; // bytes32 empty
         const symbolEmpty = '';
 
-        const metadata = ethers.utils.defaultAbiCoder.encode(
+        const metadata = ethers.AbiCoder.defaultAbiCoder().encode(
             ['string', 'string', 'uint8'],
             [nameEmpty, symbolEmpty, decimalsWeird],
         );
 
-        const metadataHash = ethers.utils.solidityKeccak256(['bytes'], [metadata]);
+        const metadataHash = ethers.solidityPackedKeccak256(['bytes'], [metadata]);
 
         // pre compute root merkle tree in Js
         const height = 32;

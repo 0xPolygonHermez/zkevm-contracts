@@ -1,0 +1,7 @@
+{   
+    "realVerifier": true,
+    "newForkID": 7,
+    "timelockDelay": 864000,
+    "timelockSalt": "",
+    "polTokenAddress": "0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6"
+}

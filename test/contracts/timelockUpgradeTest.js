@@ -3,7 +3,7 @@ const { ethers, upgrades } = require('hardhat');
 
 // OZ test functions
 function genOperation(target, value, data, predecessor, salt) {
-    const id = ethers.utils.solidityKeccak256([
+    const id = ethers.solidityPackedKeccak256([
         'address',
         'uint256',
         'bytes',
@@ -36,7 +36,7 @@ describe('Polygon ZK-EVM', () => {
 
     const maticTokenName = 'Matic Token';
     const maticTokenSymbol = 'MATIC';
-    const maticTokenInitialBalance = ethers.utils.parseEther('20000000');
+    const maticTokenInitialBalance = ethers.parseEther('20000000');
 
     const genesisRoot = '0x0000000000000000000000000000000000000000000000000000000000000001';
 
@@ -85,8 +85,8 @@ describe('Polygon ZK-EVM', () => {
         const nonceProxyBridge = Number((await ethers.provider.getTransactionCount(deployer.address))) + (firstDeployment ? 3 : 2);
         const nonceProxyZkevm = nonceProxyBridge + 2; // Always have to redeploy impl since the polygonZkEVMGlobalExitRoot address changes
 
-        const precalculateBridgeAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
-        const precalculateZkevmAddress = ethers.utils.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
+        const precalculateBridgeAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyBridge });
+        const precalculateZkevmAddress = ethers.getContractAddress({ from: deployer.address, nonce: nonceProxyZkevm });
         firstDeployment = false;
 
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
@@ -134,7 +134,7 @@ describe('Polygon ZK-EVM', () => {
         );
 
         // fund sequencer address with Matic tokens
-        await maticTokenContract.transfer(trustedSequencer.address, ethers.utils.parseEther('1000'));
+        await maticTokenContract.transfer(trustedSequencer.address, ethers.parseEther('1000'));
 
         const proposers = [deployer.address];
         const executors = [deployer.address];
@@ -186,8 +186,8 @@ describe('Polygon ZK-EVM', () => {
                 [polygonZkEVMBridgeContract.address,
                     implBridgeV2Address],
             ),
-            ethers.constants.HashZero,
-            ethers.constants.HashZero,
+            ethers.HashZero,
+            ethers.HashZero,
         );
 
         // Schedule operation
@@ -250,8 +250,8 @@ describe('Polygon ZK-EVM', () => {
                 [polygonZkEVMBridgeContract.address,
                     implBridgeV2Address],
             ),
-            ethers.constants.HashZero,
-            ethers.constants.HashZero,
+            ethers.HashZero,
+            ethers.HashZero,
         );
 
         // Check current delay
@@ -276,7 +276,7 @@ describe('Polygon ZK-EVM', () => {
         // Check that is the v0 contract
         await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
 
-        // Transaction cna be executed, delay is reduced to 0, but fails bc this timelock is not owner
+        // Transaction can be executed, delay is reduced to 0, but fails bc this timelock is not owner
         await expect(timelockContract.execute(
             operation.target,
             operation.value,
@@ -296,13 +296,13 @@ describe('Polygon ZK-EVM', () => {
             proposers,
             executors,
             adminAddress,
-            ethers.constants.AddressZero,
+            ethers.ZeroAddress,
         );
         await timelockContractL2.deployed();
 
         // Check deploy parameters
         expect(await timelockContractL2.getMinDelay()).to.be.equal(minDelay);
-        expect(await timelockContractL2.polygonZkEVM()).to.be.equal(ethers.constants.AddressZero);
+        expect(await timelockContractL2.polygonZkEVM()).to.be.equal(ethers.ZeroAddress);
 
         // Upgrade the contract
         const polygonZkEVMBridgeFactoryV2 = await ethers.getContractFactory('PolygonZkEVMBridgeMock');
@@ -329,8 +329,8 @@ describe('Polygon ZK-EVM', () => {
                 [polygonZkEVMBridgeContract.address,
                     implBridgeV2Address],
             ),
-            ethers.constants.HashZero,
-            ethers.constants.HashZero,
+            ethers.HashZero,
+            ethers.HashZero,
         );
 
         // Check current delay
@@ -338,7 +338,7 @@ describe('Polygon ZK-EVM', () => {
 
         /*
          * Put zkevmcontract on emergency mode
-         * Does not affect thsi deployment
+         * Does not affect this deployment
          */
         await polygonZkEVMContract.activateEmergencyState(0);
 
@@ -367,7 +367,7 @@ describe('Polygon ZK-EVM', () => {
         // Check that is the v0 contract
         await expect(polygonZkEVMBridgeContractV2.maxEtherBridge()).to.be.reverted;
 
-        // Transaction cna be executed, delay is reduced to 0, but fails bc this timelock is not owner
+        // Transaction can be executed, delay is reduced to 0, but fails bc this timelock is not owner
         await expect(timelockContractL2.execute(
             operation.target,
             operation.value,

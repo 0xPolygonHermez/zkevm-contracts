@@ -26,8 +26,8 @@ git checkout 7a8d0c1950cf267fb7b10be8a47506754399cd4a
 
 ## Verify deployment
 
-In order to verify the deployment, we will compare the deployed bytecode with the compiled locally. Some of the contracts use [`immutables`](https://docs.soliditylang.org/en/v0.8.19/contracts.html#immutable), in that case it's not enough to just compile the code and compare withthe deployed bytecode.
-The easiest way is to verify this contracts is to deploy them on a local enviroment and then compare the bytecodes of this contracts and the mainnet ones.
+In order to verify the deployment, we will compare the deployed bytecode with the compiled locally. Some of the contracts use [`immutables`](https://docs.soliditylang.org/en/v0.8.19/contracts.html#immutable), in that case it's not enough to just compile the code and compare with the deployed bytecode.
+The easiest way is to verify this contracts is to deploy them on a local environment and then compare the bytecodes of this contracts and the mainnet ones.
 
 In order to launch the script, you need a mainnet provider.
 In root of the project create a `.env` file you Infura api key information:
@@ -53,9 +53,9 @@ This script verifies the deployed bytecode of the address provided in `deploymen
 
 ## Verify genesis root
 
-At the end of the previous script we also verify that the genesis provided in the`deploymentMainnet.json` matches hte one in the `polygonZkEVM`
+At the end of the previous script we also verify that the genesis provided in the`deploymentMainnet.json` matches the one in the `polygonZkEVM`
 
-In order to verify the genesis, you can the script to generate it. The script in a very similar behaviour of the last script, deploy localy the contracts and then copy the deployed btyecode into the corresponding address.
+In order to verify the genesis, you can the script to generate it. The script in a very similar behaviour of the last script, deploy locally the contracts and then copy the deployed btyecode into the corresponding address.
 
 ```bash=
 node deployment/1_createGenesis.js --input ../verifyMainnetDeployment/mainnetDeployParameters.json --out ../verifyMainnetDeployment/genesis.json

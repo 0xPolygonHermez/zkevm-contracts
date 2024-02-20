@@ -1,0 +1,18 @@
+{
+    "consensusContract": "PolygonValidiumEtrog",
+    "polygonRollupManagerAddress": "0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff",
+    "polygonZkEVMBridgeAddress": "0x528e26b25a34a4A5d0dbDa1d57D318153d2ED582",
+    "polygonZkEVMGlobalExitRootAddress": "0xAd1490c248c5d3CbAE399Fd529b79B42984277DF",
+    "polTokenAddress": "0x6a7c3F4B0651d6DA389AD1d11D962ea458cDCA70",
+    "verifierAddress": "0xFcBe1fae9605192bc67f9E05114195C6A64675A6",
+    "description": "Type: Validium, Version: etrog, genesis: /ipfs/QmZVxfDG5SbeFT2Zb3BLhf48GmFLyweAnxpPty6Wa8a2YU",
+    "forkID": 7,
+    "rollupCompatibilityID": 0,
+    "timelockDelay": 3600,
+    "timelockSalt": "",
+    "gasTokenAddress":"",
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": ""
+}

@@ -51,7 +51,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
         await polygonZkEVMContract.deployed();
     });
 
-    it('Check Accumualte input Hash', async () => {
+    it('Check Accumulate input Hash', async () => {
         const oldAccInputHash = '0x0000000000000000000000000000000000000000000000000000000000000000';
         const globalExitRoot = '0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9';
         const timestamp = 1944498031;
@@ -99,7 +99,7 @@ describe('Polygon ZK-EVM snark stark input test', () => {
         const aggregator = await ethers.getSigner(aggregatorAddress);
         await randomSigner.sendTransaction({
             to: aggregatorAddress,
-            value: ethers.utils.parseEther('4'),
+            value: ethers.parseEther('4'),
         });
 
         // Compute SC input
