@@ -91,7 +91,12 @@ contract PolygonValidiumStorageMigration is
     {}
 
     // Reinitialize the contract, the call will be done the same transaction the contract is upgraded
-    function initialize() external virtual onlyRollupManager reinitializer(2) {
+    function initializeMigration()
+        external
+        virtual
+        onlyRollupManager
+        reinitializer(2)
+    {
         // Copy the previous storage slots
         dataAvailabilityProtocol = _dataAvailabilityProtocol;
         isSequenceWithDataAvailabilityAllowed = _isSequenceWithDataAvailabilityAllowed;
