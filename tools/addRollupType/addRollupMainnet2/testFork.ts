@@ -12,7 +12,7 @@ import {PolygonRollupManager, PolygonZkEVMTimelock} from "../../../typechain-typ
 import {takeSnapshot, time, reset, setBalance, setStorageAt} from "@nomicfoundation/hardhat-network-helpers";
 
 const deployOutputParameters = require("./deploy_output_mainnet.json");
-const upgradeOutput = require("./upgrade_output.json");
+const updateOutput = require("./updateRollupOutput.json");
 const addRollupTypeOutput = require("./add_rollup_type_output.json");
 
 async function main() {
@@ -43,100 +43,55 @@ async function main() {
         deployOutputParameters.polygonZkEVMAddress
     )) as PolygonZkEVM;
 
-    const lastBatchSequenced = await polygonZkEVMContract.lastBatchSequenced();
+    const txScheduleAddType = {
+        to: timelockContract.target,
+        data: addRollupTypeOutput.scheduleData,
+    };
 
-    await setStorageAt(polygonZkEVMContract.target, 116, lastBatchSequenced);
+    await (await multisigSigner.sendTransaction(txScheduleAddType)).wait();
 
-    const lastBatchVerified = await polygonZkEVMContract.lastVerifiedBatch();
-    console.log({lastBatchSequenced});
-    console.log({lastBatchVerified});
+    const txScheduleUpdate = {
+        to: timelockContract.target,
+        data: updateOutput.scheduleData,
+    };
+
+    await (await multisigSigner.sendTransaction(txScheduleUpdate)).wait();
 
     await time.increase(timelockDelay);
 
-    // Set storage slot
-
     // send mutlsig transaction
-    const txUpgrade = {
+    const txExecuteAddType = {
         to: timelockContract.target,
-        data: upgradeOutput.executeData,
+        data: addRollupTypeOutput.executeData,
     };
 
-    const receipt = await (await multisigSigner.sendTransaction(txUpgrade)).wait();
+    await (await multisigSigner.sendTransaction(txExecuteAddType)).wait();
+
+    const txExecuteUpdate = {
+        to: timelockContract.target,
+        data: updateOutput.executeData,
+    };
+
+    await (await multisigSigner.sendTransaction(txExecuteUpdate)).wait();
 
     const RollupMangerFactory = await ethers.getContractFactory("PolygonRollupManager");
     const rollupManager = (await RollupMangerFactory.attach(
         deployOutputParameters.polygonZkEVMAddress
     )) as PolygonRollupManager;
 
-    expect(await rollupManager.rollupCount()).to.be.equal(1);
-
+    expect(await rollupManager.rollupCount()).to.be.equal(2);
+    expect(await rollupManager.rollupTypeCount()).to.be.equal(2);
     console.log("Contracts upgraded");
 
     // Deploy a validium
-    const verifierAddress = upgradeOutput.verifierAddress;
-
-    // send mutlsig transaction
-    const txAddRollupType = {
-        to: timelockContract.target,
-        data: addRollupTypeOutput.executeData,
-    };
-    const receiptAddRollupType = await (await multisigSigner.sendTransaction(txAddRollupType)).wait();
-
-    expect(await rollupManager.rollupTypeCount()).to.be.equal(1);
-
-    // Create new rollup
-    const chainID = 123213;
-    const txDeployRollup = await rollupManager.connect(multisigSigner).createNewRollup(
-        1, // rollupType
-        chainID,
-        deployer.address, // admin
-        deployer.address, // sequencer
-        ethers.ZeroAddress, // gas token address
-        "trustedsequencer url",
-        "network name"
-    );
-
-    console.log("Validum added");
-
-    const receiptDeployRollup = (await txDeployRollup.wait()) as any;
-    expect(await rollupManager.rollupCount()).to.be.equal(2);
-
-    // Update rollup to this type: this is just a test is NOT intended to update our zkevm to a validium
-    await ethers.provider.send("hardhat_impersonateAccount", [deployOutputParameters.timelockContractAddress]);
-    const tiemelockSigner = await ethers.getSigner(deployOutputParameters.timelockContractAddress as any);
-    await setBalance(deployOutputParameters.timelockContractAddress, 100n ** 18n);
-    const txUpdateRollup = await rollupManager.connect(tiemelockSigner).updateRollup(
-        upgradeOutput.newPolygonZKEVM, //new poylgon zkevm
-        1, // new rollupTypeID
-        "0x" // upgradeData
-    );
-
-    const receiptUpdateRollup = (await txUpdateRollup.wait()) as any;
-
-    const rollupDataFinal2 = await rollupManager.rollupIDToRollupData(2);
-    //expect(rollupDataFinal2.rollupContract).to.be.equal(upgradeOutput.newPolygonZKEVM);
-    expect(rollupDataFinal2.chainID).to.be.equal(chainID);
-    expect(rollupDataFinal2.verifier).to.be.equal(verifierAddress);
-    expect(rollupDataFinal2.forkID).to.be.equal(7);
-    expect(rollupDataFinal2.lastBatchSequenced).to.be.equal(1);
-    expect(rollupDataFinal2.lastVerifiedBatch).to.be.equal(0);
-    expect(rollupDataFinal2.lastPendingState).to.be.equal(0);
-    expect(rollupDataFinal2.lastPendingStateConsolidated).to.be.equal(0);
-    expect(rollupDataFinal2.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
-    expect(rollupDataFinal2.rollupTypeID).to.be.equal(1);
-    expect(rollupDataFinal2.rollupCompatibilityID).to.be.equal(0);
+    const verifierAddress = addRollupTypeOutput.decodedScheduleData.decodedData.verifier;
 
     const rollupDataFinal = await rollupManager.rollupIDToRollupData(1);
-    expect(rollupDataFinal.rollupContract).to.be.equal(upgradeOutput.newPolygonZKEVM);
+    expect(rollupDataFinal.rollupContract).to.be.equal("0x519E42c24163192Dca44CD3fBDCEBF6be9130987");
     expect(rollupDataFinal.chainID).to.be.equal(1101);
     expect(rollupDataFinal.verifier).to.be.equal(verifierAddress);
-    expect(rollupDataFinal.forkID).to.be.equal(7);
-    expect(rollupDataFinal.lastBatchSequenced).to.be.equal(lastBatchSequenced + 1n);
-    expect(rollupDataFinal.lastVerifiedBatch).to.be.equal(lastBatchSequenced);
-    expect(rollupDataFinal.lastPendingState).to.be.equal(0);
-    expect(rollupDataFinal.lastPendingStateConsolidated).to.be.equal(0);
-    expect(rollupDataFinal.lastVerifiedBatchBeforeUpgrade).to.be.equal(lastBatchSequenced);
-    expect(rollupDataFinal.rollupTypeID).to.be.equal(1);
+    expect(rollupDataFinal.forkID).to.be.equal(8);
+    expect(rollupDataFinal.rollupTypeID).to.be.equal(2);
     expect(rollupDataFinal.rollupCompatibilityID).to.be.equal(0);
 
     console.log("Updated zkevm Succedd");
