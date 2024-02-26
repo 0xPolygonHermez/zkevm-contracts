@@ -54,6 +54,7 @@ async function main() {
     } = addRollupParameters;
 
     const salt = addRollupParameters.timelockSalt || ethers.ZeroHash;
+    const predecesoor = addRollupParameters.predecesoor || ethers.ZeroHash;
 
     const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
 
@@ -152,7 +153,7 @@ async function main() {
             genesis.root,
             description,
         ]),
-        ethers.ZeroHash, // predecesoor
+        predecesoor, // predecesoor
         salt // salt
     );
 
@@ -182,6 +183,36 @@ async function main() {
     outputJson.consensusContract = consensusContract;
     outputJson.scheduleData = scheduleData;
     outputJson.executeData = executeData;
+    outputJson.id = operation.id;
+
+    // Decode the scheduleData for better readibility
+    const timelockTx = timelockContractFactory.interface.parseTransaction({data: scheduleData});
+    const paramsArray = timelockTx?.fragment.inputs;
+    const objectDecoded = {};
+
+    for (let i = 0; i < paramsArray?.length; i++) {
+        const currentParam = paramsArray[i];
+
+        objectDecoded[currentParam.name] = timelockTx?.args[i];
+
+        if (currentParam.name == "data") {
+            const decodedRollupManagerData = PolgonRollupManagerFactory.interface.parseTransaction({
+                data: timelockTx?.args[i],
+            });
+            const objectDecodedData = {};
+            const paramsArrayData = decodedRollupManagerData?.fragment.inputs;
+
+            for (let j = 0; j < paramsArrayData?.length; j++) {
+                const currentParam = paramsArrayData[j];
+                objectDecodedData[currentParam.name] = decodedRollupManagerData?.args[j];
+            }
+            objectDecoded["decodedData"] = objectDecodedData;
+        }
+    }
+
+    outputJson.decodedScheduleData = objectDecoded;
+
+    // Decode the schedule data to better readibiltiy:
 
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
