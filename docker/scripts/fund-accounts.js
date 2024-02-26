@@ -13,12 +13,12 @@ async function main() {
     const numAccountsToFund = process.env.NUM_ACCOUNTS || DEFAULT_NUM_ACCOUNTS;
 
     for (let i = 0; i < numAccountsToFund; i++) {
-        console.warn(accountWallet.address)
         const pathWallet = `m/44'/60'/0'/0/${i}`;
         const accountWallet = ethers.HDNodeWallet.fromMnemonic(
             ethers.Mnemonic.fromPhrase(MNEMONIC),
             pathWallet,
         );
+        console.warn(accountWallet.address);
 
         const params = [{
             from: await signerNode.getAddress(),
