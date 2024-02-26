@@ -1,10 +1,10 @@
 {
     "realVerifier": false,
-    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
-    "networkName": "zkevm",
+    "trustedSequencerURL": "http://zkevm-node-jsonrpc-2:8123",
+    "networkName": "zkevm-2",
     "description": "0.0.1",
     "trustedSequencer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "chainID": 1001,
+    "chainID": 1002,
     "adminZkEVM": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "forkID": 7,
     "consensusContract": "PolygonZkEVMEtrog",
