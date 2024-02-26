@@ -54,9 +54,9 @@ async function main() {
     } = addRollupParameters;
 
     const salt = addRollupParameters.timelockSalt || ethers.ZeroHash;
-    const predecesoor = addRollupParameters.predecesoor || ethers.ZeroHash;
+    const predecessor = addRollupParameters.predecessor || ethers.ZeroHash;
 
-    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
+    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog", "PolygonValidiumStorageMigration"];
 
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
@@ -153,7 +153,7 @@ async function main() {
             genesis.root,
             description,
         ]),
-        predecesoor, // predecesoor
+        predecessor, // predecessor
         salt // salt
     );
 
