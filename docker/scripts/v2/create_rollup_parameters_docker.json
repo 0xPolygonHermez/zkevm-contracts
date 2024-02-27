@@ -12,5 +12,6 @@
     "deployerPvtKey": "",
     "maxFeePerGas": "",
     "maxPriorityFeePerGas": "",
-    "multiplierGas": ""
+    "multiplierGas": "",
+    "trustedAggregator": ""
 }

@@ -18,7 +18,6 @@ async function main() {
             ethers.Mnemonic.fromPhrase(MNEMONIC),
             pathWallet,
         );
-        console.warn(accountWallet.address);
 
         const params = [{
             from: await signerNode.getAddress(),
