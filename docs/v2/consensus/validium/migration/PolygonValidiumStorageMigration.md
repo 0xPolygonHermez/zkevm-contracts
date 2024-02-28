@@ -27,10 +27,19 @@ It is advised to use timelocks for the admin address in case of Validium since i
 |`_bridgeAddress` | contract IPolygonZkEVMBridgeV2 | Bridge address
 |`_rollupManager` | contract PolygonRollupManager | Global exit root manager address
 
+### initializeMigration
+```solidity
+  function initializeMigration(
+  ) external
+```
+
+
+
+
 ### sequenceBatchesValidium
 ```solidity
   function sequenceBatchesValidium(
-    struct PolygonValidiumEtrog.ValidiumBatchData[] batches,
+    struct PolygonValidiumStorageMigration.ValidiumBatchData[] batches,
     uint64 maxSequenceTimestamp,
     uint64 initSequencedBatch,
     address l2Coinbase,
@@ -43,7 +52,7 @@ Allows a sequencer to send multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonValidiumEtrog.ValidiumBatchData[] | Struct array which holds the necessary data to append new batches to the sequence
+|`batches` | struct PolygonValidiumStorageMigration.ValidiumBatchData[] | Struct array which holds the necessary data to append new batches to the sequence
 |`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
 This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
 |`initSequencedBatch` | uint64 | This parameter must match the current last batch sequenced.
@@ -57,7 +66,7 @@ note Pol is not a reentrant token
 ### sequenceBatches
 ```solidity
   function sequenceBatches(
-    struct PolygonRollupBaseEtrog.BatchData[] batches,
+    struct PolygonRollupBaseEtrogNoGap.BatchData[] batches,
     uint64 maxSequenceTimestamp,
     uint64 initSequencedBatch,
     address l2Coinbase
@@ -69,7 +78,7 @@ Allows a sequencer to send multiple batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
+|`batches` | struct PolygonRollupBaseEtrogNoGap.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
 |`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
 This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
 |`initSequencedBatch` | uint64 | This parameter must match the current last batch sequenced.
