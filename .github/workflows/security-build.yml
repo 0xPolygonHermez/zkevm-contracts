@@ -1,0 +1,24 @@
+name: Security Build
+on:
+  push:
+    branches:
+      - main # or the name of your main and preffered branches
+      - dev
+      - staging # or the name of your main and preffered branches
+  workflow_dispatch: {}
+  pull_request:
+    types: [opened, synchronize, reopened]
+    
+jobs:
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
