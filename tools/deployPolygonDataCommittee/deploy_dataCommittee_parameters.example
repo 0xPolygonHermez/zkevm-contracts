@@ -1,0 +1,7 @@
+{
+    "admin": "0xaddress",
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": ""
+}

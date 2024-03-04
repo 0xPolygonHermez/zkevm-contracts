@@ -54,8 +54,9 @@ async function main() {
     } = addRollupParameters;
 
     const salt = addRollupParameters.timelockSalt || ethers.ZeroHash;
+    const predecessor = addRollupParameters.predecessor || ethers.ZeroHash;
 
-    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
+    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog", "PolygonValidiumStorageMigration"];
 
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
@@ -152,7 +153,7 @@ async function main() {
             genesis.root,
             description,
         ]),
-        ethers.ZeroHash, // predecesoor
+        predecessor, // predecessor
         salt // salt
     );
 
@@ -182,6 +183,36 @@ async function main() {
     outputJson.consensusContract = consensusContract;
     outputJson.scheduleData = scheduleData;
     outputJson.executeData = executeData;
+    outputJson.id = operation.id;
+
+    // Decode the scheduleData for better readibility
+    const timelockTx = timelockContractFactory.interface.parseTransaction({data: scheduleData});
+    const paramsArray = timelockTx?.fragment.inputs;
+    const objectDecoded = {};
+
+    for (let i = 0; i < paramsArray?.length; i++) {
+        const currentParam = paramsArray[i];
+
+        objectDecoded[currentParam.name] = timelockTx?.args[i];
+
+        if (currentParam.name == "data") {
+            const decodedRollupManagerData = PolgonRollupManagerFactory.interface.parseTransaction({
+                data: timelockTx?.args[i],
+            });
+            const objectDecodedData = {};
+            const paramsArrayData = decodedRollupManagerData?.fragment.inputs;
+
+            for (let j = 0; j < paramsArrayData?.length; j++) {
+                const currentParam = paramsArrayData[j];
+                objectDecodedData[currentParam.name] = decodedRollupManagerData?.args[j];
+            }
+            objectDecoded["decodedData"] = objectDecodedData;
+        }
+    }
+
+    outputJson.decodedScheduleData = objectDecoded;
+
+    // Decode the schedule data to better readibiltiy:
 
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
@@ -193,10 +224,11 @@ main().catch((e) => {
 
 // OZ test functions
 function genOperation(target: any, value: any, data: any, predecessor: any, salt: any) {
-    const id = ethers.solidityPackedKeccak256(
+    const abiEncoded = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address", "uint256", "bytes", "uint256", "bytes32"],
         [target, value, data, predecessor, salt]
     );
+    const id = ethers.keccak256(abiEncoded);
     return {
         id,
         target,

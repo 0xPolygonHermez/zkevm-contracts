@@ -1,0 +1,11 @@
+{
+    "rollupAddress": "0xaddress",
+    "newRollupTypeID": 1,
+    "upgradeData": "0x",
+    "polygonRollupManagerAddress": "0xaddress",
+    "timelockDelay": 0,
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": ""
+}

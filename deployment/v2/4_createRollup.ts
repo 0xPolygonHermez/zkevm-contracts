@@ -293,7 +293,7 @@ async function main() {
             await (await polygonDataCommittee?.transferOwnership(adminZkEVM)).wait();
         }
 
-        outputJson.polygonDataCommittee = polygonDataCommittee?.target;
+        outputJson.polygonDataCommitteeAddress = polygonDataCommittee?.target;
     }
 
     // Assert admin address
@@ -329,7 +329,7 @@ async function main() {
 
     outputJson.firstBatchData = batchData;
     outputJson.genesis = genesis.root;
-    outputJson.createRollupBlock = blockDeploymentRollup.number;
+    outputJson.createRollupBlockNumber = blockDeploymentRollup.number;
     outputJson.rollupAddress = newZKEVMAddress;
     outputJson.verifierAddress = verifierContract.target;
     outputJson.consensusContract = consensusContract;

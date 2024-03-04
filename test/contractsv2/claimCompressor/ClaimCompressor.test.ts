@@ -21,7 +21,7 @@ import {MemDB, ZkEVMDB, getPoseidon, smtUtils, processorUtils} from "@0xpolygonh
 import {deploy} from "@openzeppelin/hardhat-upgrades/dist/utils";
 import {parse} from "yargs";
 
-describe("PolygonZkEVMBridge Contract", () => {
+describe("Claim Compressor Contract", () => {
     upgrades.silenceWarnings();
 
     let claimCompressor: ClaimCompressor;
