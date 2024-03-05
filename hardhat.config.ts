@@ -208,6 +208,7 @@ const config: HardhatUserConfig = {
             initialDate: "0",
             allowUnlimitedContractSize: true,
             initialBaseFeePerGas: 0,
+            hardfork: "cancun",
             accounts: {
                 mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
                 path: "m/44'/60'/0'/0",
