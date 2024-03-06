@@ -14,11 +14,12 @@ import {
     PolygonValidiumStorageMigration,
     PolygonDataCommittee,
     PolygonValidiumEtrogPrevious,
+    PolygonRollupManager,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
 const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
-
+type VerifyBatchData = PolygonRollupManager.VerifyBatchDataStruct;
 type BatchDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
 
 const MerkleTreeBridge = MTBridge;
@@ -2410,20 +2411,20 @@ describe("Polygon Rollup Manager", () => {
         const merkleTreeRollups = new MerkleTreeBridge(32);
         const rootRollups = merkleTreeRollups.getRoot();
 
+        const VerifyBatchData = {
+            rollupID: newCreatedRollupID,
+            pendingStateNum: pendingState,
+            initNumBatch: currentVerifiedBatch,
+            finalNewBatch: newVerifiedBatch,
+            newLocalExitRoot: newLocalExitRoot,
+            newStateRoot: newStateRoot,
+        } as VerifyBatchData;
+
         // Verify batch
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyBatchesTrustedAggregator(
-                    newCreatedRollupID,
-                    pendingState,
-                    currentVerifiedBatch,
-                    newVerifiedBatch,
-                    newLocalExitRoot,
-                    newStateRoot,
-                    beneficiary.address,
-                    zkProofFFlonk
-                )
+                .verifyBatchesTrustedAggregatorMultiProof([VerifyBatchData], beneficiary.address, zkProofFFlonk)
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
