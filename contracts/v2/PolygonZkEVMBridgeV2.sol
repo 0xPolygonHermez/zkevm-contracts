@@ -727,6 +727,25 @@ contract PolygonZkEVMBridgeV2 is
     }
 
     /**
+     * @notice Set the address of a wrapper using the token information if already exist
+     * @dev This function is used to allow any existing token to be mapped with
+     *      origin token. Wrapper contract should handle mint/burn of the existing token.
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param wrappedTokenAddress Arbitary contract that implements TokenWrapped interface
+     */
+    function setTokenWrappedAddress(
+        uint32 originNetwork,
+        address originTokenAddress,
+        address wrappedTokenAddress
+    ) external onlyRollupManager {
+        bytes32 tokenInfoHash = keccak256(
+            abi.encodePacked(originNetwork, originTokenAddress)
+        );
+        tokenInfoToWrappedToken[tokenInfoHash] = wrappedTokenAddress;
+    }
+
+    /**
      * @notice Function to activate the emergency state
      " Only can be called by the Polygon ZK-EVM in extreme situations
      */
