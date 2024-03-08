@@ -75,6 +75,9 @@ contract PolygonZkEVMBridgeV2 is
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
+    // Existing token address --> Custom wrapper contract
+    mapping(address => address) public existingTokenToWrapper;
+
     // Rollup manager address, previously PolygonZkEVM
     /// @custom:oz-renamed-from polygonZkEVMaddress
     address public polygonRollupManager;
@@ -248,11 +251,16 @@ contract PolygonZkEVMBridgeV2 is
                 ];
 
                 if (tokenInfo.originTokenAddress != address(0)) {
-                    // The token is a wrapped token from another network
-
-                    // Burn tokens
-                    TokenWrapped(token).burn(msg.sender, amount);
-
+                    // The token is either (1) a wrapped token from another network
+                    // or (2) wrapped with custom contract
+                    address wrapper = existingTokenToWrapper[token];
+                    if (wrapper != address(0)) {
+                        // Burn tokens via custom wrapper via setTokenWrappedAddress
+                        TokenWrapped(wrapper).burn(msg.sender, amount);
+                    } else {
+                        // Burn tokens
+                        TokenWrapped(token).burn(msg.sender, amount);
+                    }
                     originTokenAddress = tokenInfo.originTokenAddress;
                     originNetwork = tokenInfo.originNetwork;
                 } else {
@@ -737,12 +745,20 @@ contract PolygonZkEVMBridgeV2 is
     function setTokenWrappedAddress(
         uint32 originNetwork,
         address originTokenAddress,
-        address wrappedTokenAddress
+        address wrappedTokenAddress,
+        address existingTokenAddress
     ) external onlyRollupManager {
+        // Handle claimAsset on target chain
         bytes32 tokenInfoHash = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
         tokenInfoToWrappedToken[tokenInfoHash] = wrappedTokenAddress;
+
+        // Handle bridgeAsset from origin chain
+        wrappedTokenToTokenInfo[
+            existingTokenAddress
+        ] = TokenInformation(originNetwork, originTokenAddress);
+        existingTokenToWrapper[existingTokenAddress] = wrappedTokenAddress;
     }
 
     /**
