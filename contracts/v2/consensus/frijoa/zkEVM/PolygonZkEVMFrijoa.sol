@@ -22,7 +22,7 @@ contract PolygonZkEVMFrijoa is PolygonRollupBaseFrijoa {
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        IPolygonRollupManager _rollupManager
+        PolygonRollupManager _rollupManager
     )
         PolygonRollupBaseFrijoa(
             _globalExitRootManager,
