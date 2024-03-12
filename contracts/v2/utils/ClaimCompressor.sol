@@ -3,7 +3,7 @@
 import "../PolygonZkEVMBridgeV2.sol";
 import "hardhat/console.sol";
 
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
 
 /**
  * Contract for compressing and decompressing claim data

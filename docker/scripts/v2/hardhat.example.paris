@@ -37,7 +37,7 @@ const config: HardhatUserConfig = {
                 },
             },
             {
-                version: "0.8.20",
+                version: "0.8.24",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -76,7 +76,7 @@ const config: HardhatUserConfig = {
         ],
         overrides: {
             "contracts/v2/PolygonRollupManager.sol": {
-                version: "0.8.20",
+                version: "0.8.24",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -86,7 +86,7 @@ const config: HardhatUserConfig = {
                 }, // try yul optimizer
             },
             "contracts/v2/PolygonZkEVMBridgeV2.sol": {
-                version: "0.8.20",
+                version: "0.8.24",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -96,7 +96,7 @@ const config: HardhatUserConfig = {
                 },
             },
             "contracts/lib/TokenWrapped.sol": {
-                version: "0.8.20",
+                version: "0.8.24",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -106,7 +106,7 @@ const config: HardhatUserConfig = {
                 },
             },
             "contracts/v2/mocks/PolygonRollupManagerMock.sol": {
-                version: "0.8.20",
+                version: "0.8.24",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -117,7 +117,7 @@ const config: HardhatUserConfig = {
             },
             // Should have the same optimizations than the RollupManager to verify
             "contracts/v2/lib/PolygonTransparentProxy.sol": {
-                version: "0.8.20",
+                version: "0.8.24",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -127,7 +127,7 @@ const config: HardhatUserConfig = {
                 }, // try yul optimizer
             },
             "contracts/v2/newDeployments/PolygonRollupManagerNotUpgraded.sol": {
-                version: "0.8.20",
+                version: "0.8.24",
                 settings: {
                     optimizer: {
                         enabled: true,
