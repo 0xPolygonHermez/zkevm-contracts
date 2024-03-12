@@ -2,15 +2,15 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
+import "../../../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../interfaces/IPolygonZkEVMErrors.sol";
-import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
-import "../PolygonRollupManager.sol";
-import "../interfaces/IPolygonRollupBase.sol";
-import "../interfaces/IPolygonZkEVMBridgeV2.sol";
+import "../../../../interfaces/IPolygonZkEVMErrors.sol";
+import "../../../interfaces/IPolygonZkEVMVEtrogErrors.sol";
+import "../../../PolygonRollupManager.sol";
+import "../../../interfaces/IPolygonRollupBase.sol";
+import "../../../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "./PolygonConstantsBase.sol";
+import "../../../lib/PolygonConstantsBase.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.

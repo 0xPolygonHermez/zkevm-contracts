@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../../lib/PolygonRollupBaseEtrog.sol";
+import "../../../lib/PolygonRollupBaseFrijoa.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -11,7 +11,7 @@ import "../../lib/PolygonRollupBaseEtrog.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonZkEVMEtrog is PolygonRollupBaseEtrog {
+contract PolygonZkEVMFrijoa is PolygonRollupBaseFrijoa {
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol POL token address
@@ -24,7 +24,7 @@ contract PolygonZkEVMEtrog is PolygonRollupBaseEtrog {
         IPolygonZkEVMBridgeV2 _bridgeAddress,
         PolygonRollupManager _rollupManager
     )
-        PolygonRollupBaseEtrog(
+        PolygonRollupBaseFrijoa(
             _globalExitRootManager,
             _pol,
             _bridgeAddress,
