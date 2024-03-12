@@ -73,6 +73,15 @@ const config: HardhatUserConfig = {
                     },
                 },
             },
+            {
+                version: "0.8.24",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 999999,
+                    },
+                },
+            },
         ],
         overrides: {
             "contracts/v2/PolygonRollupManager.sol": {
