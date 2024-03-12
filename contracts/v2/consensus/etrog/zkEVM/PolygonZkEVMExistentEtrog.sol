@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../../lib/PolygonRollupBaseEtrog.sol";
+import "../PolygonRollupBaseEtrog.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../../lib/PolygonRollupBaseEtrog.sol";
-import "../../interfaces/IDataAvailabilityProtocol.sol";
-import "../../interfaces/IPolygonValidium.sol";
+import "./PolygonRollupBaseEtrogNoGap.sol";
+import "../../../../interfaces/IDataAvailabilityProtocol.sol";
+import "../../../../interfaces/IPolygonValidium.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -14,7 +14,10 @@ import "../../interfaces/IPolygonValidium.sol";
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  * It is advised to use timelocks for the admin address in case of Validium since if can change the dataAvailabilityProtocol
  */
-contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
+contract PolygonValidiumStorageMigration is
+    PolygonRollupBaseEtrogNoGap,
+    IPolygonValidium
+{
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
@@ -32,6 +35,23 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         uint64 forcedTimestamp;
         bytes32 forcedBlockHashL1;
     }
+
+    // Copy and clean the previous storage values to make it storage compatible with the new contracts
+
+    // Data Availability Protocol Address
+    /// @custom:oz-renamed-from dataAvailabilityProtocol
+    IDataAvailabilityProtocol internal _dataAvailabilityProtocol;
+
+    // Indicates if sequence with data avialability is allowed
+    // This allow the sequencer to post the data and skip the Data comittee
+    /// @custom:oz-renamed-from isSequenceWithDataAvailabilityAllowed
+    bool internal _isSequenceWithDataAvailabilityAllowed;
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
+    uint256[49] private _gap;
 
     // Data Availability Protocol Address
     IDataAvailabilityProtocol public dataAvailabilityProtocol;
@@ -62,13 +82,29 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         IPolygonZkEVMBridgeV2 _bridgeAddress,
         PolygonRollupManager _rollupManager
     )
-        PolygonRollupBaseEtrog(
+        PolygonRollupBaseEtrogNoGap(
             _globalExitRootManager,
             _pol,
             _bridgeAddress,
             _rollupManager
         )
     {}
+
+    // Reinitialize the contract, the call will be done the same transaction the contract is upgraded
+    function initializeMigration()
+        external
+        virtual
+        onlyRollupManager
+        reinitializer(2)
+    {
+        // Copy the previous storage slots
+        dataAvailabilityProtocol = _dataAvailabilityProtocol;
+        isSequenceWithDataAvailabilityAllowed = _isSequenceWithDataAvailabilityAllowed;
+
+        // Clean the previous storage slots
+        _dataAvailabilityProtocol = IDataAvailabilityProtocol(address(0));
+        _isSequenceWithDataAvailabilityAllowed = false;
+    }
 
     /////////////////////////////////////
     // Sequence/Verify batches functions

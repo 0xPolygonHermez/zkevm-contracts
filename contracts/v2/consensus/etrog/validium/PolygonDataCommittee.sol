@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "../../interfaces/IPolygonDataCommitteeErrors.sol";
-import "../../interfaces/IDataAvailabilityProtocol.sol";
+import "../../../interfaces/IPolygonDataCommitteeErrors.sol";
+import "../../../interfaces/IDataAvailabilityProtocol.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
