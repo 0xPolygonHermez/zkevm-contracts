@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "../../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
@@ -20,7 +20,7 @@ import "../../lib/PolygonConstantsBase.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-abstract contract PolygonRollupBaseEtrog is
+abstract contract PolygonRollupBaseFrijoa is
     Initializable,
     PolygonConstantsBase,
     IPolygonZkEVMVEtrogErrors,

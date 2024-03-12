@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "../lib/PolygonTransparentProxy.sol";
 import "../lib/PolygonAccessControlUpgradeable.sol";
 import "../lib/LegacyZKEVMStateVariables.sol";
-import "../consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
+import "../consensus/etrog/zkEVM/PolygonZkEVMExistentEtrog.sol";
 import "../lib/PolygonConstantsBase.sol";
 
 /**

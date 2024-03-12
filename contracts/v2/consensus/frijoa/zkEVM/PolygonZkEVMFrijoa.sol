@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
 
-import "../../../lib/PolygonRollupBaseFrijoa.sol";
+import "../PolygonRollupBaseFrijoa.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -22,7 +22,7 @@ contract PolygonZkEVMFrijoa is PolygonRollupBaseFrijoa {
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        PolygonRollupManager _rollupManager
+        IPolygonRollupManager _rollupManager
     )
         PolygonRollupBaseFrijoa(
             _globalExitRootManager,
