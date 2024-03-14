@@ -1,0 +1,8 @@
+{
+    "bridgeAddress": "0xaddress",
+    "networkId": 0,
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": ""
+}
