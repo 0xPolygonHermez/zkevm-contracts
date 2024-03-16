@@ -161,6 +161,7 @@ async function main() {
     // Since it's a mock deployment deployer has all the rights
     const ADD_ROLLUP_TYPE_ROLE = ethers.id("ADD_ROLLUP_TYPE_ROLE");
     const CREATE_ROLLUP_ROLE = ethers.id("CREATE_ROLLUP_ROLE");
+    const TRUSTED_AGGREGATOR_ROLE = ethers.id("TRUSTED_AGGREGATOR_ROLE");
 
     // Check role:
 
@@ -169,6 +170,15 @@ async function main() {
 
     if ((await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, deployer.address)) == false)
         await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, deployer.address);
+
+    // Optionally add a new trusted aggregator
+    if (
+        createRollupParameters.trustedAggregator && 
+        await (rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE, createRollupParameters.trustedAggregator)) == false
+    ) {
+        await rollupManagerContract.grantRole(TRUSTED_AGGREGATOR_ROLE, createRollupParameters.trustedAggregator);
+        outputJson.trustedAggregator = createRollupParameters.trustedAggregator;
+    }
 
     // Create consensus implementation
     const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;

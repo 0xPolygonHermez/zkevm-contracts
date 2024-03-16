@@ -8,9 +8,10 @@
     "adminZkEVM": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "forkID": 7,
     "consensusContract": "PolygonZkEVMEtrog",
-    "gasTokenAddress":"",
+    "gasTokenAddress": "",
     "deployerPvtKey": "",
-    "maxFeePerGas":"",
-    "maxPriorityFeePerGas":"",
-    "multiplierGas": ""
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": "",
+    "trustedAggregator": ""
 }
