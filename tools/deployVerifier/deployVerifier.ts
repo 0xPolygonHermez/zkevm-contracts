@@ -7,7 +7,7 @@ import fs = require("fs");
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../../.env")});
 import {ethers, upgrades} from "hardhat";
-const deployParameters = require("../deploy_verifier_parameters.json");
+const deployParameters = require("./deploy_verifier_parameters.json");
 
 async function main() {
     // Load provider
@@ -76,26 +76,10 @@ async function main() {
     console.log("#######################\n");
     console.log("verifierContract deployed to:", verifierContract.target);
     console.log("you can verify the new verifierContract address with:");
-    console.log(`npx hardhat  ${verifierContract.target} --network ${process.env.HARDHAT_NETWORK}\n`);
+    console.log(`npx hardhat verify ${verifierContract.target} --network ${process.env.HARDHAT_NETWORK}\n`);
 }
 
 main().catch((e) => {
     console.error(e);
     process.exit(1);
 });
-
-// OZ test functions
-function genOperation(target: any, value: any, data: any, predecessor: any, salt: any) {
-    const id = ethers.solidityPackedKeccak256(
-        ["address", "uint256", "bytes", "uint256", "bytes32"],
-        [target, value, data, predecessor, salt]
-    );
-    return {
-        id,
-        target,
-        value,
-        data,
-        predecessor,
-        salt,
-    };
-}
