@@ -1,0 +1,10 @@
+{
+    "roleName": "roleName",
+    "accountToGrantRole": "0xaddress",
+    "polygonRollupManagerAddress": "0xaddress",
+    "timelockDelay": 3600,
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": ""
+}
