@@ -23,6 +23,8 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
 }
 
 describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
+    upgrades.silenceWarnings();
+
     // Signers
     let deployer: HardhatEthersSigner;
     let rollupManager: HardhatEthersSigner;
@@ -31,7 +33,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
     // Contracts
     let polygonZkEVMBridge: PolygonZkEVMBridgeV2;
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2;
-    // let gasToken: ERC20PermitMock;
+    let token: ERC20PermitMock;
 
     const networkId = 0;
     const LEAF_TYPE_ASSET = 0;
@@ -54,9 +56,9 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
             polygonZkEVMBridge.target
         );
 
-        // deploy token
-        // const tokenFactory = await ethers.getContractFactory("ERC20PermitMock");
-        // gasToken = await tokenFactory.deploy("Polygon", "POL", deployer.address, ethers.parseEther("1000000"));
+        // Deploy token
+        const tokenFactory = await ethers.getContractFactory("ERC20PermitMock");
+        token = await tokenFactory.deploy("Polygon", "POL", deployer.address, ethers.parseEther("1000000"));
 
         // Initialize PolygonZkEVMBridge on Destination Network
         await polygonZkEVMBridge.initialize(
@@ -159,6 +161,95 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
             metadata
         );
         const afterClaim = await ethers.provider.getBalance(alice.address);
+        const aliceBalance = afterClaim - beforeClaim;
+        expect(aliceBalance).eq(amount);
+    });
+
+    it("should claim local tokens", async () => {
+        // 1. we need to setup the Sparse Merkle Tree proofs
+
+        // Local merkle tree
+        const height = 32;
+        const merkleTreeLocal = new MerkleTreeBridge(height);
+
+        const originNetworkId = networkId;
+        const tokenAddress = token.target;
+        const destinationNetworkId = networkId;
+        const destinationAddress = alice.address;
+        const amount = ethers.parseEther("1.0");
+        const metadata = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["string", "string", "uint8"],
+            ["Polygon", "POL", 18]
+        );
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetworkId,
+            tokenAddress,
+            destinationNetworkId,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+        merkleTreeLocal.add(leafValue);
+        const indexLocal = 0;
+        const proofLocal = merkleTreeLocal.getProofTreeByIndex(indexLocal);
+        const rootLocalRollup = merkleTreeLocal.getRoot();
+
+        // Double check the SMT Proof
+        expect(verifyMerkleProof(leafValue, proofLocal, indexLocal, rootLocalRollup)).to.be.equal(true);
+
+        // Rollup merkle tree
+        const merkleTreeRollup = new MerkleTreeBridge(height);
+        for (let i = 0; i < 10; i++) {
+            merkleTreeRollup.add(rootLocalRollup);
+        }
+        const indexRollup = 5;
+        const proofRollup = merkleTreeRollup.getProofTreeByIndex(indexRollup);
+        const rootRollup = merkleTreeRollup.getRoot();
+
+        // Double check the SMT Proof
+        expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
+
+        // 2. we need to update the exit root
+        const lastMainnetExitRoot = await polygonZkEVMGlobalExitRoot.lastMainnetExitRoot();
+        await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rootRollup))
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
+            .withArgs(lastMainnetExitRoot, rootRollup);
+
+        const lastRollupExitRoot = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
+        expect(lastRollupExitRoot).to.be.equal(rootRollup);
+
+        // 3. we need to calculate the global index
+        const globalIndex = computeGlobalIndex(indexLocal, indexRollup, false);
+
+        // 4. Topup the bridge
+        await token.mint(polygonZkEVMBridge.target, amount);
+
+        // const balance = await ethers.provider.getBalance(polygonZkEVMBridge.target);
+
+        // transfer tokens, then claim
+        // await expect(gasToken.transfer(polygonZkEVMBridge.target, amount))
+        //     .to.emit(gasToken, "Transfer")
+        //     .withArgs(deployer.address, polygonZkEVMBridge.target, amount);
+
+        // 5. Alice claim
+        const beforeClaim = await token.balanceOf(alice.address);
+        await polygonZkEVMBridge.claimAsset(
+            proofLocal,
+            proofRollup,
+            globalIndex,
+            lastMainnetExitRoot,
+            lastRollupExitRoot,
+            originNetworkId,
+            tokenAddress,
+            destinationNetworkId,
+            destinationAddress,
+            amount,
+            metadata
+        );
+        const afterClaim = await token.balanceOf(alice.address);
         const aliceBalance = afterClaim - beforeClaim;
         expect(aliceBalance).eq(amount);
     });
