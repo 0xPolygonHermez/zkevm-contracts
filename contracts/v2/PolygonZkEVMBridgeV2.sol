@@ -755,9 +755,10 @@ contract PolygonZkEVMBridgeV2 is
         tokenInfoToWrappedToken[tokenInfoHash] = wrappedTokenAddress;
 
         // Handle bridgeAsset from origin chain
-        wrappedTokenToTokenInfo[
-            existingTokenAddress
-        ] = TokenInformation(originNetwork, originTokenAddress);
+        wrappedTokenToTokenInfo[existingTokenAddress] = TokenInformation(
+            originNetwork,
+            originTokenAddress
+        );
         existingTokenToWrapper[existingTokenAddress] = wrappedTokenAddress;
     }
 
