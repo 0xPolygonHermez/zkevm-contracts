@@ -76,7 +76,7 @@ contract PolygonZkEVMBridgeV2 is
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
     // Existing token address --> Custom wrapper contract
-    mapping(address => address) public existingTokenToWrapper;
+    mapping(address existingToken => address customWrapper) public existingTokenToWrapper;
 
     // Rollup manager address, previously PolygonZkEVM
     /// @custom:oz-renamed-from polygonZkEVMaddress
