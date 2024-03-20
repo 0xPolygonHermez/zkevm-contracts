@@ -3,12 +3,7 @@ import {ethers, upgrades} from "hardhat";
 import {setBalance} from "@nomicfoundation/hardhat-network-helpers";
 import {type HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 
-import {
-    processorUtils,
-    contractUtils,
-    MTBridge as MerkleTreeBridge,
-    mtBridgeUtils,
-} from "@0xpolygonhermez/zkevm-commonjs";
+import {MTBridge as MerkleTreeBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
 import {
     type PolygonZkEVMGlobalExitRootV2,
     type PolygonZkEVMBridgeV2,
@@ -20,7 +15,7 @@ const LEAF_TYPE_ASSET = 0;
 const _GLOBAL_INDEX_MAINNET_FLAG = 2n ** 64n;
 const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
 
-function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolean) {
+function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: boolean) {
     if (isMainnet === true) {
         return BigInt(indexLocal) + _GLOBAL_INDEX_MAINNET_FLAG;
     } else {
@@ -139,6 +134,30 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         // await polygonZkEVMBridge.setTokenWrappedAddress()
     });
 
+    it("should set correct custom wrapper storages", async () => {
+        const originNetworkId = networkId + 1;
+        const tokenAddress = token.target;
+        const tokenFactory = await ethers.getContractFactory("ERC20ExistingMock");
+        const existingToken = await tokenFactory.deploy();
+        const wrapperFactory = await ethers.getContractFactory("CustomTokenWrapperMock");
+        const customWrapper = await wrapperFactory.deploy(existingToken.target);
+
+        await polygonZkEVMBridge
+            .connect(rollupManager)
+            .setTokenWrappedAddress(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
+
+        const tokenInfo = ethers.solidityPackedKeccak256(["uint32", "address"], [originNetworkId, tokenAddress]);
+        const wrapepdTokenAddress = await polygonZkEVMBridge.tokenInfoToWrappedToken(tokenInfo);
+        expect(wrapepdTokenAddress).to.be.equal(customWrapper.target);
+
+        // const tokenInfoRes = await polygonZkEVMBridge.wrappedTokenToTokenInfo(tokenInfo);
+        // expect(tokenInfoRes.originNetwork).to.be.equal(originNetworkId);
+        // expect(tokenInfoRes.originTokenAddress).to.be.equal(tokenAddress);
+
+        const wrapperAddress = await polygonZkEVMBridge.existingTokenToWrapper(existingToken.target);
+        expect(wrapperAddress).to.be.equal(customWrapper.target);
+    });
+
     it("should claim gas tokens", async () => {
         // 1. we need to setup the Sparse Merkle Tree proofs
         const originNetworkId = networkId;
@@ -177,7 +196,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         );
         const afterClaim = await ethers.provider.getBalance(alice.address);
         const aliceBalance = afterClaim - beforeClaim;
-        expect(aliceBalance).eq(amount);
+        expect(aliceBalance).to.be.equal(amount);
     });
 
     it("should claim local tokens", async () => {
@@ -217,7 +236,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         );
         const afterClaim = await token.balanceOf(alice.address);
         const aliceBalance = afterClaim - beforeClaim;
-        expect(aliceBalance).eq(amount);
+        expect(aliceBalance).to.be.equal(amount);
     });
 
     it("should claim non-local tokens with default wrapper", async () => {
@@ -352,7 +371,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
             );
 
         const afterBridge = await ethers.provider.getBalance(polygonZkEVMBridge.target);
-        expect(afterBridge - beforeBridge).eq(amount);
+        expect(afterBridge - beforeBridge).to.be.equal(amount);
     });
 
     it("should bridge non-wrapped tokens", async () => {
@@ -391,7 +410,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
             );
 
         const afterBridge = await token.balanceOf(polygonZkEVMBridge.target);
-        expect(afterBridge - beforeBridge).eq(amount);
+        expect(afterBridge - beforeBridge).to.be.equal(amount);
     });
 
     it("should bridge default wrapped tokens", async () => {
@@ -517,8 +536,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         // first in order to allow the custom wrapper contract to transfer out token from the
         // user account
 
-        // 4. Alice bridge token or withdraw to original chain
-
+        // 5. Alice bridge token or withdraw to original chain
         await expect(
             polygonZkEVMBridge
                 .connect(alice)
@@ -535,5 +553,8 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
                 metadata,
                 depositCount
             );
+
+        const balance = await existingToken.balanceOf(alice.address);
+        expect(balance).to.be.equal(0);
     });
 });
