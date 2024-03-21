@@ -76,7 +76,8 @@ contract PolygonZkEVMBridgeV2 is
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
     // Existing token address --> Custom wrapper contract
-    mapping(address existingToken => address customWrapper) public existingTokenToWrapper;
+    mapping(address existingToken => address customWrapper)
+        public existingTokenToWrapper;
 
     // Rollup manager address, previously PolygonZkEVM
     /// @custom:oz-renamed-from polygonZkEVMaddress
@@ -742,7 +743,7 @@ contract PolygonZkEVMBridgeV2 is
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
      * @param wrappedTokenAddress Arbitary contract that implements TokenWrapped interface
      */
-    function setTokenWrappedAddress(
+    function setCustomTokenMapping(
         uint32 originNetwork,
         address originTokenAddress,
         address wrappedTokenAddress,

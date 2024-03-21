@@ -128,10 +128,6 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
             rollupManager.address,
             "0x"
         );
-
-        // Set custom wrapped token address
-
-        // await polygonZkEVMBridge.setTokenWrappedAddress()
     });
 
     it("should set correct custom wrapper storages", async () => {
@@ -144,7 +140,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
 
         await polygonZkEVMBridge
             .connect(rollupManager)
-            .setTokenWrappedAddress(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
+            .setCustomTokenMapping(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
 
         const tokenInfo = ethers.solidityPackedKeccak256(["uint32", "address"], [originNetworkId, tokenAddress]);
         const wrapepdTokenAddress = await polygonZkEVMBridge.tokenInfoToWrappedToken(tokenInfo);
@@ -318,7 +314,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         // 3. rollupManager set the custom wrapper
         await polygonZkEVMBridge
             .connect(rollupManager)
-            .setTokenWrappedAddress(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
+            .setCustomTokenMapping(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
 
         // 4. Alice claim
         await expect(
@@ -507,7 +503,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         // 3. rollupManager set the custom wrapper
         await polygonZkEVMBridge
             .connect(rollupManager)
-            .setTokenWrappedAddress(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
+            .setCustomTokenMapping(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
 
         // 4. Alice claim
         await polygonZkEVMBridge.claimAsset(
