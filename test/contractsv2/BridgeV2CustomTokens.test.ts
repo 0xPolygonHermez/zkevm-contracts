@@ -553,4 +553,93 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         const balance = await existingToken.balanceOf(alice.address);
         expect(balance).to.be.equal(0);
     });
+
+    it("should bridge default wrapped tokens after set custom mapping", async () => {
+        // 1. we need to setup the Sparse Merkle Tree proofs
+        const originNetworkId = networkId + 1; // NOTE: non-local tokens
+        let tokenAddress = token.target;
+        let destinationNetworkId = networkId;
+        const destinationAddress = alice.address;
+        const amount = ethers.parseEther("1.0");
+        const [proofLocal, proofRollup, globalIndex, lastMainnetExitRoot, lastRollupExitRoot] = await _setProofs(
+            originNetworkId,
+            tokenAddress as string,
+            destinationNetworkId,
+            destinationAddress,
+            amount,
+            tokenMetadata,
+            polygonZkEVMGlobalExitRoot.connect(rollupManager)
+        );
+
+        // 2. We need to get the address of token wrapper
+        const tokenWrappedFactory = await ethers.getContractFactory("TokenWrapped");
+        const salt = ethers.solidityPackedKeccak256(["uint32", "address"], [originNetworkId, tokenAddress]);
+        const minimalBytecodeProxy = await polygonZkEVMBridge.BASE_INIT_BYTECODE_WRAPPED_TOKEN();
+        const hashInitCode = ethers.solidityPackedKeccak256(["bytes", "bytes"], [minimalBytecodeProxy, tokenMetadata]);
+        const precalculateWrappedErc20 = await ethers.getCreate2Address(
+            polygonZkEVMBridge.target as string,
+            salt,
+            hashInitCode
+        );
+        const defaultWrappedToken = tokenWrappedFactory.attach(precalculateWrappedErc20) as TokenWrapped;
+
+        // 3. Alice claim
+        await expect(
+            polygonZkEVMBridge.claimAsset(
+                proofLocal,
+                proofRollup,
+                globalIndex,
+                lastMainnetExitRoot,
+                lastRollupExitRoot,
+                originNetworkId,
+                tokenAddress,
+                destinationNetworkId,
+                destinationAddress,
+                amount,
+                tokenMetadata
+            )
+        )
+            .to.emit(polygonZkEVMBridge, "ClaimEvent")
+            .withArgs(globalIndex, originNetworkId, tokenAddress, destinationAddress, amount)
+            .to.emit(polygonZkEVMBridge, "NewWrappedToken")
+            .withArgs(originNetworkId, tokenAddress, precalculateWrappedErc20, tokenMetadata)
+            .to.emit(defaultWrappedToken, "Transfer")
+            .withArgs(ethers.ZeroAddress, destinationAddress, amount);
+
+        // At this point; default wrapped token is already minted
+
+        // 4. we need to deploy existing token and the wrapper
+        const tokenFactory = await ethers.getContractFactory("ERC20ExistingMock");
+        const existingToken = await tokenFactory.deploy();
+        const wrapperFactory = await ethers.getContractFactory("CustomTokenWrapperMock");
+        const customWrapper = await wrapperFactory.deploy(existingToken.target);
+
+        // 5. rollupManager set the custom wrapper
+        await polygonZkEVMBridge
+            .connect(rollupManager)
+            .setCustomTokenMapping(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
+
+        const depositCount = await polygonZkEVMBridge.depositCount();
+        tokenAddress = defaultWrappedToken.target; // Update with the address of wrapped token
+        destinationNetworkId = networkId + 1;
+        const metadata = tokenMetadata;
+
+        // 6. Alice bridge the default wrapper
+        await expect(
+            polygonZkEVMBridge
+                .connect(alice)
+                .bridgeAsset(destinationNetworkId, destinationAddress, amount, tokenAddress, true, "0x")
+        )
+            .to.emit(polygonZkEVMBridge, "BridgeEvent")
+            .withArgs(
+                LEAF_TYPE_ASSET,
+                originNetworkId,
+                token.target, // NOTE: Target token should be the original address
+                destinationNetworkId,
+                destinationAddress,
+                amount,
+                metadata,
+                depositCount
+            );
+    });
 });
