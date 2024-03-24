@@ -284,7 +284,6 @@ contract PolygonRollupManager is
     uint64 public _legacyTotalVerifiedBatches;
 
     // Last timestamp when an aggregation happen
-
     uint64 public lastAggregationTimestamp;
 
     // Trusted aggregator timeout, if a sequence is not verified in this time frame,
@@ -315,10 +314,10 @@ contract PolygonRollupManager is
     mapping(uint32 rollupID => RollupDataV2) public rollupIDToRollupData;
 
     // Total sequenced zkGasLimit across all rollups
-    uint64 public totalZkGasLimit;
+    uint128 public totalZkGasLimit;
 
     // Total verified zkGasLimit across all rollups
-    uint64 public totalVerifiedZkGasLimit;
+    uint128 public totalVerifiedZkGasLimit;
 
     /**
      * @dev Emitted when a new rollup type is added
@@ -857,7 +856,7 @@ contract PolygonRollupManager is
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
         // Update total sequence parameters
-        totalZkGasLimit += uint256(zkGasLimit);
+        totalZkGasLimit += uint128(zkGasLimit);
 
         // Update sequenced batches of the current rollup
         uint64 currentSequenceNum = rollup.lastSequenceNum;
