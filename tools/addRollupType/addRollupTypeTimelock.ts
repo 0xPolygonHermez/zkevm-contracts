@@ -116,6 +116,7 @@ async function main() {
     // Create consensus implementation
     const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
     let PolygonconsensusContract;
+    let PolygonconsensusContractAddress;
 
     if (
         addRollupParameters.polygonconsensusContract === undefined ||
@@ -129,12 +130,14 @@ async function main() {
         );
         await PolygonconsensusContract.waitForDeployment();
 
+        PolygonconsensusContractAddress = PolygonconsensusContract.target;
+
         console.log("#######################\n");
-        console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContract.target}`);
+        console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContractAddress}`);
 
         console.log("you can verify the new impl address with:");
         console.log(
-            `npx hardhat verify --constructor-args upgrade/arguments.js ${PolygonconsensusContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
+            `npx hardhat verify --constructor-args upgrade/arguments.js ${PolygonconsensusContractAddress} --network ${process.env.HARDHAT_NETWORK}\n`
         );
         console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
             polygonZkEVMGlobalExitRootAddress,
@@ -143,7 +146,7 @@ async function main() {
             polygonRollupManagerAddress,
         ]);
     } else {
-        PolygonconsensusContract = addRollupParameters.polygonconsensusContract;
+        PolygonconsensusContractAddress = addRollupParameters.polygonconsensusContract;
     }
 
     // load timelock
@@ -153,7 +156,7 @@ async function main() {
         polygonRollupManagerAddress,
         0, // value
         PolgonRollupManagerFactory.interface.encodeFunctionData("addNewRollupType", [
-            PolygonconsensusContract.target,
+            PolygonconsensusContractAddress,
             verifierAddress,
             forkID,
             rollupCompatibilityID,
