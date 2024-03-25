@@ -135,7 +135,7 @@ contract PolygonRollupManager is
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupCompatibilityID Rollup ID used for compatibility checks when upgrading
      */
-    struct RollupDataV2 {
+    struct RollupDataBlobs {
         IPolygonRollupBase rollupContract;
         uint64 chainID;
         IVerifierRollup verifier;
@@ -312,7 +312,7 @@ contract PolygonRollupManager is
     IVerifierRollup public aggregateRollupVerifier; // TODO set multiple?¿
 
     // Rollups ID mapping
-    mapping(uint32 rollupID => RollupDataV2) public rollupIDToRollupData;
+    mapping(uint32 rollupID => RollupDataBlobs) public rollupIDToRollupData;
 
     // Total sequenced zkGasLimit across all rollups
     uint128 public totalZkGasLimit;
@@ -768,6 +768,12 @@ contract PolygonRollupManager is
         );
     }
 
+    function updateRollupByCDK(
+        ITransparentUpgradeableProxy rollupContract,
+        uint32 newRollupTypeID,
+        bytes calldata upgradeData
+    ) external {}
+
     /**
      * @notice Upgrade an existing rollup
      * @param rollupContract Rollup consensus proxy address
@@ -834,8 +840,8 @@ contract PolygonRollupManager is
 
     /**
      * @notice callback called by one of the consensus managed by this contract once data is sequenced
-     * @param zkGasLimit zkGasLimit
-     * @param zkGasLimit zkGasLimit
+     * @param zkGasLimit zkGasLimit computational power needed for compute a proof
+     * @param newBlobsSequenced zkGasLimit
      * @param newAccInputHash New accumulate input hash
      */
     function onSequenceBlobs(
