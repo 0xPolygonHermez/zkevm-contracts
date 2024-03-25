@@ -30,7 +30,7 @@ deploy:testnet:v1ToV2:localhost
 -   `admin`:address, Admin address, can adjust RollupManager parameters or stop the emergency state
 -   `trustedAggregator`:address, Trusted aggregator address
 -   `trustedAggregatorTimeout`: uint64, If a sequence is not verified in this timeout everyone can verify it
--   `pendingStateTimeout`: uint64, Once a pending state exceeds this timeout it can be consolidated
+-   `pendingStateTimeout`: uint64, Once a pending state exceeds this timeout it can be consolidated by everyone
 -   `emergencyCouncilAddress`:address, Emergency council addres
 -   `polTokenAddress`: address, Matic token address, only if deploy on testnet can be left blank and will fullfilled by the scripts.
 -   `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:goerli` script.
