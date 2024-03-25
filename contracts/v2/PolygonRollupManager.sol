@@ -58,7 +58,8 @@ contract PolygonRollupManager is
     struct SequencedData {
         bytes32 accInputHash;
         uint64 sequencedTimestamp;
-        uint192 accZkGasLimit;
+        uint64 currentBlobNum;
+        uint128 accZkGasLimit;
     }
 
     /**
