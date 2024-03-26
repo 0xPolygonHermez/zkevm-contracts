@@ -56,7 +56,7 @@ async function main() {
                     [timelockAdminAddress],
                     [timelockAdminAddress],
                     timelockAdminAddress,
-                    deployOutputParameters.polygonRollupManager,
+                    deployOutputParameters.polygonRollupManagerAddress,
                 ],
             },
         );
@@ -81,7 +81,7 @@ async function main() {
         await hre.run(
             'verify:verify',
             {
-                address: deployOutputParameters.polygonRollupManager,
+                address: deployOutputParameters.polygonRollupManagerAddress,
                 constructorArguments: [
                     deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
                     deployOutputParameters.polTokenAddress,
@@ -100,7 +100,7 @@ async function main() {
             {
                 address: deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
                 constructorArguments: [
-                    deployOutputParameters.polygonRollupManager,
+                    deployOutputParameters.polygonRollupManagerAddress,
                     deployOutputParameters.polygonZkEVMBridgeAddress,
                 ],
             },
@@ -179,7 +179,7 @@ async function main() {
                         deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
                         deployOutputParameters.polTokenAddress,
                         deployOutputParameters.polygonZkEVMBridgeAddress,
-                        deployOutputParameters.polygonRollupManager,
+                        deployOutputParameters.polygonRollupManagerAddress,
                     ],
                 },
             );
@@ -197,7 +197,7 @@ async function main() {
                         deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
                         deployOutputParameters.polTokenAddress,
                         deployOutputParameters.polygonZkEVMBridgeAddress,
-                        deployOutputParameters.polygonRollupManager,
+                        deployOutputParameters.polygonRollupManagerAddress,
                     ],
                 },
             );
