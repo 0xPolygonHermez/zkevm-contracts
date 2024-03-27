@@ -30,8 +30,8 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
 
         // Constant deployment variables
         _batchFee = 0.1 ether; // 0.1 Matic
-        verifyBatchTimeTarget = 30 minutes;
-        multiplierBatchFee = 1002;
+        verifySequenceTimeTarget = 30 minutes;
+        multiplierZkGasPrice = 1002;
 
         // Initialize OZ contracts
         __AccessControl_init();
@@ -85,7 +85,7 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
      * @param oldStateRootArray Array of state root before batch is processed
      */
     function getInputSnarkBytes(
-        VerifyBatchData[] calldata verifyBatchesData,
+        VerifySequenceData[] calldata verifyBatchesData,
         bytes32[] calldata oldAccInputHashArray,
         bytes32[] calldata newAccInputHasArray,
         bytes32[] calldata oldStateRootArray
@@ -146,15 +146,15 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
      * @param ptrAccumulateInputSnarkBytes Memory pointer to the bytes array that will accumulate all rollups data to finally be used as the snark input
      */
     function _appendDataToInputSnarkBytesMock(
-        RollupData storage rollup,
-        VerifyBatchData calldata verifyBatchData,
+        RollupDataSequenceBased storage rollup,
+        VerifySequenceData calldata verifyBatchData,
         bytes32 oldStateRoot,
         bytes32 oldAccInputHash,
         bytes32 newAccInputHash,
         uint256 ptrAccumulateInputSnarkBytes
     ) internal view returns (uint256) {
-        uint64 initNumBatch = verifyBatchData.initNumBatch;
-        uint64 finalNewBatch = verifyBatchData.finalNewBatch;
+        uint64 initNumBatch = verifyBatchData.initSequenceNum;
+        uint64 finalNewBatch = verifyBatchData.finalSequenceNum;
         bytes32 newLocalExitRoot = verifyBatchData.newLocalExitRoot;
         bytes32 newStateRoot = verifyBatchData.newStateRoot;
 

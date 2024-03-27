@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.24;
 
-import "../PolygonRollupBaseFeijoa.sol";
+import "../../../lib/PolygonRollupBaseFeijoa.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -24,7 +24,7 @@ contract PolygonZkEVMFeijoa is PolygonRollupBaseFeijoa {
         IPolygonZkEVMBridgeV2 _bridgeAddress,
         PolygonRollupManager _rollupManager
     )
-        PolygonRollupBasefeijoa(
+        PolygonRollupBaseFeijoa(
             _globalExitRootManager,
             _pol,
             _bridgeAddress,

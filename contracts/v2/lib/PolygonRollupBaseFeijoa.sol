@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../../../../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
+import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../../../../interfaces/IPolygonZkEVMErrors.sol";
-import "../../../../interfaces/IPolygonZkEVMVEtrogErrors.sol";
-import "../../../../PolygonRollupManager.sol";
-import "../../../../interfaces/IPolygonRollupBase.sol";
-import "../../../../interfaces/IPolygonZkEVMBridgeV2.sol";
+import "../../interfaces/IPolygonZkEVMErrors.sol";
+import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
+import "../PolygonRollupManager.sol";
+import "../interfaces/IPolygonRollupBase.sol";
+import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "../../../../lib/PolygonConstantsBase.sol";
+import "./PolygonConstantsBase.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -20,11 +20,11 @@ import "../../../../lib/PolygonConstantsBase.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-abstract contract PolygonRollupBaseEtrogNoGap is
+abstract contract PolygonRollupBaseFeijoa is
     Initializable,
     PolygonConstantsBase,
     IPolygonZkEVMVEtrogErrors,
-    IPolygonRollupBase
+    IPolygonRollupBaseFeijoa
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -192,6 +192,12 @@ abstract contract PolygonRollupBaseEtrogNoGap is
     uint32 public gasTokenNetwork;
 
     /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
+    uint256[50] private _gap;
+
+    /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
      */
     event SequenceBatches(uint64 indexed numBatch, bytes32 l1InfoRoot);
@@ -224,7 +230,7 @@ abstract contract PolygonRollupBaseEtrogNoGap is
      * @dev Emitted when a aggregator verifies batches
      */
     event VerifyBatches(
-        uint64 indexed numBatch,
+        uint64 indexed sequneceNum,
         bytes32 stateRoot,
         address indexed aggregator
     );
@@ -350,10 +356,7 @@ abstract contract PolygonRollupBaseEtrogNoGap is
 
         lastAccInputHash = newAccInputHash;
 
-        rollupManager.onSequenceBatches(
-            uint64(1), // num total batches
-            newAccInputHash
-        );
+        rollupManager.onSequence(0, uint64(1), newAccInputHash);
 
         // Set initialize variables
         admin = _admin;
@@ -550,11 +553,12 @@ abstract contract PolygonRollupBaseEtrogNoGap is
         pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
-            rollupManager.getBatchFee() * nonForcedBatchesSequenced
+            rollupManager.getZkGasPrice() * nonForcedBatchesSequenced
         );
 
-        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
+        uint64 currentBatchSequenced = rollupManager.onSequence(
             uint64(batchesNum),
+            uint64(1),
             currentAccInputHash
         );
 
@@ -570,16 +574,16 @@ abstract contract PolygonRollupBaseEtrogNoGap is
 
     /**
      * @notice Callback on verify batches, can only be called by the rollup manager
-     * @param lastVerifiedBatch Last verified batch
+     * @param lastVerifiedSequenceNum Last verified sequence
      * @param newStateRoot new state root
      * @param aggregator Aggregator address
      */
-    function onVerifyBatches(
-        uint64 lastVerifiedBatch,
+    function onVerifySequences(
+        uint64 lastVerifiedSequenceNum,
         bytes32 newStateRoot,
         address aggregator
     ) public virtual override onlyRollupManager {
-        emit VerifyBatches(lastVerifiedBatch, newStateRoot, aggregator);
+        emit VerifyBatches(lastVerifiedSequenceNum, newStateRoot, aggregator);
     }
 
     ////////////////////////////
@@ -605,7 +609,7 @@ abstract contract PolygonRollupBaseEtrogNoGap is
         }
 
         // Calculate pol collateral
-        uint256 polFee = rollupManager.getForcedBatchFee();
+        uint256 polFee = rollupManager.getForcedZkGasPrice();
 
         if (polFee > polAmount) {
             revert NotEnoughPOLAmount();
@@ -749,7 +753,8 @@ abstract contract PolygonRollupBaseEtrogNoGap is
         lastAccInputHash = currentAccInputHash;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
-        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
+        uint64 currentBatchSequenced = rollupManager.onSequence(
+            0,
             uint64(batchesNum),
             currentAccInputHash
         );

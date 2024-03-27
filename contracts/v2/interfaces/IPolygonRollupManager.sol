@@ -192,4 +192,39 @@ interface IPolygonRollupManager {
      * @dev Thrown when do not sequence any blob
      */
     error MustSequenceSomeBlob();
+
+    /**
+     * @dev Thrown when the final verification sequence is below or equal the last verification sequence
+     */
+    error FinalNumSequenceBelowLastVerifiedSequence();
+
+    /**
+     * @dev When the init sequence was verified in another forkID
+     */
+    error InitSequenceMustMatchCurrentForkID();
+
+    /**
+     * @dev Thrown when the init num sequence does not match with the one in the pending state
+     */
+    error InitSequenceNumDoesNotMatchPendingState();
+
+    /**
+     * @dev Thrown when the final num sequence does not match with the one in the pending state
+     */
+    error FinalNumSequenceDoesNotMatchPendingState();
+
+    /**
+     * @dev Thrown when attempting to set a new multiplier zkgas in a invalid range of values
+     */
+    error InvalidRangeMultiplierZkGasPrice();
+
+    /**
+     * @dev Thrown when attempting to set a seuqnece time target in an invalid range of values
+     */
+    error InvalidRangeSequenceTimeTarget();
+
+    /**
+     * @dev When a set a zkgasprice out of range
+     */
+    error zkGasPriceOfRange();
 }
