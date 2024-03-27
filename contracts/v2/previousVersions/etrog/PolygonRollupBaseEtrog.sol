@@ -2,15 +2,15 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
+import "../../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../interfaces/IPolygonZkEVMErrors.sol";
-import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
-import "../PolygonRollupManager.sol";
-import "../interfaces/IPolygonRollupBase.sol";
-import "../interfaces/IPolygonZkEVMBridgeV2.sol";
+import "../../../interfaces/IPolygonZkEVMErrors.sol";
+import "../../interfaces/IPolygonZkEVMVEtrogErrors.sol";
+import "../PolygonRollupManagerPrevious.sol";
+import "../../interfaces/IPolygonRollupBase.sol";
+import "../../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "./PolygonConstantsBase.sol";
+import "../../lib/PolygonConstantsBase.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -20,7 +20,7 @@ import "./PolygonConstantsBase.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-abstract contract PolygonRollupBaseFeijoa is
+abstract contract PolygonRollupBaseEtrog is
     Initializable,
     PolygonConstantsBase,
     IPolygonZkEVMVEtrogErrors,
@@ -146,7 +146,7 @@ abstract contract PolygonRollupBaseFeijoa is
     IPolygonZkEVMBridgeV2 public immutable bridgeAddress;
 
     // Rollup manager
-    PolygonRollupManager public immutable rollupManager;
+    PolygonRollupManagerPrevious public immutable rollupManager;
 
     // Address that will be able to adjust contract parameters
     address public admin;
@@ -277,7 +277,7 @@ abstract contract PolygonRollupBaseFeijoa is
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        PolygonRollupManager _rollupManager
+        PolygonRollupManagerPrevious _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
         pol = _pol;

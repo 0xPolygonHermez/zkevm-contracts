@@ -3,9 +3,9 @@ pragma solidity 0.8.24;
 import "../PolygonRollupManager.sol";
 
 /**
- * PolygonRollupManager Test
+ * PolygonRollupManager mock
  */
-contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
+contract PolygonRollupManagerMock is PolygonRollupManager {
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol MATIC token address
@@ -17,14 +17,14 @@ contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
         IPolygonZkEVMBridge _bridgeAddress
     ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}
 
-    function initialize(
+    function initializeMock(
         address trustedAggregator,
         uint64 _pendingStateTimeout,
         uint64 _trustedAggregatorTimeout,
         address admin,
         address timelock,
         address emergencyCouncil
-    ) external initializer {
+    ) external reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
@@ -64,5 +64,18 @@ contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
         _setRoleAdmin(_EMERGENCY_COUNCIL_ROLE, _EMERGENCY_COUNCIL_ADMIN);
         _setupRole(_EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
         _setupRole(_EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
+
+        // Since it's mock, use admin for everything
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
+    function prepareMockCalculateRoot(bytes32[] memory localExitRoots) public {
+        rollupCount = uint32(localExitRoots.length);
+
+        // Add local Exit roots;
+        for (uint256 i = 0; i < localExitRoots.length; i++) {
+            rollupIDToRollupData[uint32(i + 1)]
+                .lastLocalExitRoot = localExitRoots[i];
+        }
     }
 }
