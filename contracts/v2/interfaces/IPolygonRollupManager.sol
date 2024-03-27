@@ -177,4 +177,19 @@ interface IPolygonRollupManager {
      * @dev When try to create a new rollup and set a chainID bigger than 32 bits
      */
     error ChainIDOutOfRange();
+
+    /**
+     * @dev When try to upgrade a rollup a sender that's not the admin of the rollup
+     */
+    error OnlyRollupAdmin();
+
+    /**
+     * @dev When try to update a rollup with sequences pending to verify
+     */
+    error AllSequencedMustBeVerified();
+
+    /**
+     * @dev Thrown when do not sequence any blob
+     */
+    error MustSequenceSomeBlob();
 }
