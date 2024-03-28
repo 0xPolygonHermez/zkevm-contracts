@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
 
-import "../../lib/PolygonRollupBaseEtrog.sol";
-import "../../interfaces/IDataAvailabilityProtocol.sol";
-import "../../interfaces/IPolygonValidium.sol";
+import "../PolygonRollupBaseEtrog.sol";
+import "../../../interfaces/IDataAvailabilityProtocol.sol";
+import "../../../interfaces/IPolygonValidium.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -60,7 +60,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        PolygonRollupManager _rollupManager
+        PolygonRollupManagerPrevious _rollupManager
     )
         PolygonRollupBaseEtrog(
             _globalExitRootManager,

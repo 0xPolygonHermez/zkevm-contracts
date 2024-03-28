@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
 import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../../lib/EmergencyManager.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
@@ -20,11 +20,11 @@ import "./PolygonConstantsBase.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-abstract contract PolygonRollupBaseEtrog is
+abstract contract PolygonRollupBaseFeijoa is
     Initializable,
     PolygonConstantsBase,
     IPolygonZkEVMVEtrogErrors,
-    IPolygonRollupBase
+    IPolygonRollupBaseFeijoa
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -230,10 +230,15 @@ abstract contract PolygonRollupBaseEtrog is
      * @dev Emitted when a aggregator verifies batches
      */
     event VerifyBatches(
-        uint64 indexed numBatch,
+        uint64 indexed sequneceNum,
         bytes32 stateRoot,
         address indexed aggregator
     );
+
+    /**
+     * @dev Emitted when the admin updates the network name
+     */
+    event SetNetworkName(string newNetworkName);
 
     /**
      * @dev Emitted when the admin updates the trusted sequencer address
@@ -356,10 +361,7 @@ abstract contract PolygonRollupBaseEtrog is
 
         lastAccInputHash = newAccInputHash;
 
-        rollupManager.onSequenceBatches(
-            uint64(1), // num total batches
-            newAccInputHash
-        );
+        rollupManager.onSequence(0, uint64(1), newAccInputHash);
 
         // Set initialize variables
         admin = _admin;
@@ -556,11 +558,12 @@ abstract contract PolygonRollupBaseEtrog is
         pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
-            rollupManager.getBatchFee() * nonForcedBatchesSequenced
+            rollupManager.getZkGasPrice() * nonForcedBatchesSequenced
         );
 
-        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
+        uint64 currentBatchSequenced = rollupManager.onSequence(
             uint64(batchesNum),
+            uint64(1),
             currentAccInputHash
         );
 
@@ -576,16 +579,16 @@ abstract contract PolygonRollupBaseEtrog is
 
     /**
      * @notice Callback on verify batches, can only be called by the rollup manager
-     * @param lastVerifiedBatch Last verified batch
+     * @param lastVerifiedSequenceNum Last verified sequence
      * @param newStateRoot new state root
      * @param aggregator Aggregator address
      */
-    function onVerifyBatches(
-        uint64 lastVerifiedBatch,
+    function onVerifySequences(
+        uint64 lastVerifiedSequenceNum,
         bytes32 newStateRoot,
         address aggregator
     ) public virtual override onlyRollupManager {
-        emit VerifyBatches(lastVerifiedBatch, newStateRoot, aggregator);
+        emit VerifyBatches(lastVerifiedSequenceNum, newStateRoot, aggregator);
     }
 
     ////////////////////////////
@@ -611,7 +614,7 @@ abstract contract PolygonRollupBaseEtrog is
         }
 
         // Calculate pol collateral
-        uint256 polFee = rollupManager.getForcedBatchFee();
+        uint256 polFee = rollupManager.getForcedZkGasPrice();
 
         if (polFee > polAmount) {
             revert NotEnoughPOLAmount();
@@ -755,7 +758,8 @@ abstract contract PolygonRollupBaseEtrog is
         lastAccInputHash = currentAccInputHash;
         lastForceBatchSequenced = currentLastForceBatchSequenced;
 
-        uint64 currentBatchSequenced = rollupManager.onSequenceBatches(
+        uint64 currentBatchSequenced = rollupManager.onSequence(
+            0,
             uint64(batchesNum),
             currentAccInputHash
         );
@@ -766,6 +770,16 @@ abstract contract PolygonRollupBaseEtrog is
     //////////////////
     // admin functions
     //////////////////
+
+    /**
+     * @notice Allow the admin to set the network name
+     * @param newNetworkName New network name
+     */
+    function setNetworkName(string memory newNetworkName) external onlyAdmin {
+        networkName = newNetworkName;
+
+        emit SetNetworkName(newNetworkName);
+    }
 
     /**
      * @notice Allow the admin to set a new trusted sequencer

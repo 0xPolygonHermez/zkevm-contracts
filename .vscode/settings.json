@@ -1,7 +1,7 @@
 {
   "editor.formatOnSave": true,
   "solidity.linter": "solhint",
-  "solidity.compileUsingRemoteVersion": "v0.8.20+commit.a1b79de6",
+  "solidity.compileUsingRemoteVersion": "v0.8.24+commit.a1b79de6",
   "solidity.remappings": [
     "@openzeppelin/=node_modules/@openzeppelin"
   ],

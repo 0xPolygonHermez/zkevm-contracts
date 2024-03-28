@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
 
-import "../../lib/PolygonRollupBaseEtrog.sol";
+import "../PolygonRollupBaseEtrog.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -54,7 +54,7 @@ contract PolygonZkEVMExistentEtrog is PolygonRollupBaseEtrog {
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        PolygonRollupManager _rollupManager
+        PolygonRollupManagerPrevious _rollupManager
     )
         PolygonRollupBaseEtrog(
             _globalExitRootManager,

@@ -2,15 +2,15 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../../../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
+import "../../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../../../interfaces/IPolygonZkEVMErrors.sol";
-import "../../../interfaces/IPolygonZkEVMVEtrogErrors.sol";
-import "../../../PolygonRollupManager.sol";
-import "../../../interfaces/IPolygonRollupBase.sol";
-import "../../../interfaces/IPolygonZkEVMBridgeV2.sol";
+import "../../../interfaces/IPolygonZkEVMErrors.sol";
+import "../../interfaces/IPolygonZkEVMVEtrogErrors.sol";
+import "../PolygonRollupManagerPrevious.sol";
+import "../../interfaces/IPolygonRollupBase.sol";
+import "../../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "../../../lib/PolygonConstantsBase.sol";
+import "../../lib/PolygonConstantsBase.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -20,7 +20,7 @@ import "../../../lib/PolygonConstantsBase.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-abstract contract PolygonRollupBaseEtrogNoGap is
+abstract contract PolygonRollupBaseEtrog is
     Initializable,
     PolygonConstantsBase,
     IPolygonZkEVMVEtrogErrors,
@@ -146,7 +146,7 @@ abstract contract PolygonRollupBaseEtrogNoGap is
     IPolygonZkEVMBridgeV2 public immutable bridgeAddress;
 
     // Rollup manager
-    PolygonRollupManager public immutable rollupManager;
+    PolygonRollupManagerPrevious public immutable rollupManager;
 
     // Address that will be able to adjust contract parameters
     address public admin;
@@ -190,6 +190,12 @@ abstract contract PolygonRollupBaseEtrogNoGap is
 
     // Native network of the token address of the gas tokena address. This variable it's just for read purposes
     uint32 public gasTokenNetwork;
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
+    uint256[50] private _gap;
 
     /**
      * @dev Emitted when the trusted sequencer sends a new batch of transactions
@@ -271,7 +277,7 @@ abstract contract PolygonRollupBaseEtrogNoGap is
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        PolygonRollupManager _rollupManager
+        PolygonRollupManagerPrevious _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
         pol = _pol;

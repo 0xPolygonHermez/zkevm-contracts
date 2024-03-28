@@ -1,14 +1,14 @@
 {
-  "extends": "solhint:recommended",
-  "rules": {
-    "mark-callable-contracts": "off",
-    "no-empty-blocks": "off",
-    "compiler-version": ["error", "0.8.20"],
-    "private-vars-leading-underscore": "error",
-    "bracket-align": "off",
-    "reason-string": "off",
-    "not-rely-on-time": "off",
-    "no-inline-assembly": "off",
-    "check-send-result": "off"
-  }
+    "extends": "solhint:recommended",
+    "rules": {
+        "mark-callable-contracts": "off",
+        "no-empty-blocks": "off",
+        "compiler-version": ["error", "0.8.24"],
+        "private-vars-leading-underscore": "error",
+        "bracket-align": "off",
+        "reason-string": "off",
+        "not-rely-on-time": "off",
+        "no-inline-assembly": "off",
+        "check-send-result": "off"
+    }
 }

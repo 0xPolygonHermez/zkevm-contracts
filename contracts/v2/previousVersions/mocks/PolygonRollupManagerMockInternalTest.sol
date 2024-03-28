@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.24;
-import "../PolygonRollupManager.sol";
+import "../PolygonRollupManagerPrevious.sol";
 
 /**
  * PolygonRollupManager Test
  */
-contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
+contract PolygonRollupManagerMockInternalTestPrevious is
+    PolygonRollupManagerPrevious
+{
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol MATIC token address
@@ -15,7 +17,13 @@ contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridge _bridgeAddress
-    ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}
+    )
+        PolygonRollupManagerPrevious(
+            _globalExitRootManager,
+            _pol,
+            _bridgeAddress
+        )
+    {}
 
     function initialize(
         address trustedAggregator,
@@ -23,15 +31,19 @@ contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
         uint64 _trustedAggregatorTimeout,
         address admin,
         address timelock,
-        address emergencyCouncil
-    ) external initializer {
+        address emergencyCouncil,
+        PolygonZkEVMExistentEtrog polygonZkEVM,
+        IVerifierRollup zkEVMVerifier,
+        uint64 zkEVMForkID,
+        uint64 zkEVMChainID
+    ) external override reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
         // Constant deployment variables
         _batchFee = 0.1 ether; // 0.1 Matic
-        verifySequenceTimeTarget = 30 minutes;
-        multiplierZkGasPrice = 1002;
+        verifyBatchTimeTarget = 30 minutes;
+        multiplierBatchFee = 1002;
 
         // Initialize OZ contracts
         __AccessControl_init();
@@ -64,5 +76,8 @@ contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
         _setRoleAdmin(_EMERGENCY_COUNCIL_ROLE, _EMERGENCY_COUNCIL_ADMIN);
         _setupRole(_EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
         _setupRole(_EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
+
+        // Since it's mock, use admin for everything
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 }

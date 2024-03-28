@@ -29,7 +29,7 @@ function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
     return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [mainnetExitRoot, rollupExitRoot]);
 }
 
-describe("PolygonZkEVMEtrog", () => {
+describe("PolygonValidiumEtrog", () => {
     let deployer: any;
     let timelock: any;
     let emergencyCouncil: any;

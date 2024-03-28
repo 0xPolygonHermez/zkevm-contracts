@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
-import "../PolygonRollupManager.sol";
+pragma solidity 0.8.24;
+import "../PolygonRollupManagerPrevious.sol";
 
 /**
- * PolygonRollupManager Test
+ * PolygonRollupManager mock
  */
-contract PolygonRollupManagerMockInternalTest is PolygonRollupManager {
+contract PolygonRollupManagerMockPrevious is PolygonRollupManagerPrevious {
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol MATIC token address
@@ -15,20 +15,22 @@ contract PolygonRollupManagerMockInternalTest is PolygonRollupManager {
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridge _bridgeAddress
-    ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}
+    )
+        PolygonRollupManagerPrevious(
+            _globalExitRootManager,
+            _pol,
+            _bridgeAddress
+        )
+    {}
 
-    function initialize(
+    function initializeMock(
         address trustedAggregator,
         uint64 _pendingStateTimeout,
         uint64 _trustedAggregatorTimeout,
         address admin,
         address timelock,
-        address emergencyCouncil,
-        PolygonZkEVMExistentEtrog polygonZkEVM,
-        IVerifierRollup zkEVMVerifier,
-        uint64 zkEVMForkID,
-        uint64 zkEVMChainID
-    ) external override reinitializer(2) {
+        address emergencyCouncil
+    ) external reinitializer(2) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
@@ -71,5 +73,15 @@ contract PolygonRollupManagerMockInternalTest is PolygonRollupManager {
 
         // Since it's mock, use admin for everything
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
+    function prepareMockCalculateRoot(bytes32[] memory localExitRoots) public {
+        rollupCount = uint32(localExitRoots.length);
+
+        // Add local Exit roots;
+        for (uint256 i = 0; i < localExitRoots.length; i++) {
+            rollupIDToRollupData[uint32(i + 1)]
+                .lastLocalExitRoot = localExitRoots[i];
+        }
     }
 }
