@@ -157,6 +157,13 @@ contract PolygonRollupManager is
     bytes32 internal constant _EMERGENCY_COUNCIL_ADMIN =
         keccak256("EMERGENCY_COUNCIL_ADMIN");
 
+    // Be able to set rollup exit root
+    bytes32 internal constant _UPDATE_ROLLUP_EXIT_ROOT_ROLE =
+        keccak256("UPDATE_ROOLUP_EXIT_ROOT_ROLE");
+
+    bytes32 internal constant _UPDATE_ROLLUP_EXIT_ROOT_ROLE_ADMIN =
+        keccak256("UPDATE_ROLLUP_EXIT_ROOT_ROLE_ADMIN");
+
     // Global Exit Root address
     IPolygonZkEVMGlobalExitRootV2 public immutable globalExitRootManager;
 
@@ -607,6 +614,19 @@ contract PolygonRollupManager is
         rollup.batchNumToStateRoot[0] = rollupType.genesis;
         rollup.rollupTypeID = rollupTypeID;
         rollup.rollupCompatibilityID = rollupType.rollupCompatibilityID;
+
+        {
+            bytes32 rootUpdaterRole = _getRollupExitRootUpdaterRole(
+                rollupAddress
+            );
+            bytes32 rootUpdaterRoleAdmin = _getRollupExitRootUpdaterRoleAdminRole(
+                    rollupAddress
+                );
+            // setting rollup exit root updater role admin to the same address
+            // as rollup admin
+            _setRoleAdmin(rootUpdaterRole, rootUpdaterRoleAdmin);
+            _grantRole(rootUpdaterRoleAdmin, admin);
+        }
 
         emit CreateNewRollup(
             rollupID,
@@ -1609,6 +1629,17 @@ contract PolygonRollupManager is
         emit SetBatchFee(newBatchFee);
     }
 
+    function updateRollupExitRoot(uint32 rollupId, bytes32 newRoot) external {
+        RollupData storage rollupData = rollupIDToRollupData[rollupId];
+        address rollupAddress = address(rollupData.rollupContract);
+        bytes32 role = _getRollupExitRootUpdaterRole(rollupAddress);
+        _checkRole(role, msg.sender);
+        // maybe we should be checking here if there is any pending state?
+        rollupData.lastLocalExitRoot = newRoot;
+        // update rollup exit root(
+        globalExitRootManager.updateExitRoot(getRollupExitRoot());
+    }
+
     ////////////////////////
     // view/pure functions
     ///////////////////////
@@ -1871,6 +1902,22 @@ contract PolygonRollupManager is
         } else {
             return false;
         }
+    }
+
+    function _getRollupExitRootUpdaterRole(
+        address rollupAddress
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(abi.encode(_UPDATE_ROLLUP_EXIT_ROOT_ROLE, rollupAddress));
+    }
+
+    function _getRollupExitRootUpdaterRoleAdminRole(
+        address rollupAddress
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(_UPDATE_ROLLUP_EXIT_ROOT_ROLE_ADMIN, rollupAddress)
+            );
     }
 
     /**
