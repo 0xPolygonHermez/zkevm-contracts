@@ -227,4 +227,9 @@ interface IPolygonRollupManager {
      * @dev When a set a zkgasprice out of range
      */
     error zkGasPriceOfRange();
+
+    /**
+     * @dev Thrown when attempting to update a pending state that is not consolidated
+     */
+    error CannotUpdateWithNotConsolidatedPendingState();
 }
