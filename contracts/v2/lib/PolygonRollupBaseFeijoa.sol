@@ -236,6 +236,11 @@ abstract contract PolygonRollupBaseFeijoa is
     );
 
     /**
+     * @dev Emitted when the admin updates the network name
+     */
+    event SetNetworkName(string newNetworkName);
+
+    /**
      * @dev Emitted when the admin updates the trusted sequencer address
      */
     event SetTrustedSequencer(address newTrustedSequencer);
@@ -765,6 +770,16 @@ abstract contract PolygonRollupBaseFeijoa is
     //////////////////
     // admin functions
     //////////////////
+
+    /**
+     * @notice Allow the admin to set the network name
+     * @param newNetworkName New network name
+     */
+    function setNetworkName(string memory newNetworkName) external onlyAdmin {
+        networkName = newNetworkName;
+
+        emit SetNetworkName(newNetworkName);
+    }
 
     /**
      * @notice Allow the admin to set a new trusted sequencer

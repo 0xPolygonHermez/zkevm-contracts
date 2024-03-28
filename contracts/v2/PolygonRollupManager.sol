@@ -52,7 +52,7 @@ contract PolygonRollupManager is
      * @param accInputHash Hash chain that contains all the information to process a sequence:
      *  keccak256(bytes32 oldAccInputHash, keccak256(bytes transactions), bytes32 globalExitRoot, uint64 timestamp, address seqAddress)
      * @param sequencedTimestamp Sequenced timestamp
-     * @param zkGasLimit Previous last sequence sequenced before the current one, this is used to properly calculate the fees
+     * @param accZkGasLimit Previous last sequence sequenced before the current one, this is used to properly calculate the fees
      */
     struct SequencedData {
         bytes32 accInputHash;
@@ -194,10 +194,10 @@ contract PolygonRollupManager is
     uint256 internal constant _EXIT_TREE_DEPTH = 32;
 
     // Bytes that will be added to the snark input for every rollup aggregated
-    // |   32 bytes   |    32 bytes      |   8 bytes    |   8 bytes  |   8 bytes  |  32 bytes      |    32 bytes         | 32 bytes         | 8 bytes       |
-    // | oldStateRoot |  oldAccInputHash | initSequenceNum |   chainID  |   forkID   |  newStateRoot  |   newAccInputHash   | newLocalExitRoot | finalSequenceNum |
+    // |   32 bytes   |    32 bytes        |    32 bytes      |   8 bytes       |   8 bytes  |   8 bytes  |  32 bytes      | 32 bytes          |    32 bytes         |  8 bytes          | 32 bytes        |
+    // | oldStateRoot | initBlobStateRoot  |  oldAccInputHash | initNumBlob     |   chainID  |   forkID   |  newStateRoot  | newBlobStateRoot  |   newAccInputHash   |  finalSequenceNum |newLocalExitRoot |
     uint256 internal constant _SNARK_BYTES_PER_ROLLUP_AGGREGATED =
-        32 + 32 + 8 + 8 + 8 + 32 + 32 + 32 + 8;
+        32 + 32 + 32 + 8 + 8 + 8 + 32 + 32 + 32 + 8 + 32;
     // Roles
 
     // Be able to add a new rollup type
@@ -328,6 +328,7 @@ contract PolygonRollupManager is
     // Current POL fee per zkGas sequenced
     // note This variable is internal, since the view function getSequenceFee is likely to be upgraded
     uint256 internal _zkGasPrice;
+
     /**
      * @dev Emitted when a new rollup type is added
      */
@@ -787,7 +788,7 @@ contract PolygonRollupManager is
         );
     }
 
-    function updateRollupRollupAdmin(
+    function updateRollupByRollupAdmin(
         ITransparentUpgradeableProxy rollupContract,
         uint32 newRollupTypeID
     ) external {
@@ -810,6 +811,10 @@ contract PolygonRollupManager is
         }
 
         // TODO Assert new rollupType is bigger?¿ or with obsolete it's enough?¿
+        if (rollup.rollupTypeID >= newRollupTypeID) {
+            revert UpdateToSameRollupTypeID(); // Update custom error
+        }
+
         _updateRollup(rollupContract, newRollupTypeID, new bytes(0));
     }
 
@@ -875,7 +880,7 @@ contract PolygonRollupManager is
         rollup.forkID = newRollupType.forkID;
         rollup.rollupTypeID = newRollupTypeID;
 
-        // TODO Vulnerabuiltiy fron running attack TT acutally hard to handle
+        // TODO Vulnerability fron running attack TT actually hard to handle
         uint64 lastVerifiedSequence = getLastVerifiedSequence(rollupID);
         rollup.lastVerifiedSequenceBeforeUpgrade = lastVerifiedSequence;
 
@@ -894,8 +899,8 @@ contract PolygonRollupManager is
 
     /**
      * @notice callback called by one of the consensus managed by this contract once data is sequenced
-     * @param zkGasLimitSequenced zkGasLimitSequenced computational power needed for create a proof
-     * @param blobsSequenced blobsSequenced Number of blobs sequenced
+     * @param zkGasLimitSequenced computational power needed for create a proof
+     * @param blobsSequenced Number of blobs sequenced
      * @param newAccInputHash New accumulate input hash
      */
     function onSequence(
@@ -1158,7 +1163,7 @@ contract PolygonRollupManager is
         }
 
         uint32 lastRollupID;
-        uint64 totalVerifiedZkGas;
+        uint128 totalVerifiedZkGas;
 
         // Loop through all rollups
         for (uint256 i = 0; i < verifySequencesData.length; i++) {
@@ -1172,7 +1177,7 @@ contract PolygonRollupManager is
             lastRollupID = currentRollupID;
 
             // Append the current rollup verification data to the accumulateSnarkBytes
-            uint64 verifiedZkGas;
+            uint128 verifiedZkGas;
             (
                 verifiedZkGas,
                 ptrAccumulateInputSnarkBytes
@@ -1223,7 +1228,7 @@ contract PolygonRollupManager is
     function _checkAndAccumulateverifySequencesData(
         VerifySequenceData memory currentSequenceData,
         uint256 ptrAccumulateInputSnarkBytes
-    ) internal view virtual returns (uint64, uint256) {
+    ) internal view virtual returns (uint128, uint256) {
         RollupDataSequenceBased storage rollup = rollupIDToRollupData[
             currentSequenceData.rollupID
         ];
@@ -1257,7 +1262,10 @@ contract PolygonRollupManager is
 
         // Return verified sequences
         return (
-            currentSequenceData.finalSequenceNum - currentLastVerifiedSequence,
+            rollup
+                .sequences[currentSequenceData.finalSequenceNum]
+                .accZkGasLimit -
+                rollup.sequences[currentLastVerifiedSequence].accZkGasLimit,
             currentPtr
         );
     }
@@ -2076,10 +2084,15 @@ contract PolygonRollupManager is
             mstore(ptr, oldStateRoot)
             ptr := add(ptr, 32)
 
+            // store oldBlobStateRoot
+            mstore(ptr, 0)
+            ptr := add(ptr, 32)
+
             // store oldAccInputHash
             mstore(ptr, oldAccInputHash)
             ptr := add(ptr, 32)
 
+            // TODO blobNum
             // store initSequenceNum
             mstore(ptr, shl(192, initSequenceNum)) // 256-64 = 192
             ptr := add(ptr, 8)
