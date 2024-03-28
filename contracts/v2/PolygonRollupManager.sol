@@ -550,7 +550,6 @@ contract PolygonRollupManager is
                 .accInputHash;
 
             // Do not copy state transitions since it was not used
-
             _zkGasPrice = _legacyBatchFee / 1000;
         }
     }
@@ -881,11 +880,10 @@ contract PolygonRollupManager is
         rollup.rollupTypeID = newRollupTypeID;
 
         // TODO Vulnerability fron running attack TT actually hard to handle
-        if (
-            rollup.lastPendingState != rollup.lastPendingStateConsolidated
-        ) {
-            revert CannotUpdateWithNotConsolidatedPendingState() 
+        if (rollup.lastPendingState != rollup.lastPendingStateConsolidated) {
+            revert CannotUpdateWithUnconsolidatedPendingState();
         }
+
         uint64 lastVerifiedSequence = getLastVerifiedSequence(rollupID);
         rollup.lastVerifiedSequenceBeforeUpgrade = lastVerifiedSequence;
 
@@ -2083,13 +2081,9 @@ contract PolygonRollupManager is
             revert NewStateRootNotInsidePrime();
         }
 
-        uint64 initBlobNum = rollup
-            .sequences[initSequenceNum]
-            .currentBlobNum;
+        uint64 initBlobNum = rollup.sequences[initSequenceNum].currentBlobNum;
 
-        uint64 finalBlobNum = rollup
-            .sequences[finalSequenceNum]
-            .currentBlobNum; 
+        uint64 finalBlobNum = rollup.sequences[finalSequenceNum].currentBlobNum;
 
         uint256 ptr = ptrAccumulateInputSnarkBytes;
 
@@ -2125,7 +2119,7 @@ contract PolygonRollupManager is
             mstore(ptr, newStateRoot)
             ptr := add(ptr, 32)
 
-            // store newBlobStateRoot 
+            // store newBlobStateRoot
             // note this parameters is unused currently
             mstore(ptr, 0)
             ptr := add(ptr, 32)
