@@ -304,27 +304,8 @@ abstract contract PolygonRollupBaseEtrog is
     ) external virtual onlyRollupManager initializer {
         bytes memory gasTokenMetadata;
 
-        if (_gasTokenAddress != address(0)) {
-            // Ask for token metadata, the same way is enconded in the bridge
-            // Note that this function will revert if the token is not in this network
-            // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
-            gasTokenMetadata = bridgeAddress.getTokenMetadata(_gasTokenAddress);
+        _verifyOrigin(_gasTokenAddress);
 
-            // Check gas token address on the bridge
-            (
-                uint32 originWrappedNetwork,
-                address originWrappedAddress
-            ) = bridgeAddress.wrappedTokenToTokenInfo(_gasTokenAddress);
-
-            if (originWrappedNetwork != 0) {
-                // It's a wrapped token, get the wrapped parameters
-                gasTokenAddress = originWrappedAddress;
-                gasTokenNetwork = originWrappedNetwork;
-            } else {
-                // gasTokenNetwork will be mainnet, for instance 0
-                gasTokenAddress = _gasTokenAddress;
-            }
-        }
         // Sequence transaction to initilize the bridge
 
         // Calculate transaction to initialize the bridge
@@ -947,5 +928,29 @@ abstract contract PolygonRollupBaseEtrog is
         );
 
         return transaction;
+    }
+
+    function _verifyOrigin(address _gasTokenAddress) internal virtual {
+        if (_gasTokenAddress != address(0)) {
+            // Ask for token metadata, the same way is enconded in the bridge
+            // Note that this function will revert if the token is not in this network
+            // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
+            gasTokenMetadata = bridgeAddress.getTokenMetadata(_gasTokenAddress);
+
+            // Check gas token address on the bridge
+            (
+                uint32 originWrappedNetwork,
+                address originWrappedAddress
+            ) = bridgeAddress.wrappedTokenToTokenInfo(_gasTokenAddress);
+
+            if (originWrappedNetwork != 0) {
+                // It's a wrapped token, get the wrapped parameters
+                gasTokenAddress = originWrappedAddress;
+                gasTokenNetwork = originWrappedNetwork;
+            } else {
+                // gasTokenNetwork will be mainnet, for instance 0
+                gasTokenAddress = _gasTokenAddress;
+            }
+        }
     }
 }
