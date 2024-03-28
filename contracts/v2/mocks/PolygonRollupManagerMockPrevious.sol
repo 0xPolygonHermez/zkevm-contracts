@@ -5,7 +5,7 @@ import "../PolygonRollupManager.sol";
 /**
  * PolygonRollupManager mock
  */
-contract PolygonRollupManagerMock is PolygonRollupManager {
+contract PolygonRollupManagerMockPrevious is PolygonRollupManager {
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol MATIC token address

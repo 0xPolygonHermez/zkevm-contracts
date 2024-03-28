@@ -884,7 +884,7 @@ contract PolygonRollupManager is
         if (
             rollup.lastPendingState != rollup.lastPendingStateConsolidated
         ) {
-            revert CannotUpdateWithNotConsolidatedPendingState() 
+            revert CannotUpdateWithNotConsolidatedPendingState();
         }
         uint64 lastVerifiedSequence = getLastVerifiedSequence(rollupID);
         rollup.lastVerifiedSequenceBeforeUpgrade = lastVerifiedSequence;
