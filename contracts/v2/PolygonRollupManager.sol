@@ -195,7 +195,7 @@ contract PolygonRollupManager is
 
     // Bytes that will be added to the snark input for every rollup aggregated
     // |   32 bytes   |    32 bytes        |    32 bytes      |   8 bytes       |   8 bytes  |   8 bytes  |  32 bytes      | 32 bytes          |    32 bytes         |  8 bytes          | 32 bytes        |
-    // | oldStateRoot | initBlobStateRoot  |  oldAccInputHash | initNumBlob     |   chainID  |   forkID   |  newStateRoot  | newBlobStateRoot  |   newAccInputHash   |  finalSequenceNum |newLocalExitRoot |
+    // | oldStateRoot | oldBlobStateRoot  |  oldAccInputHash | initNumBlob     |   chainID  |   forkID   |  newStateRoot  | newBlobStateRoot  |   newAccInputHash   |  finalBlobNum     |newLocalExitRoot |
     uint256 internal constant _SNARK_BYTES_PER_ROLLUP_AGGREGATED =
         32 + 32 + 32 + 8 + 8 + 8 + 32 + 32 + 32 + 8 + 32;
     // Roles
@@ -881,6 +881,11 @@ contract PolygonRollupManager is
         rollup.rollupTypeID = newRollupTypeID;
 
         // TODO Vulnerability fron running attack TT actually hard to handle
+        if (
+            rollup.lastPendingState != rollup.lastPendingStateConsolidated
+        ) {
+            revert CannotUpdateWithNotConsolidatedPendingState() 
+        }
         uint64 lastVerifiedSequence = getLastVerifiedSequence(rollupID);
         rollup.lastVerifiedSequenceBeforeUpgrade = lastVerifiedSequence;
 
@@ -2077,6 +2082,15 @@ contract PolygonRollupManager is
         if (!_checkStateRootInsidePrime(uint256(newStateRoot))) {
             revert NewStateRootNotInsidePrime();
         }
+
+        uint64 initBlobNum = rollup
+            .sequences[initSequenceNum]
+            .currentBlobNum;
+
+        uint64 finalBlobNum = rollup
+            .sequences[finalSequenceNum]
+            .currentBlobNum; 
+
         uint256 ptr = ptrAccumulateInputSnarkBytes;
 
         assembly {
@@ -2084,7 +2098,8 @@ contract PolygonRollupManager is
             mstore(ptr, oldStateRoot)
             ptr := add(ptr, 32)
 
-            // store oldBlobStateRoot
+            // store initBlobStateRoot
+            // note this parameters is unused currently
             mstore(ptr, 0)
             ptr := add(ptr, 32)
 
@@ -2092,9 +2107,8 @@ contract PolygonRollupManager is
             mstore(ptr, oldAccInputHash)
             ptr := add(ptr, 32)
 
-            // TODO blobNum
-            // store initSequenceNum
-            mstore(ptr, shl(192, initSequenceNum)) // 256-64 = 192
+            // store initBlobNum
+            mstore(ptr, shl(192, initBlobNum)) // 256-64 = 192
             ptr := add(ptr, 8)
 
             // store chainID
@@ -2111,17 +2125,22 @@ contract PolygonRollupManager is
             mstore(ptr, newStateRoot)
             ptr := add(ptr, 32)
 
+            // store newBlobStateRoot 
+            // note this parameters is unused currently
+            mstore(ptr, 0)
+            ptr := add(ptr, 32)
+
             // store newAccInputHash
             mstore(ptr, newAccInputHash)
             ptr := add(ptr, 32)
 
+            // store finalBlobNum
+            mstore(ptr, shl(192, finalBlobNum)) // 256-64 = 192
+            ptr := add(ptr, 8)
+
             // store newLocalExitRoot
             mstore(ptr, newLocalExitRoot)
             ptr := add(ptr, 32)
-
-            // store finalSequenceNum
-            mstore(ptr, shl(192, finalSequenceNum)) // 256-64 = 192
-            ptr := add(ptr, 8)
         }
 
         return ptr;
