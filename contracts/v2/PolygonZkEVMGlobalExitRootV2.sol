@@ -22,6 +22,10 @@ contract PolygonZkEVMGlobalExitRootV2 is
     // Rollup manager contract address
     address public immutable rollupManager;
 
+    // Store every l1InfoLeaf
+    mapping(uint256 depositCount => bytes32 l1InfoLeafHash)
+        public l1InfoLeafMap;
+
     /**
      * @dev Emitted when the global exit root is updated
      */
@@ -39,7 +43,9 @@ contract PolygonZkEVMGlobalExitRootV2 is
         bridgeAddress = _bridgeAddress;
     }
 
-    // Reset the previous tree
+    /**
+     * @notice Reset the deposit tree since will be replace by a recursive one
+     */
     function initialize() external virtual initializer {
         for (uint256 i = 0; i < _DEPOSIT_CONTRACT_TREE_DEPTH; i++) {
             delete _branch[i];
@@ -79,16 +85,17 @@ contract PolygonZkEVMGlobalExitRootV2 is
             globalExitRootMap[newGlobalExitRoot] = lastBlockHash;
 
             // save new leaf in L1InfoTree
-            _addLeaf(
-                getLeafValue(
-                    getL1InfoTreeHash(
-                        newGlobalExitRoot,
-                        lastBlockHash,
-                        uint64(block.timestamp)
-                    ),
-                    getRoot()
-                )
+            bytes32 newLeaf = getLeafValue(
+                getL1InfoTreeHash(
+                    newGlobalExitRoot,
+                    lastBlockHash,
+                    uint64(block.timestamp)
+                ),
+                getRoot()
             );
+
+            l1InfoLeafMap[depositCount] = newLeaf;
+            _addLeaf(newLeaf);
 
             emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
