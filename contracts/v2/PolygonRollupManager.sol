@@ -385,7 +385,7 @@ contract PolygonRollupManager is
      */
     event OnSequence(
         uint32 indexed rollupID,
-        uint64 zkGasLimit,
+        uint128 zkGasLimit,
         uint64 blobsSequenced
     );
 
@@ -907,7 +907,7 @@ contract PolygonRollupManager is
      * @param newAccInputHash New accumulate input hash
      */
     function onSequence(
-        uint64 zkGasLimitSequenced,
+        uint128 zkGasLimitSequenced,
         uint64 blobsSequenced,
         bytes32 newAccInputHash
     ) external ifNotEmergencyState returns (uint64) {
@@ -925,14 +925,14 @@ contract PolygonRollupManager is
         RollupDataSequenceBased storage rollup = rollupIDToRollupData[rollupID];
 
         // Update global parameters
-        totalZkGasLimit += uint128(zkGasLimitSequenced);
+        totalZkGasLimit += zkGasLimitSequenced;
 
         // Update paramaters of the current rollup
         uint64 currentSequenceNum = rollup.lastSequenceNum;
         uint64 newSequenceNum = currentSequenceNum + 1;
         uint128 newAccZkGasLimit = rollup
             .sequences[currentSequenceNum]
-            .accZkGasLimit + uint128(zkGasLimitSequenced);
+            .accZkGasLimit + zkGasLimitSequenced;
 
         uint64 newBlobNum = uint64(
             rollup.sequences[currentSequenceNum].currentBlobNum

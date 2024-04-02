@@ -423,7 +423,7 @@ abstract contract PolygonRollupBaseFeijoa is
         lastAccInputHash = newAccInputHash;
 
         rollupManager.onSequence(
-            ZK_GAS_LIMIT_BATCH,
+            uint128(ZK_GAS_LIMIT_BATCH),
             uint64(1),
             newAccInputHash
         );
@@ -720,31 +720,35 @@ abstract contract PolygonRollupBaseFeijoa is
         // Store back the storage variables
         lastAccInputHash = currentAccInputHash;
 
+        uint256 forcedZkGasLimit;
+
         // Check if there has been forced blobs
         if (currentLastForceBlobSequenced != initLastForceBlobSequenced) {
             uint64 forcedBlobsSequenced = currentLastForceBlobSequenced -
                 initLastForceBlobSequenced;
 
             // Transfer pol for every forced blob submitted
+            forcedZkGasLimit = forcedBlobsSequenced * ZK_GAS_LIMIT_BATCH;
+
             pol.safeTransfer(
                 address(rollupManager),
-                calculatePolPerForcedZkGas() *
-                    (forcedBlobsSequenced * ZK_GAS_LIMIT_BATCH)
+                calculatePolPerForcedZkGas() * (forcedZkGasLimit)
             );
 
             // Store new last force blob sequenced
             lastForceBlobSequenced = currentLastForceBlobSequenced;
         }
 
+        uint256 totalZkGasSequenced = accZkGasSequenced + forcedZkGasLimit;
         // Pay collateral for every non-forced blob submitted
         pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
-            rollupManager.getZkGasPrice() * accZkGasSequenced
+            rollupManager.getZkGasPrice() * totalZkGasSequenced
         );
 
         uint64 currentBlobSequenced = rollupManager.onSequence(
-            uint64(accZkGasSequenced),
+            uint128(totalZkGasSequenced),
             uint64(blobsNum),
             currentAccInputHash
         );
@@ -943,10 +947,12 @@ abstract contract PolygonRollupBaseFeijoa is
             );
         }
 
+        uint256 forcedZkGasLimit = blobsNum * ZK_GAS_LIMIT_BATCH;
+
         // Transfer pol for every forced blob submitted
         pol.safeTransfer(
             address(rollupManager),
-            calculatePolPerForcedZkGas() * (blobsNum)
+            calculatePolPerForcedZkGas() * (forcedZkGasLimit)
         );
 
         // Store back the storage variables
@@ -954,7 +960,7 @@ abstract contract PolygonRollupBaseFeijoa is
         lastForceBlobSequenced = currentLastForceBlobSequenced;
 
         uint64 currentBlobSequenced = rollupManager.onSequence(
-            0,
+            uint128(forcedZkGasLimit),
             uint64(blobsNum),
             currentAccInputHash
         );
