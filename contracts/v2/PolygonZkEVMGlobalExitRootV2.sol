@@ -69,6 +69,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
         l1InfoLeafMap[depositCount] = newLeaf;
         _addLeaf(newLeaf);
+
         emit UpdateL1InfoTreeRecursive(lastMainnetExitRoot, lastRollupExitRoot);
     }
 
