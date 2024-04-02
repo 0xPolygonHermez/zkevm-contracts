@@ -47,30 +47,41 @@ contract PolygonZkEVMGlobalExitRootV2 is
      * @notice Reset the deposit tree since will be replace by a recursive one
      */
     function initialize() external virtual initializer {
-        for (uint256 i = 0; i < _DEPOSIT_CONTRACT_TREE_DEPTH; i++) {
-            delete _branch[i];
+        if (depositCount != 0) {
+            for (uint256 i = 0; i < _DEPOSIT_CONTRACT_TREE_DEPTH; i++) {
+                delete _branch[i];
+            }
+            depositCount = 0;
+
+            // Add first leaf TODO?
+            bytes32 newGlobalExitRoot = getLastGlobalExitRoot();
+
+            uint256 lastBlockHash = uint256(blockhash(block.number - 1));
+
+            // save new leaf in L1InfoTree
+            bytes32 newLeaf = getLeafValue(
+                getL1InfoTreeHash(
+                    newGlobalExitRoot,
+                    lastBlockHash,
+                    uint64(block.timestamp)
+                ),
+                getRoot()
+            );
+
+            // First leaf set to 0
+            _addLeaf(bytes32(0));
+
+            // Add previous info
+            l1InfoLeafMap[depositCount] = newLeaf;
+            _addLeaf(newLeaf);
+
+            emit UpdateL1InfoTreeRecursive(
+                lastMainnetExitRoot,
+                lastRollupExitRoot
+            );
+        } else {
+            _addLeaf(bytes32(0));
         }
-        depositCount = 0;
-
-        // Add first leaf TODO?
-        bytes32 newGlobalExitRoot = getLastGlobalExitRoot();
-
-        uint256 lastBlockHash = uint256(blockhash(block.number - 1));
-
-        // save new leaf in L1InfoTree
-        bytes32 newLeaf = getLeafValue(
-            getL1InfoTreeHash(
-                newGlobalExitRoot,
-                lastBlockHash,
-                uint64(block.timestamp)
-            ),
-            getRoot()
-        );
-
-        l1InfoLeafMap[depositCount] = newLeaf;
-        _addLeaf(newLeaf);
-
-        emit UpdateL1InfoTreeRecursive(lastMainnetExitRoot, lastRollupExitRoot);
     }
 
     /**
