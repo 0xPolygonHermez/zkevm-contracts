@@ -195,7 +195,7 @@ abstract contract PolygonRollupBaseFeijoa is
     PolygonRollupManager public immutable rollupManager;
 
     // Point Evaluation precompiled address
-    address public immutable pointEvaluationPrecompileAddress;
+    address public constant POINT_EVALUATION_PRECOMPILE_ADDRESS = address(0x0a);
 
     // Address that will be able to adjust contract parameters
     address public admin;
@@ -634,7 +634,7 @@ abstract contract PolygonRollupBaseFeijoa is
                     if (versionedHash == bytes32(0)) {
                         // TODO should revert
                     }
-                    (bool success, ) = pointEvaluationPrecompileAddress
+                    (bool success, ) = POINT_EVALUATION_PRECOMPILE_ADDRESS
                         .staticcall(
                             abi.encodePacked(
                                 versionedHash,

@@ -24,7 +24,7 @@ contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
         address admin,
         address timelock,
         address emergencyCouncil
-    ) external initializer {
+    ) external reinitializer(3) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
