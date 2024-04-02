@@ -37,19 +37,36 @@ abstract contract PolygonRollupBaseFeijoa is
      * @param forcedBlockHashL1 blockHash snapshot of the force blob data, empty when sequencing a non forced blob
      */
     struct BlobData {
-        uint64 maxSequenceTimestamp;
-        uint64 zkGasLimit;
         uint8 blobType;
         bytes blobTypeParams;
     }
 
+    /**
+     * @notice Struct which will be used to call sequenceBlobs
+     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
+     * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
+     * @param forcedGlobalExitRoot Global exit root, empty when sequencing a non forced blob
+     * @param forcedTimestamp Minimum timestamp of the force blob data, empty when sequencing a non forced blob
+     * @param forcedBlockHashL1 blockHash snapshot of the force blob data, empty when sequencing a non forced blob
+     */
+    struct ForcedData {
+        bytes32 hashedForcedBlobData;
+        uint64 forcedTimestamp;
+    }
+
     // calldata:
+
+    // uint64 maxSequenceTimestamp;
+    // uint64 zkGasLimit;
 
     //  (uint32 l1InfoLeafIndex, bytes memory transactions) = abi
     //  .decode(currentBlob.blobTypeParams, (uint32, bytes));
 
     // blob
 
+    // uint64 maxSequenceTimestamp;
+    // uint64 zkGasLimit;
     // (
     //                 uint32 l1InfoLeafIndex,
     //                 uint256 blonIndex,
@@ -158,6 +175,12 @@ abstract contract PolygonRollupBaseFeijoa is
 
     // Timestamp range that's given to the sequencer as a safety measure to avoid reverts if the transaction is mined to quickly
     uint256 public constant TIMESTAMP_RANGE = 36;
+
+    // Timestamp range that's given to the sequencer as a safety measure to avoid reverts if the transaction is mined to quickly
+    uint64 public constant MAX_SEQUENCE_TIMESTAMP_FORCED = type(uint64).max;
+
+    // Zk gas payed per batch, checked on the zkrom
+    uint64 public constant ZK_GAS_LIMIT_BATCH = 100_000_000;
 
     // POL token address
     IERC20Upgradeable public immutable pol;
@@ -374,22 +397,36 @@ abstract contract PolygonRollupBaseFeijoa is
         bytes32 lastGlobalExitRoot = globalExitRootManager
             .getLastGlobalExitRoot();
 
-        // TODOOOO TODO
         // Add the transaction to the sequence as if it was a force transaction
         bytes32 newAccInputHash = keccak256(
             abi.encodePacked(
                 bytes32(0), // Current acc Input hash
-                currentTransactionsHash,
-                lastGlobalExitRoot, // Global exit root
-                currentTimestamp,
+                uint32(0), // l1InfoLeafIndex
+                bytes32(0), // l1InfoLeafHash
+                MAX_SEQUENCE_TIMESTAMP_FORCED, //maxSequenceTimestamp
                 sequencer,
-                blockhash(block.number - 1)
+                ZK_GAS_LIMIT_BATCH,
+                uint8(2),
+                bytes32(0), // z
+                bytes32(0), // y
+                currentTransactionsHash,
+                keccak256(
+                    abi.encodePacked(
+                        lastGlobalExitRoot,
+                        currentTimestamp,
+                        blockhash(block.number - 1)
+                    )
+                )
             )
         );
 
         lastAccInputHash = newAccInputHash;
 
-        rollupManager.onSequence(0, uint64(1), newAccInputHash);
+        rollupManager.onSequence(
+            ZK_GAS_LIMIT_BATCH,
+            uint64(1),
+            newAccInputHash
+        );
 
         // Set initialize variables
         admin = _admin;
@@ -470,16 +507,12 @@ abstract contract PolygonRollupBaseFeijoa is
         // Store in a temporal variable, for avoid access again the storage slot
         uint64 initLastForceBlobSequenced = currentLastForceBlobSequenced;
 
+        uint256 accZkGasSequenced;
+
         for (uint256 i = 0; i < blobsNum; i++) {
             BlobData calldata currentBlob = blobs[i];
 
             // Check max sequence timestamp inside of range
-            if (
-                uint256(currentBlob.maxSequenceTimestamp) >
-                (block.timestamp + TIMESTAMP_RANGE)
-            ) {
-                revert MaxTimestampSequenceInvalid();
-            }
 
             // Supported types: 0 calldata, 1 blob transaction, 2 forced
             if (currentBlob.blobType > 2) {
@@ -489,9 +522,26 @@ abstract contract PolygonRollupBaseFeijoa is
             if (currentBlob.blobType == 0) {
                 // calldata
 
+                // avoid stack to deep for some reason
+                address coinbase = l2Coinbase;
+
                 // Decode calldata transaction parameters
-                (uint32 l1InfoLeafIndex, bytes memory transactions) = abi
-                    .decode(currentBlob.blobTypeParams, (uint32, bytes));
+                (
+                    uint64 maxSequenceTimestamp,
+                    uint64 zkGasLimit,
+                    uint32 l1InfoLeafIndex,
+                    bytes memory transactions
+                ) = abi.decode(
+                        currentBlob.blobTypeParams,
+                        (uint64, uint64, uint32, bytes)
+                    );
+
+                if (
+                    uint256(maxSequenceTimestamp) >
+                    (block.timestamp + TIMESTAMP_RANGE)
+                ) {
+                    revert MaxTimestampSequenceInvalid();
+                }
 
                 if (transactions.length > _MAX_TRANSACTIONS_BYTE_LENGTH) {
                     revert TransactionsLengthAboveMax();
@@ -499,22 +549,27 @@ abstract contract PolygonRollupBaseFeijoa is
 
                 bytes32 transactionsHash = keccak256(transactions);
 
-                bytes32 l1InfoLeafHash = globalExitRootManager.l1InfoLeafMap(
-                    l1InfoLeafIndex
-                );
+                bytes32 l1InfoLeafHash;
 
-                if (l1InfoLeafHash == bytes32(0)) {
-                    revert Invalidl1InfoLeafIndex();
+                if (l1InfoLeafIndex != 0) {
+                    l1InfoLeafHash = globalExitRootManager.l1InfoLeafMap(
+                        l1InfoLeafIndex
+                    );
+
+                    if (l1InfoLeafHash == bytes32(0)) {
+                        revert Invalidl1InfoLeafIndex();
+                    }
                 }
+
                 // Calculate next accumulated input hash
                 currentAccInputHash = keccak256(
                     abi.encodePacked(
                         currentAccInputHash,
                         l1InfoLeafIndex,
                         l1InfoLeafHash,
-                        currentBlob.maxSequenceTimestamp,
-                        l2Coinbase,
-                        currentBlob.zkGasLimit,
+                        maxSequenceTimestamp,
+                        coinbase,
+                        zkGasLimit,
                         currentBlob.blobType,
                         bytes32(0),
                         bytes32(0),
@@ -522,11 +577,18 @@ abstract contract PolygonRollupBaseFeijoa is
                         bytes32(0)
                     )
                 );
+
+                accZkGasSequenced += zkGasLimit;
             } else if (currentBlob.blobType == 1) {
                 // blob transaction
 
+                // avoid stack to deep for some reason
+                address coinbase = l2Coinbase;
+
                 // Decode blob transaction parameters
                 (
+                    uint64 maxSequenceTimestamp,
+                    uint64 zkGasLimit,
                     uint32 l1InfoLeafIndex,
                     uint256 blobIndex,
                     bytes32 z,
@@ -534,19 +596,37 @@ abstract contract PolygonRollupBaseFeijoa is
                     bytes memory commitmentAndProof
                 ) = abi.decode(
                         currentBlob.blobTypeParams,
-                        (uint32, uint256, bytes32, bytes32, bytes)
+                        (
+                            uint64,
+                            uint64,
+                            uint32,
+                            uint256,
+                            bytes32,
+                            bytes32,
+                            bytes
+                        )
                     );
 
-                bytes32 l1InfoLeafHash = globalExitRootManager.l1InfoLeafMap(
-                    l1InfoLeafIndex
-                );
+                if (
+                    uint256(maxSequenceTimestamp) >
+                    (block.timestamp + TIMESTAMP_RANGE)
+                ) {
+                    revert MaxTimestampSequenceInvalid();
+                }
+
+                bytes32 l1InfoLeafHash;
+                if (l1InfoLeafIndex != 0) {
+                    l1InfoLeafHash = globalExitRootManager.l1InfoLeafMap(
+                        l1InfoLeafIndex
+                    );
+
+                    if (l1InfoLeafHash == bytes32(0)) {
+                        revert Invalidl1InfoLeafIndex();
+                    }
+                }
 
                 if (commitmentAndProof.length == 96) {
                     revert InvalidCommitmentAndProofLength();
-                }
-
-                if (l1InfoLeafHash == bytes32(0)) {
-                    revert Invalidl1InfoLeafIndex();
                 }
 
                 {
@@ -563,13 +643,11 @@ abstract contract PolygonRollupBaseFeijoa is
                                 commitmentAndProof
                             )
                         );
+
                     if (!success) {
                         revert PointEvalutionPrecompiledFail();
                     }
                 }
-
-                // avoid stack to deep for some reason
-                address coinbase = l2Coinbase;
 
                 // Calculate next accumulated input hash
                 currentAccInputHash = keccak256(
@@ -577,9 +655,9 @@ abstract contract PolygonRollupBaseFeijoa is
                         currentAccInputHash,
                         l1InfoLeafIndex,
                         l1InfoLeafHash,
-                        currentBlob.maxSequenceTimestamp,
+                        maxSequenceTimestamp,
                         coinbase,
-                        currentBlob.zkGasLimit,
+                        zkGasLimit,
                         currentBlob.blobType,
                         z,
                         y,
@@ -587,6 +665,8 @@ abstract contract PolygonRollupBaseFeijoa is
                         bytes32(0) // forcedHashData
                     )
                 );
+
+                accZkGasSequenced += zkGasLimit;
             } else {
                 // force transaction
 
@@ -600,11 +680,7 @@ abstract contract PolygonRollupBaseFeijoa is
 
                 // Check forced data matches
                 bytes32 hashedForcedBlobData = keccak256(
-                    abi.encodePacked(
-                        transactionsHash,
-                        forcedHashData,
-                        currentBlob.zkGasLimit
-                    )
+                    abi.encodePacked(transactionsHash, forcedHashData)
                 );
 
                 if (
@@ -623,9 +699,9 @@ abstract contract PolygonRollupBaseFeijoa is
                         currentAccInputHash,
                         uint32(0), // l1InfoLeafIndex
                         bytes32(0), // l1InfoLeafHash
-                        currentBlob.maxSequenceTimestamp,
+                        MAX_SEQUENCE_TIMESTAMP_FORCED,
                         l2Coinbase,
-                        currentBlob.zkGasLimit,
+                        ZK_GAS_LIMIT_BATCH,
                         currentBlob.blobType,
                         bytes32(0),
                         bytes32(0),
@@ -644,19 +720,16 @@ abstract contract PolygonRollupBaseFeijoa is
         // Store back the storage variables
         lastAccInputHash = currentAccInputHash;
 
-        uint256 nonForcedBlobsSequenced = blobsNum;
-
         // Check if there has been forced blobs
         if (currentLastForceBlobSequenced != initLastForceBlobSequenced) {
             uint64 forcedBlobsSequenced = currentLastForceBlobSequenced -
                 initLastForceBlobSequenced;
-            // substract forced blobs
-            nonForcedBlobsSequenced -= forcedBlobsSequenced;
 
             // Transfer pol for every forced blob submitted
             pol.safeTransfer(
                 address(rollupManager),
-                calculatePolPerForceBlob() * (forcedBlobsSequenced)
+                calculatePolPerForcedZkGas() *
+                    (forcedBlobsSequenced * ZK_GAS_LIMIT_BATCH)
             );
 
             // Store new last force blob sequenced
@@ -667,12 +740,12 @@ abstract contract PolygonRollupBaseFeijoa is
         pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
-            rollupManager.getZkGasPrice() * nonForcedBlobsSequenced
+            rollupManager.getZkGasPrice() * accZkGasSequenced
         );
 
         uint64 currentBlobSequenced = rollupManager.onSequence(
+            uint64(accZkGasSequenced),
             uint64(blobsNum),
-            uint64(1),
             currentAccInputHash
         );
 
@@ -709,12 +782,10 @@ abstract contract PolygonRollupBaseFeijoa is
      * In order to assure that users force transactions will be processed properly, user must not sign any other transaction
      * with the same nonce
      * @param blobData L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
-     * @param zkGasLimit Zk gas Limit of the blob submitted
      * @param polAmount Max amount of pol tokens that the sender is willing to pay
      */
     function forceBlob(
         bytes calldata blobData,
-        uint64 zkGasLimit,
         uint256 polAmount
     ) public virtual isSenderAllowedToForceBlobs {
         // Check if rollup manager is on emergency state
@@ -724,7 +795,7 @@ abstract contract PolygonRollupBaseFeijoa is
 
         // Calculate pol collateral
         uint256 polFee = rollupManager.getForcedZkGasPrice() *
-            uint256(zkGasLimit);
+            uint256(ZK_GAS_LIMIT_BATCH);
 
         if (polFee > polAmount) {
             revert NotEnoughPOLAmount();
@@ -753,7 +824,7 @@ abstract contract PolygonRollupBaseFeijoa is
         );
 
         forcedBlobs[lastForceBlob] = keccak256(
-            abi.encodePacked(keccak256(blobData), forcedHashData, zkGasLimit)
+            abi.encodePacked(keccak256(blobData), forcedHashData)
         );
 
         if (msg.sender == tx.origin) {
@@ -762,7 +833,7 @@ abstract contract PolygonRollupBaseFeijoa is
                 lastForceBlob,
                 lastGlobalExitRoot,
                 msg.sender,
-                zkGasLimit,
+                ZK_GAS_LIMIT_BATCH,
                 ""
             );
         } else {
@@ -772,7 +843,7 @@ abstract contract PolygonRollupBaseFeijoa is
                 lastForceBlob,
                 lastGlobalExitRoot,
                 msg.sender,
-                zkGasLimit,
+                ZK_GAS_LIMIT_BATCH,
                 blobData
             );
         }
@@ -831,11 +902,7 @@ abstract contract PolygonRollupBaseFeijoa is
 
             // Check forced data matches
             bytes32 hashedForcedBlobData = keccak256(
-                abi.encodePacked(
-                    transactionsHash,
-                    forcedHashData,
-                    currentBlob.zkGasLimit
-                )
+                abi.encodePacked(transactionsHash, forcedHashData)
             );
 
             if (
@@ -864,9 +931,9 @@ abstract contract PolygonRollupBaseFeijoa is
                     currentAccInputHash,
                     uint32(0), // l1InfoLeafIndex
                     bytes32(0), // l1InfoLeafHash
-                    block.timestamp,
+                    MAX_SEQUENCE_TIMESTAMP_FORCED,
                     msg.sender,
-                    currentBlob.zkGasLimit,
+                    ZK_GAS_LIMIT_BATCH,
                     currentBlob.blobType,
                     bytes32(0),
                     bytes32(0),
@@ -879,7 +946,7 @@ abstract contract PolygonRollupBaseFeijoa is
         // Transfer pol for every forced blob submitted
         pol.safeTransfer(
             address(rollupManager),
-            calculatePolPerForceBlob() * (blobsNum)
+            calculatePolPerForcedZkGas() * (blobsNum)
         );
 
         // Store back the storage variables
@@ -1000,14 +1067,14 @@ abstract contract PolygonRollupBaseFeijoa is
     /**
      * @notice Function to calculate the reward for a forced blob
      */
-    function calculatePolPerForceBlob() public view returns (uint256) {
+    function calculatePolPerForcedZkGas() public view returns (uint256) {
         uint256 currentBalance = pol.balanceOf(address(this));
 
         // Pending forced Blobs = last forced blob added - last forced blob sequenced
         uint256 pendingForcedBlobs = lastForceBlob - lastForceBlobSequenced;
 
         if (pendingForcedBlobs == 0) return 0;
-        return currentBalance / pendingForcedBlobs;
+        return currentBalance / (pendingForcedBlobs * ZK_GAS_LIMIT_BATCH);
     }
 
     /**
