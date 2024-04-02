@@ -4,8 +4,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../interfaces/IPolygonZkEVMErrors.sol";
-import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
+import "../interfaces/IPolygonZkEVMVFeijoaErrors.sol";
 import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
@@ -23,31 +22,55 @@ import "./PolygonConstantsBase.sol";
 abstract contract PolygonRollupBaseFeijoa is
     Initializable,
     PolygonConstantsBase,
-    IPolygonZkEVMVEtrogErrors,
+    IPolygonZkEVMVFeijoaErrors,
     IPolygonRollupBaseFeijoa
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
-     * @notice Struct which will be used to call sequenceBatches
+     * @notice Struct which will be used to call sequenceBlobs
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
      * EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data, chainid, 0, 0,) || v || r || s
      * pre-EIP-155: rlp(nonce, gasprice, gasLimit, to, value, data) || v || r || s
-     * @param forcedGlobalExitRoot Global exit root, empty when sequencing a non forced batch
-     * @param forcedTimestamp Minimum timestamp of the force batch data, empty when sequencing a non forced batch
-     * @param forcedBlockHashL1 blockHash snapshot of the force batch data, empty when sequencing a non forced batch
+     * @param forcedGlobalExitRoot Global exit root, empty when sequencing a non forced blob
+     * @param forcedTimestamp Minimum timestamp of the force blob data, empty when sequencing a non forced blob
+     * @param forcedBlockHashL1 blockHash snapshot of the force blob data, empty when sequencing a non forced blob
      */
-    struct BatchData {
-        bytes transactions;
-        bytes32 forcedGlobalExitRoot;
-        uint64 forcedTimestamp;
-        bytes32 forcedBlockHashL1;
+    struct BlobData {
+        uint64 maxSequenceTimestamp;
+        uint64 zkGasLimit;
+        uint8 blobType;
+        bytes blobTypeParams;
     }
 
-    // Max transactions bytes that can be added in a single batch
+    // calldata:
+
+    //  (uint32 l1InfoLeafIndex, bytes memory transactions) = abi
+    //  .decode(currentBlob.blobTypeParams, (uint32, bytes));
+
+    // blob
+
+    // (
+    //                 uint32 l1InfoLeafIndex,
+    //                 uint256 blonIndex,
+    //                 bytes32 z,
+    //                 bytes32 y,
+    //                 bytes memory commitmentAndProof
+    //             ) = abi.decode(
+    //                     currentBlob.blobTypeParams,
+    //                     (uint32, uint256, bytes32, bytes32, bytes)
+    //                 );
+    // forced
+
+    // bytes32 transactionsHash, bytes32 forcedHashData
+
+    // TODO l1INforLEafINdex per blob?¡ ( mor modular, but more expensive)
+    // TODO same for lastTImestamp
+
+    // Max transactions bytes that can be added in a single blob
     // Max keccaks circuit = (2**23 / 155286) * 44 = 2376
     // Bytes per keccak = 136
-    // Minimum Static keccaks batch = 2
+    // Minimum Static keccaks blob = 2
     // Max bytes allowed = (2376 - 2) * 136 = 322864 bytes - 1 byte padding
     // Rounded to 300000 bytes
     // In order to process the transaction, the data is approximately hashed twice for ecrecover:
@@ -58,8 +81,8 @@ abstract contract PolygonRollupBaseFeijoa is
     // We let 8kb as a sanity margin
     uint256 internal constant _MAX_TRANSACTIONS_BYTE_LENGTH = 120000;
 
-    // Max force batch transaction length
-    // This is used to avoid huge calldata attacks, where the attacker call force batches from another contract
+    // Max force blob transaction length
+    // This is used to avoid huge calldata attacks, where the attacker call force blobs from another contract
     uint256 internal constant _MAX_FORCE_BATCH_BYTE_LENGTH = 5000;
 
     // In order to encode the initialize transaction of the bridge there's have a constant part and the metadata which is variable
@@ -148,6 +171,9 @@ abstract contract PolygonRollupBaseFeijoa is
     // Rollup manager
     PolygonRollupManager public immutable rollupManager;
 
+    // Point Evaluation precompiled address
+    address public immutable pointEvaluationPrecompileAddress;
+
     // Address that will be able to adjust contract parameters
     address public admin;
 
@@ -166,24 +192,24 @@ abstract contract PolygonRollupBaseFeijoa is
     // Current accumulate input hash
     bytes32 public lastAccInputHash;
 
-    // Queue of forced batches with their associated data
-    // ForceBatchNum --> hashedForcedBatchData
-    // hashedForcedBatchData: hash containing the necessary information to force a batch:
+    // Queue of forced blobs with their associated data
+    // ForceBlobNum --> hashedForcedBlobData
+    // hashedForcedBlobData: hash containing the necessary information to force a blob:
     // keccak256(keccak256(bytes transactions), bytes32 forcedGlobalExitRoot, unint64 forcedTimestamp, bytes32 forcedBlockHashL1)
-    mapping(uint64 => bytes32) public forcedBatches;
+    mapping(uint64 => bytes32) public forcedBlobs;
 
-    // Last forced batch
-    uint64 public lastForceBatch;
+    // Last forced blob
+    uint64 public lastForceBlob;
 
-    // Last forced batch included in the sequence
-    uint64 public lastForceBatchSequenced;
+    // Last forced blob included in the sequence
+    uint64 public lastForceBlobSequenced;
 
-    // Force batch timeout
-    uint64 public forceBatchTimeout;
+    // Force blob timeout
+    uint64 public forceBlobTimeout;
 
-    // Indicates what address is able to do forced batches
-    // If the address is set to 0, forced batches are open to everyone
-    address public forceBatchAddress;
+    // Indicates what address is able to do forced blobs
+    // If the address is set to 0, forced blobs are open to everyone
+    address public forceBlobAddress;
 
     // Token address that will be used to pay gas fees in this rollup. This variable it's just for read purposes
     address public gasTokenAddress;
@@ -198,38 +224,39 @@ abstract contract PolygonRollupBaseFeijoa is
     uint256[50] private _gap;
 
     /**
-     * @dev Emitted when the trusted sequencer sends a new batch of transactions
+     * @dev Emitted when the trusted sequencer sends a new blob of transactions
      */
-    event SequenceBatches(uint64 indexed numBatch, bytes32 l1InfoRoot);
+    event SequenceBlobs(uint64 indexed lastBlobSequenced);
 
     /**
-     * @dev Emitted when a batch is forced
+     * @dev Emitted when a blob is forced
      */
-    event ForceBatch(
-        uint64 indexed forceBatchNum,
+    event ForceBlob(
+        uint64 indexed forceBlobNum,
         bytes32 lastGlobalExitRoot,
         address sequencer,
+        uint64 zkGasLimit,
         bytes transactions
     );
 
     /**
-     * @dev Emitted when forced batches are sequenced by not the trusted sequencer
+     * @dev Emitted when forced blobs are sequenced by not the trusted sequencer
      */
-    event SequenceForceBatches(uint64 indexed numBatch);
+    event SequenceForceBlobs(uint64 indexed numBlob);
 
     /**
      * @dev Emitted when the contract is initialized, contain the first sequenced transaction
      */
-    event InitialSequenceBatches(
+    event InitialSequenceBlobs(
         bytes transactions,
         bytes32 lastGlobalExitRoot,
         address sequencer
     );
 
     /**
-     * @dev Emitted when a aggregator verifies batches
+     * @dev Emitted when a aggregator verifies blobs
      */
-    event VerifyBatches(
+    event VerifyBlobs(
         uint64 indexed sequneceNum,
         bytes32 stateRoot,
         address indexed aggregator
@@ -251,14 +278,14 @@ abstract contract PolygonRollupBaseFeijoa is
     event SetTrustedSequencerURL(string newTrustedSequencerURL);
 
     /**
-     * @dev Emitted when the admin update the force batch timeout
+     * @dev Emitted when the admin update the force blob timeout
      */
-    event SetForceBatchTimeout(uint64 newforceBatchTimeout);
+    event SetForceBlobTimeout(uint64 newforceBlobTimeout);
 
     /**
-     * @dev Emitted when the admin update the force batch address
+     * @dev Emitted when the admin update the force blob address
      */
-    event SetForceBatchAddress(address newForceBatchAddress);
+    event SetForceBlobAddress(address newForceBlobAddress);
 
     /**
      * @dev Emitted when the admin starts the two-step transfer role setting a new pending admin
@@ -347,6 +374,7 @@ abstract contract PolygonRollupBaseFeijoa is
         bytes32 lastGlobalExitRoot = globalExitRootManager
             .getLastGlobalExitRoot();
 
+        // TODOOOO TODO
         // Add the transaction to the sequence as if it was a force transaction
         bytes32 newAccInputHash = keccak256(
             abi.encodePacked(
@@ -370,12 +398,12 @@ abstract contract PolygonRollupBaseFeijoa is
         trustedSequencerURL = sequencerURL;
         networkName = _networkName;
 
-        forceBatchAddress = _admin;
+        forceBlobAddress = _admin;
 
         // Constant deployment variables
-        forceBatchTimeout = 5 days;
+        forceBlobTimeout = 5 days;
 
-        emit InitialSequenceBatches(transaction, lastGlobalExitRoot, sequencer);
+        emit InitialSequenceBlobs(transaction, lastGlobalExitRoot, sequencer);
     }
 
     modifier onlyAdmin() {
@@ -392,13 +420,13 @@ abstract contract PolygonRollupBaseFeijoa is
         _;
     }
 
-    modifier isSenderAllowedToForceBatches() {
-        address cacheForceBatchAddress = forceBatchAddress;
+    modifier isSenderAllowedToForceBlobs() {
+        address cacheForceBlobAddress = forceBlobAddress;
         if (
-            cacheForceBatchAddress != address(0) &&
-            cacheForceBatchAddress != msg.sender
+            cacheForceBlobAddress != address(0) &&
+            cacheForceBlobAddress != msg.sender
         ) {
-            revert ForceBatchNotAllowed();
+            revert ForceBlobNotAllowed();
         }
         _;
     }
@@ -411,174 +439,253 @@ abstract contract PolygonRollupBaseFeijoa is
     }
 
     /////////////////////////////////////
-    // Sequence/Verify batches functions
+    // Sequence/Verify blobs functions
     ////////////////////////////////////
 
     /**
-     * @notice Allows a sequencer to send multiple batches
-     * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
-     * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-     * @param initSequencedBatch This parameter must match the current last batch sequenced.
+     * @notice Allows a sequencer to send multiple blobs
+     * @param blobs Struct array which holds the necessary data to append new blobs to the sequence
+     * @param finalAccInputHash This parameter must match the current last blob sequenced.
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * note Pol is not a reentrant token
      */
-    function sequenceBatches(
-        BatchData[] calldata batches,
-        uint64 maxSequenceTimestamp,
-        uint64 initSequencedBatch,
-        address l2Coinbase
+    function sequenceBlobs(
+        BlobData[] calldata blobs,
+        address l2Coinbase,
+        bytes32 finalAccInputHash
     ) public virtual onlyTrustedSequencer {
-        uint256 batchesNum = batches.length;
-        if (batchesNum == 0) {
-            revert SequenceZeroBatches();
-        }
-
-        if (batchesNum > _MAX_VERIFY_BATCHES) {
-            revert ExceedMaxVerifyBatches();
-        }
-
-        // Check max sequence timestamp inside of range
-        if (
-            uint256(maxSequenceTimestamp) > (block.timestamp + TIMESTAMP_RANGE)
-        ) {
-            revert MaxTimestampSequenceInvalid();
+        uint256 blobsNum = blobs.length;
+        if (blobsNum == 0) {
+            revert SequenceZeroBlobs();
         }
 
         // Update global exit root if there are new deposits
         bridgeAddress.updateGlobalExitRoot();
 
-        // Get global batch variables
-        bytes32 l1InfoRoot = globalExitRootManager.getRoot();
-
         // Store storage variables in memory, to save gas, because will be overrided multiple times
-        uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
+        uint64 currentLastForceBlobSequenced = lastForceBlobSequenced;
         bytes32 currentAccInputHash = lastAccInputHash;
 
         // Store in a temporal variable, for avoid access again the storage slot
-        uint64 initLastForceBatchSequenced = currentLastForceBatchSequenced;
+        uint64 initLastForceBlobSequenced = currentLastForceBlobSequenced;
 
-        for (uint256 i = 0; i < batchesNum; i++) {
-            // Load current sequence
-            BatchData memory currentBatch = batches[i];
+        for (uint256 i = 0; i < blobsNum; i++) {
+            BlobData calldata currentBlob = blobs[i];
 
-            // Store the current transactions hash since can be used more than once for gas saving
-            bytes32 currentTransactionsHash = keccak256(
-                currentBatch.transactions
-            );
+            // Check max sequence timestamp inside of range
+            if (
+                uint256(currentBlob.maxSequenceTimestamp) >
+                (block.timestamp + TIMESTAMP_RANGE)
+            ) {
+                revert MaxTimestampSequenceInvalid();
+            }
 
-            // Check if it's a forced batch
-            if (currentBatch.forcedTimestamp > 0) {
-                currentLastForceBatchSequenced++;
+            // Supported types: 0 calldata, 1 blob transaction, 2 forced
+            if (currentBlob.blobType > 2) {
+                revert BlobTypeNotSupported();
+            }
+
+            if (currentBlob.blobType == 0) {
+                // calldata
+
+                // Decode calldata transaction parameters
+                (uint32 l1InfoLeafIndex, bytes memory transactions) = abi
+                    .decode(currentBlob.blobTypeParams, (uint32, bytes));
+
+                if (transactions.length > _MAX_TRANSACTIONS_BYTE_LENGTH) {
+                    revert TransactionsLengthAboveMax();
+                }
+
+                bytes32 transactionsHash = keccak256(transactions);
+
+                bytes32 l1InfoLeafHash = globalExitRootManager.l1InfoLeafMap(
+                    l1InfoLeafIndex
+                );
+
+                if (l1InfoLeafHash == bytes32(0)) {
+                    revert Invalidl1InfoLeafIndex();
+                }
+                // Calculate next accumulated input hash
+                currentAccInputHash = keccak256(
+                    abi.encodePacked(
+                        currentAccInputHash,
+                        l1InfoLeafIndex,
+                        l1InfoLeafHash,
+                        currentBlob.maxSequenceTimestamp,
+                        l2Coinbase,
+                        currentBlob.zkGasLimit,
+                        currentBlob.blobType,
+                        bytes32(0),
+                        bytes32(0),
+                        transactionsHash,
+                        bytes32(0)
+                    )
+                );
+            } else if (currentBlob.blobType == 1) {
+                // blob transaction
+
+                // Decode blob transaction parameters
+                (
+                    uint32 l1InfoLeafIndex,
+                    uint256 blonIndex,
+                    bytes32 z,
+                    bytes32 y,
+                    bytes memory commitmentAndProof
+                ) = abi.decode(
+                        currentBlob.blobTypeParams,
+                        (uint32, uint256, bytes32, bytes32, bytes)
+                    );
+
+                bytes32 l1InfoLeafHash = globalExitRootManager.l1InfoLeafMap(
+                    l1InfoLeafIndex
+                );
+
+                if (commitmentAndProof.length == 96) {
+                    revert InvalidCommitmentAndProofLength();
+                }
+
+                if (l1InfoLeafHash == bytes32(0)) {
+                    revert Invalidl1InfoLeafIndex();
+                }
+
+                {
+                    bytes32 versionedHash = blobhash(blonIndex);
+                    if (versionedHash == bytes32(0)) {
+                        // TODO should revert
+                    }
+                    (bool success, ) = pointEvaluationPrecompileAddress
+                        .staticcall(
+                            abi.encodePacked(
+                                versionedHash,
+                                z,
+                                y,
+                                commitmentAndProof
+                            )
+                        );
+                    if (!success) {
+                        revert PointEvalutionPrecompiledFail();
+                    }
+                }
+
+                // avoid stack to deep for some reason
+                address coinbase = l2Coinbase;
+
+                // Calculate next accumulated input hash
+                currentAccInputHash = keccak256(
+                    abi.encodePacked(
+                        currentAccInputHash,
+                        l1InfoLeafIndex,
+                        l1InfoLeafHash,
+                        currentBlob.maxSequenceTimestamp,
+                        coinbase,
+                        currentBlob.zkGasLimit,
+                        currentBlob.blobType,
+                        z,
+                        y,
+                        bytes32(0),
+                        bytes32(0)
+                    )
+                );
+            } else {
+                // force transaction
+
+                // Decode forced parameters
+                (bytes32 transactionsHash, bytes32 forcedHashData) = abi.decode(
+                    currentBlob.blobTypeParams,
+                    (bytes32, bytes32)
+                );
+
+                currentLastForceBlobSequenced++;
 
                 // Check forced data matches
-                bytes32 hashedForcedBatchData = keccak256(
+                bytes32 hashedForcedBlobData = keccak256(
                     abi.encodePacked(
-                        currentTransactionsHash,
-                        currentBatch.forcedGlobalExitRoot,
-                        currentBatch.forcedTimestamp,
-                        currentBatch.forcedBlockHashL1
+                        transactionsHash,
+                        forcedHashData,
+                        currentBlob.zkGasLimit
                     )
                 );
 
                 if (
-                    hashedForcedBatchData !=
-                    forcedBatches[currentLastForceBatchSequenced]
+                    hashedForcedBlobData !=
+                    forcedBlobs[currentLastForceBlobSequenced]
                 ) {
                     revert ForcedDataDoesNotMatch();
                 }
 
-                // Calculate next accumulated input hash
-                currentAccInputHash = keccak256(
-                    abi.encodePacked(
-                        currentAccInputHash,
-                        currentTransactionsHash,
-                        currentBatch.forcedGlobalExitRoot,
-                        currentBatch.forcedTimestamp,
-                        l2Coinbase,
-                        currentBatch.forcedBlockHashL1
-                    )
-                );
-
-                // Delete forceBatch data since won't be used anymore
-                delete forcedBatches[currentLastForceBatchSequenced];
-            } else {
-                // Note that forcedGlobalExitRoot and forcedBlockHashL1 remain unused and unchecked in this path
-                // The synchronizer should be aware of that
-                if (
-                    currentBatch.transactions.length >
-                    _MAX_TRANSACTIONS_BYTE_LENGTH
-                ) {
-                    revert TransactionsLengthAboveMax();
-                }
+                // Delete forceBlob data since won't be used anymore
+                delete forcedBlobs[currentLastForceBlobSequenced];
 
                 // Calculate next accumulated input hash
                 currentAccInputHash = keccak256(
                     abi.encodePacked(
                         currentAccInputHash,
-                        currentTransactionsHash,
-                        l1InfoRoot,
-                        maxSequenceTimestamp,
+                        uint32(0), // l1InfoLeafIndex
+                        bytes32(0), // l1InfoLeafHash
+                        currentBlob.maxSequenceTimestamp,
                         l2Coinbase,
-                        bytes32(0)
+                        currentBlob.zkGasLimit,
+                        currentBlob.blobType,
+                        bytes32(0),
+                        bytes32(0),
+                        transactionsHash,
+                        forcedHashData
                     )
                 );
             }
         }
 
         // Sanity check, should be unreachable
-        if (currentLastForceBatchSequenced > lastForceBatch) {
-            revert ForceBatchesOverflow();
+        if (currentLastForceBlobSequenced > lastForceBlob) {
+            revert ForceBlobsOverflow();
         }
 
         // Store back the storage variables
         lastAccInputHash = currentAccInputHash;
 
-        uint256 nonForcedBatchesSequenced = batchesNum;
+        uint256 nonForcedBlobsSequenced = blobsNum;
 
-        // Check if there has been forced batches
-        if (currentLastForceBatchSequenced != initLastForceBatchSequenced) {
-            uint64 forcedBatchesSequenced = currentLastForceBatchSequenced -
-                initLastForceBatchSequenced;
-            // substract forced batches
-            nonForcedBatchesSequenced -= forcedBatchesSequenced;
+        // Check if there has been forced blobs
+        if (currentLastForceBlobSequenced != initLastForceBlobSequenced) {
+            uint64 forcedBlobsSequenced = currentLastForceBlobSequenced -
+                initLastForceBlobSequenced;
+            // substract forced blobs
+            nonForcedBlobsSequenced -= forcedBlobsSequenced;
 
-            // Transfer pol for every forced batch submitted
+            // Transfer pol for every forced blob submitted
             pol.safeTransfer(
                 address(rollupManager),
-                calculatePolPerForceBatch() * (forcedBatchesSequenced)
+                calculatePolPerForceBlob() * (forcedBlobsSequenced)
             );
 
-            // Store new last force batch sequenced
-            lastForceBatchSequenced = currentLastForceBatchSequenced;
+            // Store new last force blob sequenced
+            lastForceBlobSequenced = currentLastForceBlobSequenced;
         }
 
-        // Pay collateral for every non-forced batch submitted
+        // Pay collateral for every non-forced blob submitted
         pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
-            rollupManager.getZkGasPrice() * nonForcedBatchesSequenced
+            rollupManager.getZkGasPrice() * nonForcedBlobsSequenced
         );
 
-        uint64 currentBatchSequenced = rollupManager.onSequence(
-            uint64(batchesNum),
+        uint64 currentBlobSequenced = rollupManager.onSequence(
+            uint64(blobsNum),
             uint64(1),
             currentAccInputHash
         );
 
-        // Check init sequenced batch
-        if (
-            initSequencedBatch != (currentBatchSequenced - uint64(batchesNum))
-        ) {
-            revert InitSequencedBatchDoesNotMatch();
+        // Check init sequenced blob
+        if (currentAccInputHash != finalAccInputHash) {
+            revert FinalAccInputHashDoesNotMatch();
         }
 
-        emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
+        emit SequenceBlobs(currentBlobSequenced);
     }
 
     /**
-     * @notice Callback on verify batches, can only be called by the rollup manager
+     * @notice Callback on verify blobs, can only be called by the rollup manager
      * @param lastVerifiedSequenceNum Last verified sequence
      * @param newStateRoot new state root
      * @param aggregator Aggregator address
@@ -588,39 +695,42 @@ abstract contract PolygonRollupBaseFeijoa is
         bytes32 newStateRoot,
         address aggregator
     ) public virtual override onlyRollupManager {
-        emit VerifyBatches(lastVerifiedSequenceNum, newStateRoot, aggregator);
+        emit VerifyBlobs(lastVerifiedSequenceNum, newStateRoot, aggregator);
     }
 
     ////////////////////////////
-    // Force batches functions
+    // Force blobs functions
     ////////////////////////////
 
     /**
-     * @notice Allows a sequencer/user to force a batch of L2 transactions.
+     * @notice Allows a sequencer/user to force a blob of L2 transactions.
      * This should be used only in extreme cases where the trusted sequencer does not work as expected
-     * Note The sequencer has certain degree of control on how non-forced and forced batches are ordered
+     * Note The sequencer has certain degree of control on how non-forced and forced blobs are ordered
      * In order to assure that users force transactions will be processed properly, user must not sign any other transaction
      * with the same nonce
-     * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * @param blobData L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
+     * @param zkGasLimit Zk gas Limit of the blob submitted
      * @param polAmount Max amount of pol tokens that the sender is willing to pay
      */
-    function forceBatch(
-        bytes calldata transactions,
+    function forceBlob(
+        bytes calldata blobData,
+        uint64 zkGasLimit,
         uint256 polAmount
-    ) public virtual isSenderAllowedToForceBatches {
+    ) public virtual isSenderAllowedToForceBlobs {
         // Check if rollup manager is on emergency state
         if (rollupManager.isEmergencyState()) {
-            revert ForceBatchesNotAllowedOnEmergencyState();
+            revert ForceBlobsNotAllowedOnEmergencyState();
         }
 
         // Calculate pol collateral
-        uint256 polFee = rollupManager.getForcedZkGasPrice();
+        uint256 polFee = rollupManager.getForcedZkGasPrice() *
+            uint256(zkGasLimit);
 
         if (polFee > polAmount) {
             revert NotEnoughPOLAmount();
         }
 
-        if (transactions.length > _MAX_FORCE_BATCH_BYTE_LENGTH) {
+        if (blobData.length > _MAX_FORCE_BATCH_BYTE_LENGTH) {
             revert TransactionsLengthAboveMax();
         }
 
@@ -631,40 +741,50 @@ abstract contract PolygonRollupBaseFeijoa is
         bytes32 lastGlobalExitRoot = globalExitRootManager
             .getLastGlobalExitRoot();
 
-        // Update forcedBatches mapping
-        lastForceBatch++;
+        // Update forcedBlobs mapping
+        lastForceBlob++;
 
-        forcedBatches[lastForceBatch] = keccak256(
+        bytes32 forcedHashData = keccak256(
             abi.encodePacked(
-                keccak256(transactions),
                 lastGlobalExitRoot,
                 uint64(block.timestamp),
                 blockhash(block.number - 1)
             )
         );
 
+        forcedBlobs[lastForceBlob] = keccak256(
+            abi.encodePacked(keccak256(blobData), forcedHashData, zkGasLimit)
+        );
+
         if (msg.sender == tx.origin) {
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
-            emit ForceBatch(lastForceBatch, lastGlobalExitRoot, msg.sender, "");
+            emit ForceBlob(
+                lastForceBlob,
+                lastGlobalExitRoot,
+                msg.sender,
+                zkGasLimit,
+                ""
+            );
         } else {
             // Getting internal transaction calldata is complicated (because it requires an archive node)
             // Therefore it's worth it to put the `transactions` in the event, which is easy to query
-            emit ForceBatch(
-                lastForceBatch,
+            emit ForceBlob(
+                lastForceBlob,
                 lastGlobalExitRoot,
                 msg.sender,
-                transactions
+                zkGasLimit,
+                blobData
             );
         }
     }
 
     /**
-     * @notice Allows anyone to sequence forced Batches if the trusted sequencer has not done so in the timeout period
-     * @param batches Struct array which holds the necessary data to append force batches
+     * @notice Allows anyone to sequence forced Blobs if the trusted sequencer has not done so in the timeout period
+     * @param blobs Struct array which holds the necessary data to append force blobs
      */
-    function sequenceForceBatches(
-        BatchData[] calldata batches
-    ) external virtual isSenderAllowedToForceBatches {
+    function sequenceForceBlobs(
+        BlobData[] calldata blobs
+    ) external virtual isSenderAllowedToForceBlobs {
         // Check if rollup manager is on emergency state
         if (
             rollupManager.lastDeactivatedEmergencyStateTimestamp() +
@@ -674,97 +794,105 @@ abstract contract PolygonRollupBaseFeijoa is
             revert HaltTimeoutNotExpiredAfterEmergencyState();
         }
 
-        uint256 batchesNum = batches.length;
+        uint256 blobsNum = blobs.length;
 
-        if (batchesNum == 0) {
-            revert SequenceZeroBatches();
-        }
-
-        if (batchesNum > _MAX_VERIFY_BATCHES) {
-            revert ExceedMaxVerifyBatches();
+        if (blobsNum == 0) {
+            revert SequenceZeroBlobs();
         }
 
         if (
-            uint256(lastForceBatchSequenced) + batchesNum >
-            uint256(lastForceBatch)
+            uint256(lastForceBlobSequenced) + blobsNum > uint256(lastForceBlob)
         ) {
-            revert ForceBatchesOverflow();
+            revert ForceBlobsOverflow();
         }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
-        uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
+        uint64 currentLastForceBlobSequenced = lastForceBlobSequenced;
         bytes32 currentAccInputHash = lastAccInputHash;
 
-        // Sequence force batches
-        for (uint256 i = 0; i < batchesNum; i++) {
+        // Sequence force blobs
+        for (uint256 i = 0; i < blobsNum; i++) {
             // Load current sequence
-            BatchData memory currentBatch = batches[i];
-            currentLastForceBatchSequenced++;
+            BlobData memory currentBlob = blobs[i];
+            currentLastForceBlobSequenced++;
 
-            // Store the current transactions hash since it's used more than once for gas saving
-            bytes32 currentTransactionsHash = keccak256(
-                currentBatch.transactions
+            // Supported types: 0 calldata, 1 blob transaction, 2 forced
+            if (currentBlob.blobType != 2) {
+                revert BlobTypeNotSupported();
+            }
+
+            // Decode forced parameters
+            (bytes32 transactionsHash, bytes32 forcedHashData) = abi.decode(
+                currentBlob.blobTypeParams,
+                (bytes32, bytes32)
             );
 
+            currentLastForceBlobSequenced++;
+
             // Check forced data matches
-            bytes32 hashedForcedBatchData = keccak256(
+            bytes32 hashedForcedBlobData = keccak256(
                 abi.encodePacked(
-                    currentTransactionsHash,
-                    currentBatch.forcedGlobalExitRoot,
-                    currentBatch.forcedTimestamp,
-                    currentBatch.forcedBlockHashL1
+                    transactionsHash,
+                    forcedHashData,
+                    currentBlob.zkGasLimit
                 )
             );
 
             if (
-                hashedForcedBatchData !=
-                forcedBatches[currentLastForceBatchSequenced]
+                hashedForcedBlobData !=
+                forcedBlobs[currentLastForceBlobSequenced]
             ) {
                 revert ForcedDataDoesNotMatch();
             }
 
-            // Delete forceBatch data since won't be used anymore
-            delete forcedBatches[currentLastForceBatchSequenced];
+            // Delete forceBlob data since won't be used anymore
+            delete forcedBlobs[currentLastForceBlobSequenced];
 
-            if (i == (batchesNum - 1)) {
-                // The last batch will have the most restrictive timestamp
-                if (
-                    currentBatch.forcedTimestamp + forceBatchTimeout >
-                    block.timestamp
-                ) {
-                    revert ForceBatchTimeoutNotExpired();
-                }
+            if (i == (blobsNum - 1)) {
+                // The last blob will have the most restrictive timestamp
+                // TODOOOOOOOOO TODO
+                // if (
+                //     currentBlob.forcedTimestamp + forceBlobTimeout >
+                //     block.timestamp
+                // ) {
+                //     revert ForceBlobTimeoutNotExpired();
+                // }
             }
-            // Calculate next acc input hash
+            // Calculate next accumulated input hash
             currentAccInputHash = keccak256(
                 abi.encodePacked(
                     currentAccInputHash,
-                    currentTransactionsHash,
-                    currentBatch.forcedGlobalExitRoot,
-                    currentBatch.forcedTimestamp,
+                    uint32(0), // l1InfoLeafIndex
+                    bytes32(0), // l1InfoLeafHash
+                    block.timestamp,
                     msg.sender,
-                    currentBatch.forcedBlockHashL1
+                    currentBlob.zkGasLimit,
+                    currentBlob.blobType,
+                    bytes32(0),
+                    bytes32(0),
+                    transactionsHash,
+                    forcedHashData
                 )
             );
         }
 
-        // Transfer pol for every forced batch submitted
+        // Transfer pol for every forced blob submitted
         pol.safeTransfer(
             address(rollupManager),
-            calculatePolPerForceBatch() * (batchesNum)
+            calculatePolPerForceBlob() * (blobsNum)
         );
 
         // Store back the storage variables
         lastAccInputHash = currentAccInputHash;
-        lastForceBatchSequenced = currentLastForceBatchSequenced;
+        lastForceBlobSequenced = currentLastForceBlobSequenced;
 
-        uint64 currentBatchSequenced = rollupManager.onSequence(
+        uint64 currentBlobSequenced = rollupManager.onSequence(
             0,
-            uint64(batchesNum),
+            uint64(blobsNum),
             currentAccInputHash
         );
 
-        emit SequenceForceBatches(currentBatchSequenced);
+        emit SequenceForceBlobs(currentBlobSequenced);
     }
 
     //////////////////
@@ -806,41 +934,41 @@ abstract contract PolygonRollupBaseFeijoa is
     }
 
     /**
-     * @notice Allow the admin to change the force batch address, that will be allowed to force batches
-     * If address 0 is set, then everyone is able to force batches, this action is irreversible
-     * @param newForceBatchAddress New force batch address
+     * @notice Allow the admin to change the force blob address, that will be allowed to force blobs
+     * If address 0 is set, then everyone is able to force blobs, this action is irreversible
+     * @param newForceBlobAddress New force blob address
      */
-    function setForceBatchAddress(
-        address newForceBatchAddress
+    function setForceBlobAddress(
+        address newForceBlobAddress
     ) external onlyAdmin {
-        if (forceBatchAddress == address(0)) {
-            revert ForceBatchesDecentralized();
+        if (forceBlobAddress == address(0)) {
+            revert ForceBlobsDecentralized();
         }
-        forceBatchAddress = newForceBatchAddress;
+        forceBlobAddress = newForceBlobAddress;
 
-        emit SetForceBatchAddress(newForceBatchAddress);
+        emit SetForceBlobAddress(newForceBlobAddress);
     }
 
     /**
-     * @notice Allow the admin to set the forcedBatchTimeout
+     * @notice Allow the admin to set the forcedBlobTimeout
      * The new value can only be lower, except if emergency state is active
-     * @param newforceBatchTimeout New force batch timeout
+     * @param newforceBlobTimeout New force blob timeout
      */
-    function setForceBatchTimeout(
-        uint64 newforceBatchTimeout
+    function setForceBlobTimeout(
+        uint64 newforceBlobTimeout
     ) external onlyAdmin {
-        if (newforceBatchTimeout > _HALT_AGGREGATION_TIMEOUT) {
-            revert InvalidRangeForceBatchTimeout();
+        if (newforceBlobTimeout > _HALT_AGGREGATION_TIMEOUT) {
+            revert InvalidRangeForceBlobTimeout();
         }
 
         if (!rollupManager.isEmergencyState()) {
-            if (newforceBatchTimeout >= forceBatchTimeout) {
-                revert InvalidRangeForceBatchTimeout();
+            if (newforceBlobTimeout >= forceBlobTimeout) {
+                revert InvalidRangeForceBlobTimeout();
             }
         }
 
-        forceBatchTimeout = newforceBatchTimeout;
-        emit SetForceBatchTimeout(newforceBatchTimeout);
+        forceBlobTimeout = newforceBlobTimeout;
+        emit SetForceBlobTimeout(newforceBlobTimeout);
     }
 
     /**
@@ -870,16 +998,16 @@ abstract contract PolygonRollupBaseFeijoa is
     //////////////////
 
     /**
-     * @notice Function to calculate the reward for a forced batch
+     * @notice Function to calculate the reward for a forced blob
      */
-    function calculatePolPerForceBatch() public view returns (uint256) {
+    function calculatePolPerForceBlob() public view returns (uint256) {
         uint256 currentBalance = pol.balanceOf(address(this));
 
-        // Pending forced Batches = last forced batch added - last forced batch sequenced
-        uint256 pendingForcedBatches = lastForceBatch - lastForceBatchSequenced;
+        // Pending forced Blobs = last forced blob added - last forced blob sequenced
+        uint256 pendingForcedBlobs = lastForceBlob - lastForceBlobSequenced;
 
-        if (pendingForcedBatches == 0) return 0;
-        return currentBalance / pendingForcedBatches;
+        if (pendingForcedBlobs == 0) return 0;
+        return currentBalance / pendingForcedBlobs;
     }
 
     /**

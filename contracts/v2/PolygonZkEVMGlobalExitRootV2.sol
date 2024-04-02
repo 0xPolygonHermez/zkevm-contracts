@@ -29,7 +29,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
     /**
      * @dev Emitted when the global exit root is updated
      */
-    event UpdateL1InfoTree(
+    event UpdateL1InfoTreeRecursive(
         bytes32 indexed mainnetExitRoot,
         bytes32 indexed rollupExitRoot
     );
@@ -51,6 +51,25 @@ contract PolygonZkEVMGlobalExitRootV2 is
             delete _branch[i];
         }
         depositCount = 0;
+
+        // Add first leaf TODO?
+        bytes32 newGlobalExitRoot = getLastGlobalExitRoot();
+
+        uint256 lastBlockHash = uint256(blockhash(block.number - 1));
+
+        // save new leaf in L1InfoTree
+        bytes32 newLeaf = getLeafValue(
+            getL1InfoTreeHash(
+                newGlobalExitRoot,
+                lastBlockHash,
+                uint64(block.timestamp)
+            ),
+            getRoot()
+        );
+
+        l1InfoLeafMap[depositCount] = newLeaf;
+        _addLeaf(newLeaf);
+        emit UpdateL1InfoTreeRecursive(lastMainnetExitRoot, lastRollupExitRoot);
     }
 
     /**
@@ -97,7 +116,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
             l1InfoLeafMap[depositCount] = newLeaf;
             _addLeaf(newLeaf);
 
-            emit UpdateL1InfoTree(
+            emit UpdateL1InfoTreeRecursive(
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot
             );
