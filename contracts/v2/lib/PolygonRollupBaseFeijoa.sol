@@ -528,7 +528,7 @@ abstract contract PolygonRollupBaseFeijoa is
                 // Decode blob transaction parameters
                 (
                     uint32 l1InfoLeafIndex,
-                    uint256 blonIndex,
+                    uint256 blobIndex,
                     bytes32 z,
                     bytes32 y,
                     bytes memory commitmentAndProof
@@ -550,7 +550,7 @@ abstract contract PolygonRollupBaseFeijoa is
                 }
 
                 {
-                    bytes32 versionedHash = blobhash(blonIndex);
+                    bytes32 versionedHash = blobhash(blobIndex);
                     if (versionedHash == bytes32(0)) {
                         // TODO should revert
                     }
@@ -583,8 +583,8 @@ abstract contract PolygonRollupBaseFeijoa is
                         currentBlob.blobType,
                         z,
                         y,
-                        bytes32(0),
-                        bytes32(0)
+                        bytes32(0), // blobL2HashData
+                        bytes32(0) // forcedHashData
                     )
                 );
             } else {
