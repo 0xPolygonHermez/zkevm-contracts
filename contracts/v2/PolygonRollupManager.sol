@@ -179,10 +179,10 @@ contract PolygonRollupManager is
     uint256 internal constant _MAX_SEQUENCE_MULTIPLIER = 12;
 
     // Max sequence fee value
-    uint256 internal constant _MAX_ZKGAS_PRICE = 1000 ether;
+    uint256 internal constant _MAX_ZKGAS_PRICE = 1 ether;
 
     // Min value sequence fee
-    uint256 internal constant _MIN_ZKGAS_PRICE = 1 gwei;
+    uint256 internal constant _MIN_ZKGAS_PRICE = 1 wei;
 
     // Goldilocks prime field
     uint256 internal constant _GOLDILOCKS_PRIME_FIELD = 0xFFFFFFFF00000001; // 2 ** 64 - 2 ** 32 + 1
@@ -1631,9 +1631,8 @@ contract PolygonRollupManager is
         }
     }
 
-    // REVIEW!!!! TODO
     /**
-     * @notice Function to update the sequence fee based on the new verified sequences
+     * @notice Function to update the zkgas fee based on the new verified sequences
      * The sequence fee will not be updated when the trusted aggregator verifies sequences
      * @param rollup Rollup storage pointer
      * @param newLastVerifiedSequence New last verified sequence
@@ -1645,9 +1644,11 @@ contract PolygonRollupManager is
         uint64 currentLastVerifiedSequence = _getLastVerifiedSequence(rollup);
         uint64 currentSequence = newLastVerifiedSequence;
 
-        uint256 totalSequencesAboveTarget;
-        uint256 newSequencesVerified = newLastVerifiedSequence -
-            currentLastVerifiedSequence;
+        uint256 totalZkGasAboveTarget;
+        uint256 newZkGasVerified = rollup
+            .sequences[newLastVerifiedSequence]
+            .accZkGasLimit -
+            rollup.sequences[currentLastVerifiedSequence].accZkGasLimit;
 
         uint256 targetTimestamp = block.timestamp - verifySequenceTimeTarget;
 
@@ -1662,16 +1663,16 @@ contract PolygonRollupManager is
                 // update currentSequence
                 currentSequence = currentSequence - 1;
             } else {
-                // The rest of sequences will be above
-                totalSequencesAboveTarget =
-                    currentSequence -
-                    currentLastVerifiedSequence;
+                // The rest of zkGas will be above
+                totalZkGasAboveTarget =
+                    newZkGasVerified -
+                    currentSequencedData.accZkGasLimit;
                 break;
             }
         }
 
-        uint256 totalSequencesBelowTarget = newSequencesVerified -
-            totalSequencesAboveTarget;
+        uint256 totalZkGasBelowTarget = newZkGasVerified -
+            totalZkGasAboveTarget;
 
         // _MAX_ZKGAS_PRICE --> (< 70 bits)
         // multiplierSequenceFee --> (< 10 bits)
@@ -1682,35 +1683,38 @@ contract PolygonRollupManager is
 
         // Since all the following operations cannot overflow, we can optimize this operations with unchecked
         unchecked {
-            if (totalSequencesBelowTarget < totalSequencesAboveTarget) {
+            if (totalZkGasAboveTarget < totalZkGasBelowTarget) {
                 // There are more sequences above target, fee is multiplied
-                uint256 diffSequences = totalSequencesAboveTarget -
-                    totalSequencesBelowTarget;
+                uint256 diffZkGasNormalized = (totalZkGasBelowTarget -
+                    totalZkGasAboveTarget) / ZK_GAS_LIMIT_BATCH;
 
-                diffSequences = diffSequences > _MAX_SEQUENCE_MULTIPLIER
+                diffZkGasNormalized = diffZkGasNormalized >
+                    _MAX_SEQUENCE_MULTIPLIER
                     ? _MAX_SEQUENCE_MULTIPLIER
-                    : diffSequences;
+                    : diffZkGasNormalized;
 
                 // For every multiplierSequenceFee multiplication we must shift 3 zeroes since we have 3 decimals
                 _zkGasPrice =
                     (_zkGasPrice *
-                        (uint256(multiplierZkGasPrice) ** diffSequences)) /
-                    (uint256(1000) ** diffSequences);
+                        (uint256(multiplierZkGasPrice) **
+                            diffZkGasNormalized)) /
+                    (uint256(1000) ** diffZkGasNormalized);
             } else {
                 // There are more sequences below target, fee is divided
-                uint256 diffSequences = totalSequencesBelowTarget -
-                    totalSequencesAboveTarget;
+                uint256 diffZkGasNormalized = (totalZkGasAboveTarget -
+                    totalZkGasBelowTarget) / ZK_GAS_LIMIT_BATCH;
 
-                diffSequences = diffSequences > _MAX_SEQUENCE_MULTIPLIER
+                diffZkGasNormalized = diffZkGasNormalized >
+                    _MAX_SEQUENCE_MULTIPLIER
                     ? _MAX_SEQUENCE_MULTIPLIER
-                    : diffSequences;
+                    : diffZkGasNormalized;
 
                 // For every multiplierZkGasPrice multiplication we must shift 3 zeroes since we have 3 decimals
                 uint256 accDivisor = (uint256(1 ether) *
-                    (uint256(multiplierZkGasPrice) ** diffSequences)) /
-                    (uint256(1000) ** diffSequences);
+                    (uint256(multiplierZkGasPrice) ** diffZkGasNormalized)) /
+                    (uint256(1000) ** diffZkGasNormalized);
 
-                // multiplyFactor = multiplierSequenceFee ** diffSequences / 10 ** (diffSequences * 3)
+                // multiplyFactor = multiplierSequenceFee ** diffZkGasNormalized / 10 ** (diffZkGasNormalized * 3)
                 // accDivisor = 1E18 * multiplyFactor
                 // 1E18 * sequenceFee / accDivisor = sequenceFee / multiplyFactor
                 // < 60 bits * < 70 bits / ~60 bits --> overflow not possible
