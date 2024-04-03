@@ -17,6 +17,10 @@ contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
         IPolygonZkEVMBridge _bridgeAddress
     ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}
 
+    function initialize() external override reinitializer(3) {
+        revert();
+    }
+
     function initialize(
         address trustedAggregator,
         uint64 _pendingStateTimeout,

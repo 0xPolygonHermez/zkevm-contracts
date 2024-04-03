@@ -47,6 +47,16 @@ const config: HardhatUserConfig = {
                 },
             },
             {
+                version: "0.8.25",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 999999,
+                    },
+                    evmVersion: "cancun",
+                },
+            },
+            {
                 version: "0.6.11",
                 settings: {
                     optimizer: {
@@ -109,7 +119,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 300,
                     },
                     evmVersion: "cancun",
                 }, // try yul optimizer
