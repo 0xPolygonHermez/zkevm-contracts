@@ -135,6 +135,11 @@ interface IPolygonZkEVMVFeijoaErrors {
     error FinalAccInputHashDoesNotMatch();
 
     /**
+     * @dev Thrown when the blob hash was not found
+     */
+    error BlobHashNotFound();
+
+    /**
      * @dev Thrown when commintment and proof does not ahve 96 byte length
      */
     error InvalidCommitmentAndProofLength();

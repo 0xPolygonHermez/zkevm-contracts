@@ -13,7 +13,7 @@ import "../lib/PolygonTransparentProxy.sol";
 import "../lib/PolygonAccessControlUpgradeable.sol";
 import "../lib/LegacyZKEVMStateVariables.sol";
 import "./etrog/zkEVM/PolygonZkEVMExistentEtrog.sol";
-import "../lib/PolygonConstantsBase.sol";
+import "./lib/PolygonConstantsBasePrevious.sol";
 
 /**
  * Contract responsible for managing rollups and the verification of their batches.
@@ -25,7 +25,7 @@ contract PolygonRollupManagerPrevious is
     PolygonAccessControlUpgradeable,
     EmergencyManager,
     LegacyZKEVMStateVariables,
-    PolygonConstantsBase,
+    PolygonConstantsBasePrevious,
     IPolygonRollupManager
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;

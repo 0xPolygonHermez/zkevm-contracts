@@ -10,7 +10,7 @@ import "./PolygonRollupManagerPrevious.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "../lib/PolygonConstantsBase.sol";
+import "./lib/PolygonConstantsBasePrevious.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -22,7 +22,7 @@ import "../lib/PolygonConstantsBase.sol";
  */
 contract PolygonRollupBaseEtrogPrevious is
     Initializable,
-    PolygonConstantsBase,
+    PolygonConstantsBasePrevious,
     IPolygonZkEVMVEtrogErrors,
     IPolygonRollupBase
 {
