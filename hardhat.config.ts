@@ -46,16 +46,16 @@ const config: HardhatUserConfig = {
                     evmVersion: "cancun",
                 },
             },
-            {
-                version: "0.8.25",
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 999999,
-                    },
-                    evmVersion: "cancun",
-                },
-            },
+            // {
+            //     version: "0.8.25",
+            //     settings: {
+            //         optimizer: {
+            //             enabled: true,
+            //             runs: 999999,
+            //         },
+            //         evmVersion: "cancun",
+            //     },
+            // },
             {
                 version: "0.6.11",
                 settings: {
