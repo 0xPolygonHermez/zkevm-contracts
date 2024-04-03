@@ -99,6 +99,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
             0, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
             rollupManager.address,
+            deployer.address, // Deployer as bridge manager
             metadataToken
         );
 
@@ -150,6 +151,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
                 1, // zero for ether
                 polygonZkEVMGlobalExitRoot.target,
                 rollupManager.address,
+                deployer.address, // Deployer as bridge manager
                 "0x"
             )
         ).to.be.revertedWithCustomError(polygonZkEVMBridgeContract, "GasTokenNetworkMustBeZeroOnEther");

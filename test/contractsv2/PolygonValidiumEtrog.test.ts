@@ -158,6 +158,7 @@ describe("PolygonZkEVMEtrog", () => {
             ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
             rollupManagerContract.target,
+            deployer.address, // Set deployer as bridge manager
             "0x"
         );
 
@@ -191,6 +192,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName
@@ -205,6 +207,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -224,6 +227,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -239,6 +243,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName
@@ -253,6 +258,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -272,6 +278,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -289,6 +296,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -509,6 +517,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -520,6 +529,7 @@ describe("PolygonZkEVMEtrog", () => {
 
         const transaction = await PolygonZKEVMV2Contract.generateInitializeTransaction(
             networkID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             "0x" // empty metadata
@@ -665,6 +675,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -681,6 +692,7 @@ describe("PolygonZkEVMEtrog", () => {
 
         const transaction = await PolygonZKEVMV2Contract.generateInitializeTransaction(
             networkID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             "0x" // empty metadata
@@ -1018,6 +1030,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 newWrappedToken.target,
                 urlSequencer,
                 networkName,
@@ -1029,6 +1042,7 @@ describe("PolygonZkEVMEtrog", () => {
 
         const transaction = await PolygonZKEVMV2Contract.generateInitializeTransaction(
             networkID,
+            deployer.address, // Set deployer as bridge manager
             tokenAddress,
             originNetwork,
             metadata // empty metadata
@@ -1086,6 +1100,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -1096,6 +1111,7 @@ describe("PolygonZkEVMEtrog", () => {
         const timestampCreatedRollup = (await ethers.provider.getBlock("latest"))?.timestamp;
         const transaction = await PolygonZKEVMV2Contract.generateInitializeTransaction(
             networkID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             "0x" // empty metadata
@@ -1258,6 +1274,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -1268,6 +1285,7 @@ describe("PolygonZkEVMEtrog", () => {
         const timestampCreatedRollup = (await ethers.provider.getBlock("latest"))?.timestamp;
         const transaction = await PolygonZKEVMV2Contract.generateInitializeTransaction(
             networkID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             "0x" // empty metadata
@@ -1371,6 +1389,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -1381,6 +1400,7 @@ describe("PolygonZkEVMEtrog", () => {
         const timestampCreatedRollup = (await ethers.provider.getBlock("latest"))?.timestamp;
         const transaction = await PolygonZKEVMV2Contract.generateInitializeTransaction(
             networkID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             "0x" // empty metadata
@@ -1473,6 +1493,7 @@ describe("PolygonZkEVMEtrog", () => {
                 admin.address,
                 trustedSequencer.address,
                 networkID,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName,
@@ -1483,6 +1504,7 @@ describe("PolygonZkEVMEtrog", () => {
         const timestampCreatedRollup = (await ethers.provider.getBlock("latest"))?.timestamp;
         const transaction = await PolygonZKEVMV2Contract.generateInitializeTransaction(
             networkID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             "0x" // empty metadata

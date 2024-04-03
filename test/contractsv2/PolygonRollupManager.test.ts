@@ -161,6 +161,7 @@ describe("Polygon Rollup Manager", () => {
             ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
             rollupManagerContract.target,
+            deployer.address, // Set deployer as bridge manager
             "0x"
         );
 
@@ -351,6 +352,7 @@ describe("Polygon Rollup Manager", () => {
                 chainID,
                 admin.address,
                 trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName
@@ -359,17 +361,16 @@ describe("Polygon Rollup Manager", () => {
 
         // UNexisting rollupType
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    0,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                0,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
 
         // Obsolete rollup type and test that fails
@@ -379,17 +380,16 @@ describe("Polygon Rollup Manager", () => {
             .withArgs(newRollupTypeID);
 
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeObsolete");
         await snapshot2.restore();
 
@@ -403,17 +403,16 @@ describe("Polygon Rollup Manager", () => {
         const newSequencedBatch = 1;
 
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
             .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
@@ -433,21 +432,21 @@ describe("Polygon Rollup Manager", () => {
 
         // Cannot create 2 chains with the same chainID
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDAlreadyExist");
 
         const transaction = await newZkEVMContract.generateInitializeTransaction(
             newCreatedRollupID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             "0x" // empty metadata
@@ -461,6 +460,7 @@ describe("Polygon Rollup Manager", () => {
             gasTokenNetwork,
             globalExitRootL2Address,
             ethers.ZeroAddress,
+            deployer.address, // Set deployer as bridge manager
             "0x", // empty metadata
         ]);
 
@@ -1075,6 +1075,7 @@ describe("Polygon Rollup Manager", () => {
                 chainID,
                 admin.address,
                 trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName
@@ -1083,17 +1084,16 @@ describe("Polygon Rollup Manager", () => {
 
         // Unexisting rollupType
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    0,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                0,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
 
         // Obsolete rollup type and test that fails
@@ -1103,17 +1103,16 @@ describe("Polygon Rollup Manager", () => {
             .withArgs(newRollupTypeID);
 
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeObsolete");
         await snapshot2.restore();
 
@@ -1127,17 +1126,16 @@ describe("Polygon Rollup Manager", () => {
         const newSequencedBatch = 1;
 
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
             .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
@@ -1157,21 +1155,21 @@ describe("Polygon Rollup Manager", () => {
 
         // Cannot create 2 chains with the same chainID
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDAlreadyExist");
 
         const transaction = await newZkEVMContract.generateInitializeTransaction(
             newCreatedRollupID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             gasMetadataToken
@@ -1185,6 +1183,7 @@ describe("Polygon Rollup Manager", () => {
             gasTokenNetwork,
             globalExitRootL2Address,
             ethers.ZeroAddress,
+            deployer.address, // Set deployer as bridge manager
             gasMetadataToken,
         ]);
 
@@ -1652,6 +1651,7 @@ describe("Polygon Rollup Manager", () => {
                 chainID,
                 admin.address,
                 trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
                 gasTokenAddress,
                 urlSequencer,
                 networkName
@@ -1660,17 +1660,16 @@ describe("Polygon Rollup Manager", () => {
 
         // UNexisting rollupType
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    0,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                0,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
 
         // Obsolete rollup type and test that fails
@@ -1680,17 +1679,16 @@ describe("Polygon Rollup Manager", () => {
             .withArgs(newRollupTypeID);
 
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeObsolete");
         await snapshot2.restore();
 
@@ -1704,17 +1702,16 @@ describe("Polygon Rollup Manager", () => {
         const newSequencedBatch = 1;
 
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
             .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
@@ -1734,21 +1731,21 @@ describe("Polygon Rollup Manager", () => {
 
         // Cannot create 2 chains with the same chainID
         await expect(
-            rollupManagerContract
-                .connect(admin)
-                .createNewRollup(
-                    newRollupTypeID,
-                    chainID,
-                    admin.address,
-                    trustedSequencer.address,
-                    gasTokenAddress,
-                    urlSequencer,
-                    networkName
-                )
+            rollupManagerContract.connect(admin).createNewRollup(
+                newRollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                deployer.address, // Set deployer as bridge manager
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
         ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDAlreadyExist");
 
         const transaction = await newZkEVMContract.generateInitializeTransaction(
             newCreatedRollupID,
+            deployer.address, // Set deployer as bridge manager
             gasTokenAddress,
             gasTokenNetwork,
             gasMetadataToken // empty metadata
@@ -1762,6 +1759,7 @@ describe("Polygon Rollup Manager", () => {
             gasTokenNetwork,
             globalExitRootL2Address,
             ethers.ZeroAddress,
+            deployer.address, // Set deployer as bridge manager
             gasMetadataToken, // empty metadata
         ]);
 

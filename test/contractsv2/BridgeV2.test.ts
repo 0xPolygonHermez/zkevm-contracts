@@ -80,6 +80,7 @@ describe("PolygonZkEVMBridge Contract", () => {
             ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
             rollupManager.address,
+            deployer.address, // Deployer as bridge manager
             "0x"
         );
 
@@ -106,6 +107,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 ethers.ZeroAddress, // zero for ether
                 polygonZkEVMGlobalExitRoot.target,
                 rollupManager.address,
+                deployer.address, // Deployer as bridge manager
                 "0x"
             )
         ).to.be.revertedWith("Initializable: contract is already initialized");

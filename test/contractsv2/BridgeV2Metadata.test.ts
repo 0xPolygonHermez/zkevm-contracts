@@ -87,6 +87,7 @@ describe("PolygonZkEVMBridge Contract", () => {
             ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
             rollupManager.address,
+            deployer.address, // Set deployer as bridge manager
             "0x"
         );
 
