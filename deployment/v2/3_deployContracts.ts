@@ -425,7 +425,7 @@ async function main() {
                         emergencyCouncilAddress,
                     ],
                     {
-                        initializer: "initialize",
+                        initializer: "initialize(address,uint64,uint64,address,address,address)",
                         constructorArgs: [
                             polygonZkEVMGlobalExitRoot?.target,
                             polTokenAddress,

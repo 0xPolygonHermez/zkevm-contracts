@@ -137,6 +137,58 @@ async function main() {
         // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
     }
 
+    // verify verifier
+    try {
+        await hre.run(
+            'verify:verify',
+            {
+                address: createRollupOutputParameters.verifierAddress,
+            },
+        );
+    } catch (error) {
+        expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
+    }
+
+    // verify zkEVM address or validium
+
+    if (createRollupOutputParameters.consensusContract === 'PolygonZkEVMFeijoa') {
+        try {
+            await hre.run(
+                'verify:verify',
+                {
+                    contract: 'contracts/v2/consensus/feijoa/zkEVM/PolygonZkEVMFeijoa.sol:PolygonZkEVMFeijoa',
+                    address: createRollupOutputParameters.rollupAddress,
+                    constructorArguments: [
+                        deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
+                        deployOutputParameters.polTokenAddress,
+                        deployOutputParameters.polygonZkEVMBridgeAddress,
+                        deployOutputParameters.polygonRollupManagerAddress,
+                    ],
+                },
+            );
+        } catch (error) {
+            // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        }
+    } else if (createRollupOutputParameters.consensusContract === 'PolygonValidiumFeijoa') {
+        try {
+            await hre.run(
+                'verify:verify',
+                {
+                    contract: 'contracts/v2/consensus/feijoa/validium/PolygonValidiumFeijoa.sol:PolygonValidiumFeijoa',
+                    address: createRollupOutputParameters.rollupAddress,
+                    constructorArguments: [
+                        deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
+                        deployOutputParameters.polTokenAddress,
+                        deployOutputParameters.polygonZkEVMBridgeAddress,
+                        deployOutputParameters.polygonRollupManagerAddress,
+                    ],
+                },
+            );
+        } catch (error) {
+            // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        }
+    }
+
     try {
         await hre.run(
             'verify:verify',
@@ -152,58 +204,6 @@ async function main() {
         );
     } catch (error) {
         // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
-    }
-
-    // verify verifier
-    try {
-        await hre.run(
-            'verify:verify',
-            {
-                address: createRollupOutputParameters.verifierAddress,
-            },
-        );
-    } catch (error) {
-        expect(error.message.toLowerCase().includes('already verified')).to.be.equal(true);
-    }
-
-    // verify zkEVM address or validium
-
-    if (createRollupOutputParameters.consensusContract === 'PolygonZkEVMEtrog') {
-        try {
-            await hre.run(
-                'verify:verify',
-                {
-                    contract: 'contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol:PolygonZkEVMEtrog',
-                    address: createRollupOutputParameters.rollupAddress,
-                    constructorArguments: [
-                        deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
-                        deployOutputParameters.polTokenAddress,
-                        deployOutputParameters.polygonZkEVMBridgeAddress,
-                        deployOutputParameters.polygonRollupManagerAddress,
-                    ],
-                },
-            );
-        } catch (error) {
-            // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
-        }
-    } else if (createRollupOutputParameters.consensusContract === 'PolygonValidiumEtrog') {
-        try {
-            await hre.run(
-                'verify:verify',
-                {
-                    contract: 'contracts/v2/consensus/validium/PolygonValidiumEtrog.sol:PolygonValidiumEtrog',
-                    address: createRollupOutputParameters.rollupAddress,
-                    constructorArguments: [
-                        deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
-                        deployOutputParameters.polTokenAddress,
-                        deployOutputParameters.polygonZkEVMBridgeAddress,
-                        deployOutputParameters.polygonRollupManagerAddress,
-                    ],
-                },
-            );
-        } catch (error) {
-            // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
-        }
     }
 }
 
