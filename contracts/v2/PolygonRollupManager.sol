@@ -561,6 +561,7 @@ contract PolygonRollupManager is
         uint64 chainID,
         address admin,
         address sequencer,
+        address bridgeManager,
         address gasTokenAddress,
         string memory sequencerURL,
         string memory networkName
@@ -621,6 +622,7 @@ contract PolygonRollupManager is
             admin,
             sequencer,
             rollupID,
+            bridgeManager,
             gasTokenAddress,
             sequencerURL,
             networkName

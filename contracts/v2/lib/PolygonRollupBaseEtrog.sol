@@ -280,6 +280,7 @@ contract PolygonRollupBaseEtrog is
      * @param _admin Admin address
      * @param sequencer Trusted sequencer address
      * @param networkID Indicates the network identifier that will be used in the bridge
+     * @param _bridgeManager Indicates the manager address that will be used to manage custom token mapping
      * @param _gasTokenAddress Indicates the token address in mainnet that will be used as a gas token
      * Note if a wrapped token of the bridge is used, the original network and address of this wrapped are used instead
      * @param sequencerURL Trusted sequencer URL
@@ -289,6 +290,7 @@ contract PolygonRollupBaseEtrog is
         address _admin,
         address sequencer,
         uint32 networkID,
+        address _bridgeManager,
         address _gasTokenAddress,
         string memory sequencerURL,
         string memory _networkName
@@ -316,28 +318,30 @@ contract PolygonRollupBaseEtrog is
                 gasTokenAddress = _gasTokenAddress;
             }
         }
+
         // Sequence transaction to initilize the bridge
 
         // Calculate transaction to initialize the bridge
         bytes memory transaction = generateInitializeTransaction(
             networkID,
+            _bridgeManager,
             gasTokenAddress,
             gasTokenNetwork,
             gasTokenMetadata
         );
 
-        bytes32 currentTransactionsHash = keccak256(transaction);
-
-        // Get current timestamp and global exit root
-        uint64 currentTimestamp = uint64(block.timestamp);
+        // Get last global exist root
         bytes32 lastGlobalExitRoot = globalExitRootManager
             .getLastGlobalExitRoot();
+
+        // Get current timestamp
+        uint64 currentTimestamp = uint64(block.timestamp);
 
         // Add the transaction to the sequence as if it was a force transaction
         bytes32 newAccInputHash = keccak256(
             abi.encodePacked(
                 bytes32(0), // Current acc Input hash
-                currentTransactionsHash,
+                keccak256(transaction),
                 lastGlobalExitRoot, // Global exit root
                 currentTimestamp,
                 sequencer,
@@ -843,12 +847,14 @@ contract PolygonRollupBaseEtrog is
     /**
      * @notice Generate Initialize transaction for hte bridge on L2
      * @param networkID Indicates the network identifier that will be used in the bridge
+     * @param _bridgeManager Indicates the manager address that will be used to manage custom token mapping
      * @param _gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
      * @param _gasTokenNetwork Indicates the native network of the token address
      * @param _gasTokenMetadata Abi encoded gas token metadata
      */
     function generateInitializeTransaction(
         uint32 networkID,
+        address _bridgeManager,
         address _gasTokenAddress,
         uint32 _gasTokenNetwork,
         bytes memory _gasTokenMetadata
@@ -861,6 +867,7 @@ contract PolygonRollupBaseEtrog is
                 _gasTokenNetwork,
                 GLOBAL_EXIT_ROOT_MANAGER_L2,
                 address(0), // Rollup manager on L2 does not exist
+                _bridgeManager,
                 _gasTokenMetadata
             )
         );

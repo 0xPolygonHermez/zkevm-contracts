@@ -7,6 +7,7 @@ interface IPolygonRollupBase {
         address _admin,
         address sequencer,
         uint32 networkID,
+        address _bridgeManager,
         address gasTokenAddress,
         string memory sequencerURL,
         string memory _networkName

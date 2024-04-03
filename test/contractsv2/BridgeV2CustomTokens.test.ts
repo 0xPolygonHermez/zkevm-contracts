@@ -126,6 +126,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
             0,
             polygonZkEVMGlobalExitRoot.target,
             rollupManager.address,
+            deployer.address, // deployer as bridge manager
             "0x"
         );
     });
@@ -139,7 +140,7 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         const customWrapper = await wrapperFactory.deploy(existingToken.target);
 
         await polygonZkEVMBridge
-            .connect(rollupManager)
+            .connect(deployer)
             .setCustomTokenMapping(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
 
         const tokenInfo = ethers.solidityPackedKeccak256(["uint32", "address"], [originNetworkId, tokenAddress]);
@@ -311,9 +312,9 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         const wrapperFactory = await ethers.getContractFactory("CustomTokenWrapperMock");
         const customWrapper = await wrapperFactory.deploy(existingToken.target);
 
-        // 3. rollupManager set the custom wrapper
+        // 3. Bridge manager set the custom wrapper
         await polygonZkEVMBridge
-            .connect(rollupManager)
+            .connect(deployer)
             .setCustomTokenMapping(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
 
         // 4. Alice claim
@@ -500,9 +501,9 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         const wrapperFactory = await ethers.getContractFactory("CustomTokenWrapperMock");
         const customWrapper = await wrapperFactory.deploy(existingToken.target);
 
-        // 3. rollupManager set the custom wrapper
+        // 3. Bridge manager set the custom wrapper
         await polygonZkEVMBridge
-            .connect(rollupManager)
+            .connect(deployer)
             .setCustomTokenMapping(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
 
         // 4. Alice claim
@@ -614,9 +615,9 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
         const wrapperFactory = await ethers.getContractFactory("CustomTokenWrapperMock");
         const customWrapper = await wrapperFactory.deploy(existingToken.target);
 
-        // 5. rollupManager set the custom wrapper
+        // 5. Bridge manager set the custom wrapper
         await polygonZkEVMBridge
-            .connect(rollupManager)
+            .connect(deployer)
             .setCustomTokenMapping(originNetworkId, tokenAddress, customWrapper.target, existingToken.target);
 
         const depositCount = await polygonZkEVMBridge.depositCount();

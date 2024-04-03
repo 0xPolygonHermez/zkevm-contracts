@@ -70,6 +70,12 @@ interface IPolygonZkEVMBridgeV2 {
     error OnlyRollupManager();
 
     /**
+     * @dev Thrown when sender is not the bridge manager
+     * @notice Bridge manager can set custom mapping for any token
+     */
+    error OnlyBridgeManager();
+
+    /**
      * @dev Thrown when the permit data contains an invalid signature
      */
     error NativeTokenIsEther();
@@ -157,6 +163,7 @@ interface IPolygonZkEVMBridgeV2 {
         uint32 _gasTokenNetwork,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager,
+        address _bridgeManager,
         bytes memory _gasTokenMetadata
     ) external;
 

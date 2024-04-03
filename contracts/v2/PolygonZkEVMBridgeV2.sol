@@ -83,6 +83,9 @@ contract PolygonZkEVMBridgeV2 is
     /// @custom:oz-renamed-from polygonZkEVMaddress
     address public polygonRollupManager;
 
+    // Bridge manager address; can set custom mapping for any token
+    address public bridgeManager;
+
     // Native address
     address public gasTokenAddress;
 
@@ -145,6 +148,8 @@ contract PolygonZkEVMBridgeV2 is
      * @param _polygonRollupManager polygonZkEVM address
      * @notice The value of `_polygonRollupManager` on the L2 deployment of the contract will be address(0), so
      * emergency state is not possible for the L2 deployment of the bridge, intentionally
+     * @param _bridgeManager Bridge manager address
+     * @notice Bridge manager can set custom mapping for any token.
      * @param _gasTokenMetadata Abi encoded gas token metadata
      */
     function initialize(
@@ -153,11 +158,13 @@ contract PolygonZkEVMBridgeV2 is
         uint32 _gasTokenNetwork,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager,
+        address _bridgeManager,
         bytes memory _gasTokenMetadata
     ) external virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonRollupManager = _polygonRollupManager;
+        bridgeManager = _bridgeManager;
 
         // Set gas token
         if (_gasTokenAddress == address(0)) {
@@ -187,6 +194,13 @@ contract PolygonZkEVMBridgeV2 is
     modifier onlyRollupManager() {
         if (polygonRollupManager != msg.sender) {
             revert OnlyRollupManager();
+        }
+        _;
+    }
+
+    modifier onlyBridgeManager() {
+        if (bridgeManager != msg.sender) {
+            revert OnlyBridgeManager();
         }
         _;
     }
@@ -739,6 +753,8 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Set the address of a wrapper using the token information if already exist
      * @dev This function is used to allow any existing token to be mapped with
      *      origin token. Wrapper contract should handle mint/burn of the existing token.
+     * @notice If this function is called multiple times for the same existingTokenAddress,
+     * this will override the previous calls and only keep the last wrappedTokenAddress.
      * @param originNetwork Origin network
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
      * @param wrappedTokenAddress Arbitary contract that implements TokenWrapped interface
@@ -748,7 +764,7 @@ contract PolygonZkEVMBridgeV2 is
         address originTokenAddress,
         address wrappedTokenAddress,
         address existingTokenAddress
-    ) external onlyRollupManager {
+    ) external onlyBridgeManager {
         // Handle claimAsset on target chain
         bytes32 tokenInfoHash = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
