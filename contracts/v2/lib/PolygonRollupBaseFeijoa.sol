@@ -55,35 +55,6 @@ abstract contract PolygonRollupBaseFeijoa is
         uint64 forcedTimestamp;
     }
 
-    // calldata:
-
-    // uint64 maxSequenceTimestamp;
-    // uint64 zkGasLimit;
-
-    //  (uint32 l1InfoLeafIndex, bytes memory transactions) = abi
-    //  .decode(currentBlob.blobTypeParams, (uint32, bytes));
-
-    // blob
-
-    // uint64 maxSequenceTimestamp;
-    // uint64 zkGasLimit;
-    // (
-    //                 uint32 l1InfoLeafIndex,
-    //                 uint256 blonIndex,
-    //                 bytes32 z,
-    //                 bytes32 y,
-    //                 bytes memory commitmentAndProof
-    //             ) = abi.decode(
-    //                     currentBlob.blobTypeParams,
-    //                     (uint32, uint256, bytes32, bytes32, bytes)
-    //                 );
-    // forced
-
-    // bytes32 transactionsHash, bytes32 forcedHashData
-
-    // TODO l1INforLEafINdex per blob?¡ ( mor modular, but more expensive)
-    // TODO same for lastTImestamp
-
     // Max transactions bytes that can be added in a single blob
     // Max keccaks circuit = (2**23 / 155286) * 44 = 2376
     // Bytes per keccak = 136
@@ -179,9 +150,6 @@ abstract contract PolygonRollupBaseFeijoa is
     // Timestamp range that's given to the sequencer as a safety measure to avoid reverts if the transaction is mined to quickly
     uint64 public constant MAX_SEQUENCE_TIMESTAMP_FORCED = type(uint64).max;
 
-    // Zk gas payed per batch, checked on the zkrom
-    uint64 public constant ZK_GAS_LIMIT_BATCH = 100_000_000;
-
     // POL token address
     IERC20Upgradeable public immutable pol;
 
@@ -219,7 +187,7 @@ abstract contract PolygonRollupBaseFeijoa is
     // ForceBlobNum --> hashedForcedBlobData
     // hashedForcedBlobData: hash containing the necessary information to force a blob:
     // keccak256(keccak256(bytes transactions), bytes32 forcedGlobalExitRoot, unint64 forcedTimestamp, bytes32 forcedBlockHashL1)
-    mapping(uint64 => bytes32) public forcedBlobs;
+    mapping(uint64 => ForcedData) public forcedBlobs;
 
     // Last forced blob
     uint64 public lastForceBlob;
@@ -632,8 +600,9 @@ abstract contract PolygonRollupBaseFeijoa is
                 {
                     bytes32 versionedHash = blobhash(blobIndex);
                     if (versionedHash == bytes32(0)) {
-                        // TODO should revert
+                        revert BlobHashNotFound();
                     }
+
                     (bool success, ) = POINT_EVALUATION_PRECOMPILE_ADDRESS
                         .staticcall(
                             abi.encodePacked(
@@ -686,6 +655,7 @@ abstract contract PolygonRollupBaseFeijoa is
                 if (
                     hashedForcedBlobData !=
                     forcedBlobs[currentLastForceBlobSequenced]
+                        .hashedForcedBlobData
                 ) {
                     revert ForcedDataDoesNotMatch();
                 }
@@ -827,9 +797,12 @@ abstract contract PolygonRollupBaseFeijoa is
             )
         );
 
-        forcedBlobs[lastForceBlob] = keccak256(
-            abi.encodePacked(keccak256(blobData), forcedHashData)
-        );
+        forcedBlobs[lastForceBlob] = ForcedData({
+            hashedForcedBlobData: keccak256(
+                abi.encodePacked(keccak256(blobData), forcedHashData)
+            ),
+            forcedTimestamp: uint64(block.timestamp)
+        });
 
         if (msg.sender == tx.origin) {
             // Getting the calldata from an EOA is easy so no need to put the `transactions` in the event
@@ -911,24 +884,25 @@ abstract contract PolygonRollupBaseFeijoa is
 
             if (
                 hashedForcedBlobData !=
-                forcedBlobs[currentLastForceBlobSequenced]
+                forcedBlobs[currentLastForceBlobSequenced].hashedForcedBlobData
             ) {
                 revert ForcedDataDoesNotMatch();
+            }
+
+            if (i == (blobsNum - 1)) {
+                //The last blob will have the most restrictive timestamp
+                if (
+                    forcedBlobs[currentLastForceBlobSequenced].forcedTimestamp +
+                        forceBlobTimeout >
+                    block.timestamp
+                ) {
+                    revert ForceBlobTimeoutNotExpired();
+                }
             }
 
             // Delete forceBlob data since won't be used anymore
             delete forcedBlobs[currentLastForceBlobSequenced];
 
-            if (i == (blobsNum - 1)) {
-                // The last blob will have the most restrictive timestamp
-                // TODOOOOOOOOO TODO
-                // if (
-                //     currentBlob.forcedTimestamp + forceBlobTimeout >
-                //     block.timestamp
-                // ) {
-                //     revert ForceBlobTimeoutNotExpired();
-                // }
-            }
             // Calculate next accumulated input hash
             currentAccInputHash = keccak256(
                 abi.encodePacked(

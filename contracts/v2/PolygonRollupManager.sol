@@ -550,7 +550,7 @@ contract PolygonRollupManager is
                 .accInputHash;
 
             // Do not copy state transitions since it was not used
-            _zkGasPrice = _legacyBatchFee / 1000;
+            _zkGasPrice = _legacyBatchFee / ZK_GAS_LIMIT_BATCH;
         }
     }
 
@@ -949,7 +949,7 @@ contract PolygonRollupManager is
         // Consolidate pending state if possible
         _tryConsolidatePendingState(rollup);
 
-        emit OnSequence(rollupID, zkGasLimitSequenced, blobsSequenced); // TODO remove zkGasLimit and blobsSequnced
+        emit OnSequence(rollupID, zkGasLimitSequenced, blobsSequenced);
 
         return newSequenceNum;
     }
