@@ -1,7 +1,6 @@
 {
   "editor.formatOnSave": true,
   "solidity.linter": "solhint",
-  "solidity.compileUsingRemoteVersion": "v0.8.24+commit.a1b79de6",
   "solidity.remappings": [
     "@openzeppelin/=node_modules/@openzeppelin"
   ],
@@ -13,4 +12,6 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true
   },
+  "solidity.compileUsingRemoteVersion": "v0.8.24+commit.e11b9ed9",
+  "solidity.evmVersion": "cancun"
 }

@@ -195,7 +195,7 @@ contract PolygonRollupManager is
 
     // Bytes that will be added to the snark input for every rollup aggregated
     // |   32 bytes   |    32 bytes        |    32 bytes      |   8 bytes       |   8 bytes  |   8 bytes  |  32 bytes      | 32 bytes          |    32 bytes         |  8 bytes          | 32 bytes        |
-    // | oldStateRoot | oldBlobStateRoot  |  oldAccInputHash | initNumBlob     |   chainID  |   forkID   |  newStateRoot  | newBlobStateRoot  |   newAccInputHash   |  finalBlobNum     |newLocalExitRoot |
+    // | oldStateRoot | oldBlobStateRoot   |  oldAccInputHash | initNumBlob     |   chainID  |   forkID   |  newStateRoot  | newBlobStateRoot  |   newAccInputHash   |  finalBlobNum     |newLocalExitRoot |
     uint256 internal constant _SNARK_BYTES_PER_ROLLUP_AGGREGATED =
         32 + 32 + 32 + 8 + 8 + 8 + 32 + 32 + 32 + 8 + 32;
     // Roles
@@ -2109,6 +2109,7 @@ contract PolygonRollupManager is
             mstore(ptr, shl(192, initBlobNum)) // 256-64 = 192
             ptr := add(ptr, 8)
 
+            // Review
             // store chainID
             // chainID is stored inside the rollup struct, on the first storage slot with 32 -(8 + 20) = 4 bytes offset
             mstore(ptr, shl(32, sload(rollup.slot)))

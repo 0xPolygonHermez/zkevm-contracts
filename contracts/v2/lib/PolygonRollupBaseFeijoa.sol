@@ -593,6 +593,7 @@ abstract contract PolygonRollupBaseFeijoa is
                     }
                 }
 
+                // sanity cehck
                 if (commitmentAndProof.length == 96) {
                     revert InvalidCommitmentAndProofLength();
                 }
@@ -603,6 +604,7 @@ abstract contract PolygonRollupBaseFeijoa is
                         revert BlobHashNotFound();
                     }
 
+                    // review
                     (bool success, ) = POINT_EVALUATION_PRECOMPILE_ADDRESS
                         .staticcall(
                             abi.encodePacked(
