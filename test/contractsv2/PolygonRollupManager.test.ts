@@ -190,9 +190,10 @@ describe("Polygon Rollup Manager", () => {
         expect(await rollupManagerContract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
         expect(await rollupManagerContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeout);
 
-        expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther("0.1"));
-        expect(await rollupManagerContract.getForcedBatchFee()).to.be.equal(ethers.parseEther("10"));
-        expect(await rollupManagerContract.calculateRewardPerBatch()).to.be.equal(0);
+        const zkGasPrice = ethers.parseEther("0.1") / (await rollupManagerContract.ZK_GAS_LIMIT_BATCH());
+        expect(await rollupManagerContract.getZkGasPrice()).to.be.equal(zkGasPrice);
+        expect(await rollupManagerContract.getForcedZkGasPrice()).to.be.equal(zkGasPrice * 100n);
+        expect(await rollupManagerContract.calculateRewardPerZkGas()).to.be.equal(0);
 
         // Check roles
         expect(await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelock.address)).to.be.equal(true);

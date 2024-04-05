@@ -36,12 +36,17 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: Boolea
     }
 }
 
-function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any, timestamp: any) {
+function getL1InfoTreeHash(newGlobalExitRoot: any, lastBlockHash: any, timestamp: any) {
     return ethers.solidityPackedKeccak256(
         ["bytes32", "bytes32", "uint64"],
         [newGlobalExitRoot, lastBlockHash, timestamp]
     );
 }
+
+function getLeafValueGlobal(l1InfoTreeHash: any, root: any) {
+    return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [l1InfoTreeHash, root]);
+}
+
 describe("Polygon Globlal exit root v2", () => {
     let deployer: any;
     let rollupManager: any;
@@ -96,7 +101,7 @@ describe("Polygon Globlal exit root v2", () => {
 
         // Update root from the rollup
         await expect(polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup))
-            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTree")
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
             .withArgs(ethers.ZeroHash, newRootRollup);
 
         blockUpdates.push({
@@ -111,7 +116,7 @@ describe("Polygon Globlal exit root v2", () => {
         // Update root from the PolygonZkEVMBridge
         const newRootBridge = ethers.hexlify(ethers.randomBytes(32));
         await expect(polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge))
-            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTree")
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
             .withArgs(newRootBridge, newRootRollup);
 
         const newGlobalExitRoot = calculateGlobalExitRoot(newRootBridge, newRootRollup);
@@ -133,12 +138,16 @@ describe("Polygon Globlal exit root v2", () => {
             const {block, globalExitRoot} = blockStruct as any;
             const currentBlockNumber = block?.number;
             const previousBlock = await ethers.provider.getBlock((currentBlockNumber as number) - 1);
-            const leafValueJs = calculateGlobalExitRootLeaf(globalExitRoot, previousBlock?.hash, block?.timestamp);
-            const leafValueSC = await polygonZkEVMGlobalExitRootV2.getLeafValue(
-                globalExitRoot,
+            const l1InfoTreeHash = getL1InfoTreeHash(globalExitRoot, previousBlock?.hash, block?.timestamp);
+            const leafValueJs = getLeafValueGlobal(l1InfoTreeHash, merkleTree.getRoot());
+
+            const l1InfoTreeHashSC = await polygonZkEVMGlobalExitRootV2.getL1InfoTreeHash(
+                globalExitRoot as any,
                 previousBlock?.hash as any,
-                block?.timestamp as any
+                block?.timestamp
             );
+
+            const leafValueSC = await polygonZkEVMGlobalExitRootV2.getLeafValue(l1InfoTreeHashSC, merkleTree.getRoot());
 
             expect(leafValueJs).to.be.equal(leafValueSC);
             merkleTree.add(leafValueJs);

@@ -29,7 +29,7 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
         // Constant deployment variables
-        _batchFee = 0.1 ether; // 0.1 Matic
+        _zkGasPrice = 0.1 ether / ZK_GAS_LIMIT_BATCH; // 0.1 Matic
         verifySequenceTimeTarget = 30 minutes;
         multiplierZkGasPrice = 1002;
 
