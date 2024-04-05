@@ -150,6 +150,11 @@ abstract contract PolygonRollupBaseFeijoa is
     // Timestamp range that's given to the sequencer as a safety measure to avoid reverts if the transaction is mined to quickly
     uint64 public constant MAX_SEQUENCE_TIMESTAMP_FORCED = type(uint64).max;
 
+    // Defined blob types
+    uint8 public constant CALLDATA_BLOB_TYPE = 0;
+    uint8 public constant BLOBTX_BLOB_TYPE = 1;
+    uint8 public constant FORCED_BLOB_TYPE = 2;
+
     // POL token address
     IERC20Upgradeable public immutable pol;
 
@@ -392,7 +397,7 @@ abstract contract PolygonRollupBaseFeijoa is
 
         rollupManager.onSequence(
             uint128(ZK_GAS_LIMIT_BATCH),
-            uint64(1),
+            uint64(1), // blobs sequenced
             newAccInputHash
         );
 
@@ -487,7 +492,7 @@ abstract contract PolygonRollupBaseFeijoa is
                 revert BlobTypeNotSupported();
             }
 
-            if (currentBlob.blobType == 0) {
+            if (currentBlob.blobType == CALLDATA_BLOB_TYPE) {
                 // calldata
 
                 // avoid stack to deep for some reason
@@ -547,7 +552,7 @@ abstract contract PolygonRollupBaseFeijoa is
                 );
 
                 accZkGasSequenced += zkGasLimit;
-            } else if (currentBlob.blobType == 1) {
+            } else if (currentBlob.blobType == BLOBTX_BLOB_TYPE) {
                 // blob transaction
 
                 // avoid stack to deep for some reason

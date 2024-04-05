@@ -114,7 +114,7 @@ contract PolygonValidiumFeijoa is PolygonRollupBaseFeijoa, IPolygonValidium {
                 revert BlobTypeNotSupported();
             }
 
-            if (currentBlob.blobType == 0) {
+            if (currentBlob.blobType == CALLDATA_BLOB_TYPE) {
                 // Validium
 
                 // avoid stack to deep for some reason
@@ -168,7 +168,7 @@ contract PolygonValidiumFeijoa is PolygonRollupBaseFeijoa, IPolygonValidium {
                 );
 
                 accZkGasSequenced += zkGasLimit;
-            } else if (currentBlob.blobType == 1) {
+            } else if (currentBlob.blobType == BLOBTX_BLOB_TYPE) {
                 // blob transaction
 
                 // avoid stack to deep for some reason
