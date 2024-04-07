@@ -333,16 +333,15 @@ contract PolygonValidiumFeijoa is PolygonRollupBaseFeijoa, IPolygonValidium {
             lastForceBlobSequenced = currentLastForceBlobSequenced;
         }
 
-        uint256 totalZkGasSequenced = accZkGasSequenced + forcedZkGasLimit;
         // Pay collateral for every non-forced blob submitted
         pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
-            rollupManager.getZkGasPrice() * totalZkGasSequenced
+            rollupManager.getZkGasPrice() * accZkGasSequenced
         );
 
         uint64 currentBlobSequenced = rollupManager.onSequence(
-            uint128(totalZkGasSequenced),
+            uint128(accZkGasSequenced + forcedZkGasLimit),
             uint64(blobsNum),
             currentAccInputHash
         );

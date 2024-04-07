@@ -42,9 +42,15 @@ function encodeCalldatBlobTypeParams(
     );
 }
 
+function encodeCalldatForcedTypeParams(transactionsHash: any, forcedHashData: any) {
+    return ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "bytes32"], [transactionsHash, forcedHashData]);
+}
 const CALLDATA_BLOB_TYPE = 0;
 const BLOBTX_BLOB_TYPE = 1;
 const FORCED_BLOB_TYPE = 2;
+
+const ZK_GAS_LIMIT_BATCH = 100_000_000;
+const MAX_SEQUENCE_TIMESTAMP_FORCED = 18446744073709551615n; // max uint64
 
 describe("Polygon Rollup Manager", () => {
     let deployer: any;
@@ -97,8 +103,6 @@ describe("Polygon Rollup Manager", () => {
 
     const SIGNATURE_BYTES = 32 + 32 + 1;
     const EFFECTIVE_PERCENTAGE_BYTES = 1;
-
-    const ZK_GAS_LIMIT_BATCH = 100_000_000;
 
     beforeEach("Deploy contract", async () => {
         upgrades.silenceWarnings();
@@ -702,9 +706,9 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedAggregator)
                 .verifySequencesTrustedAggregatorMultiProof([VerifyBlobData], beneficiary.address, zkProofFFlonk)
         )
-            .to.emit(rollupManagerContract, "VerifyBlobsTrustedAggregator")
+            .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -860,7 +864,7 @@ describe("Polygon Rollup Manager", () => {
             currentTimestampEmergency
         );
 
-        await expect(newZkEVMContract.sequenceForceBlobs([sequence])).to.be.revertedWithCustomError(
+        await expect(newZkEVMContract.sequenceForceBlobs([blob])).to.be.revertedWithCustomError(
             newZkEVMContract,
             "HaltTimeoutNotExpiredAfterEmergencyState"
         );
@@ -868,7 +872,7 @@ describe("Polygon Rollup Manager", () => {
         await snapshotEmergencyState.restore();
 
         const l2txDataForceBlob = "0x123456";
-        const maticAmountForced = await rollupManagerContract.getForcedBlobFee();
+        const maticAmountForced = (await rollupManagerContract.getForcedZkGasPrice()) * BigInt(ZK_GAS_LIMIT_BATCH);
         const lastGlobalExitRoot = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
         // Approve tokens
@@ -882,34 +886,41 @@ describe("Polygon Rollup Manager", () => {
         // Force blob
         await expect(newZkEVMContract.forceBlob(l2txDataForceBlob, maticAmountForced))
             .to.emit(newZkEVMContract, "ForceBlob")
-            .withArgs(lastForcedBlob, lastGlobalExitRoot, deployer.address, "0x");
+            .withArgs(lastForcedBlob, lastGlobalExitRoot, deployer.address, ZK_GAS_LIMIT_BATCH, "0x");
 
         const forcedBlock = await ethers.provider.getBlock("latest");
         const currentTimestamp2 = forcedBlock?.timestamp;
 
-        const sequenceForced = {
-            transactions: l2txDataForceBlob,
-            forcedGlobalExitRoot: lastGlobalExitRoot,
-            forcedTimestamp: currentTimestamp2,
-            forcedBlockHashL1: forcedBlock?.parentHash,
+        const forcedHashDataForcedBlob = ethers.solidityPackedKeccak256(
+            ["bytes32", "uint64", "bytes32"],
+            [lastGlobalExitRoot, currentTimestamp2, forcedBlock?.parentHash]
+        );
+
+        const blobForced = {
+            blobType: FORCED_BLOB_TYPE,
+            blobTypeParams: encodeCalldatForcedTypeParams(
+                ethers.keccak256(l2txDataForceBlob),
+                forcedHashDataForcedBlob
+            ),
         } as BlobDataStructFeijoa;
 
+        const expectedAccInputHash3 = await calculateAccInputHashFromCalldata(
+            [blobForced],
+            trustedSequencer.address,
+            expectedAccInputHash2,
+            polygonZkEVMGlobalExitRoot
+        );
+
         const snapshot3 = await takeSnapshot();
+
         // Sequence Blobs
+        let a = 0;
         await expect(
             newZkEVMContract
                 .connect(trustedSequencer)
-                .sequenceBlobs([sequenceForced], currentTime, currentLastBlobSequenced++, trustedSequencer.address)
+                .sequenceBlobs([blobForced], trustedSequencer.address, expectedAccInputHash3)
         ).to.emit(newZkEVMContract, "SequenceBlobs");
 
-        const expectedAccInputHash3 = calculateAccInputHashfeijoa(
-            expectedAccInputHash2,
-            ethers.keccak256(l2txDataForceBlob),
-            lastGlobalExitRoot,
-            currentTimestamp2,
-            trustedSequencer.address,
-            forcedBlock?.parentHash
-        );
         // calcualte accINputHash
         expect(await newZkEVMContract.lastAccInputHash()).to.be.equal(expectedAccInputHash3);
 
@@ -921,7 +932,7 @@ describe("Polygon Rollup Manager", () => {
         await ethers.provider.send("evm_setNextBlockTimestamp", [timestampForceBlob + FORCE_BLOB_TIMEOUT]);
 
         // sequence force blob
-        await expect(newZkEVMContract.sequenceForceBlobs([sequenceForced]))
+        await expect(newZkEVMContract.sequenceForceBlobs([blobForced]))
             .to.emit(newZkEVMContract, "SequenceForceBlobs")
             .withArgs(3);
 
@@ -943,17 +954,17 @@ describe("Polygon Rollup Manager", () => {
             .to.emit(newZkEVMContract, "SetTrustedSequencerURL")
             .withArgs("0x1253");
 
-        await expect(newZkEVMContract.setforceBlobTimeout(0)).to.be.revertedWithCustomError(
+        await expect(newZkEVMContract.setForceBlobTimeout(0)).to.be.revertedWithCustomError(
             newZkEVMContract,
             "OnlyAdmin"
         );
 
         await expect(
-            newZkEVMContract.connect(admin).setforceBlobTimeout(FORCE_BLOB_TIMEOUT)
-        ).to.be.revertedWithCustomError(newZkEVMContract, "InvalidRangeforceBlobTimeout");
+            newZkEVMContract.connect(admin).setForceBlobTimeout(FORCE_BLOB_TIMEOUT)
+        ).to.be.revertedWithCustomError(newZkEVMContract, "InvalidRangeForceBlobTimeout");
 
-        await expect(newZkEVMContract.connect(admin).setforceBlobTimeout(0))
-            .to.emit(newZkEVMContract, "SetforceBlobTimeout")
+        await expect(newZkEVMContract.connect(admin).setForceBlobTimeout(0))
+            .to.emit(newZkEVMContract, "SetForceBlobTimeout")
             .withArgs(0);
 
         await expect(newZkEVMContract.transferAdminRole(deployer.address)).to.be.revertedWithCustomError(
@@ -1395,9 +1406,9 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedAggregator)
                 .verifySequencesTrustedAggregatorMultiProof([VerifyBlobData], beneficiary.address, zkProofFFlonk)
         )
-            .to.emit(rollupManagerContract, "VerifyBlobsTrustedAggregator")
+            .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -1917,9 +1928,9 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedAggregator)
                 .verifySequencesTrustedAggregatorMultiProof([VerifyBlobData], beneficiary.address, zkProofFFlonk)
         )
-            .to.emit(rollupManagerContract, "VerifyBlobsTrustedAggregator")
+            .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -2465,9 +2476,9 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedAggregator)
                 .verifySequencesTrustedAggregatorMultiProof([VerifyBlobData], beneficiary.address, zkProofFFlonk)
         )
-            .to.emit(rollupManagerContract, "VerifyBlobsTrustedAggregator")
+            .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -2885,9 +2896,9 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedAggregator)
                 .verifySequencesTrustedAggregatorMultiProof([VerifyBlobData], beneficiary.address, zkProofFFlonk)
         )
-            .to.emit(rollupManagerContract, "VerifyBlobsTrustedAggregator")
+            .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(RollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(ethers.ZeroHash, rootRollups);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
@@ -3157,6 +3168,26 @@ async function calculateAccInputHashFromCalldata(
                 ethers.ZeroHash,
                 ethers.keccak256(transactions),
                 ethers.ZeroHash
+            );
+        } else if (blobType == FORCED_BLOB_TYPE) {
+            const [transactionsHash, forcedHashData] = ethers.AbiCoder.defaultAbiCoder().decode(
+                ["bytes32", "bytes32"],
+                blobTypeParams
+            );
+
+            // check l1INfoHash
+            currentAccInputHash = calculateAccInputHashfeijoa(
+                currentAccInputHash,
+                0,
+                ethers.ZeroHash,
+                MAX_SEQUENCE_TIMESTAMP_FORCED,
+                coinbase,
+                ZK_GAS_LIMIT_BATCH,
+                blobType,
+                ethers.ZeroHash,
+                ethers.ZeroHash,
+                transactionsHash,
+                forcedHashData
             );
         }
     }

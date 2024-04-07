@@ -716,16 +716,15 @@ abstract contract PolygonRollupBaseFeijoa is
             lastForceBlobSequenced = currentLastForceBlobSequenced;
         }
 
-        uint256 totalZkGasSequenced = accZkGasSequenced + forcedZkGasLimit;
         // Pay collateral for every non-forced blob submitted
         pol.safeTransferFrom(
             msg.sender,
             address(rollupManager),
-            rollupManager.getZkGasPrice() * totalZkGasSequenced
+            rollupManager.getZkGasPrice() * accZkGasSequenced
         );
 
         uint64 currentBlobSequenced = rollupManager.onSequence(
-            uint128(totalZkGasSequenced),
+            uint128(accZkGasSequenced + forcedZkGasLimit),
             uint64(blobsNum),
             currentAccInputHash
         );
@@ -869,7 +868,6 @@ abstract contract PolygonRollupBaseFeijoa is
         for (uint256 i = 0; i < blobsNum; i++) {
             // Load current sequence
             BlobData memory currentBlob = blobs[i];
-            currentLastForceBlobSequenced++;
 
             // Supported types: 0 calldata, 1 blob transaction, 2 forced
             if (currentBlob.blobType != 2) {
