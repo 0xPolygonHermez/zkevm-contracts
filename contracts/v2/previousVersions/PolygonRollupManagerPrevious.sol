@@ -5,7 +5,7 @@ pragma solidity 0.8.24;
 import "../interfaces/IPolygonRollupManager.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "../../interfaces/IPolygonZkEVMBridge.sol";
-import "../interfaces/IPolygonRollupBase.sol";
+import "./interfaces/IPolygonRollupBasePrevious.sol";
 import "../../interfaces/IVerifierRollup.sol";
 import "../../lib/EmergencyManager.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -68,7 +68,7 @@ contract PolygonRollupManagerPrevious is
      * @param rollupCompatibilityID Rollup ID used for compatibility checks when upgrading
      */
     struct RollupData {
-        IPolygonRollupBase rollupContract;
+        IPolygonRollupBasePrevious rollupContract;
         uint64 chainID;
         IVerifierRollup verifier;
         uint64 forkID;
@@ -444,7 +444,7 @@ contract PolygonRollupManagerPrevious is
 
         // Initialize current zkEVM
         RollupData storage currentZkEVM = _addExistingRollup(
-            IPolygonRollupBase(polygonZkEVM),
+            IPolygonRollupBasePrevious(polygonZkEVM),
             zkEVMVerifier,
             zkEVMForkID,
             zkEVMChainID,
@@ -600,7 +600,7 @@ contract PolygonRollupManagerPrevious is
 
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
-        rollup.rollupContract = IPolygonRollupBase(rollupAddress);
+        rollup.rollupContract = IPolygonRollupBasePrevious(rollupAddress);
         rollup.forkID = rollupType.forkID;
         rollup.verifier = rollupType.verifier;
         rollup.chainID = chainID;
@@ -617,7 +617,7 @@ contract PolygonRollupManagerPrevious is
         );
 
         // Initialize new rollup
-        IPolygonRollupBase(rollupAddress).initialize(
+        IPolygonRollupBasePrevious(rollupAddress).initialize(
             admin,
             sequencer,
             rollupID,
@@ -638,7 +638,7 @@ contract PolygonRollupManagerPrevious is
      * @param rollupCompatibilityID Compatibility ID for the added rollup
      */
     function addExistingRollup(
-        IPolygonRollupBase rollupAddress,
+        IPolygonRollupBasePrevious rollupAddress,
         IVerifierRollup verifier,
         uint64 forkID,
         uint64 chainID,
@@ -677,7 +677,7 @@ contract PolygonRollupManagerPrevious is
      * @param lastVerifiedBatch Last verified batch before adding the rollup
      */
     function _addExistingRollup(
-        IPolygonRollupBase rollupAddress,
+        IPolygonRollupBasePrevious rollupAddress,
         IVerifierRollup verifier,
         uint64 forkID,
         uint64 chainID,

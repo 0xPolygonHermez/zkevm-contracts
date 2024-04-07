@@ -8,31 +8,36 @@ import "../../lib/EmergencyManager.sol";
  * PolygonRollupManager used only to test conensus contracts
  */
 contract PolygonRollupManagerEmptyMock is EmergencyManager {
-    uint256 currentSequenceBatches;
+    uint256 currentSequenceBlobs;
 
-    bool acceptSequenceBatches = true;
+    bool acceptSequenceBlobs = true;
 
-    function setAcceptSequenceBatches(bool newAcceptSequenceBatches) public {
-        acceptSequenceBatches = newAcceptSequenceBatches;
+    function setAcceptSequenceBlobs(bool newAcceptSequenceBlobs) public {
+        acceptSequenceBlobs = newAcceptSequenceBlobs;
     }
 
-    function onSequenceBatches(
-        uint64 newSequencedBatches,
+    function onSequence(
+        uint128 zkGasLimitSequenced,
+        uint64 blobsSequenced,
         bytes32 newAccInputHash
     ) external returns (uint64) {
-        if (!acceptSequenceBatches) {
+        if (!acceptSequenceBlobs) {
             revert();
         }
-        currentSequenceBatches = currentSequenceBatches + newSequencedBatches;
-        return uint64(currentSequenceBatches);
+        currentSequenceBlobs = currentSequenceBlobs + blobsSequenced;
+        return uint64(currentSequenceBlobs);
     }
 
-    function onVerifyBatches(
-        uint64 finalNewBatch,
+    function onVerifyBlobs(
+        uint64 lastVerifiedSequenceNum,
         bytes32 newStateRoot,
         IPolygonRollupBase rollup
     ) external returns (uint64) {
-        rollup.onVerifyBatches(finalNewBatch, newStateRoot, msg.sender);
+        rollup.onVerifySequences(
+            lastVerifiedSequenceNum,
+            newStateRoot,
+            msg.sender
+        );
     }
 
     function getBatchFee() public view returns (uint256) {

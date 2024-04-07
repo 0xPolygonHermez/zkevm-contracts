@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-interface IPolygonRollupBase {
+interface IPolygonRollupBasePrevious {
     function initialize(
         address _admin,
         address sequencer,
@@ -12,8 +12,8 @@ interface IPolygonRollupBase {
         string memory _networkName
     ) external;
 
-    function onVerifySequences(
-        uint64 lastVerifiedSequenceNum,
+    function onVerifyBatches(
+        uint64 lastVerifiedBatch,
         bytes32 newStateRoot,
         address aggregator
     ) external;
