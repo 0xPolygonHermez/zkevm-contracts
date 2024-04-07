@@ -40,11 +40,11 @@ contract PolygonRollupManagerEmptyMock is EmergencyManager {
         );
     }
 
-    function getBatchFee() public view returns (uint256) {
+    function getZkGasPrice() public view returns (uint256) {
         return 1;
     }
 
-    function getForcedBatchFee() public view returns (uint256) {
+    function getForcedZkGasPrice() public view returns (uint256) {
         return 10;
     }
 

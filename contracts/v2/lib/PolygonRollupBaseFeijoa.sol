@@ -253,7 +253,7 @@ abstract contract PolygonRollupBaseFeijoa is
      * @dev Emitted when a aggregator verifies blobs
      */
     event VerifyBlobs(
-        uint64 indexed sequneceNum,
+        uint64 indexed sequenceNum,
         bytes32 stateRoot,
         address indexed aggregator
     );

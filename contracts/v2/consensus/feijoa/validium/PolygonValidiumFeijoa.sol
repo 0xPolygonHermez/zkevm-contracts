@@ -315,11 +315,15 @@ contract PolygonValidiumFeijoa is PolygonRollupBaseFeijoa, IPolygonValidium {
         lastAccInputHash = currentAccInputHash;
 
         uint256 forcedZkGasLimit;
+        uint256 nonForcedBlobsSequenced = blobsNum;
 
         // Check if there has been forced blobs
         if (currentLastForceBlobSequenced != initLastForceBlobSequenced) {
             uint64 forcedBlobsSequenced = currentLastForceBlobSequenced -
                 initLastForceBlobSequenced;
+
+            // substract forced Blobs
+            nonForcedBlobsSequenced -= forcedBlobsSequenced;
 
             // Transfer pol for every forced blob submitted
             forcedZkGasLimit = forcedBlobsSequenced * ZK_GAS_LIMIT_BATCH;
@@ -334,22 +338,25 @@ contract PolygonValidiumFeijoa is PolygonRollupBaseFeijoa, IPolygonValidium {
         }
 
         // Pay collateral for every non-forced blob submitted
-        pol.safeTransferFrom(
-            msg.sender,
-            address(rollupManager),
-            rollupManager.getZkGasPrice() * accZkGasSequenced
-        );
+        if (nonForcedBlobsSequenced != 0) {
+            pol.safeTransferFrom(
+                msg.sender,
+                address(rollupManager),
+                rollupManager.getZkGasPrice() * accZkGasSequenced
+            );
+
+            // Validate that the data availability protocol accepts the dataAvailabilityMessage
+            // note This is a view function, so there's not much risk even if this contract was vulnerable to reentrant attacks
+            dataAvailabilityProtocol.verifyMessage(
+                currentAccInputHash,
+                dataAvailabilityMessage
+            );
+        }
 
         uint64 currentBlobSequenced = rollupManager.onSequence(
             uint128(accZkGasSequenced + forcedZkGasLimit),
             uint64(blobsNum),
             currentAccInputHash
-        );
-
-        // TODO caveat: the commitee must sign the forced batches as well
-        dataAvailabilityProtocol.verifyMessage(
-            currentAccInputHash,
-            dataAvailabilityMessage
         );
 
         emit SequenceBlobs(currentBlobSequenced);
