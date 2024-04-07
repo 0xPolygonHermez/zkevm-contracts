@@ -173,8 +173,6 @@ contract PolygonRollupManager is
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
 
-    // TODO
-
     // Max sequence multiplier per verification
     uint256 internal constant _MAX_SEQUENCE_MULTIPLIER = 12;
 
@@ -313,7 +311,7 @@ contract PolygonRollupManager is
     uint64 public lastDeactivatedEmergencyStateTimestamp;
 
     // Aggregate rollup verifier, can verify a proof for multiple rollups
-    IVerifierRollup public aggregateRollupVerifier; // TODO set multiple?¿
+    IVerifierRollup public aggregateRollupVerifier;
 
     // Rollups ID mapping
     mapping(uint32 rollupID => RollupDataSequenceBased)
@@ -370,7 +368,6 @@ contract PolygonRollupManager is
         uint64 lastVerifiedSequenceBeforeUpgrade
     );
 
-    // TODO assert same event
     /**
      * @dev Emitted when a rollup is udpated
      */
@@ -389,7 +386,6 @@ contract PolygonRollupManager is
         uint64 blobsSequenced
     );
 
-    // TODO rename event?¿
     /**
      * @dev Emitted when an aggregator verifies sequences
      */
@@ -402,11 +398,6 @@ contract PolygonRollupManager is
     );
 
     /**
-     * @dev Emitted when the aggregator verifies sequences
-     */
-    event VerifySequencesMultiProof(address indexed aggregator);
-
-    /**
      * @dev Emitted when the trusted aggregator verifies sequences
      */
     event VerifySequencesTrustedAggregator(
@@ -416,13 +407,6 @@ contract PolygonRollupManager is
         bytes32 exitRoot,
         address indexed aggregator
     );
-
-    /**
-     * @dev Emitted when the trusted aggregator verifies sequences
-     */
-    event VerifySequencesTrustedAggregatorMultiProof(
-        address indexed aggregator
-    ); // TODO check?¿
 
     /**
      * @dev Emitted when pending state is consolidated
@@ -529,16 +513,17 @@ contract PolygonRollupManager is
             newRollupData.rollupCompatibilityID = _legacyRollupData
                 .rollupCompatibilityID;
 
-            // Do not copy verified/sequenced batches since it will be udpated to sequence
+            // Do not copy verified/sequenced batches since it will be updated to sequence
             // Do not copy pending state since it was not used yet
 
-            // Copy mappings
-
-            // TODO all bathces Must be verified, check on the smart contract?¿
+            // review
+            // all batches of all rollups must be verified
             uint64 lastVerifiedBatch = _legacyRollupData.lastVerifiedBatch;
             if (lastVerifiedBatch != _legacyRollupData.lastBatchSequenced) {
                 revert();
             }
+
+            // Copy mappings
 
             // Copy last state root
             newRollupData.sequenceNumToStateRoot[0] = _legacyRollupData
@@ -803,15 +788,16 @@ contract PolygonRollupManager is
         RollupDataSequenceBased storage rollup = rollupIDToRollupData[
             rollupAddressToID[address(rollupContract)]
         ];
+
         // If rollupID does not exist (rollupID = 0), will revert afterwards
 
         if (rollup.lastSequenceNum != rollup.lastVerifiedSequenceNum) {
             revert AllSequencedMustBeVerified();
         }
 
-        // TODO Assert new rollupType is bigger?¿ or with obsolete it's enough?¿
+        // review sanity check
         if (rollup.rollupTypeID >= newRollupTypeID) {
-            revert UpdateToSameRollupTypeID(); // Update custom error
+            revert UpdateToOldRollupTypeID();
         }
 
         _updateRollup(rollupContract, newRollupTypeID, new bytes(0));
@@ -879,7 +865,7 @@ contract PolygonRollupManager is
         rollup.forkID = newRollupType.forkID;
         rollup.rollupTypeID = newRollupTypeID;
 
-        // TODO Vulnerability fron running attack TT actually hard to handle
+        // review fix to vulnerability front running attack
         if (rollup.lastPendingState != rollup.lastPendingStateConsolidated) {
             revert CannotUpdateWithUnconsolidatedPendingState();
         }
@@ -917,7 +903,7 @@ contract PolygonRollupManager is
             revert SenderMustBeRollup();
         }
 
-        // TODO put a minimum zkGasLimit per sequence?¿
+        // review put a minimum zkGasLimit per sequence
         if (blobsSequenced == 0) {
             revert MustSequenceSomeBlob();
         }
@@ -965,6 +951,11 @@ contract PolygonRollupManager is
         address beneficiary,
         bytes32[24] calldata proof
     ) external ifNotEmergencyState {
+        // sanity check, there's an indirect check since the proof will be just a hash of the msg.sender
+        if (verifySequencesData.length == 0) {
+            revert EmptyVerifySequencesData();
+        }
+
         // aggregateInput and verify the zkproof
         _aggregateInputAndVerifyProof(verifySequencesData, beneficiary, proof);
 
@@ -1041,8 +1032,6 @@ contract PolygonRollupManager is
                     msg.sender
                 );
 
-            // emit an event for every rollupID? // review
-            // emit a global event? ( then the sychronizer must synch all this events and )
             emit VerifySequences(
                 currentVerifySequenceData.rollupID,
                 currentVerifySequenceData.finalSequenceNum,
@@ -1051,10 +1040,9 @@ contract PolygonRollupManager is
                 msg.sender
             );
         }
+
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
-
-        //emit VerifySequencesMultiProof(msg.sender);
     }
 
     /**
@@ -1068,7 +1056,11 @@ contract PolygonRollupManager is
         address beneficiary,
         bytes32[24] calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
-        // review, check if it's 0 the length?¿, it will fail since the proof will be a hash of the msg.sender
+        // sanity check, there's an indirect check since the proof will be just a hash of the msg.sender
+        if (verifySequencesData.length == 0) {
+            revert EmptyVerifySequencesData();
+        }
+
         // aggregateInput and verify the zkproof
         _aggregateInputAndVerifyProof(verifySequencesData, beneficiary, proof);
 
@@ -1109,8 +1101,6 @@ contract PolygonRollupManager is
                     msg.sender
                 );
 
-            // emit an event for every rollupID? // review
-            // emit a global event? ( then the sychronizer must synch all this events and )
             emit VerifySequencesTrustedAggregator(
                 currentVerifySequenceData.rollupID,
                 currentVerifySequenceData.finalSequenceNum,
@@ -1122,9 +1112,6 @@ contract PolygonRollupManager is
 
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
-
-        // review not global event
-        //emit VerifySequencesTrustedAggregatorMultiProof(msg.sender);
     }
 
     /**
@@ -1252,7 +1239,6 @@ contract PolygonRollupManager is
         }
 
         // Get snark bytes
-        // review use struct instead?¿
         uint256 currentPtr = _appendDataToInputSnarkBytes(
             rollup,
             currentSequenceData.initSequenceNum,
@@ -1407,7 +1393,7 @@ contract PolygonRollupManager is
         // Update pending state
         rollup.lastPendingStateConsolidated = pendingStateNum;
 
-        // Interact with globalExitRootManager  // TODO review, update global after event?¿
+        // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
         emit ConsolidatePendingState(
@@ -2109,7 +2095,6 @@ contract PolygonRollupManager is
             mstore(ptr, shl(192, initBlobNum)) // 256-64 = 192
             ptr := add(ptr, 8)
 
-            // Review
             // store chainID
             // chainID is stored inside the rollup struct, on the first storage slot with 32 -(8 + 20) = 4 bytes offset
             mstore(ptr, shl(32, sload(rollup.slot)))

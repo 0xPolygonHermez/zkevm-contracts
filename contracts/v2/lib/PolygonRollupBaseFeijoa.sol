@@ -609,7 +609,7 @@ abstract contract PolygonRollupBaseFeijoa is
                         revert BlobHashNotFound();
                     }
 
-                    // review
+                    // Call precompiled
                     (bool success, ) = POINT_EVALUATION_PRECOMPILE_ADDRESS
                         .staticcall(
                             abi.encodePacked(

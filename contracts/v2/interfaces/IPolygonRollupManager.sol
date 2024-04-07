@@ -232,4 +232,14 @@ interface IPolygonRollupManager {
      * @dev Cannot update from network admin with unconsolidated pending state
      */
     error CannotUpdateWithUnconsolidatedPendingState();
+
+    /**
+     * @dev Try to verify batches without any sequence data
+     */
+    error EmptyVerifySequencesData();
+
+    /**
+     * @dev Update to old rollup ID
+     */
+    error UpdateToOldRollupTypeID();
 }
