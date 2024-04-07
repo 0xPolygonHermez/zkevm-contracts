@@ -28,6 +28,7 @@ function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
 }
 
 const inputJson = require("./aggregationProofs/input.json");
+const inputJson2 = require("./aggregationProofs/input2.json");
 
 describe("Rollup manager test inputs", () => {
     let deployer: any;
@@ -315,6 +316,179 @@ describe("Rollup manager test inputs", () => {
         // | oldStateRoot | oldBlobStateRoot   |  oldAccInputHash | initNumBlob     |   chainID  |   forkID   |  newStateRoot  | newBlobStateRoot  |   newAccInputHash   |  finalBlobNum     |newLocalExitRoot |
         for (let i = 0; i < inputJson.inputs.length; i++) {
             const currentInput = inputJson.inputs[i];
+
+            const currentString = ethers.solidityPacked(
+                [
+                    "bytes32",
+                    "bytes32",
+                    "bytes32",
+                    "uint64",
+                    "uint64",
+                    "uint64",
+                    "bytes32",
+                    "bytes32",
+                    "bytes32",
+                    "uint64",
+                    "bytes32",
+                ],
+                [
+                    currentInput.oldStateRoot,
+                    ethers.ZeroHash,
+                    currentInput.oldAccInputHash,
+                    currentInput.oldNumBlob,
+                    chainID,
+                    forkID,
+                    currentInput.newStateRoot,
+                    ethers.ZeroHash,
+                    currentInput.newAccInputHash,
+                    currentInput.newNumBlob,
+                    currentInput.newLocalExitRoot,
+                ]
+            );
+            generatedInput += currentString.slice(2);
+        }
+        generatedInput += ethers.zeroPadBytes(aggregator.address, 20).toLowerCase().slice(2);
+
+        const resultBytes = await rollupManagerContract
+            .connect(aggregator)
+            .getInputSnarkBytes(VerifyBatchesData, oldAccInputHashArray, newAccInputHasArray, oldStateRootArray);
+
+        expect(resultBytes).to.be.equal(generatedInput);
+    });
+
+    it("should check the input2", async () => {
+        // Add rollup
+        const urlSequencer = "http://zkevm-json-rpc:8123";
+        const chainID = inputJson2.inputs[0].chainId;
+        const networkName = "zkevm";
+        const forkID = inputJson2.inputs[0].forkId;
+        const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
+        const rollupCompatibilityID = 0;
+        const descirption = "zkevm test";
+
+        // Native token will be ether
+        const gasTokenAddress = ethers.ZeroAddress;
+        // In order to create a new rollup type, create an implementation of the contract
+
+        // Create zkEVM implementation
+        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMFeijoa");
+        const PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
+            polygonZkEVMGlobalExitRoot.target,
+            polTokenContract.target,
+            polygonZkEVMBridgeContract.target,
+            rollupManagerContract.target
+        );
+        await PolygonZKEVMV2Contract.waitForDeployment();
+
+        // Add a new rollup type with timelock
+        const newRollupTypeID = 1;
+        await expect(
+            rollupManagerContract
+                .connect(timelock)
+                .addNewRollupType(
+                    PolygonZKEVMV2Contract.target,
+                    verifierContract.target,
+                    forkID,
+                    rollupCompatibilityID,
+                    genesisRandom,
+                    descirption
+                )
+        )
+            .to.emit(rollupManagerContract, "AddNewRollupType")
+            .withArgs(
+                newRollupTypeID,
+                PolygonZKEVMV2Contract.target,
+                verifierContract.target,
+                forkID,
+                rollupCompatibilityID,
+                genesisRandom,
+                descirption
+            );
+
+        // assert new rollup type
+        const createdRollupType = await rollupManagerContract.rollupTypeMap(newRollupTypeID);
+
+        const expectedRollupType = [
+            PolygonZKEVMV2Contract.target,
+            verifierContract.target,
+            forkID,
+            rollupCompatibilityID,
+            false,
+            genesisRandom,
+        ];
+        expect(createdRollupType).to.be.deep.equal(expectedRollupType);
+
+        const newCreatedRollupID = 1;
+        const newZKEVMAddress = ethers.getCreateAddress({
+            from: rollupManagerContract.target as string,
+            nonce: 1,
+        });
+
+        const newZkEVMContract = PolygonZKEVMV2Factory.attach(newZKEVMAddress) as PolygonZkEVMV2;
+        const newSequencedBlob = 1;
+        const ZK_GAS_LIMIT_BATCH = 100_000_000;
+
+        await expect(
+            rollupManagerContract
+                .connect(admin)
+                .createNewRollup(
+                    newRollupTypeID,
+                    chainID,
+                    admin.address,
+                    trustedSequencer.address,
+                    gasTokenAddress,
+                    urlSequencer,
+                    networkName
+                )
+        )
+            .to.emit(rollupManagerContract, "CreateNewRollup")
+            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
+            .to.emit(newZkEVMContract, "InitialSequenceBlobs")
+            .to.emit(rollupManagerContract, "OnSequence")
+            .withArgs(newCreatedRollupID, ZK_GAS_LIMIT_BATCH, newSequencedBlob);
+
+        // Verify input
+        const VerifyBatchesData = [] as any;
+        const oldAccInputHashArray = [] as any;
+        const newAccInputHasArray = [] as any;
+        const oldStateRootArray = [] as any;
+        // const initBlobNumArray = [] as any;
+        // const finalBlobNumArray = [] as any;
+
+        for (let i = 0; i < inputJson2.inputs.length; i++) {
+            const currentInput = inputJson2.inputs[i];
+            const VerifyBatchData = {
+                rollupID: 1,
+                pendingStateNum: 0,
+                initSequenceNum: currentInput.oldNumBlob, // reused
+                finalSequenceNum: currentInput.newNumBlob, // reused
+                newLocalExitRoot: currentInput.newLocalExitRoot,
+                newStateRoot: currentInput.newStateRoot,
+            } as VerifyBlobData;
+
+            VerifyBatchesData.push(VerifyBatchData);
+            oldAccInputHashArray.push(currentInput.oldAccInputHash);
+            newAccInputHasArray.push(currentInput.newAccInputHash);
+            oldStateRootArray.push(currentInput.oldStateRoot);
+        }
+
+        const aggregatorAddress = inputJson2.aggregator;
+        await ethers.provider.send("hardhat_impersonateAccount", [aggregatorAddress]);
+        const aggregator = await ethers.getSigner(aggregatorAddress);
+
+        const resultSnark = await rollupManagerContract
+            .connect(aggregator)
+            .getInputSnarkBytesHash(VerifyBatchesData, oldAccInputHashArray, newAccInputHasArray, oldStateRootArray);
+
+        expect(resultSnark).to.be.equal(inputJson2.result);
+
+        // Compare bytes
+
+        let generatedInput = "0x";
+        // |   32 bytes   |    32 bytes        |    32 bytes      |   8 bytes       |   8 bytes  |   8 bytes  |  32 bytes      | 32 bytes          |    32 bytes         |  8 bytes          | 32 bytes        |
+        // | oldStateRoot | oldBlobStateRoot   |  oldAccInputHash | initNumBlob     |   chainID  |   forkID   |  newStateRoot  | newBlobStateRoot  |   newAccInputHash   |  finalBlobNum     |newLocalExitRoot |
+        for (let i = 0; i < inputJson2.inputs.length; i++) {
+            const currentInput = inputJson2.inputs[i];
 
             const currentString = ethers.solidityPacked(
                 [
