@@ -84,12 +84,33 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
      * @param verifyBatchesData Struct that contains all the necessary data to verify batches
      * @param oldStateRootArray Array of state root before batch is processed
      */
-    function getInputSnarkBytes(
+    function getInputSnarkBytesHash(
         VerifySequenceData[] calldata verifyBatchesData,
         bytes32[] calldata oldAccInputHashArray,
         bytes32[] calldata newAccInputHasArray,
         bytes32[] calldata oldStateRootArray
     ) public view returns (uint256) {
+        bytes memory accumulateSnarkBytes = getInputSnarkBytes(
+            verifyBatchesData,
+            oldAccInputHashArray,
+            newAccInputHasArray,
+            oldStateRootArray
+        );
+        uint256 inputSnark = uint256(sha256(accumulateSnarkBytes)) % _RFIELD;
+        return inputSnark;
+    }
+
+    /**
+     * @notice Function to calculate the input snark bytes
+     * @param verifyBatchesData Struct that contains all the necessary data to verify batches
+     * @param oldStateRootArray Array of state root before batch is processed
+     */
+    function getInputSnarkBytes(
+        VerifySequenceData[] calldata verifyBatchesData,
+        bytes32[] calldata oldAccInputHashArray,
+        bytes32[] calldata newAccInputHasArray,
+        bytes32[] calldata oldStateRootArray
+    ) public view returns (bytes memory) {
         // review don't check the length on both arrays since this is a view function
 
         // Create a snark input byte array
@@ -131,9 +152,7 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         }
 
         _appendSenderToInputSnarkBytes(ptrAccumulateInputSnarkBytes);
-
-        uint256 inputSnark = uint256(sha256(accumulateSnarkBytes)) % _RFIELD;
-        return inputSnark;
+        return accumulateSnarkBytes;
     }
 
     /**
@@ -153,10 +172,10 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         bytes32 newAccInputHash,
         uint256 ptrAccumulateInputSnarkBytes
     ) internal view returns (uint256) {
-        uint64 initNumBatch = verifyBatchData.initSequenceNum;
-        uint64 finalNewBatch = verifyBatchData.finalSequenceNum;
         bytes32 newLocalExitRoot = verifyBatchData.newLocalExitRoot;
         bytes32 newStateRoot = verifyBatchData.newStateRoot;
+        uint64 initBlobNum = verifyBatchData.initSequenceNum;
+        uint64 finalBlobNum = verifyBatchData.finalSequenceNum;
 
         // Check that new state root is inside goldilocks field
         // if (!_checkStateRootInsidePrime(uint256(newStateRoot))) {
@@ -169,14 +188,20 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
             mstore(ptr, oldStateRoot)
             ptr := add(ptr, 32)
 
+            // store initBlobStateRoot
+            // note this parameters is unused currently
+            mstore(ptr, 0)
+            ptr := add(ptr, 32)
+
             // store oldAccInputHash
             mstore(ptr, oldAccInputHash)
             ptr := add(ptr, 32)
 
-            // store initNumBatch
-            mstore(ptr, shl(192, initNumBatch)) // 256-64 = 192
+            // store initBlobNum
+            mstore(ptr, shl(192, initBlobNum)) // 256-64 = 192
             ptr := add(ptr, 8)
 
+            // Review
             // store chainID
             // chainID is stored inside the rollup struct, on the first storage slot with 32 -(8 + 20) = 4 bytes offset
             mstore(ptr, shl(32, sload(rollup.slot)))
@@ -191,18 +216,24 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
             mstore(ptr, newStateRoot)
             ptr := add(ptr, 32)
 
+            // store newBlobStateRoot
+            // note this parameters is unused currently
+            mstore(ptr, 0)
+            ptr := add(ptr, 32)
+
             // store newAccInputHash
             mstore(ptr, newAccInputHash)
             ptr := add(ptr, 32)
 
+            // store finalBlobNum
+            mstore(ptr, shl(192, finalBlobNum)) // 256-64 = 192
+            ptr := add(ptr, 8)
+
             // store newLocalExitRoot
             mstore(ptr, newLocalExitRoot)
             ptr := add(ptr, 32)
-
-            // store finalNewBatch
-            mstore(ptr, shl(192, finalNewBatch)) // 256-64 = 192
-            ptr := add(ptr, 8)
         }
+
         return ptr;
     }
 }

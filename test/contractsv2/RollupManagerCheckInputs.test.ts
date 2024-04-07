@@ -12,16 +12,13 @@ import {
     PolygonRollupBase,
     PolygonRollupBaseEtrog,
     TokenWrapped,
+    PolygonRollupManager,
     Address,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
 const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
-
-type BatchDataStruct = PolygonRollupBase.BatchDataStruct;
-type ForcedBatchDataStruct = PolygonRollupBase.ForcedBatchDataStruct;
-type BatchDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
-type VerifyBatchData = PolygonRollupManagerMock.VerifyBatchData;
+type VerifyBlobData = PolygonRollupManager.VerifySequenceDataStruct;
 
 const MerkleTreeBridge = MTBridge;
 const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
@@ -200,7 +197,7 @@ describe("Rollup manager test inputs", () => {
         // In order to create a new rollup type, create an implementation of the contract
 
         // Create zkEVM implementation
-        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrog");
+        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMFeijoa");
         const PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
             polygonZkEVMGlobalExitRoot.target,
             polTokenContract.target,
@@ -254,7 +251,8 @@ describe("Rollup manager test inputs", () => {
         });
 
         const newZkEVMContract = PolygonZKEVMV2Factory.attach(newZKEVMAddress) as PolygonZkEVMV2;
-        const newSequencedBatch = 1;
+        const newSequencedBlob = 1;
+        const ZK_GAS_LIMIT_BATCH = 100_000_000;
 
         await expect(
             rollupManagerContract
@@ -271,26 +269,28 @@ describe("Rollup manager test inputs", () => {
         )
             .to.emit(rollupManagerContract, "CreateNewRollup")
             .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID, gasTokenAddress)
-            .to.emit(newZkEVMContract, "InitialSequenceBatches")
-            .to.emit(rollupManagerContract, "OnSequenceBatches")
-            .withArgs(newCreatedRollupID, newSequencedBatch);
+            .to.emit(newZkEVMContract, "InitialSequenceBlobs")
+            .to.emit(rollupManagerContract, "OnSequence")
+            .withArgs(newCreatedRollupID, ZK_GAS_LIMIT_BATCH, newSequencedBlob);
 
         // Verify input
         const VerifyBatchesData = [] as any;
         const oldAccInputHashArray = [] as any;
         const newAccInputHasArray = [] as any;
         const oldStateRootArray = [] as any;
+        // const initBlobNumArray = [] as any;
+        // const finalBlobNumArray = [] as any;
 
         for (let i = 0; i < inputJson.inputs.length; i++) {
             const currentInput = inputJson.inputs[i];
             const VerifyBatchData = {
                 rollupID: 1,
                 pendingStateNum: 0,
-                initNumBatch: currentInput.oldNumBatch,
-                finalNewBatch: currentInput.newNumBatch,
+                initSequenceNum: currentInput.oldNumBlob, // reused
+                finalSequenceNum: currentInput.newNumBlob, // reused
                 newLocalExitRoot: currentInput.newLocalExitRoot,
                 newStateRoot: currentInput.newStateRoot,
-            } as VerifyBatchData;
+            } as VerifyBlobData;
 
             VerifyBatchesData.push(VerifyBatchData);
             oldAccInputHashArray.push(currentInput.oldAccInputHash);
@@ -304,9 +304,55 @@ describe("Rollup manager test inputs", () => {
 
         const resultSnark = await rollupManagerContract
             .connect(aggregator)
-            .getInputSnarkBytes(VerifyBatchesData, oldAccInputHashArray, newAccInputHasArray, oldStateRootArray);
+            .getInputSnarkBytesHash(VerifyBatchesData, oldAccInputHashArray, newAccInputHasArray, oldStateRootArray);
 
         expect(resultSnark).to.be.equal(inputJson.result);
+
+        // Compare bytes
+
+        let generatedInput = "0x";
+        // |   32 bytes   |    32 bytes        |    32 bytes      |   8 bytes       |   8 bytes  |   8 bytes  |  32 bytes      | 32 bytes          |    32 bytes         |  8 bytes          | 32 bytes        |
+        // | oldStateRoot | oldBlobStateRoot   |  oldAccInputHash | initNumBlob     |   chainID  |   forkID   |  newStateRoot  | newBlobStateRoot  |   newAccInputHash   |  finalBlobNum     |newLocalExitRoot |
+        for (let i = 0; i < inputJson.inputs.length; i++) {
+            const currentInput = inputJson.inputs[i];
+
+            const currentString = ethers.solidityPacked(
+                [
+                    "bytes32",
+                    "bytes32",
+                    "bytes32",
+                    "uint64",
+                    "uint64",
+                    "uint64",
+                    "bytes32",
+                    "bytes32",
+                    "bytes32",
+                    "uint64",
+                    "bytes32",
+                ],
+                [
+                    currentInput.oldStateRoot,
+                    ethers.ZeroHash,
+                    currentInput.oldAccInputHash,
+                    currentInput.oldNumBlob,
+                    chainID,
+                    forkID,
+                    currentInput.newStateRoot,
+                    ethers.ZeroHash,
+                    currentInput.newAccInputHash,
+                    currentInput.newNumBlob,
+                    currentInput.newLocalExitRoot,
+                ]
+            );
+            generatedInput += currentString.slice(2);
+        }
+        generatedInput += ethers.zeroPadBytes(aggregator.address, 20).toLowerCase().slice(2);
+
+        const resultBytes = await rollupManagerContract
+            .connect(aggregator)
+            .getInputSnarkBytes(VerifyBatchesData, oldAccInputHashArray, newAccInputHasArray, oldStateRootArray);
+
+        expect(resultBytes).to.be.equal(generatedInput);
     });
 });
 
@@ -341,3 +387,5 @@ function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any,
         [newGlobalExitRoot, lastBlockHash, timestamp]
     );
 }
+
+//
