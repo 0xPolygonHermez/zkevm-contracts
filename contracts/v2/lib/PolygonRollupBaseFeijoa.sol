@@ -155,6 +155,9 @@ abstract contract PolygonRollupBaseFeijoa is
     uint8 public constant BLOBTX_BLOB_TYPE = 1;
     uint8 public constant FORCED_BLOB_TYPE = 2;
 
+    // Point Evaluation precompiled address
+    address public constant POINT_EVALUATION_PRECOMPILE_ADDRESS = address(0x0a);
+
     // POL token address
     IERC20Upgradeable public immutable pol;
 
@@ -166,9 +169,6 @@ abstract contract PolygonRollupBaseFeijoa is
 
     // Rollup manager
     PolygonRollupManager public immutable rollupManager;
-
-    // Point Evaluation precompiled address
-    address public constant POINT_EVALUATION_PRECOMPILE_ADDRESS = address(0x0a);
 
     // Address that will be able to adjust contract parameters
     address public admin;
@@ -188,23 +188,30 @@ abstract contract PolygonRollupBaseFeijoa is
     // Current accumulate input hash
     bytes32 public lastAccInputHash;
 
+    // Not necessary to clean the forced variables since were not used yet
+
     // Queue of forced blobs with their associated data
     // ForceBlobNum --> hashedForcedBlobData
     // hashedForcedBlobData: hash containing the necessary information to force a blob:
     // keccak256(keccak256(bytes transactions), bytes32 forcedGlobalExitRoot, unint64 forcedTimestamp, bytes32 forcedBlockHashL1)
+    /// @custom:oz-renamed-from forcedBatches
     mapping(uint64 => ForcedData) public forcedBlobs;
 
     // Last forced blob
+    /// @custom:oz-renamed-from lastForceBatch
     uint64 public lastForceBlob;
 
     // Last forced blob included in the sequence
+    /// @custom:oz-renamed-from lastForceBatchSequenced
     uint64 public lastForceBlobSequenced;
 
     // Force blob timeout
+    /// @custom:oz-renamed-from forceBatchTimeout
     uint64 public forceBlobTimeout;
 
     // Indicates what address is able to do forced blobs
     // If the address is set to 0, forced blobs are open to everyone
+    /// @custom:oz-renamed-from forceBatchAddress
     address public forceBlobAddress;
 
     // Token address that will be used to pay gas fees in this rollup. This variable it's just for read purposes

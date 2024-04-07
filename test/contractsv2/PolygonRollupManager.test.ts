@@ -1565,7 +1565,7 @@ describe("Polygon Rollup Manager", () => {
         // In order to create a new rollup type, create an implementation of the contract
 
         // Create zkEVM implementation
-        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrogaPrevious");
+        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrogPrevious");
         const PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
             polygonZkEVMGlobalExitRoot.target,
             polTokenContract.target,
