@@ -475,9 +475,13 @@ describe("Polygon Rollup manager upgraded", () => {
         expect(rollupDataFinal.lastVerifiedBatch).to.be.equal(newVerifiedBatch);
         expect(rollupDataFinal.lastPendingState).to.be.equal(0);
         expect(rollupDataFinal.lastPendingStateConsolidated).to.be.equal(0);
-        expect(rollupDataFinal.lastVerifiedBatchBeforeUpgrade).to.be.equal(newVerifiedBatch);
+        expect(rollupDataFinal.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupDataFinal.rollupTypeID).to.be.equal(1);
         expect(rollupDataFinal.rollupCompatibilityID).to.be.equal(0);
+
+        expect(
+            await rollupManagerContractPrevious.getRollupBatchNumToStateRoot(newCreatedRollupID, newVerifiedBatch)
+        ).to.be.equal(newStateRoot);
 
         // Upgrade all contracts
         const newPolygonRollupManager = await ethers.getContractFactory("PolygonRollupManager");
@@ -498,10 +502,15 @@ describe("Polygon Rollup manager upgraded", () => {
                 },
             }
         );
-        rollupManagerContract = rollupManagerContractPrevious as any as PolygonRollupManager;
+        rollupManagerContract = (await newPolygonRollupManager.attach(
+            rollupManagerContractPrevious.target
+        )) as PolygonRollupManager;
 
-        // Check rollup 1 before upgrade
+        await txRollupManager.waitForDeployment();
+
+        // Check rollup 1 after upgrade
         const rollupDataFinal2 = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+
         expect(rollupDataFinal2.rollupContract).to.be.equal(newZKEVMAddress);
         expect(rollupDataFinal2.chainID).to.be.equal(chainID);
         expect(rollupDataFinal2.verifier).to.be.equal(verifierContract.target);
@@ -516,6 +525,9 @@ describe("Polygon Rollup manager upgraded", () => {
         expect(rollupDataFinal2.rollupCompatibilityID).to.be.equal(0);
 
         // Check root
+        expect(await rollupManagerContract.getRollupsequenceNumToStateRoot(newCreatedRollupID, 0)).to.be.equal(
+            newStateRoot
+        );
 
         // Upgrade global exit root
         const newGlobalExitRoot = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2");
@@ -582,6 +594,20 @@ describe("Polygon Rollup manager upgraded", () => {
             .withArgs(newRollupTypeID, feijoaRollupType, 0);
 
         // check layout rollup
+        // Check rollup 1 after upgrade
+        const rollupDataFinal3 = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        expect(rollupDataFinal3.rollupContract).to.be.equal(newZKEVMAddress);
+        expect(rollupDataFinal3.chainID).to.be.equal(chainID);
+        expect(rollupDataFinal3.verifier).to.be.equal(verifierContract.target);
+        expect(rollupDataFinal3.forkID).to.be.equal(forkID);
+        expect(rollupDataFinal3.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataFinal3.lastSequenceNum).to.be.equal(0);
+        expect(rollupDataFinal3.lastVerifiedSequenceNum).to.be.equal(0);
+        expect(rollupDataFinal3.lastPendingState).to.be.equal(0);
+        expect(rollupDataFinal3.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupDataFinal3.lastVerifiedSequenceBeforeUpgrade).to.be.equal(0);
+        expect(rollupDataFinal3.rollupTypeID).to.be.equal(feijoaRollupType);
+        expect(rollupDataFinal3.rollupCompatibilityID).to.be.equal(0);
     });
 
     it("Cannot initialzie again", async () => {

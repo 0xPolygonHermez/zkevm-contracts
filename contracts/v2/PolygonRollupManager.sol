@@ -504,6 +504,7 @@ contract PolygonRollupManager is
             RollupDataSequenceBased
                 storage newRollupData = rollupIDToRollupData[uint32(i)];
 
+            newRollupData.rollupContract = _legacyRollupData.rollupContract;
             newRollupData.chainID = _legacyRollupData.chainID;
             newRollupData.verifier = _legacyRollupData.verifier;
             newRollupData.forkID = _legacyRollupData.forkID;
