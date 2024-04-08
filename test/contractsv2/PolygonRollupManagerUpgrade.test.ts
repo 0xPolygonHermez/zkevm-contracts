@@ -465,8 +465,28 @@ describe("Polygon Rollup manager upgraded", () => {
         // Calcualte new globalExitroot
         const merkleTreeRollups = new MerkleTreeBridge(height);
         merkleTreeRollups.add(newLocalExitRoot);
-        //merkleTreeRollups.add(newLocalExitRoot);
         const rootRollups = merkleTreeRollups.getRoot();
+
+        const snapshotUpdate = await takeSnapshot();
+        const newPolygonRollupManagerSnapshot = await ethers.getContractFactory("PolygonRollupManager");
+        const txS = upgrades.upgradeProxy(rollupManagerContractPrevious.target, newPolygonRollupManagerSnapshot, {
+            constructorArgs: [
+                polygonZkEVMGlobalExitRoot.target,
+                polTokenContract.target,
+                polygonZkEVMBridgeContract.target,
+            ],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+            unsafeAllowRenames: false,
+            call: {
+                fn: "initialize",
+                args: [],
+            },
+        });
+        const rollupManagerContractSnapshot = (await newPolygonRollupManagerSnapshot.attach(
+            rollupManagerContractPrevious.target
+        )) as PolygonRollupManager;
+        await expect(txS).to.be.revertedWithCustomError(rollupManagerContractSnapshot, "AllBatchesMustBeVerified");
+        await snapshotUpdate.restore();
 
         await expect(
             rollupManagerContractPrevious
@@ -617,6 +637,18 @@ describe("Polygon Rollup manager upgraded", () => {
             unsafeAllow: ["constructor", "state-variable-immutable"],
         } as any);
 
+        // fork
+        const snapshot = await takeSnapshot();
+        await expect(
+            rollupManagerContract.connect(timelock).updateRollupByRollupAdmin(newZKEVMAddress, feijoaRollupType)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OnlyRollupAdmin");
+
+        await expect(rollupManagerContract.connect(admin).updateRollupByRollupAdmin(newZKEVMAddress, feijoaRollupType))
+            .to.emit(rollupManagerContract, "UpdateRollup")
+            .withArgs(newRollupTypeID, feijoaRollupType, 0);
+        await snapshot.restore();
+
+        // stop fork
         await expect(rollupManagerContract.connect(timelock).updateRollup(newZKEVMAddress, feijoaRollupType, "0x"))
             .to.emit(rollupManagerContract, "UpdateRollup")
             .withArgs(newRollupTypeID, feijoaRollupType, 0);
@@ -1858,9 +1890,11 @@ describe("Polygon Rollup manager upgraded", () => {
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupIDNotAscendingOrder");
 
+        const rollupData1 = await rollupManagerContract.rollupIDToRollupData(1);
+
         // Calcualte new globalExitroot
         const merkleTreeRollups = new MerkleTreeBridge(height);
-        merkleTreeRollups.add(ethers.ZeroHash);
+        merkleTreeRollups.add(rollupData1.lastLocalExitRoot); //
         merkleTreeRollups.add(newLocalExitRoot);
         const rootRollups = merkleTreeRollups.getRoot();
 
@@ -1999,7 +2033,7 @@ describe("Polygon Rollup manager upgraded", () => {
                 beneficiary.address,
                 zkProofFFlonk
             )
-        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBlobBelowLastVerifiedBlob");
+        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumSequenceBelowLastVerifiedSequence");
 
         await snapshotVerify.restore();
         await rollupManagerContract.connect(admin).setPendingStateTimeout(1);
@@ -2049,7 +2083,7 @@ describe("Polygon Rollup manager upgraded", () => {
                 zkProofFFlonk
             )
         )
-            .to.emit(rollupManagerContract, "VerifyBlobsTrustedAggregator")
+            .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(
                 newCreatedRollupID,
                 newVerifiedBlob + 1,
@@ -2118,7 +2152,7 @@ describe("Polygon Rollup manager upgraded", () => {
                 newStateRoot,
                 zkProofFFlonk
             )
-        ).to.be.revertedWithCustomError(rollupManagerContract, "initSequenceNumDoesNotMatchPendingState");
+        ).to.be.revertedWithCustomError(rollupManagerContract, "InitSequenceNumDoesNotMatchPendingState");
 
         await expect(
             rollupManagerContract.proveNonDeterministicPendingState(
@@ -2144,7 +2178,7 @@ describe("Polygon Rollup manager upgraded", () => {
                 ethers.ZeroHash,
                 zkProofFFlonk
             )
-        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumBlobDoesNotMatchPendingState");
+        ).to.be.revertedWithCustomError(rollupManagerContract, "FinalNumSequenceDoesNotMatchPendingState");
 
         await expect(
             rollupManagerContract.proveNonDeterministicPendingState(

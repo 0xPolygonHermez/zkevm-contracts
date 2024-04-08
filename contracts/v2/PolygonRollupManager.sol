@@ -521,7 +521,7 @@ contract PolygonRollupManager is
             // all batches of all rollups must be verified
             uint64 lastVerifiedBatch = _legacyRollupData.lastVerifiedBatch;
             if (lastVerifiedBatch != _legacyRollupData.lastBatchSequenced) {
-                revert();
+                revert AllBatchesMustBeVerified();
             }
 
             // Copy mappings
@@ -989,7 +989,8 @@ contract PolygonRollupManager is
 
             if (pendingStateTimeout == 0) {
                 // Set last verify sequence
-                currentRollup.lastSequenceNum = currentVerifySequenceData
+                currentRollup
+                    .lastVerifiedSequenceNum = currentVerifySequenceData
                     .finalSequenceNum;
 
                 // Set new state root

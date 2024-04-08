@@ -42,6 +42,22 @@ function encodeCalldatBlobTypeParams(
 function encodeCalldatForcedTypeParams(transactionsHash: any, forcedHashData: any) {
     return ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "bytes32"], [transactionsHash, forcedHashData]);
 }
+
+function encodeBlobTxBlobTypeParams(
+    maxSequenceTimestamp: any,
+    zkGasLimit: any,
+    l1InfoLeafIndex: any,
+    blobIndex: any,
+    z: any,
+    y: any,
+    commitmentAndProof: any
+) {
+    return ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint64", "uint64", "uint32", "uint256", "bytes32", "bytes32", "bytes"],
+        [maxSequenceTimestamp, zkGasLimit, l1InfoLeafIndex, blobIndex, z, y, commitmentAndProof]
+    );
+}
+
 const CALLDATA_BLOB_TYPE = 0;
 const BLOBTX_BLOB_TYPE = 1;
 const FORCED_BLOB_TYPE = 2;
@@ -192,6 +208,223 @@ describe("PolygonZkEVMFeijoa", () => {
             rollupManagerContract.target
         );
         await PolygonZKEVMV2Contract.waitForDeployment();
+    });
+
+    it("should check full flow with blobs", async () => {
+        // Initialzie using rollup manager
+        await ethers.provider.send("hardhat_impersonateAccount", [rollupManagerContract.target]);
+        const rolllupManagerSigner = await ethers.getSigner(rollupManagerContract.target as any);
+        await expect(
+            PolygonZKEVMV2Contract.connect(rolllupManagerSigner).initialize(
+                admin.address,
+                trustedSequencer.address,
+                networkID,
+                gasTokenAddress,
+                urlSequencer,
+                networkName,
+                {gasPrice: 0}
+            )
+        ).to.emit(PolygonZKEVMV2Contract, "InitialSequenceBlobs");
+        const timestampCreatedRollup = (await ethers.provider.getBlock("latest"))?.timestamp;
+
+        const transaction = await PolygonZKEVMV2Contract.generateInitializeTransaction(
+            networkID,
+            gasTokenAddress,
+            gasTokenNetwork,
+            "0x" // empty metadata
+        );
+
+        // Check transaction
+        const bridgeL2Factory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
+        const encodedData = bridgeL2Factory.interface.encodeFunctionData("initialize", [
+            networkID,
+            gasTokenAddress,
+            gasTokenNetwork,
+            globalExitRootL2Address,
+            ethers.ZeroAddress,
+            "0x", // empty metadata
+        ]);
+        const blockCreatedRollup = await ethers.provider.getBlock("latest");
+
+        const rawTx = processorUtils.customRawTxToRawTx(transaction);
+        const tx = ethers.Transaction.from(rawTx);
+
+        const rlpSignData = transaction.slice(0, -(SIGNATURE_BYTES * 2 + EFFECTIVE_PERCENTAGE_BYTES * 2));
+        expect(rlpSignData).to.be.equal(tx.unsignedSerialized);
+
+        expect(tx.to).to.be.equal(polygonZkEVMBridgeContract.target);
+        expect(tx.value).to.be.equal(0);
+        expect(tx.data).to.be.equal(encodedData);
+        expect(tx.gasPrice).to.be.equal(0);
+        expect(tx.gasLimit).to.be.equal(30000000);
+        expect(tx.nonce).to.be.equal(0);
+        expect(tx.chainId).to.be.equal(0);
+
+        const forcedHashData = ethers.solidityPackedKeccak256(
+            ["bytes32", "uint64", "bytes32"],
+            [
+                await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot(),
+                timestampCreatedRollup,
+                blockCreatedRollup?.parentHash,
+            ]
+        );
+
+        const expectedAccInputHash = calculateAccInputHashfeijoa(
+            ethers.ZeroHash,
+            0,
+            ethers.ZeroHash,
+            MAX_SEQUENCE_TIMESTAMP_FORCED,
+            trustedSequencer.address,
+            ZK_GAS_LIMIT_BATCH,
+            FORCED_BLOB_TYPE,
+            ethers.ZeroHash,
+            ethers.ZeroHash,
+            ethers.keccak256(transaction),
+            forcedHashData
+        );
+
+        // calcualte accINputHash
+        expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash);
+
+        // try verify blobs
+        const l2txData = "0x123456";
+        const maticAmount = (await rollupManagerContract.getZkGasPrice()) * BigInt(ZK_GAS_LIMIT_BATCH);
+        const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
+        const l1InfoIndex = 0;
+
+        const blob = {
+            blobType: 0,
+            blobTypeParams: encodeCalldatBlobTypeParams(currentTime, ZK_GAS_LIMIT_BATCH, l1InfoIndex, l2txData),
+        } as BlobDataStructFeijoa;
+
+        const expectedAccInputHash2 = await calculateAccInputHashFromCalldata(
+            [blob],
+            trustedSequencer.address,
+            expectedAccInputHash,
+            polygonZkEVMGlobalExitRoot
+        );
+
+        // Approve tokens
+        await expect(
+            polTokenContract.connect(trustedSequencer).approve(PolygonZKEVMV2Contract.target, maticAmount * 100n)
+        ).to.emit(polTokenContract, "Approval");
+
+        // Sequence Blobs
+        let currentLastBlobSequenced = 1;
+
+        const currentTimeExceed = Number((await ethers.provider.getBlock("latest"))?.timestamp);
+
+        let currentBlob = {
+            blobType: 0,
+            blobTypeParams: encodeCalldatBlobTypeParams(
+                currentTimeExceed + 38,
+                ZK_GAS_LIMIT_BATCH,
+                l1InfoIndex,
+                l2txData
+            ),
+        };
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [currentBlob],
+                trustedSequencer.address,
+                await calculateAccInputHashFromCalldata(
+                    [currentBlob],
+                    trustedSequencer.address,
+                    expectedAccInputHash,
+                    polygonZkEVMGlobalExitRoot
+                )
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "MaxTimestampSequenceInvalid");
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [blob],
+                trustedSequencer.address,
+                ethers.ZeroHash
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
+
+        await expect(
+            PolygonZKEVMV2Contract.sequenceBlobs([blob], trustedSequencer.address, expectedAccInputHash2)
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "OnlyTrustedSequencer");
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [],
+                trustedSequencer.address,
+                expectedAccInputHash2
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceZeroBlobs");
+
+        currentBlob = {
+            blobType: 0,
+            blobTypeParams: encodeCalldatBlobTypeParams(
+                currentTime + 38,
+                ZK_GAS_LIMIT_BATCH,
+                l1InfoIndex,
+                `0x${"00".repeat(_MAX_TRANSACTIONS_BYTE_LENGTH + 1)}` as any
+            ),
+        };
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [currentBlob],
+                trustedSequencer.address,
+                await calculateAccInputHashFromCalldata(
+                    [currentBlob],
+                    trustedSequencer.address,
+                    expectedAccInputHash,
+                    polygonZkEVMGlobalExitRoot
+                )
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "TransactionsLengthAboveMax");
+
+        currentBlob = {
+            blobType: FORCED_BLOB_TYPE,
+            blobTypeParams: encodeCalldatForcedTypeParams(ethers.keccak256(l2txData), ethers.ZeroHash),
+        };
+
+        // False forced blob
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [currentBlob],
+                trustedSequencer.address,
+                await calculateAccInputHashFromCalldata(
+                    [currentBlob],
+                    trustedSequencer.address,
+                    expectedAccInputHash,
+                    polygonZkEVMGlobalExitRoot
+                )
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForcedDataDoesNotMatch");
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [blob],
+                trustedSequencer.address,
+                expectedAccInputHash2
+            )
+        ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs");
+
+        const currentTimestampSequenced = (await ethers.provider.getBlock("latest"))?.timestamp;
+
+        // calcualte accINputHash
+        expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash2);
+
+        const sequenceArray = new Array(24).fill(blob);
+        const expectedAccInputHash3 = await calculateAccInputHashFromCalldata(
+            sequenceArray,
+            trustedSequencer.address,
+            expectedAccInputHash2,
+            polygonZkEVMGlobalExitRoot
+        );
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                sequenceArray,
+                trustedSequencer.address,
+                expectedAccInputHash3
+            )
+        ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs");
     });
 
     it("should check the initalized parameters", async () => {

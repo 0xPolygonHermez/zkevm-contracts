@@ -242,4 +242,9 @@ interface IPolygonRollupManager {
      * @dev Update to old rollup ID
      */
     error UpdateToOldRollupTypeID();
+
+    /**
+     * @dev ALl batches must be verified before the upgrade
+     */
+    error AllBatchesMustBeVerified();
 }
