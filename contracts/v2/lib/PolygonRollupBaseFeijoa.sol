@@ -607,7 +607,7 @@ abstract contract PolygonRollupBaseFeijoa is
                 }
 
                 // sanity check
-                if (commitmentAndProof.length == 96) {
+                if (commitmentAndProof.length != 96) {
                     revert InvalidCommitmentAndProofLength();
                 }
 

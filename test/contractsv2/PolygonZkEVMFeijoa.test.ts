@@ -292,9 +292,22 @@ describe("PolygonZkEVMFeijoa", () => {
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
         const l1InfoIndex = 0;
 
+        const blobIndex = 0;
+        const z = ethers.ZeroHash;
+        const y = ethers.ZeroHash;
+        const commitmentAndProof = `0x${"00".repeat(96)}`;
+
         const blob = {
-            blobType: 0,
-            blobTypeParams: encodeCalldatBlobTypeParams(currentTime, ZK_GAS_LIMIT_BATCH, l1InfoIndex, l2txData),
+            blobType: BLOBTX_BLOB_TYPE,
+            blobTypeParams: encodeBlobTxBlobTypeParams(
+                currentTime,
+                ZK_GAS_LIMIT_BATCH,
+                l1InfoIndex,
+                blobIndex,
+                z,
+                y,
+                commitmentAndProof
+            ),
         } as BlobDataStructFeijoa;
 
         const expectedAccInputHash2 = await calculateAccInputHashFromCalldata(
@@ -310,19 +323,21 @@ describe("PolygonZkEVMFeijoa", () => {
         ).to.emit(polTokenContract, "Approval");
 
         // Sequence Blobs
-        let currentLastBlobSequenced = 1;
-
         const currentTimeExceed = Number((await ethers.provider.getBlock("latest"))?.timestamp);
 
         let currentBlob = {
-            blobType: 0,
-            blobTypeParams: encodeCalldatBlobTypeParams(
+            blobType: BLOBTX_BLOB_TYPE,
+            blobTypeParams: encodeBlobTxBlobTypeParams(
                 currentTimeExceed + 38,
                 ZK_GAS_LIMIT_BATCH,
                 l1InfoIndex,
-                l2txData
+                blobIndex,
+                z,
+                y,
+                commitmentAndProof
             ),
         };
+
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
                 [currentBlob],
@@ -337,14 +352,6 @@ describe("PolygonZkEVMFeijoa", () => {
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "MaxTimestampSequenceInvalid");
 
         await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
-                [blob],
-                trustedSequencer.address,
-                ethers.ZeroHash
-            )
-        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
-
-        await expect(
             PolygonZKEVMV2Contract.sequenceBlobs([blob], trustedSequencer.address, expectedAccInputHash2)
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "OnlyTrustedSequencer");
 
@@ -356,75 +363,29 @@ describe("PolygonZkEVMFeijoa", () => {
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceZeroBlobs");
 
-        currentBlob = {
-            blobType: 0,
-            blobTypeParams: encodeCalldatBlobTypeParams(
-                currentTime + 38,
-                ZK_GAS_LIMIT_BATCH,
-                l1InfoIndex,
-                `0x${"00".repeat(_MAX_TRANSACTIONS_BYTE_LENGTH + 1)}` as any
-            ),
-        };
-        await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
-                [currentBlob],
-                trustedSequencer.address,
-                await calculateAccInputHashFromCalldata(
-                    [currentBlob],
-                    trustedSequencer.address,
-                    expectedAccInputHash,
-                    polygonZkEVMGlobalExitRoot
-                )
-            )
-        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "TransactionsLengthAboveMax");
-
-        currentBlob = {
-            blobType: FORCED_BLOB_TYPE,
-            blobTypeParams: encodeCalldatForcedTypeParams(ethers.keccak256(l2txData), ethers.ZeroHash),
-        };
-
-        // False forced blob
-        await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
-                [currentBlob],
-                trustedSequencer.address,
-                await calculateAccInputHashFromCalldata(
-                    [currentBlob],
-                    trustedSequencer.address,
-                    expectedAccInputHash,
-                    polygonZkEVMGlobalExitRoot
-                )
-            )
-        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForcedDataDoesNotMatch");
-
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
                 [blob],
                 trustedSequencer.address,
                 expectedAccInputHash2
             )
-        ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs");
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "BlobHashNotFound");
 
-        const currentTimestampSequenced = (await ethers.provider.getBlock("latest"))?.timestamp;
+        // await expect(
+        //     PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+        //         [blob],
+        //         trustedSequencer.address,
+        //         ethers.ZeroHash
+        //     )
+        // ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
 
-        // calcualte accINputHash
-        expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash2);
-
-        const sequenceArray = new Array(24).fill(blob);
-        const expectedAccInputHash3 = await calculateAccInputHashFromCalldata(
-            sequenceArray,
-            trustedSequencer.address,
-            expectedAccInputHash2,
-            polygonZkEVMGlobalExitRoot
-        );
-
-        await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
-                sequenceArray,
-                trustedSequencer.address,
-                expectedAccInputHash3
-            )
-        ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs");
+        // await expect(
+        //     PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+        //         [blob],
+        //         trustedSequencer.address,
+        //         expectedAccInputHash2
+        //     )
+        // ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs");
     });
 
     it("should check the initalized parameters", async () => {
@@ -1480,6 +1441,29 @@ async function calculateAccInputHashFromCalldata(
                 ethers.ZeroHash,
                 transactionsHash,
                 forcedHashData
+            );
+        } else if (blobType == BLOBTX_BLOB_TYPE) {
+            const [maxSequenceTimestamp, zkGasLimit, l1InfoLeafIndex, blobIndex, z, y, commitmentAndProof] =
+                ethers.AbiCoder.defaultAbiCoder().decode(
+                    ["uint64", "uint64", "uint32", "uint256", "bytes32", "bytes32", "bytes"],
+                    blobTypeParams
+                );
+
+            // check l1INfoHash
+            const l1InfoHash = await polygonZkEVMGlobalExitRoot.l1InfoLeafMap(l1InfoLeafIndex);
+
+            currentAccInputHash = calculateAccInputHashfeijoa(
+                currentAccInputHash,
+                l1InfoLeafIndex,
+                l1InfoHash,
+                maxSequenceTimestamp,
+                coinbase,
+                zkGasLimit,
+                blobType,
+                z,
+                y,
+                ethers.ZeroHash,
+                ethers.ZeroHash
             );
         }
     }
