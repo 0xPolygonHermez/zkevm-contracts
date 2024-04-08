@@ -466,7 +466,7 @@ contract PolygonRollupManager is
     /**
      * @dev Emitted when is updated the sequence fee
      */
-    event SetSequenceFee(uint256 newSequenceFee);
+    event SetZkGasPrice(uint256 newSequenceFee);
 
     /**
      * @dev Emitted when the aggregated rollup verifier is updated
@@ -534,10 +534,9 @@ contract PolygonRollupManager is
             newRollupData.sequences[0].accInputHash = _legacyRollupData
                 .sequencedBatches[lastVerifiedBatch]
                 .accInputHash;
-
-            // Do not copy state transitions since it was not used
-            _zkGasPrice = _legacyBatchFee / ZK_GAS_LIMIT_BATCH;
         }
+        // Do not copy state transitions since it was not used
+        _zkGasPrice = _batchFee / ZK_GAS_LIMIT_BATCH;
     }
 
     ///////////////////////////////////////
@@ -1866,7 +1865,7 @@ contract PolygonRollupManager is
             revert zkGasPriceOfRange();
         }
         _zkGasPrice = newZkGasPrice;
-        emit SetSequenceFee(newZkGasPrice);
+        emit SetZkGasPrice(newZkGasPrice);
     }
 
     ////////////////////////
