@@ -14,6 +14,7 @@ import {
     PolygonZkEVM,
     PolygonZkEVMExistentEtrog,
     PolygonRollupManager,
+    PolygonRollupManagerMockPrevious,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
@@ -57,7 +58,8 @@ describe("Polygon Rollup manager upgraded", () => {
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2;
-    let rollupManagerContract: PolygonRollupManagerMock;
+    let rollupManagerContractPrevious: PolygonRollupManagerMockPrevious;
+    let rollupManagerContract: PolygonRollupManager;
 
     const polTokenName = "POL Token";
     const polTokenSymbol = "POL";
@@ -138,79 +140,434 @@ describe("Polygon Rollup manager upgraded", () => {
             from: deployer.address,
             nonce: nonceProxyBridge,
         });
-        const precalculatezkEVM = ethers.getCreateAddress({
+        const precalculateRollupManagerAddress = ethers.getCreateAddress({
             from: deployer.address,
             nonce: nonceProxyZkevm,
         });
         firstDeployment = false;
 
         // deploy globalExitRoot
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2");
-        polygonZkEVMGlobalExitRoot = (await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory(
+            "PolygonZkEVMGlobalExitRootV2Previous"
+        );
+        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             initializer: false,
-            constructorArgs: [precalculatezkEVM, precalculateBridgeAddress],
+            constructorArgs: [precalculateRollupManagerAddress, precalculateBridgeAddress],
             unsafeAllow: ["constructor", "state-variable-immutable"],
-        })) as any;
+        });
 
         // deploy PolygonZkEVMBridge
         const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
-        polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
+        polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ["constructor"],
-        })) as any;
+        });
 
-        // deploy PolygonZkEVM
-        const PolygonZkEVMFactory = await ethers.getContractFactory("PolygonZkEVMUpgraded");
-        polygonZkEVMContract = (await upgrades.deployProxy(PolygonZkEVMFactory, [], {
+        // deploy mock verifier
+        const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManagerMockPrevious");
+
+        rollupManagerContractPrevious = (await upgrades.deployProxy(PolygonRollupManagerFactory, [], {
             initializer: false,
             constructorArgs: [
                 polygonZkEVMGlobalExitRoot.target,
                 polTokenContract.target,
-                verifierContract.target,
                 polygonZkEVMBridgeContract.target,
-                chainID,
-                forkID,
-                0,
             ],
             unsafeAllow: ["constructor", "state-variable-immutable"],
-        })) as any;
+        })) as unknown as PolygonRollupManagerMockPrevious;
+
+        await rollupManagerContractPrevious.waitForDeployment();
+
+        // check precalculated address
         expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.target);
-        expect(precalculatezkEVM).to.be.equal(polygonZkEVMContract.target);
-
-        const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManagerMock");
-        rollupManagerContract = PolygonRollupManagerFactory.attach(polygonZkEVMContract.target) as any;
-
-        await polygonZkEVMContract.initialize(
-            {
-                admin: admin.address,
-                trustedSequencer: trustedSequencer.address,
-                pendingStateTimeout: pendingStateTimeoutDefault,
-                trustedAggregator: trustedAggregator.address,
-                trustedAggregatorTimeout: trustedAggregatorTimeout,
-            },
-            genesisRoot,
-            urlSequencer,
-            networkName,
-            version
-        );
+        expect(precalculateRollupManagerAddress).to.be.equal(rollupManagerContractPrevious.target);
 
         await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,
             ethers.ZeroAddress, // zero for ether
             ethers.ZeroAddress, // zero for ether
             polygonZkEVMGlobalExitRoot.target,
-            rollupManagerContract.target,
+            rollupManagerContractPrevious.target,
             "0x"
+        );
+
+        // Initialize Mock
+        await rollupManagerContractPrevious.initializeMock(
+            trustedAggregator.address,
+            pendingStateTimeoutDefault,
+            trustedAggregatorTimeout,
+            admin.address,
+            timelock.address,
+            emergencyCouncil.address
         );
 
         // fund sequencer address with Matic tokens
         await polTokenContract.transfer(trustedSequencer.address, ethers.parseEther("1000"));
 
-        // DEploy new zkEVM
-        const PolygonZkEVMV2ExistentFactory = await ethers.getContractFactory("PolygonZkEVMExistentEtrog");
+        /// Create a new rollup
+        const urlSequencer = "http://zkevm-json-rpc:8123";
+        const chainID2 = chainID;
+        const networkName = "zkevm";
+        const forkID = 9;
+        const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
+        const rollupCompatibilityID = 0;
+        const descirption = "zkevm test";
+        // Native token will be ether
+        const gasTokenAddress = ethers.ZeroAddress;
+        const gasTokenNetwork = 0;
 
-        const newPolygonZkEVMContract = (await upgrades.deployProxy(PolygonZkEVMV2ExistentFactory, [], {
-            initializer: false,
+        // Create zkEVM implementation
+        const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrog");
+        const PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
+            polygonZkEVMGlobalExitRoot.target,
+            polTokenContract.target,
+            polygonZkEVMBridgeContract.target,
+            rollupManagerContractPrevious.target
+        );
+        await PolygonZKEVMV2Contract.waitForDeployment();
+
+        // Add a new rollup type with timelock
+        const newRollupTypeID = 1;
+        await expect(
+            rollupManagerContractPrevious
+                .connect(timelock)
+                .addNewRollupType(
+                    PolygonZKEVMV2Contract.target,
+                    verifierContract.target,
+                    forkID,
+                    rollupCompatibilityID,
+                    genesisRandom,
+                    descirption
+                )
+        )
+            .to.emit(rollupManagerContractPrevious, "AddNewRollupType")
+            .withArgs(
+                newRollupTypeID,
+                PolygonZKEVMV2Contract.target,
+                verifierContract.target,
+                forkID,
+                rollupCompatibilityID,
+                genesisRandom,
+                descirption
+            );
+
+        // assert new rollup type
+        const createdRollupType = await rollupManagerContractPrevious.rollupTypeMap(newRollupTypeID);
+
+        const expectedRollupType = [
+            PolygonZKEVMV2Contract.target,
+            verifierContract.target,
+            forkID,
+            rollupCompatibilityID,
+            false,
+            genesisRandom,
+        ];
+        expect(createdRollupType).to.be.deep.equal(expectedRollupType);
+
+        const newCreatedRollupID = 1;
+        const newZKEVMAddress = ethers.getCreateAddress({
+            from: rollupManagerContractPrevious.target as string,
+            nonce: 1,
+        });
+
+        const newZkEVMContract = PolygonZKEVMV2Factory.attach(newZKEVMAddress) as PolygonZkEVMEtrog;
+        const newSequencedBatch = 1;
+        await expect(
+            rollupManagerContractPrevious
+                .connect(admin)
+                .createNewRollup(
+                    newRollupTypeID,
+                    chainID2,
+                    admin.address,
+                    trustedSequencer.address,
+                    gasTokenAddress,
+                    urlSequencer,
+                    networkName
+                )
+        )
+            .to.emit(rollupManagerContractPrevious, "CreateNewRollup")
+            .withArgs(newCreatedRollupID, newRollupTypeID, newZKEVMAddress, chainID2, gasTokenAddress)
+            .to.emit(newZkEVMContract, "InitialSequenceBatches")
+            .to.emit(rollupManagerContractPrevious, "OnSequenceBatches")
+            .withArgs(newCreatedRollupID, newSequencedBatch);
+
+        const transaction = await newZkEVMContract.generateInitializeTransaction(
+            newCreatedRollupID,
+            gasTokenAddress,
+            gasTokenNetwork,
+            "0x" // empty metadata
+        );
+
+        // Check transaction
+        const bridgeL2Factory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
+        const encodedData = bridgeL2Factory.interface.encodeFunctionData("initialize", [
+            newCreatedRollupID,
+            gasTokenAddress,
+            gasTokenNetwork,
+            globalExitRootL2Address,
+            ethers.ZeroAddress,
+            "0x", // empty metadata
+        ]);
+
+        const rawTx = processorUtils.customRawTxToRawTx(transaction);
+        const tx = ethers.Transaction.from(rawTx);
+
+        const rlpSignData = transaction.slice(0, -(SIGNATURE_BYTES * 2 + EFFECTIVE_PERCENTAGE_BYTES * 2));
+        expect(rlpSignData).to.be.equal(tx.unsignedSerialized);
+
+        expect(tx.to).to.be.equal(polygonZkEVMBridgeContract.target);
+        expect(tx.value).to.be.equal(0);
+        expect(tx.data).to.be.equal(encodedData);
+        expect(tx.gasPrice).to.be.equal(0);
+        expect(tx.gasLimit).to.be.equal(30000000);
+        expect(tx.nonce).to.be.equal(0);
+        expect(tx.chainId).to.be.equal(0);
+
+        const blockCreatedRollup = await ethers.provider.getBlock("latest");
+        // Assert new rollup created
+        const timestampCreatedRollup = blockCreatedRollup?.timestamp;
+
+        const expectedAccInputHash = calculateAccInputHashetrog(
+            ethers.ZeroHash,
+            ethers.keccak256(transaction),
+            await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot(),
+            timestampCreatedRollup,
+            trustedSequencer.address,
+            blockCreatedRollup?.parentHash
+        );
+
+        // calcualte accINputHash
+        expect(await newZkEVMContract.lastAccInputHash()).to.be.equal(expectedAccInputHash);
+
+        // try verify batches
+        const l2txData = "0x123456";
+        const maticAmount = await rollupManagerContractPrevious.getBatchFee();
+
+        const sequence = {
+            transactions: l2txData,
+            forcedGlobalExitRoot: ethers.ZeroHash,
+            forcedTimestamp: 0,
+            forcedBlockHashL1: ethers.ZeroHash,
+        } as BatchDataStructEtrog;
+
+        // Approve tokens
+        await expect(polTokenContract.connect(trustedSequencer).approve(newZkEVMContract.target, maticAmount)).to.emit(
+            polTokenContract,
+            "Approval"
+        );
+
+        // Sequence Batches
+        const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
+        let currentLastBatchSequenced = 1;
+
+        await expect(
+            newZkEVMContract
+                .connect(trustedSequencer)
+                .sequenceBatches([sequence], currentTime, currentLastBatchSequenced++, trustedSequencer.address)
+        ).to.emit(newZkEVMContract, "SequenceBatches");
+
+        const lastBlock = await ethers.provider.getBlock("latest");
+        const lastBlockHash = lastBlock?.parentHash;
+        const lastGlobalExitRootS = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+
+        const height = 32;
+        const merkleTreeGLobalExitRoot = new MerkleTreeBridge(height);
+        const leafValueJs = calculateGlobalExitRootLeaf(lastGlobalExitRootS, lastBlockHash, lastBlock?.timestamp);
+        //merkleTreeGLobalExitRoot.add(leafValueJs);
+
+        const rootSC = await polygonZkEVMGlobalExitRoot.getRoot();
+        const rootJS = merkleTreeGLobalExitRoot.getRoot();
+
+        expect(rootSC).to.be.equal(rootJS);
+
+        const expectedAccInputHash2 = calculateAccInputHashetrog(
+            expectedAccInputHash,
+            ethers.keccak256(l2txData),
+            rootSC,
+            currentTime,
+            trustedSequencer.address,
+            ethers.ZeroHash
+        );
+        // calcualte accINputHash
+        expect(await newZkEVMContract.lastAccInputHash()).to.be.equal(expectedAccInputHash2);
+
+        // Verify batches
+
+        // Create a new local exit root mocking some bridge
+        const tokenName = "Matic Token";
+        const tokenSymbol = "MATIC";
+        const decimals = 18;
+        const metadataToken = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["string", "string", "uint8"],
+            [tokenName, tokenSymbol, decimals]
+        );
+
+        const originNetwork = networkIDRollup;
+        const tokenAddress = ethers.getAddress(ethers.hexlify(ethers.randomBytes(20)));
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDMainnet;
+        const destinationAddress = beneficiary.address;
+        const metadata = metadataToken; // since we are inserting in the exit root can be anything
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
+        // compute root merkle tree in Js
+        const merkleTreezkEVM = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            tokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+
+        // Add 2 leafs
+        merkleTreezkEVM.add(leafValue);
+        merkleTreezkEVM.add(leafValue);
+
+        // check merkle root with SC
+        const rootzkEVM = merkleTreezkEVM.getRoot();
+
+        // trustedAggregator forge the batch
+        const pendingState = 0;
+        const newLocalExitRoot = rootzkEVM;
+        const newStateRoot = "0x0000000000000000000000000000000000000000000000000000000000000123";
+        const newVerifiedBatch = newSequencedBatch + 1;
+        const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
+        const currentVerifiedBatch = 0;
+
+        // Calcualte new globalExitroot
+        const merkleTreeRollups = new MerkleTreeBridge(height);
+        merkleTreeRollups.add(newLocalExitRoot);
+        //merkleTreeRollups.add(newLocalExitRoot);
+        const rootRollups = merkleTreeRollups.getRoot();
+
+        await expect(
+            rollupManagerContractPrevious
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    newCreatedRollupID,
+                    pendingState,
+                    currentVerifiedBatch,
+                    newVerifiedBatch,
+                    newLocalExitRoot,
+                    newStateRoot,
+                    beneficiary.address,
+                    zkProofFFlonk
+                )
+        )
+            .to.emit(rollupManagerContractPrevious, "VerifyBatchesTrustedAggregator")
+            .withArgs(newCreatedRollupID, newVerifiedBatch, newStateRoot, newLocalExitRoot, trustedAggregator.address)
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTree")
+            .withArgs(ethers.ZeroHash, rootRollups);
+
+        expect(await polygonZkEVMGlobalExitRoot.depositCount()).to.be.equal(1);
+
+        // Check rollup 1 before upgrade
+        const rollupDataFinal = await rollupManagerContractPrevious.rollupIDToRollupData(newCreatedRollupID);
+        expect(rollupDataFinal.rollupContract).to.be.equal(newZKEVMAddress);
+        expect(rollupDataFinal.chainID).to.be.equal(chainID);
+        expect(rollupDataFinal.verifier).to.be.equal(verifierContract.target);
+        expect(rollupDataFinal.forkID).to.be.equal(forkID);
+        expect(rollupDataFinal.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataFinal.lastBatchSequenced).to.be.equal(newVerifiedBatch);
+        expect(rollupDataFinal.lastVerifiedBatch).to.be.equal(newVerifiedBatch);
+        expect(rollupDataFinal.lastPendingState).to.be.equal(0);
+        expect(rollupDataFinal.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupDataFinal.lastVerifiedBatchBeforeUpgrade).to.be.equal(newVerifiedBatch);
+        expect(rollupDataFinal.rollupTypeID).to.be.equal(1);
+        expect(rollupDataFinal.rollupCompatibilityID).to.be.equal(0);
+
+        // Upgrade all contracts
+        const newPolygonRollupManager = await ethers.getContractFactory("PolygonRollupManager");
+        const txRollupManager = await upgrades.upgradeProxy(
+            rollupManagerContractPrevious.target,
+            newPolygonRollupManager,
+            {
+                constructorArgs: [
+                    polygonZkEVMGlobalExitRoot.target,
+                    polTokenContract.target,
+                    polygonZkEVMBridgeContract.target,
+                ],
+                unsafeAllow: ["constructor", "state-variable-immutable"],
+                unsafeAllowRenames: false,
+                call: {
+                    fn: "initialize",
+                    args: [],
+                },
+            }
+        );
+        rollupManagerContract = rollupManagerContractPrevious as any as PolygonRollupManager;
+
+        // Check rollup 1 before upgrade
+        const rollupDataFinal2 = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        expect(rollupDataFinal2.rollupContract).to.be.equal(newZKEVMAddress);
+        expect(rollupDataFinal2.chainID).to.be.equal(chainID);
+        expect(rollupDataFinal2.verifier).to.be.equal(verifierContract.target);
+        expect(rollupDataFinal2.forkID).to.be.equal(forkID);
+        expect(rollupDataFinal2.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataFinal2.lastSequenceNum).to.be.equal(0);
+        expect(rollupDataFinal2.lastVerifiedSequenceNum).to.be.equal(0);
+        expect(rollupDataFinal2.lastPendingState).to.be.equal(0);
+        expect(rollupDataFinal2.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupDataFinal2.lastVerifiedSequenceBeforeUpgrade).to.be.equal(0);
+        expect(rollupDataFinal2.rollupTypeID).to.be.equal(1);
+        expect(rollupDataFinal2.rollupCompatibilityID).to.be.equal(0);
+
+        // Check root
+
+        // Upgrade global exit root
+        const newGlobalExitRoot = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2");
+        const txGlobalExitRoot = await upgrades.upgradeProxy(polygonZkEVMGlobalExitRoot.target, newGlobalExitRoot, {
+            constructorArgs: [precalculateRollupManagerAddress, precalculateBridgeAddress],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+            unsafeAllowRenames: false,
+            call: {
+                fn: "initialize",
+                args: [],
+            },
+        });
+
+        expect(await polygonZkEVMGlobalExitRoot.depositCount()).to.be.equal(2);
+
+        // update to a new rollup type
+        const PolygonZKEVMFeijoaFactory = await ethers.getContractFactory("PolygonZkEVMFeijoa");
+        const PolygonZKEVMFeijoaContract = await PolygonZKEVMFeijoaFactory.deploy(
+            polygonZkEVMGlobalExitRoot.target,
+            polTokenContract.target,
+            polygonZkEVMBridgeContract.target,
+            rollupManagerContract.target
+        );
+        await PolygonZKEVMFeijoaContract.waitForDeployment();
+
+        // Add a new rollup type with timelock
+        const feijoaRollupType = 2;
+        await expect(
+            rollupManagerContract
+                .connect(timelock)
+                .addNewRollupType(
+                    PolygonZKEVMFeijoaContract.target,
+                    verifierContract.target,
+                    forkID,
+                    rollupCompatibilityID,
+                    genesisRandom,
+                    descirption
+                )
+        )
+            .to.emit(rollupManagerContract, "AddNewRollupType")
+            .withArgs(
+                feijoaRollupType,
+                PolygonZKEVMFeijoaContract.target,
+                verifierContract.target,
+                forkID,
+                rollupCompatibilityID,
+                genesisRandom,
+                descirption
+            );
+
+        // Validate upgrade OZ
+        await upgrades.validateUpgrade(PolygonZKEVMV2Factory, PolygonZKEVMFeijoaFactory, {
             constructorArgs: [
                 polygonZkEVMGlobalExitRoot.target,
                 polTokenContract.target,
@@ -218,50 +575,19 @@ describe("Polygon Rollup manager upgraded", () => {
                 rollupManagerContract.target,
             ],
             unsafeAllow: ["constructor", "state-variable-immutable"],
-        })) as any as PolygonZkEVMExistentEtrog;
+        } as any);
 
-        //const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager");
-        const txRollupManager = await upgrades.upgradeProxy(polygonZkEVMContract.target, PolygonRollupManagerFactory, {
-            constructorArgs: [
-                polygonZkEVMGlobalExitRoot.target,
-                polTokenContract.target,
-                polygonZkEVMBridgeContract.target,
-            ],
-            unsafeAllow: ["constructor", "state-variable-immutable"],
-            unsafeAllowRenames: false,
-            call: {
-                fn: "initialize",
-                args: [
-                    trustedAggregator.address,
-                    pendingStateTimeoutDefault,
-                    trustedAggregatorTimeout,
-                    admin.address,
-                    timelock.address,
-                    emergencyCouncil.address,
-                    newPolygonZkEVMContract.target,
-                    verifierContract.target,
-                    forkID,
-                    chainID,
-                ],
-            },
-        });
+        await expect(rollupManagerContract.connect(timelock).updateRollup(newZKEVMAddress, feijoaRollupType, "0x"))
+            .to.emit(rollupManagerContract, "UpdateRollup")
+            .withArgs(newRollupTypeID, feijoaRollupType, 0);
+
+        // check layout rollup
     });
 
     it("Cannot initialzie again", async () => {
-        await expect(
-            rollupManagerContract.initialize(
-                trustedAggregator.address,
-                pendingStateTimeoutDefault,
-                trustedAggregatorTimeout,
-                admin.address,
-                timelock.address,
-                emergencyCouncil.address,
-                timelock.address,
-                verifierContract.target,
-                forkID,
-                chainID
-            )
-        ).to.be.revertedWith("Initializable: contract is already initialized");
+        await expect(rollupManagerContract.initialize()).to.be.revertedWith(
+            "Initializable: contract is already initialized"
+        );
     });
 
     it("should check the initalized parameters", async () => {

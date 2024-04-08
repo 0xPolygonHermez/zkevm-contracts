@@ -2072,7 +2072,6 @@ contract PolygonRollupManager is
         }
 
         uint64 initBlobNum = rollup.sequences[initSequenceNum].currentBlobNum;
-
         uint64 finalBlobNum = rollup.sequences[finalSequenceNum].currentBlobNum;
 
         uint256 ptr = ptrAccumulateInputSnarkBytes;

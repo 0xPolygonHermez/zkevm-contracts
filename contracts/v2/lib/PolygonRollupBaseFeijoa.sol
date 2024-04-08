@@ -194,6 +194,7 @@ abstract contract PolygonRollupBaseFeijoa is
     // ForceBlobNum --> hashedForcedBlobData
     // hashedForcedBlobData: hash containing the necessary information to force a blob:
     // keccak256(keccak256(bytes transactions), bytes32 forcedGlobalExitRoot, unint64 forcedTimestamp, bytes32 forcedBlockHashL1)
+    /// @custom:oz-retyped-from mapping(uint64 => bytes32)
     /// @custom:oz-renamed-from forcedBatches
     mapping(uint64 => ForcedData) public forcedBlobs;
 
