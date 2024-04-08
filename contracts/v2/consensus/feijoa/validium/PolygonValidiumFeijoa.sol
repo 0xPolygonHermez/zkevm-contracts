@@ -214,6 +214,7 @@ contract PolygonValidiumFeijoa is PolygonRollupBaseFeijoa, IPolygonValidium {
                     }
                 }
 
+                // sanity check
                 if (commitmentAndProof.length == 96) {
                     revert InvalidCommitmentAndProofLength();
                 }
@@ -224,6 +225,7 @@ contract PolygonValidiumFeijoa is PolygonRollupBaseFeijoa, IPolygonValidium {
                         revert BlobHashNotFound();
                     }
 
+                    // Call precompiled
                     (bool success, ) = POINT_EVALUATION_PRECOMPILE_ADDRESS
                         .staticcall(
                             abi.encodePacked(

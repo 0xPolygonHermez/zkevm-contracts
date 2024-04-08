@@ -914,7 +914,6 @@ describe("Polygon Rollup Manager", () => {
         const snapshot3 = await takeSnapshot();
 
         // Sequence Blobs
-        let a = 0;
         await expect(
             newZkEVMContract
                 .connect(trustedSequencer)
@@ -1330,7 +1329,7 @@ describe("Polygon Rollup Manager", () => {
             polygonZkEVMGlobalExitRoot
         );
 
-        const txSequenceBlobs = await expect(
+        await expect(
             newZkEVMContract
                 .connect(trustedSequencer)
                 .sequenceBlobs([blob], trustedSequencer.address, expectedAccInputHash2 as any)
