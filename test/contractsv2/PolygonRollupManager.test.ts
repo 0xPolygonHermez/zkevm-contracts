@@ -11,15 +11,10 @@ import {
     PolygonRollupBaseFeijoa,
     TokenWrapped,
     Address,
-    PolygonValidiumStorageMigration,
-    PolygonDataCommittee,
-    PolygonValidiumFeijoaPrevious,
-    PolygonRollupManager,
-    BridgeReceiverMock__factory,
+    PolygonRollupManager
 } from "../../typechain-types";
-import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
-import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
-const {calculateSnarkInput, calculateAccInputHash, calculateBlobHashData} = contractUtils;
+import {takeSnapshot} from "@nomicfoundation/hardhat-network-helpers";
+import {processorUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
 type VerifyBlobData = PolygonRollupManager.VerifySequenceDataStruct;
 type BlobDataStructFeijoa = PolygonRollupBaseFeijoa.BlobDataStruct;
 
@@ -587,6 +582,24 @@ describe("Polygon Rollup Manager", () => {
         await expect(
             newZkEVMContract.connect(trustedSequencer).sequenceBlobs([blob], trustedSequencer.address, ethers.ZeroHash)
         ).to.be.revertedWithCustomError(newZkEVMContract, "FinalAccInputHashDoesNotMatch");
+
+        const blob3 = {
+            blobType: 3,
+            blobTypeParams: encodeCalldatBlobTypeParams(currentTime, ZK_GAS_LIMIT_BATCH, l1InfoIndex, l2txData),
+        } as BlobDataStructFeijoa;
+
+        await expect(
+            newZkEVMContract.connect(trustedSequencer).sequenceBlobs([blob3], trustedSequencer.address, ethers.ZeroHash)
+        ).to.be.revertedWithCustomError(newZkEVMContract, "BlobTypeNotSupported")
+
+        const blobl1InfoIndexNonZero = {
+            blobType: 0,
+            blobTypeParams: encodeCalldatBlobTypeParams(currentTime, ZK_GAS_LIMIT_BATCH, 1, l2txData),
+        } as BlobDataStructFeijoa;
+
+        await expect(
+            newZkEVMContract.connect(trustedSequencer).sequenceBlobs([blobl1InfoIndexNonZero], trustedSequencer.address, ethers.ZeroHash)
+        ).to.be.revertedWithCustomError(newZkEVMContract, "Invalidl1InfoLeafIndex")
 
         // Sequence Blobs
         const expectedAccInputHash2 = await calculateAccInputHashFromCalldata(

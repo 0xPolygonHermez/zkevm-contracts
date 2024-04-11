@@ -4,25 +4,20 @@ import {ethers, upgrades} from "hardhat";
 import {
     VerifierRollupHelperMock,
     ERC20PermitMock,
-    PolygonRollupManagerMock,
     PolygonZkEVMGlobalExitRootV2,
     PolygonZkEVMBridgeV2,
     PolygonZkEVMFeijoa,
     PolygonZkEVMEtrog,
-    PolygonRollupBaseEtrog,
     TokenWrapped,
     Address,
     PolygonZkEVM,
-    PolygonZkEVMExistentEtrog,
     PolygonRollupBaseFeijoa,
     PolygonRollupManager,
     PolygonRollupManagerMockPrevious,
 } from "../../typechain-types";
-import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
-import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
-const {calculateSnarkInput, calculateAccInputHash, calculateBlobHashData} = contractUtils;
+import {takeSnapshot} from "@nomicfoundation/hardhat-network-helpers";
+import {processorUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
 
-type BlobDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
 type BlobDataStructFeijoa = PolygonRollupBaseFeijoa.BlobDataStruct;
 type VerifyBlobData = PolygonRollupManager.VerifySequenceDataStruct;
 

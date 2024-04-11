@@ -322,6 +322,58 @@ describe("PolygonZkEVMFeijoa", () => {
             polTokenContract.connect(trustedSequencer).approve(PolygonZKEVMV2Contract.target, maticAmount * 100n)
         ).to.emit(polTokenContract, "Approval");
 
+        let currentBlobNonZeroL1InfoIndex = {
+            blobType: BLOBTX_BLOB_TYPE,
+            blobTypeParams: encodeBlobTxBlobTypeParams(
+                currentTime,
+                ZK_GAS_LIMIT_BATCH,
+                1,
+                blobIndex,
+                z,
+                y,
+                commitmentAndProof
+            ),
+        };
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [currentBlobNonZeroL1InfoIndex],
+                trustedSequencer.address,
+                await calculateAccInputHashFromCalldata(
+                    [currentBlobNonZeroL1InfoIndex],
+                    trustedSequencer.address,
+                    expectedAccInputHash,
+                    polygonZkEVMGlobalExitRoot
+                )
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "Invalidl1InfoLeafIndex");
+
+        let currentBlobWrongLengthCommitment = {
+            blobType: BLOBTX_BLOB_TYPE,
+            blobTypeParams: encodeBlobTxBlobTypeParams(
+                currentTime,
+                ZK_GAS_LIMIT_BATCH,
+                l1InfoIndex,
+                blobIndex,
+                z,
+                y,
+                `0x${"00".repeat(97)}` // should be 96
+            ),
+        };
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [currentBlobWrongLengthCommitment],
+                trustedSequencer.address,
+                await calculateAccInputHashFromCalldata(
+                    [currentBlobWrongLengthCommitment],
+                    trustedSequencer.address,
+                    expectedAccInputHash,
+                    polygonZkEVMGlobalExitRoot
+                )
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "InvalidCommitmentAndProofLength");
+
         // Sequence Blobs
         const currentTimeExceed = Number((await ethers.provider.getBlock("latest"))?.timestamp);
 
@@ -371,21 +423,23 @@ describe("PolygonZkEVMFeijoa", () => {
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "BlobHashNotFound");
 
-        // await expect(
-        //     PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
-        //         [blob],
-        //         trustedSequencer.address,
-        //         ethers.ZeroHash
-        //     )
-        // ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
+        // TODO actually send a type 3 tx (blob) to receive hash with BLOBHASH opcode (line 615)
+        
+        /* await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [blob],
+                trustedSequencer.address,
+                ethers.ZeroHash
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
 
-        // await expect(
-        //     PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
-        //         [blob],
-        //         trustedSequencer.address,
-        //         expectedAccInputHash2
-        //     )
-        // ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs");
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+                [blob],
+                trustedSequencer.address,
+                expectedAccInputHash2
+            )
+        ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs"); */
     });
 
     it("should check the initalized parameters", async () => {
@@ -548,6 +602,7 @@ describe("PolygonZkEVMFeijoa", () => {
             PolygonZKEVMV2Contract.generateInitializeTransaction(0, ethers.ZeroAddress, 1, hugeMetadata)
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "HugeTokenMetadataNotSupported");
     });
+
     it("should check full flow", async () => {
         // Initialzie using rollup manager
         await ethers.provider.send("hardhat_impersonateAccount", [rollupManagerContract.target]);
