@@ -398,4 +398,25 @@ describe("PolygonGlobalExitRootV2: ExitRoots exist before initializing Freijoa u
         expect(await polygonZkEVMGlobalExitRootV2.getRoot()).to.be.equal(merkleTree.getRoot());
         expect(await polygonZkEVMGlobalExitRootV2.l1InfoLeafMap(1)).to.be.equal(leafValue);
     });
+
+    it("should revert with MerkleTreeFull when depositCount exceeds type(uint32).max", async () => {
+        const DEPOSITCOUNT_STORAGE_SLOT = 35;
+        const MAX_DEPOSIT_COUNT = 2 ** 32 - 1;
+
+        expect(await polygonZkEVMGlobalExitRootV2.depositCount()).to.be.equal(2);
+        expect(
+            await ethers.provider.getStorage(await polygonZkEVMGlobalExitRootV2.getAddress(), DEPOSITCOUNT_STORAGE_SLOT)
+        ).to.be.equal(ethers.toBeHex(2, 32));
+
+        await ethers.provider.send("hardhat_setStorageAt", [
+            await polygonZkEVMGlobalExitRootV2.getAddress(),
+            ethers.toBeHex(DEPOSITCOUNT_STORAGE_SLOT, 32),
+            ethers.toBeHex(MAX_DEPOSIT_COUNT, 32),
+        ]);
+        expect(await polygonZkEVMGlobalExitRootV2.depositCount()).to.be.equal(MAX_DEPOSIT_COUNT);
+
+        await expect(
+            polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(randomBytes32())
+        ).to.be.revertedWithCustomError(polygonZkEVMGlobalExitRootV2, "MerkleTreeFull");
+    });
 });
