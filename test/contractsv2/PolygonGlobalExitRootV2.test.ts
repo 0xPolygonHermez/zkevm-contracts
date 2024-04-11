@@ -162,6 +162,7 @@ describe("Polygon Globlal exit root v2", () => {
 
         expect(rootSC).to.be.equal(rootJS);
     });
+
     it("should set every l1InfoLeaf and verify merkle proof", async () => {
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
@@ -221,6 +222,7 @@ describe("Polygon Globlal exit root v2", () => {
         // match deposit count to number of leaves
         expect(await polygonZkEVMGlobalExitRootV2.depositCount()).to.be.equal(leafValues.length);
     });
+
     it("updateExitRoot is idempotent", async () => {
         const merkleTree = new MerkleTreeBridge(32);
 
@@ -259,7 +261,9 @@ describe("Polygon Globlal exit root v2", () => {
             (a, b) => b!.logs.length - a!.logs.length
         );
 
-        await expect(txns[0]).to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive");
+        await expect(txns[0])
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
+            .withArgs(rootBridge, rootRollup);
         expect(txns[1]!.logs.length).to.be.equal(0);
         const secondLeaf = getLeafValueGlobal(
             getL1InfoTreeHash(
@@ -274,10 +278,12 @@ describe("Polygon Globlal exit root v2", () => {
     });
     it("should synch every root through events", async () => {});
 });
+
 async function getPreviousBlockHash() {
     return (await ethers.provider.getBlock((await ethers.provider.getBlockNumber()) - 1))!.hash;
 }
-describe("PolygonGlobalExitRootV2: Deposits exist before initializing Freijoa update", () => {
+
+describe("PolygonGlobalExitRootV2: ExitRoots exist before initializing Freijoa update", () => {
     let deployer: HardhatEthersSigner;
     let rollupManager: HardhatEthersSigner;
     let bridge: HardhatEthersSigner;
@@ -370,10 +376,15 @@ describe("PolygonGlobalExitRootV2: Deposits exist before initializing Freijoa up
             .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
             .withArgs(currentRootBridge, currentRootRollup);
         initializeBlock = await ethers.provider.getBlock("latest");
+        await expect(polygonZkEVMGlobalExitRootV2.initialize()).to.be.revertedWith(
+            "Initializable: contract is already initialized"
+        );
     });
+
     it("should reset deposit count", async () => {
         expect(await polygonZkEVMGlobalExitRootV2.depositCount()).to.be.equal(2);
     });
+
     it("should set recursive tree correctly", async () => {
         const merkleTree = new MerkleTreeBridge(32);
         merkleTree.add(ethers.ZeroHash);
