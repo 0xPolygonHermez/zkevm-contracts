@@ -226,3 +226,117 @@ describe("Polygon Globlal exit root v2", () => {
     });
     it("should synch every root through events", async () => {});
 });
+async function getPreviousBlockHash() {
+    return (await ethers.provider.getBlock((await ethers.provider.getBlockNumber()) - 1))!.hash;
+}
+describe("PolygonGlobalExitRootV2: Deposits exist before initializing Freijoa update", () => {
+    let deployer: HardhatEthersSigner;
+    let rollupManager: HardhatEthersSigner;
+    let bridge: HardhatEthersSigner;
+
+    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
+    let polygonZkEVMGlobalExitRootV2: PolygonZkEVMGlobalExitRootV2;
+
+    let initializeBlock: Block | null;
+    let currentRootBridge = ethers.ZeroHash;
+    let currentRootRollup = ethers.ZeroHash;
+
+    beforeEach("Deploy contracts without initializing PolygonGlobalExitRootV2", async () => {
+        upgrades.silenceWarnings();
+        // load signers
+        [deployer, bridge, rollupManager] = await ethers.getSigners();
+
+        // deploy globalExitRoot
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRoot");
+        polygonZkEVMGlobalExitRoot = (await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+            initializer: false,
+            constructorArgs: [rollupManager.address, bridge.address],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        })) as any;
+
+        expect(await polygonZkEVMGlobalExitRoot.rollupAddress()).to.be.equal(rollupManager.address);
+
+        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2");
+        await upgrades.upgradeProxy(polygonZkEVMGlobalExitRoot.target, PolygonZkEVMGlobalExitRootV2Factory, {
+            // call: "initialize", => note: we'll initialize after the deposits
+            constructorArgs: [rollupManager.address, bridge.address],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        });
+
+        polygonZkEVMGlobalExitRootV2 = (await PolygonZkEVMGlobalExitRootV2Factory.attach(
+            polygonZkEVMGlobalExitRoot.target
+        )) as PolygonZkEVMGlobalExitRootV2;
+
+        // Update exit roots, and then initialize
+        const merkleTree = new MerkleTreeBridge(32);
+
+        expect(await polygonZkEVMGlobalExitRootV2.getRoot(), merkleTree.getRoot());
+
+        // Update Rollup Exit Root 4 times
+        for (let i = 0; i < 4; i++) {
+            const newRootRollup = randomBytes32();
+            await expect(polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup))
+                .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
+                .withArgs(ethers.ZeroHash, newRootRollup);
+            const globalExitRoot = calculateGlobalExitRoot(ethers.ZeroHash, newRootRollup);
+            merkleTree.add(
+                getLeafValueGlobal(
+                    getL1InfoTreeHash(
+                        globalExitRoot,
+                        await getPreviousBlockHash(),
+                        (await ethers.provider.getBlock("latest"))!.timestamp
+                    ),
+                    merkleTree.getRoot()
+                )
+            );
+
+            expect(await polygonZkEVMGlobalExitRootV2.getLastGlobalExitRoot()).to.be.equal(globalExitRoot);
+            currentRootRollup = newRootRollup;
+        }
+        // Update Bridge Exit Root 4 times
+        for (let i = 0; i < 4; i++) {
+            const newRootBridge = randomBytes32();
+            await expect(polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge))
+                .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
+                .withArgs(newRootBridge, currentRootRollup);
+            const globalExitRoot = calculateGlobalExitRoot(newRootBridge, currentRootRollup);
+            merkleTree.add(
+                getLeafValueGlobal(
+                    getL1InfoTreeHash(
+                        globalExitRoot,
+                        await getPreviousBlockHash(),
+                        (await ethers.provider.getBlock("latest"))!.timestamp
+                    ),
+                    merkleTree.getRoot()
+                )
+            );
+            expect(await polygonZkEVMGlobalExitRootV2.getLastGlobalExitRoot()).to.be.equal(globalExitRoot);
+            currentRootBridge = newRootBridge;
+        }
+
+        expect(await polygonZkEVMGlobalExitRootV2.depositCount()).to.be.equal(8);
+        expect(await polygonZkEVMGlobalExitRootV2.getRoot(), merkleTree.getRoot());
+
+        // initialize
+        await expect(polygonZkEVMGlobalExitRootV2.initialize())
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
+            .withArgs(currentRootBridge, currentRootRollup);
+        initializeBlock = await ethers.provider.getBlock("latest");
+    });
+    it("should reset deposit count", async () => {
+        expect(await polygonZkEVMGlobalExitRootV2.depositCount()).to.be.equal(2);
+    });
+    it("should set recursive tree correctly", async () => {
+        const merkleTree = new MerkleTreeBridge(32);
+        merkleTree.add(ethers.ZeroHash);
+        const leafInfoHash = getL1InfoTreeHash(
+            calculateGlobalExitRoot(currentRootBridge, currentRootRollup),
+            (await ethers.provider.getBlock(initializeBlock!.number - 1))!.hash,
+            initializeBlock!.timestamp
+        );
+        const leafValue = getLeafValueGlobal(leafInfoHash, merkleTree.getRoot());
+        merkleTree.add(leafValue);
+        expect(await polygonZkEVMGlobalExitRootV2.getRoot()).to.be.equal(merkleTree.getRoot());
+        expect(await polygonZkEVMGlobalExitRootV2.l1InfoLeafMap(1)).to.be.equal(leafValue);
+    });
+});
