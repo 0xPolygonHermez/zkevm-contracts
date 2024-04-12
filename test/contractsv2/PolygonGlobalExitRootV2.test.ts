@@ -404,11 +404,11 @@ describe("PolygonGlobalExitRootV2: ExitRoots exist before initializing Freijoa u
 
         expect(await polygonZkEVMGlobalExitRootV2.depositCount()).to.be.equal(2);
         expect(
-            await ethers.provider.getStorage(await polygonZkEVMGlobalExitRootV2.getAddress(), DEPOSITCOUNT_STORAGE_SLOT)
+            await ethers.provider.getStorage(polygonZkEVMGlobalExitRootV2.target, DEPOSITCOUNT_STORAGE_SLOT)
         ).to.be.equal(ethers.toBeHex(2, 32));
 
         await ethers.provider.send("hardhat_setStorageAt", [
-            await polygonZkEVMGlobalExitRootV2.getAddress(),
+            polygonZkEVMGlobalExitRootV2.target,
             ethers.toQuantity(DEPOSITCOUNT_STORAGE_SLOT),
             ethers.toBeHex(MAX_DEPOSIT_COUNT, 32),
         ]);
