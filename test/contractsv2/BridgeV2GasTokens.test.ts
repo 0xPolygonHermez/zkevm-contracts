@@ -4,7 +4,7 @@ import {
     VerifierRollupHelperMock,
     ERC20PermitMock,
     PolygonRollupManagerMock,
-    PolygonZkEVMGlobalExitRoot,
+    PolygonZkEVMGlobalExitRootV2,
     PolygonZkEVMBridgeV2,
     PolygonZkEVMV2,
     PolygonRollupBase,
@@ -35,7 +35,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
 
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;
-    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
+    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2;
 
     let deployer: any;
     let rollupManager: any;
@@ -74,11 +74,12 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
         })) as unknown as PolygonZkEVMBridgeV2;
 
         // deploy global exit root manager
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRoot");
-        polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
-            rollupManager.address,
-            polygonZkEVMBridgeContract.target
-        );
+        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2");
+        polygonZkEVMGlobalExitRoot = (await upgrades.deployProxy(PolygonZkEVMGlobalExitRootV2Factory, [], {
+            initializer: "initialize",
+            constructorArgs: [rollupManager.address, polygonZkEVMBridgeContract.target],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        })) as any;
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory("ERC20PermitMock");
@@ -250,7 +251,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
                 metadata,
                 depositCount
             )
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(rootJSMainnet, rollupExitRoot);
 
         expect(await polTokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
@@ -454,7 +455,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
 
         // Update global exit root
         await expect(polygonZkEVMBridgeContract.updateGlobalExitRoot())
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(rootJSMainnet, rollupExitRoot);
 
         // no state changes since there are not any deposit pending to be updated
@@ -503,7 +504,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
         // Update global exit root
         await expect(polygonZkEVMBridgeContract.updateGlobalExitRoot()).to.emit(
             polygonZkEVMGlobalExitRoot,
-            "UpdateGlobalExitRoot"
+            "UpdateL1InfoTreeRecursive"
         );
 
         expect(await polygonZkEVMBridgeContract.lastUpdatedDepositCount()).to.be.equal(2);
@@ -584,7 +585,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
         // });
 
         await expect(polygonZkEVMGlobalExitRoot.connect(bridgemoCK).updateExitRoot(mainnetExitRoot, {gasPrice: 0}))
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(mainnetExitRoot, rollupExitRoot);
 
         // check roots
@@ -726,7 +727,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
 
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rootRollup))
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(mainnetExitRoot, rootRollup);
 
         // check roots
@@ -857,7 +858,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
 
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rootRollup))
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(mainnetExitRoot, rootRollup);
 
         // check roots
@@ -1068,7 +1069,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
                 metadataMainnet,
                 depositCount
             )
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(rootJSMainnet, rollupExitRoot)
             .to.emit(newWrappedToken, "Transfer")
             .withArgs(deployer.address, ethers.ZeroAddress, amount);
@@ -1254,7 +1255,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
 
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rollupRoot))
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(mainnetExitRoot, rollupRoot);
 
         // check roots
@@ -1417,7 +1418,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
 
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rollupRoot))
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(mainnetExitRoot, rollupRoot);
 
         // check roots
@@ -1517,7 +1518,7 @@ describe("PolygonZkEVMBridge Gas tokens tests", () => {
 
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rollupRoot))
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
             .withArgs(mainnetExitRoot, rollupRoot);
 
         // check roots
