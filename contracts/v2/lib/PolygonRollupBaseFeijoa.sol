@@ -56,18 +56,10 @@ abstract contract PolygonRollupBaseFeijoa is
     }
 
     // Max transactions bytes that can be added in a single blob
-    // Max keccaks circuit = (2**23 / 155286) * 44 = 2376
-    // Bytes per keccak = 136
-    // Minimum Static keccaks blob = 2
-    // Max bytes allowed = (2376 - 2) * 136 = 322864 bytes - 1 byte padding
-    // Rounded to 300000 bytes
-    // In order to process the transaction, the data is approximately hashed twice for ecrecover:
-    // 300000 bytes / 2 = 150000 bytes
-    // Since geth pool currently only accepts at maximum 128kb transactions:
-    // https://github.com/ethereum/go-ethereum/blob/master/core/txpool/txpool.go#L54
-    // We will limit this length to be compliant with the geth restrictions since our node will use it
-    // We let 8kb as a sanity margin
-    uint256 internal constant _MAX_TRANSACTIONS_BYTE_LENGTH = 120000;
+    // 4096*31bytes = 126976
+    // Geth pool currently only accepts at maximum 128kb transactions:
+    // https://github.com/ethereum/go-ethereum/blob/master/core/txpool/txpool.go#L54W
+    uint256 internal constant _MAX_TRANSACTIONS_BYTE_LENGTH = 126976;
 
     // Max force blob transaction length
     // This is used to avoid huge calldata attacks, where the attacker call force blobs from another contract

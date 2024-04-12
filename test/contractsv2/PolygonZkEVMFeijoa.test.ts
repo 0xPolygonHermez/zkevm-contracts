@@ -88,7 +88,7 @@ describe("PolygonZkEVMFeijoa", () => {
     const trustedAggregatorTimeout = 100;
     const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
     const _MAX_VERIFY_BATCHES = 1000;
-    const _MAX_TRANSACTIONS_BYTE_LENGTH = 120000;
+    const _MAX_TRANSACTIONS_BYTE_LENGTH = 126976;
     // BRidge constants
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
@@ -424,7 +424,7 @@ describe("PolygonZkEVMFeijoa", () => {
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "BlobHashNotFound");
 
         // TODO actually send a type 3 tx (blob) to receive hash with BLOBHASH opcode (line 615)
-        
+
         /* await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
                 [blob],
