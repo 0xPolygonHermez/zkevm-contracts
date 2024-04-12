@@ -668,6 +668,9 @@ describe("Polygon Rollup manager upgraded", () => {
             .withArgs(newRollupTypeID, feijoaRollupType, 0);
         await snapshot.restore();
 
+        await expect(
+            rollupManagerContract.connect(deployer).updateRollup(newZKEVMAddress, feijoaRollupType, "0x")
+        ).to.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
         // stop fork
         await expect(rollupManagerContract.connect(timelock).updateRollup(newZKEVMAddress, feijoaRollupType, "0x"))
             .to.emit(rollupManagerContract, "UpdateRollup")
@@ -1919,6 +1922,10 @@ describe("Polygon Rollup manager upgraded", () => {
         VerifyBlobData.finalSequenceNum = newVerifiedBlob;
 
         await expect(
+            rollupManagerContract.verifySequencesMultiProof([], beneficiary.address, zkProofFFlonk)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "EmptyVerifySequencesData");
+
+        await expect(
             rollupManagerContract.verifySequencesMultiProof(
                 [VerifyBlobData, VerifyBlobData],
                 beneficiary.address,
@@ -2237,6 +2244,19 @@ describe("Polygon Rollup manager upgraded", () => {
 
         const randomSTateRoot = ethers.hexlify(ethers.randomBytes(32));
         const randomlocalRoot = ethers.hexlify(ethers.randomBytes(32));
+
+        await expect(
+            rollupManagerContract.overridePendingState(
+                newCreatedRollupID,
+                0,
+                createdPendingState,
+                0,
+                newVerifiedBlob,
+                randomlocalRoot, // local exit root
+                randomSTateRoot, // state root
+                zkProofFFlonk
+            )
+        ).to.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
         await expect(
             rollupManagerContract.connect(trustedAggregator).overridePendingState(

@@ -723,6 +723,12 @@ describe("Polygon Rollup Manager", () => {
                 .verifySequencesTrustedAggregatorMultiProof([VerifyBlobData], beneficiary.address, zkProofFFlonk)
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifySequencesTrustedAggregatorMultiProof([], beneficiary.address, zkProofFFlonk)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "EmptyVerifySequencesData");
+
         VerifyBlobData.finalSequenceNum = currentVerifiedBlob;
         await expect(
             rollupManagerContract
