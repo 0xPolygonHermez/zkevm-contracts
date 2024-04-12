@@ -849,13 +849,15 @@ describe("PolygonValidiumFeijoa", () => {
             )
         ).to.be.revertedWithCustomError(PolygonDataCommitee, "UnexpectedCommitteeHash");
 
+        // Data Committee remaining coverage ::: START
+
+        const invalidSignaturesAndAddrs = "0x" + "00".repeat(194);
+
         await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobsValidium(
-                [blob],
-                trustedSequencer.address,
-                badDataAvMessage.slice(0, -2)
-            )
+            PolygonDataCommitee.verifyMessage(signedData, invalidSignaturesAndAddrs)
         ).to.be.revertedWithCustomError(PolygonDataCommitee, "UnexpectedAddrsAndSignaturesSize");
+
+        // Data Committee remaining coverage ::: END
 
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobsValidium(
@@ -867,6 +869,37 @@ describe("PolygonValidiumFeijoa", () => {
 
         // calcualte accINputHash
         expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash2);
+
+        // Data Committee remaining coverage ::: START
+
+        const signers = await ethers.getSigners();
+
+        let committeeMembers = signers.slice(0, requiredAmountOfSignatures).map((s) => s.address);
+        committeeMembers.sort();
+
+        const dataToSign = ethers.keccak256(ethers.toUtf8Bytes("Test data"));
+        let signatures = await Promise.all(
+            committeeMembers.map(async (member) => {
+                return await signers.find((s) => s.address === member).signMessage(ethers.getBytes(dataToSign));
+            })
+        );
+
+        // Replcaing last signature
+        const outsider = ethers.Wallet.createRandom();
+        const outsiderSignature = await outsider.signMessage(ethers.getBytes(dataToSign));
+        signatures[2] = outsiderSignature;
+
+        let signaturesAndAddrs =
+            "0x" +
+            signatures.map((sig) => sig.slice(2)).join("") +
+            committeeMembers.map((addr) => addr.slice(2)).join("");
+
+        await expect(PolygonDataCommitee.verifyMessage(dataToSign, signaturesAndAddrs)).to.be.revertedWithCustomError(
+            PolygonDataCommitee,
+            "CommitteeAddressDoesNotExist"
+        );
+
+        // Data Committee remaining coverage ::: END
     });
 
     it("should check full flow with wrapped gas token", async () => {
