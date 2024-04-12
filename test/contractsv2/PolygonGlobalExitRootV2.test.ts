@@ -100,54 +100,17 @@ describe("Polygon Globlal exit root v2", () => {
             polygonZkEVMGlobalExitRootV2,
             "OnlyAllowedContracts"
         );
-        const blockUpdates = [];
 
-        // Update root from the rollup
-        await expect(polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup))
-            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-            .withArgs(ethers.ZeroHash, newRootRollup);
-
-        blockUpdates.push({
-            block: await ethers.provider.getBlock("latest"),
-            globalExitRoot: calculateGlobalExitRoot(ethers.ZeroHash, newRootRollup),
-        });
-
-        expect(await polygonZkEVMGlobalExitRootV2.getLastGlobalExitRoot()).to.be.equal(
-            calculateGlobalExitRoot(ethers.ZeroHash, newRootRollup)
-        );
-
-        // Update root from the PolygonZkEVMBridge
-        const newRootBridge = randomBytes32();
-        await expect(polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge))
-            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-            .withArgs(newRootBridge, newRootRollup);
-
-        const newGlobalExitRoot = calculateGlobalExitRoot(newRootBridge, newRootRollup);
-        blockUpdates.push({
-            block: await ethers.provider.getBlock("latest"),
-            globalExitRoot: newGlobalExitRoot,
-        });
-
-        expect(await polygonZkEVMGlobalExitRootV2.lastMainnetExitRoot()).to.be.equal(newRootBridge);
-
-        expect(await polygonZkEVMGlobalExitRootV2.getLastGlobalExitRoot()).to.be.equal(newGlobalExitRoot);
-
-        // Check the leaf created
-        // compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
         merkleTree.add(ethers.ZeroHash); // add first zero leaf at initialze
 
-        for (const blockStruct of blockUpdates) {
-            const {block, globalExitRoot} = blockStruct as any;
-            const currentBlockNumber = block?.number;
-            const previousBlock = await ethers.provider.getBlock((currentBlockNumber as number) - 1);
-            const l1InfoTreeHash = getL1InfoTreeHash(globalExitRoot, previousBlock?.hash, block?.timestamp);
+        async function checkLeafAndUpdateTree(block: any, globalExitRoot: any) {
+            const l1InfoTreeHash = getL1InfoTreeHash(globalExitRoot, block?.parentHash, block?.timestamp);
             const leafValueJs = getLeafValueGlobal(l1InfoTreeHash, merkleTree.getRoot());
-
             const l1InfoTreeHashSC = await polygonZkEVMGlobalExitRootV2.getL1InfoTreeHash(
                 globalExitRoot as any,
-                previousBlock?.hash as any,
+                block?.parentHash as any,
                 block?.timestamp
             );
 
@@ -157,6 +120,39 @@ describe("Polygon Globlal exit root v2", () => {
             merkleTree.add(leafValueJs);
         }
 
+        // Update root from the rollup
+        await expect(polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup))
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
+            .withArgs(ethers.ZeroHash, newRootRollup, merkleTree.getRoot());
+
+        await checkLeafAndUpdateTree(
+            await ethers.provider.getBlock("latest"),
+            calculateGlobalExitRoot(ethers.ZeroHash, newRootRollup)
+        );
+
+        expect(await polygonZkEVMGlobalExitRootV2.getLastGlobalExitRoot()).to.be.equal(
+            calculateGlobalExitRoot(ethers.ZeroHash, newRootRollup)
+        );
+
+        // Update root from the PolygonZkEVMBridge
+        const newRootBridge = randomBytes32();
+        await expect(polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge))
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
+            .withArgs(newRootBridge, newRootRollup, merkleTree.getRoot());
+
+        await checkLeafAndUpdateTree(
+            await ethers.provider.getBlock("latest"),
+            calculateGlobalExitRoot(newRootBridge, newRootRollup)
+        );
+
+        const newGlobalExitRoot = calculateGlobalExitRoot(newRootBridge, newRootRollup);
+
+        expect(await polygonZkEVMGlobalExitRootV2.lastMainnetExitRoot()).to.be.equal(newRootBridge);
+
+        expect(await polygonZkEVMGlobalExitRootV2.getLastGlobalExitRoot()).to.be.equal(newGlobalExitRoot);
+
+        // Check the leaf created
+        // compute root merkle tree in Js
         const rootSC = await polygonZkEVMGlobalExitRootV2.getRoot();
         const rootJS = merkleTree.getRoot();
 
@@ -176,7 +172,7 @@ describe("Polygon Globlal exit root v2", () => {
         {
             await expect(polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup))
                 .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-                .withArgs(ethers.ZeroHash, newRootRollup);
+                .withArgs(ethers.ZeroHash, newRootRollup, merkleTree.getRoot());
             const globalExitRoot = calculateGlobalExitRoot(ethers.ZeroHash, newRootRollup);
 
             const {hash, timestamp} = (await ethers.provider.getBlock("latest")) as Block;
@@ -191,7 +187,7 @@ describe("Polygon Globlal exit root v2", () => {
         {
             await expect(polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge))
                 .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-                .withArgs(newRootBridge, newRootRollup);
+                .withArgs(newRootBridge, newRootRollup, merkleTree.getRoot());
             const globalExitRoot = calculateGlobalExitRoot(newRootBridge, newRootRollup);
 
             const {timestamp} = (await ethers.provider.getBlock("latest")) as Block;
@@ -225,12 +221,13 @@ describe("Polygon Globlal exit root v2", () => {
 
     it("updateExitRoot is idempotent", async () => {
         const merkleTree = new MerkleTreeBridge(32);
+        merkleTree.add(ethers.ZeroHash); // add first zero leaf at initialze
 
         const rootRollup = randomBytes32();
         const tx = polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(rootRollup);
         await expect(tx)
             .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-            .withArgs(ethers.ZeroHash, rootRollup);
+            .withArgs(ethers.ZeroHash, rootRollup, merkleTree.getRoot());
 
         const currentBlock = await ethers.provider.getBlock("latest");
         const firstLeaf = getLeafValueGlobal(
@@ -263,7 +260,7 @@ describe("Polygon Globlal exit root v2", () => {
 
         await expect(txns[0])
             .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-            .withArgs(rootBridge, rootRollup);
+            .withArgs(rootBridge, rootRollup, merkleTree.getRoot());
         expect(txns[1]!.logs.length).to.be.equal(0);
         const secondLeaf = getLeafValueGlobal(
             getL1InfoTreeHash(
@@ -303,7 +300,6 @@ describe("PolygonGlobalExitRootV2: ExitRoots exist before initializing Freijoa u
         // deploy globalExitRoot
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRoot");
         polygonZkEVMGlobalExitRoot = (await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
-            initializer: false,
             constructorArgs: [rollupManager.address, bridge.address],
             unsafeAllow: ["constructor", "state-variable-immutable"],
         })) as any;
@@ -331,7 +327,7 @@ describe("PolygonGlobalExitRootV2: ExitRoots exist before initializing Freijoa u
             const newRootRollup = randomBytes32();
             await expect(polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup))
                 .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-                .withArgs(ethers.ZeroHash, newRootRollup);
+                .withArgs(ethers.ZeroHash, newRootRollup, merkleTree.getRoot());
             const globalExitRoot = calculateGlobalExitRoot(ethers.ZeroHash, newRootRollup);
             merkleTree.add(
                 getLeafValueGlobal(
@@ -352,7 +348,7 @@ describe("PolygonGlobalExitRootV2: ExitRoots exist before initializing Freijoa u
             const newRootBridge = randomBytes32();
             await expect(polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge))
                 .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-                .withArgs(newRootBridge, currentRootRollup);
+                .withArgs(newRootBridge, currentRootRollup, merkleTree.getRoot());
             const globalExitRoot = calculateGlobalExitRoot(newRootBridge, currentRootRollup);
             merkleTree.add(
                 getLeafValueGlobal(
@@ -372,9 +368,12 @@ describe("PolygonGlobalExitRootV2: ExitRoots exist before initializing Freijoa u
         expect(await polygonZkEVMGlobalExitRootV2.getRoot(), merkleTree.getRoot());
 
         // initialize
+        const newEmptymerkleTree = new MerkleTreeBridge(32);
+
         await expect(polygonZkEVMGlobalExitRootV2.initialize())
             .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeRecursive")
-            .withArgs(currentRootBridge, currentRootRollup);
+            .withArgs(currentRootBridge, currentRootRollup, newEmptymerkleTree.getRoot());
+
         initializeBlock = await ethers.provider.getBlock("latest");
         await expect(polygonZkEVMGlobalExitRootV2.initialize()).to.be.revertedWith(
             "Initializable: contract is already initialized"
@@ -410,7 +409,7 @@ describe("PolygonGlobalExitRootV2: ExitRoots exist before initializing Freijoa u
 
         await ethers.provider.send("hardhat_setStorageAt", [
             await polygonZkEVMGlobalExitRootV2.getAddress(),
-            ethers.toBeHex(DEPOSITCOUNT_STORAGE_SLOT, 32),
+            ethers.toQuantity(DEPOSITCOUNT_STORAGE_SLOT),
             ethers.toBeHex(MAX_DEPOSIT_COUNT, 32),
         ]);
         expect(await polygonZkEVMGlobalExitRootV2.depositCount()).to.be.equal(MAX_DEPOSIT_COUNT);

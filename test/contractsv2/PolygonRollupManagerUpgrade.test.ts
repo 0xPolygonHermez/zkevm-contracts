@@ -42,6 +42,8 @@ const EFFECTIVE_PERCENTAGE_BYTES = 1;
 const _MAX_VERIFY_BATCHES = 1000;
 const _HALT_AGGREGATION_TIMEOUT = 60 * 60 * 24 * 7;
 
+let merkleTreeGER = new MerkleTreeBridge(32);
+
 function encodeCalldatBlobTypeParams(
     maxSequenceTimestamp: any,
     zkGasLimit: any,
@@ -575,16 +577,39 @@ describe("Polygon Rollup manager upgraded", () => {
             constructorArgs: [precalculateRollupManagerAddress, precalculateBridgeAddress],
             unsafeAllow: ["constructor", "state-variable-immutable"],
             unsafeAllowRenames: false,
-            call: {
-                fn: "initialize",
-                args: [],
-            },
+            // call: {
+            //     fn: "initialize",
+            //     args: [],
+            // },
         });
 
-        expect(await polygonZkEVMGlobalExitRoot.depositCount()).to.be.equal(2);
         polygonZkEVMGlobalExitRoot = (await newGlobalExitRoot.attach(
             polygonZkEVMGlobalExitRoot.target
         )) as PolygonZkEVMGlobalExitRootV2;
+
+        merkleTreeGER = new MerkleTreeBridge(32);
+        merkleTreeGER.add(ethers.ZeroHash);
+
+        await expect(polygonZkEVMGlobalExitRoot.initialize())
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
+            .withArgs(ethers.ZeroHash, rootRollups, merkleTreeGER.getRoot());
+
+        const currentBlock = await ethers.provider.getBlock("latest");
+
+        expect(await polygonZkEVMGlobalExitRoot.depositCount()).to.be.equal(2);
+
+        const currentGlobalExitTree = calculateGlobalExitRoot(ethers.ZeroHash, rootRollups);
+        const l1InfoTreeHashSC = await polygonZkEVMGlobalExitRoot.getL1InfoTreeHash(
+            currentGlobalExitTree as any,
+            currentBlock?.parentHash as any,
+            currentBlock?.timestamp as any
+        );
+
+        const leafValueSC = await polygonZkEVMGlobalExitRoot.getLeafValue(l1InfoTreeHashSC, merkleTreeGER.getRoot());
+
+        merkleTreeGER.add(leafValueSC);
+
+        expect(await polygonZkEVMGlobalExitRoot.getRoot()).to.be.equal(merkleTreeGER.getRoot());
 
         // update to a new rollup type
         const PolygonZKEVMFeijoaFactory = await ethers.getContractFactory("PolygonZkEVMFeijoa");
@@ -1182,7 +1207,7 @@ describe("Polygon Rollup manager upgraded", () => {
             .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(ethers.ZeroHash, rootRollups);
+            .withArgs(ethers.ZeroHash, rootRollups, merkleTreeGER.getRoot());
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
 

@@ -11,7 +11,7 @@ import {
     PolygonRollupBaseFeijoa,
     TokenWrapped,
     Address,
-    PolygonRollupManager
+    PolygonRollupManager,
 } from "../../typechain-types";
 import {takeSnapshot} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
@@ -590,7 +590,7 @@ describe("Polygon Rollup Manager", () => {
 
         await expect(
             newZkEVMContract.connect(trustedSequencer).sequenceBlobs([blob3], trustedSequencer.address, ethers.ZeroHash)
-        ).to.be.revertedWithCustomError(newZkEVMContract, "BlobTypeNotSupported")
+        ).to.be.revertedWithCustomError(newZkEVMContract, "BlobTypeNotSupported");
 
         const blobl1InfoIndexNonZero = {
             blobType: 0,
@@ -598,8 +598,10 @@ describe("Polygon Rollup Manager", () => {
         } as BlobDataStructFeijoa;
 
         await expect(
-            newZkEVMContract.connect(trustedSequencer).sequenceBlobs([blobl1InfoIndexNonZero], trustedSequencer.address, ethers.ZeroHash)
-        ).to.be.revertedWithCustomError(newZkEVMContract, "Invalidl1InfoLeafIndex")
+            newZkEVMContract
+                .connect(trustedSequencer)
+                .sequenceBlobs([blobl1InfoIndexNonZero], trustedSequencer.address, ethers.ZeroHash)
+        ).to.be.revertedWithCustomError(newZkEVMContract, "Invalidl1InfoLeafIndex");
 
         // Sequence Blobs
         const expectedAccInputHash2 = await calculateAccInputHashFromCalldata(
@@ -713,6 +715,13 @@ describe("Polygon Rollup Manager", () => {
         merkleTreeRollups.add(newLocalExitRoot);
         const rootRollups = merkleTreeRollups.getRoot();
 
+        // compare Verified zkGasLimit
+        expect(await rollupManagerContract.totalZkGasLimit()).to.equal(BigInt(ZK_GAS_LIMIT_BATCH) * 2n);
+        expect(await rollupManagerContract.totalVerifiedZkGasLimit()).to.equal(0);
+
+        const merkleTreeGER = new MerkleTreeBridge(height);
+        merkleTreeGER.add(ethers.ZeroHash);
+
         // Verify blob
         await expect(
             rollupManagerContract
@@ -722,10 +731,14 @@ describe("Polygon Rollup Manager", () => {
             .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(ethers.ZeroHash, rootRollups);
+            .withArgs(ethers.ZeroHash, rootRollups, merkleTreeGER.getRoot());
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
         expect(finalAggregatorMatic).to.equal(initialAggregatorMatic + maticAmount);
+
+        // compare Verified zkGasLimit
+        expect(await rollupManagerContract.totalZkGasLimit()).to.equal(BigInt(ZK_GAS_LIMIT_BATCH) * 2n);
+        expect(await rollupManagerContract.totalVerifiedZkGasLimit()).to.equal(BigInt(ZK_GAS_LIMIT_BATCH) * 2n);
 
         // Assert global exit root
         expect(await polygonZkEVMGlobalExitRoot.lastRollupExitRoot()).to.be.equal(rootRollups);
@@ -1416,6 +1429,9 @@ describe("Polygon Rollup Manager", () => {
         merkleTreeRollups.add(newLocalExitRoot);
         const rootRollups = merkleTreeRollups.getRoot();
 
+        const merkleTreeGER = new MerkleTreeBridge(height);
+        merkleTreeGER.add(ethers.ZeroHash);
+
         // Verify blob
         await expect(
             rollupManagerContract
@@ -1425,7 +1441,7 @@ describe("Polygon Rollup Manager", () => {
             .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(newCreatedRollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(ethers.ZeroHash, rootRollups);
+            .withArgs(ethers.ZeroHash, rootRollups, merkleTreeGER.getRoot());
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
 
@@ -1809,6 +1825,9 @@ describe("Polygon Rollup Manager", () => {
         merkleTreeRollups.add(newLocalExitRoot);
         const rootRollups = merkleTreeRollups.getRoot();
 
+        const merkleTreeGER = new MerkleTreeBridge(height);
+        merkleTreeGER.add(ethers.ZeroHash);
+
         // Verify blob
         await expect(
             rollupManagerContract
@@ -1818,7 +1837,7 @@ describe("Polygon Rollup Manager", () => {
             .to.emit(rollupManagerContract, "VerifySequencesTrustedAggregator")
             .withArgs(RollupID, newVerifiedBlob, newStateRoot, newLocalExitRoot, trustedAggregator.address)
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(ethers.ZeroHash, rootRollups);
+            .withArgs(ethers.ZeroHash, rootRollups, merkleTreeGER.getRoot());
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
 

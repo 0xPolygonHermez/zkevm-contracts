@@ -1154,7 +1154,7 @@ contract PolygonRollupManager is
         }
 
         uint32 lastRollupID;
-        uint128 totalVerifiedZkGas;
+        uint128 aggregatedVerifiedZkGas;
 
         // Loop through all rollups
         for (uint256 i = 0; i < verifySequencesData.length; i++) {
@@ -1176,7 +1176,7 @@ contract PolygonRollupManager is
                 verifySequencesData[i],
                 ptrAccumulateInputSnarkBytes
             );
-            totalVerifiedZkGas += verifiedZkGas;
+            aggregatedVerifiedZkGas += verifiedZkGas;
         }
 
         // Append msg.sender to the input snark bytes
@@ -1203,11 +1203,11 @@ contract PolygonRollupManager is
         // Pay POL rewards
         pol.safeTransfer(
             beneficiary,
-            calculateRewardPerZkGas() * totalVerifiedZkGas
+            calculateRewardPerZkGas() * aggregatedVerifiedZkGas
         );
 
         // Update global aggregation parameters
-        totalVerifiedZkGas += totalVerifiedZkGas;
+        totalVerifiedZkGasLimit += aggregatedVerifiedZkGas;
         lastAggregationTimestamp = uint64(block.timestamp);
     }
 

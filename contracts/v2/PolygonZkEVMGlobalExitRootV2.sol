@@ -31,7 +31,8 @@ contract PolygonZkEVMGlobalExitRootV2 is
      */
     event UpdateL1InfoTreeRecursive(
         bytes32 indexed mainnetExitRoot,
-        bytes32 indexed rollupExitRoot
+        bytes32 indexed rollupExitRoot,
+        bytes32 currentHistoricRoot
     );
 
     /**
@@ -41,6 +42,9 @@ contract PolygonZkEVMGlobalExitRootV2 is
     constructor(address _rollupManager, address _bridgeAddress) {
         rollupManager = _rollupManager;
         bridgeAddress = _bridgeAddress;
+
+        // disable initializers
+        _disableInitializers();
     }
 
     /**
@@ -53,10 +57,15 @@ contract PolygonZkEVMGlobalExitRootV2 is
             }
             depositCount = 0;
 
-            // Add first leaf TODO?
-            bytes32 newGlobalExitRoot = getLastGlobalExitRoot();
+            // First leaf set to 0
+            _addLeaf(bytes32(0));
 
+            // Add second leaf with previous information
+            bytes32 newGlobalExitRoot = getLastGlobalExitRoot();
             uint256 lastBlockHash = uint256(blockhash(block.number - 1));
+
+            // Get the current historic roo
+            bytes32 currentHistoricRoot = getRoot();
 
             // save new leaf in L1InfoTree
             bytes32 newLeaf = getLeafValue(
@@ -65,11 +74,8 @@ contract PolygonZkEVMGlobalExitRootV2 is
                     lastBlockHash,
                     uint64(block.timestamp)
                 ),
-                getRoot()
+                currentHistoricRoot
             );
-
-            // First leaf set to 0
-            _addLeaf(bytes32(0));
 
             // Add previous info
             l1InfoLeafMap[depositCount] = newLeaf;
@@ -77,7 +83,8 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
             emit UpdateL1InfoTreeRecursive(
                 lastMainnetExitRoot,
-                lastRollupExitRoot
+                lastRollupExitRoot,
+                currentHistoricRoot
             );
         } else {
             _addLeaf(bytes32(0));
@@ -116,13 +123,19 @@ contract PolygonZkEVMGlobalExitRootV2 is
             globalExitRootMap[newGlobalExitRoot] = lastBlockHash;
 
             // save new leaf in L1InfoTree
+
+            // Get the current historic root
+            bytes32 currentHistoricRoot = getRoot();
+
+            // New leaf of the HistoricRoot, which contains the global exit root, current blockchain information
+            // and the previous root of the tree
             bytes32 newLeaf = getLeafValue(
                 getL1InfoTreeHash(
                     newGlobalExitRoot,
                     lastBlockHash,
                     uint64(block.timestamp)
                 ),
-                getRoot()
+                currentHistoricRoot
             );
 
             l1InfoLeafMap[depositCount] = newLeaf;
@@ -130,7 +143,8 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
             emit UpdateL1InfoTreeRecursive(
                 cacheLastMainnetExitRoot,
-                cacheLastRollupExitRoot
+                cacheLastRollupExitRoot,
+                currentHistoricRoot
             );
         }
     }
