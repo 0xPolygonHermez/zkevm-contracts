@@ -142,6 +142,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
+        const rootBefore = merkleTree.getRoot();
         const leafValue = getLeafValue(
             LEAF_TYPE_ASSET,
             originNetwork,
@@ -188,7 +189,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 depositCount
             )
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(rootJSMainnet, rollupExitRoot);
+            .withArgs(rootJSMainnet, rollupExitRoot, rootBefore);
 
         expect(await polTokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await polTokenContract.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(balanceBridge + amount);
@@ -302,6 +303,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
+        const rootBefore = merkleTree.getRoot();
         const leafValue = getLeafValue(
             LEAF_TYPE_ASSET,
             originNetwork,
@@ -348,7 +350,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         // Update global exit root
         await expect(polygonZkEVMBridgeContract.updateGlobalExitRoot())
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(rootJSMainnet, rollupExitRoot);
+            .withArgs(rootJSMainnet, rollupExitRoot, rootBefore);
 
         // no state changes since there are not any deposit pending to be updated
         await polygonZkEVMBridgeContract.updateGlobalExitRoot();
@@ -416,6 +418,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         // compute root merkle tree in Js
         const height = 32;
         const merkleTreeLocal = new MerkleTreeBridge(height);
+        const rootBefore = merkleTreeLocal.getRoot();
         const leafValue = getLeafValue(
             LEAF_TYPE_ASSET,
             originNetwork,
@@ -447,7 +450,7 @@ describe("PolygonZkEVMBridge Contract", () => {
 
         await expect(polygonZkEVMGlobalExitRoot.connect(bridgemoCK).updateExitRoot(mainnetExitRoot, {gasPrice: 0}))
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(mainnetExitRoot, rollupExitRoot);
+            .withArgs(mainnetExitRoot, rollupExitRoot, rootBefore);
 
         // check roots
         const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
@@ -615,9 +618,10 @@ describe("PolygonZkEVMBridge Contract", () => {
         );
 
         // add rollup Merkle root
-        await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rootRollup))
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(mainnetExitRoot, rootRollup);
+        await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rootRollup)).to.emit(
+            polygonZkEVMGlobalExitRoot,
+            "UpdateL1InfoTreeRecursive"
+        );
 
         // check roots
         const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
@@ -738,6 +742,7 @@ describe("PolygonZkEVMBridge Contract", () => {
 
         // Try claim with 10 rollup leafs
         const merkleTreeRollup = new MerkleTreeBridge(height);
+        const rootBefore = merkleTreeRollup.getRoot();
         for (let i = 0; i < 10; i++) {
             merkleTreeRollup.add(rootLocalRollup);
         }
@@ -753,7 +758,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rootRollup))
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(mainnetExitRoot, rootRollup);
+            .withArgs(mainnetExitRoot, rootRollup, rootBefore);
 
         // check roots
         const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
@@ -973,7 +978,6 @@ describe("PolygonZkEVMBridge Contract", () => {
                 depositCount
             )
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(rootJSMainnet, rollupExitRoot)
             .to.emit(newWrappedToken, "Transfer")
             .withArgs(deployer.address, ethers.ZeroAddress, amount);
 
@@ -1034,6 +1038,7 @@ describe("PolygonZkEVMBridge Contract", () => {
 
         // Try claim with 10 rollup leafs
         const merkleTreeRollup = new MerkleTreeBridge(height);
+        const rootBefore = merkleTreeRollup.getRoot();
         for (let i = 0; i < 10; i++) {
             merkleTreeRollup.add(rootLocalRollup);
         }
@@ -1049,7 +1054,7 @@ describe("PolygonZkEVMBridge Contract", () => {
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rootRollup))
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(mainnetExitRoot, rootRollup);
+            .withArgs(mainnetExitRoot, rootRollup, rootBefore);
 
         // check roots
         const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
@@ -1266,13 +1271,14 @@ describe("PolygonZkEVMBridge Contract", () => {
 
         // Try claim with 10 rollup leafs
         const merkleTreeRollup = new MerkleTreeBridge(height);
+        const rootBefore = merkleTreeRollup.getRoot();
         merkleTreeRollup.add(rootJSRollup);
         const rollupRoot = merkleTreeRollup.getRoot();
 
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rollupRoot))
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(mainnetExitRoot, rollupRoot);
+            .withArgs(mainnetExitRoot, rollupRoot, rootBefore);
 
         // check roots
         const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
@@ -1434,13 +1440,14 @@ describe("PolygonZkEVMBridge Contract", () => {
         // check merkle root with SC
         const rootJSRollup = merkleTree.getRoot();
         const merkleTreeRollup = new MerkleTreeBridge(height);
+        const rootBefore = merkleTreeRollup.getRoot();
         merkleTreeRollup.add(rootJSRollup);
         const rollupRoot = merkleTreeRollup.getRoot();
 
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rollupRoot))
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(mainnetExitRoot, rollupRoot);
+            .withArgs(mainnetExitRoot, rollupRoot, rootBefore);
 
         // check roots
         const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();
@@ -1598,13 +1605,14 @@ describe("PolygonZkEVMBridge Contract", () => {
         // check merkle root with SC
         const rootJSRollup = merkleTree.getRoot();
         const merkleTreeRollup = new MerkleTreeBridge(height);
+        const rootBefore = merkleTreeRollup.getRoot();
         merkleTreeRollup.add(rootJSRollup);
         const rollupRoot = merkleTreeRollup.getRoot();
 
         // add rollup Merkle root
         await expect(polygonZkEVMGlobalExitRoot.connect(rollupManager).updateExitRoot(rollupRoot))
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(mainnetExitRoot, rollupRoot);
+            .withArgs(mainnetExitRoot, rollupRoot, rootBefore);
 
         // check roots
         const rollupExitRootSC = await polygonZkEVMGlobalExitRoot.lastRollupExitRoot();

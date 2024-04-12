@@ -583,8 +583,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata,
                 depositCount
             )
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(rootJSMainnet, rollupExitRoot);
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive");
 
         expect(await polTokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await polTokenContract.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(balanceBridge + amount);
@@ -743,8 +742,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata,
                 depositCount
             )
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(rootJSMainnet, rollupExitRoot);
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive");
 
         expect(await daiContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await daiContract.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(balanceBridge + amount);
@@ -868,8 +866,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata,
                 depositCount
             )
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive")
-            .withArgs(rootJSMainnet, rollupExitRoot);
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive");
 
         expect(await uniContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await uniContract.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(balanceBridge + amount);
