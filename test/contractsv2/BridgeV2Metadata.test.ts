@@ -4,7 +4,7 @@ import {
     VerifierRollupHelperMock,
     ERC20PermitMock,
     PolygonRollupManagerMock,
-    PolygonZkEVMGlobalExitRoot,
+    PolygonZkEVMGlobalExitRootV2,
     PolygonZkEVMBridgeV2,
     PolygonZkEVMV2,
     PolygonRollupBase,
@@ -41,7 +41,7 @@ describe("PolygonZkEVMBridge Contract", () => {
 
     let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
     let polTokenContract: ERC20PermitMock;
-    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
+    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2;
 
     let deployer: any;
     let rollupManager: any;
@@ -75,11 +75,12 @@ describe("PolygonZkEVMBridge Contract", () => {
         })) as unknown as PolygonZkEVMBridgeV2;
 
         // deploy global exit root manager
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRoot");
-        polygonZkEVMGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
-            rollupManager.address,
-            polygonZkEVMBridgeContract.target
-        );
+        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory("PolygonZkEVMGlobalExitRootV2");
+        polygonZkEVMGlobalExitRoot = (await upgrades.deployProxy(PolygonZkEVMGlobalExitRootV2Factory, [], {
+            initializer: "initialize",
+            constructorArgs: [rollupManager.address, polygonZkEVMBridgeContract.target],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        })) as any;
 
         await polygonZkEVMBridgeContract.initialize(
             networkIDMainnet,
@@ -582,8 +583,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata,
                 depositCount
             )
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
-            .withArgs(rootJSMainnet, rollupExitRoot);
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive");
 
         expect(await polTokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await polTokenContract.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(balanceBridge + amount);
@@ -742,8 +742,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata,
                 depositCount
             )
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
-            .withArgs(rootJSMainnet, rollupExitRoot);
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive");
 
         expect(await daiContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await daiContract.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(balanceBridge + amount);
@@ -867,8 +866,7 @@ describe("PolygonZkEVMBridge Contract", () => {
                 metadata,
                 depositCount
             )
-            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateGlobalExitRoot")
-            .withArgs(rootJSMainnet, rollupExitRoot);
+            .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeRecursive");
 
         expect(await uniContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await uniContract.balanceOf(polygonZkEVMBridgeContract.target)).to.be.equal(balanceBridge + amount);
