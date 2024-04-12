@@ -872,32 +872,25 @@ describe("PolygonValidiumFeijoa", () => {
 
         // Data Committee remaining coverage ::: START
 
-        const signers = await ethers.getSigners();
-
-        let committeeMembers = signers.slice(0, requiredAmountOfSignatures).map((s) => s.address);
-        committeeMembers.sort();
-
+        const wrongWallets = [];
+        for (let i = 4; i < 7; i++) {
+            const newWallet = ethers.HDNodeWallet.fromMnemonic(
+                ethers.Mnemonic.fromPhrase("test test test test test test test test test test test junk"),
+                `m/44'/60'/0'/0/${i}`
+            );
+            wrongWallets.push(newWallet);
+        }
         const dataToSign = ethers.keccak256(ethers.toUtf8Bytes("Test data"));
-        let signatures = await Promise.all(
-            committeeMembers.map(async (member) => {
-                return await signers.find((s) => s.address === member).signMessage(ethers.getBytes(dataToSign));
-            })
-        );
+        let messageWrong = "0x";
+        for (let i = 0; i < wrongWallets.length; i++) {
+            const newSignature = wrongWallets[i].signingKey.sign(dataToSign);
+            messageWrong = messageWrong + newSignature.serialized.slice(2);
+        }
+        let dataAvailabilityMessageWrong = messageWrong + addrBytes.slice(2);
 
-        // Replcaing last signature
-        const outsider = ethers.Wallet.createRandom();
-        const outsiderSignature = await outsider.signMessage(ethers.getBytes(dataToSign));
-        signatures[2] = outsiderSignature;
-
-        let signaturesAndAddrs =
-            "0x" +
-            signatures.map((sig) => sig.slice(2)).join("") +
-            committeeMembers.map((addr) => addr.slice(2)).join("");
-
-        await expect(PolygonDataCommitee.verifyMessage(dataToSign, signaturesAndAddrs)).to.be.revertedWithCustomError(
-            PolygonDataCommitee,
-            "CommitteeAddressDoesNotExist"
-        );
+        await expect(
+            PolygonDataCommitee.verifyMessage(dataToSign, dataAvailabilityMessageWrong)
+        ).to.be.revertedWithCustomError(PolygonDataCommitee, "CommitteeAddressDoesNotExist");
 
         // Data Committee remaining coverage ::: END
     });
