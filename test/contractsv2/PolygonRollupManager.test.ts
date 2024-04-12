@@ -397,6 +397,19 @@ describe("Polygon Rollup Manager", () => {
                 )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
 
+        // UNexisting rollupType
+        await expect(
+            rollupManagerContract.connect(admin).createNewRollup(
+                2, // non existent
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
+
         // Obsolete rollup type and test that fails
         const snapshot2 = await takeSnapshot();
         await expect(rollupManagerContract.connect(admin).obsoleteRollupType(newRollupTypeID))
@@ -470,6 +483,21 @@ describe("Polygon Rollup Manager", () => {
                     networkName
                 )
         ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDAlreadyExist");
+
+        // chainId cannot be greater than 2 ** 32 - 1 (current limitation by the circuit)
+        await expect(
+            rollupManagerContract
+                .connect(admin)
+                .createNewRollup(
+                    newRollupTypeID,
+                    2 ** 32,
+                    admin.address,
+                    trustedSequencer.address,
+                    gasTokenAddress,
+                    urlSequencer,
+                    networkName
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDOutOfRange");
 
         const transaction = await newZkEVMContract.generateInitializeTransaction(
             newCreatedRollupID,
