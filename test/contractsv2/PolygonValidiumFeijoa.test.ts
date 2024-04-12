@@ -84,7 +84,7 @@ describe("PolygonValidiumFeijoa", () => {
     const trustedAggregatorTimeout = 100;
     const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
     const _MAX_VERIFY_BATCHES = 1000;
-    const _MAX_TRANSACTIONS_BYTE_LENGTH = 120000;
+    const _MAX_TRANSACTIONS_BYTE_LENGTH = 126976;
     // BRidge constants
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
