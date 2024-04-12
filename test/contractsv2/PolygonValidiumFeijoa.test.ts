@@ -776,6 +776,46 @@ describe("PolygonValidiumFeijoa", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobsValidium([], trustedSequencer.address, "0x")
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceZeroBlobs");
 
+        const invalidBlobType = {
+            blobType: 3,
+            blobTypeParams: encodeCalldatBlobTypeParams(currentTime, ZK_GAS_LIMIT_BATCH, l1InfoIndex, l2txData),
+        } as BlobDataStructFeijoa;
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobsValidium(
+                [invalidBlobType],
+                trustedSequencer.address,
+                expectedAccInputHash2
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "BlobTypeNotSupported");
+
+        const timestampTooHigh = currentTime + 1e6;
+        const maxTimestampBlob = {
+            blobType: CALLDATA_BLOB_TYPE,
+            blobTypeParams: encodeCalldatBlobTypeParams(timestampTooHigh, ZK_GAS_LIMIT_BATCH, l1InfoIndex, l2txData),
+        } as BlobDataStructFeijoa;
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobsValidium(
+                [maxTimestampBlob],
+                trustedSequencer.address,
+                expectedAccInputHash2
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "MaxTimestampSequenceInvalid");
+
+        const invalidL1InfoIndexBlob = {
+            blobType: CALLDATA_BLOB_TYPE,
+            blobTypeParams: encodeCalldatBlobTypeParams(currentTime, ZK_GAS_LIMIT_BATCH, 9999, l2txData),
+        } as BlobDataStructFeijoa;
+
+        await expect(
+            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobsValidium(
+                [invalidL1InfoIndexBlob],
+                trustedSequencer.address,
+                expectedAccInputHash2
+            )
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "Invalidl1InfoLeafIndex");
+
         // False forced blob
         let currentBlob = {
             blobType: FORCED_BLOB_TYPE,
