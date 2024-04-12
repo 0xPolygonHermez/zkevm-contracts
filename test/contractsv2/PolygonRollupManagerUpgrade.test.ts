@@ -668,6 +668,9 @@ describe("Polygon Rollup manager upgraded", () => {
             .withArgs(newRollupTypeID, feijoaRollupType, 0);
         await snapshot.restore();
 
+        await expect(
+            rollupManagerContract.connect(deployer).updateRollup(newZKEVMAddress, feijoaRollupType, "0x")
+        ).to.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
         // stop fork
         await expect(rollupManagerContract.connect(timelock).updateRollup(newZKEVMAddress, feijoaRollupType, "0x"))
             .to.emit(rollupManagerContract, "UpdateRollup")
@@ -741,6 +744,10 @@ describe("Polygon Rollup manager upgraded", () => {
             rollupManagerContract,
             "InvalidRangeMultiplierZkGasPrice"
         );
+        await expect(rollupManagerContract.connect(admin).setMultiplierZkGasPrice(1024)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "InvalidRangeMultiplierZkGasPrice"
+        );
 
         await expect(rollupManagerContract.connect(admin).setMultiplierZkGasPrice(1020))
             .to.emit(rollupManagerContract, "SetMultiplierZkGasPrice")
@@ -774,6 +781,10 @@ describe("Polygon Rollup manager upgraded", () => {
             "AddressDoNotHaveRequiredRole"
         );
         await expect(rollupManagerContract.connect(admin).setZkGasPrice(0)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "zkGasPriceOfRange"
+        );
+        await expect(rollupManagerContract.connect(admin).setZkGasPrice(10n ** 18n + 1n)).to.be.revertedWithCustomError(
             rollupManagerContract,
             "zkGasPriceOfRange"
         );
@@ -1879,6 +1890,14 @@ describe("Polygon Rollup manager upgraded", () => {
                 .verifySequencesMultiProof([VerifyBlobData], beneficiary.address, zkProofFFlonk)
         ).to.be.revertedWithCustomError(rollupManagerContract, "TrustedAggregatorTimeoutNotExpired");
 
+        await expect(rollupManagerContract.setTrustedAggregatorTimeout(0)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "AddressDoNotHaveRequiredRole"
+        );
+        await expect(
+            rollupManagerContract.connect(admin).setTrustedAggregatorTimeout(101)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "NewTrustedAggregatorTimeoutMustBeLower");
+
         await rollupManagerContract.connect(admin).setTrustedAggregatorTimeout(0);
         VerifyBlobData.finalSequenceNum = currentVerifiedBlob + _MAX_VERIFY_BATCHES + 1;
         await expect(
@@ -1901,6 +1920,10 @@ describe("Polygon Rollup manager upgraded", () => {
         ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
 
         VerifyBlobData.finalSequenceNum = newVerifiedBlob;
+
+        await expect(
+            rollupManagerContract.verifySequencesMultiProof([], beneficiary.address, zkProofFFlonk)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "EmptyVerifySequencesData");
 
         await expect(
             rollupManagerContract.verifySequencesMultiProof(
@@ -2223,6 +2246,19 @@ describe("Polygon Rollup manager upgraded", () => {
         const randomlocalRoot = ethers.hexlify(ethers.randomBytes(32));
 
         await expect(
+            rollupManagerContract.overridePendingState(
+                newCreatedRollupID,
+                0,
+                createdPendingState,
+                0,
+                newVerifiedBlob,
+                randomlocalRoot, // local exit root
+                randomSTateRoot, // state root
+                zkProofFFlonk
+            )
+        ).to.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
+
+        await expect(
             rollupManagerContract.connect(trustedAggregator).overridePendingState(
                 newCreatedRollupID,
                 0,
@@ -2274,6 +2310,15 @@ describe("Polygon Rollup manager upgraded", () => {
         await expect(
             rollupManagerContract.consolidatePendingState(newCreatedRollupID, pendingStateNum)
         ).to.be.revertedWithCustomError(rollupManagerContract, "PendingStateNotConsolidable");
+
+        await expect(rollupManagerContract.setPendingStateTimeout(0)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "AddressDoNotHaveRequiredRole"
+        );
+        await expect(rollupManagerContract.connect(admin).setPendingStateTimeout(101)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "NewPendingStateTimeoutMustBeLower"
+        );
 
         // try emergency
         await rollupManagerContract.connect(emergencyCouncil).activateEmergencyState();
