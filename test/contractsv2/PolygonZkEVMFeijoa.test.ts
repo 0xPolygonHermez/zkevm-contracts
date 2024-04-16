@@ -453,10 +453,7 @@ describe("PolygonZkEVMFeijoa", () => {
         const txn = await ethers.provider.send("eth_sendRawTransaction", [signedSerializedTxn]);
         console.log({txn});
 
-        // await expect(
-        //     ethers.provider.send("eth_sendRawTransaction", [signedSerializedTxn])
-        //     )
-        // ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
+        // txn revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
 
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
