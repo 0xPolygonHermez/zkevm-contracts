@@ -809,12 +809,62 @@ contract PolygonRollupManager is
      * @param newRollupTypeID New rolluptypeID to upgrade to
      * @param upgradeData Upgrade data
      */
-    function updateRollup(
+    function rollbackSequences(
         ITransparentUpgradeableProxy rollupContract,
-        uint32 newRollupTypeID,
         bytes memory upgradeData
     ) external onlyRole(_UPDATE_ROLLUP_ROLE) {
         _updateRollup(rollupContract, newRollupTypeID, upgradeData);
+    }
+
+    /**
+     * @notice Upgrade an existing rollup
+     * @param rollupContract Rollup consensus proxy address
+     * @param newRollupTypeID New rolluptypeID to upgrade to
+     * @param upgradeData Upgrade data
+     */
+    function updateRollup(
+        ITransparentUpgradeableProxy rollupContract,
+        uint64 sequenceToRollback,
+        bytes memory upgradeData
+    ) external onlyRole(_UPDATE_ROLLUP_ROLE) {
+        // Check the rollup exists
+        uint32 rollupID = rollupAddressToID[address(rollupContract)];
+        if (rollupID == 0) {
+            revert RollupMustExist();
+        }
+
+        RollupDataSequenceBased storage rollup = rollupIDToRollupData[rollupID];
+
+        // Sequence to rollback must not be verified an should already sequenced
+        if (
+            sequenceToRollback <= rollup.lastVerifiedSequenceNum ||
+            sequenceToRollback >= rollup.lastSequenceNum
+        ) {
+            revert();
+        }
+
+        // no pending states
+        if (rollup.lastPendingState != rollup.lastPendingStateConsolidated) {
+            revert();
+        }
+
+        // Rollback Sequence
+        uint128 substractedAccZkGasLimit = rollup
+            .sequences[rollup.lastSequenceNum]
+            .accZkGasLimit - rollup.sequences[sequenceToRollback].accZkGasLimit;
+
+        rollup.lastSequenceNum = sequenceToRollback;
+
+        // delete seuqneces
+        for (
+            uint256 i = sequenceToRollback + 1;
+            i < rollup.lastSequenceNum;
+            i++
+        ) {
+            delete rollup.sequences[i];
+        }
+
+        rollupContract.RollbAck
     }
 
     /**
