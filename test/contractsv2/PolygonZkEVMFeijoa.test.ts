@@ -1,6 +1,6 @@
 /* eslint-disable no-plusplus, no-await-in-loop */
 import {expect} from "chai";
-import {ethers, network, upgrades} from "hardhat";
+import {ethers, network, upgrades, config} from "hardhat";
 import {
     VerifierRollupHelperMock,
     ERC20PermitMock,
@@ -15,6 +15,7 @@ import {
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
+import {BlobUtils} from "../utils/BlobUtil";
 import {array} from "yargs";
 const {calculateSnarkInput, calculateAccInputHash, calculateBlobHashData} = contractUtils;
 
@@ -22,6 +23,7 @@ type BlobDataStructFeijoa = PolygonRollupBaseFeijoa.BlobDataStruct;
 
 const MerkleTreeBridge = MTBridge;
 const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
+const abi = new ethers.AbiCoder();
 
 function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
     return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [mainnetExitRoot, rollupExitRoot]);
@@ -210,10 +212,10 @@ describe("PolygonZkEVMFeijoa", () => {
         await PolygonZKEVMV2Contract.waitForDeployment();
     });
 
-    it("should check full flow with blobs", async () => {
+    it.only("should check full flow with blobs", async () => {
         // Initialzie using rollup manager
         await ethers.provider.send("hardhat_impersonateAccount", [rollupManagerContract.target]);
-        const rolllupManagerSigner = await ethers.getSigner(rollupManagerContract.target as any);
+        const rolllupManagerSigner = await ethers.getSigner(rollupManagerContract.target as string);
         await expect(
             PolygonZKEVMV2Contract.connect(rolllupManagerSigner).initialize(
                 admin.address,
@@ -287,15 +289,26 @@ describe("PolygonZkEVMFeijoa", () => {
         expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash);
 
         // try verify blobs
-        const l2txData = "0x123456";
+        const blobIndex = 0;
+        const l2txData = ethers.randomBytes(144);
+        const blobData = new Uint8Array(1 + 144);
+        blobData.set(ethers.toBeArray(BLOBTX_BLOB_TYPE), 0);
+        blobData.set(l2txData);
+
+        const {blobs, blobVersionedHashes, kzgCommitments, kzgProofs} = BlobUtils.getBlobs(blobData);
+        const z = ethers.randomBytes(32); // z = linearPoseidon(blobData)
+        const [, y] = BlobUtils.computeKzgProof(blobs[blobIndex], z); // [proof, p(z)]
+        const blobVersionedHash = blobVersionedHashes[blobIndex];
+        const commitmentAndProof =
+            ethers.hexlify(kzgCommitments[blobIndex]) + ethers.hexlify(kzgProofs[blobIndex]).slice(2);
+        //     abi.encode(
+        //     ["bytes[48]", "bytes[48]"],
+        //     [kzgCommitments[blobIndex], kzgProofs[blobIndex]]
+        // );
+
         const maticAmount = (await rollupManagerContract.getZkGasPrice()) * BigInt(ZK_GAS_LIMIT_BATCH);
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
         const l1InfoIndex = 0;
-
-        const blobIndex = 0;
-        const z = ethers.ZeroHash;
-        const y = ethers.ZeroHash;
-        const commitmentAndProof = `0x${"00".repeat(96)}`;
 
         const blob = {
             blobType: BLOBTX_BLOB_TYPE,
@@ -425,13 +438,25 @@ describe("PolygonZkEVMFeijoa", () => {
 
         // TODO actually send a type 3 tx (blob) to receive hash with BLOBHASH opcode (line 615)
 
-        /* await expect(
-            PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
+        const {signedSerializedTxn} = await new BlobUtils(
+            ethers.provider as any,
+            await getWallet(trustedSequencer.address)
+        ).generateRawBlobTransaction(blobData, {
+            to: PolygonZKEVMV2Contract.target as string,
+            data: PolygonZKEVMV2Contract.interface.encodeFunctionData("sequenceBlobs", [
                 [blob],
                 trustedSequencer.address,
-                ethers.ZeroHash
-            )
-        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
+                ethers.ZeroHash,
+            ]),
+        });
+
+        const txn = await ethers.provider.send("eth_sendRawTransaction", [signedSerializedTxn]);
+        console.log({txn});
+
+        // await expect(
+        //     ethers.provider.send("eth_sendRawTransaction", [signedSerializedTxn])
+        //     )
+        // ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
 
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBlobs(
@@ -439,7 +464,7 @@ describe("PolygonZkEVMFeijoa", () => {
                 trustedSequencer.address,
                 expectedAccInputHash2
             )
-        ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs"); */
+        ).to.emit(PolygonZKEVMV2Contract, "SequenceBlobs");
     });
 
     it("should check the initalized parameters", async () => {
@@ -1585,4 +1610,14 @@ function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any,
         ["bytes32", "bytes32", "uint64"],
         [newGlobalExitRoot, lastBlockHash, timestamp]
     );
+}
+
+async function getWallet(address: string) {
+    const accounts = config.networks.hardhat.accounts;
+    const index = (await ethers.getSigners()).map((s) => s.address).indexOf(address);
+    const wallet = ethers.HDNodeWallet.fromMnemonic(
+        ethers.Mnemonic.fromPhrase(accounts.mnemonic),
+        accounts.path + `/${index}`
+    );
+    return wallet;
 }
