@@ -883,6 +883,7 @@ abstract contract PolygonRollupBaseEtrogNoGap is
                 _gasTokenNetwork,
                 GLOBAL_EXIT_ROOT_MANAGER_L2,
                 address(0), // Rollup manager on L2 does not exist
+                admin, // Set admin as default bridge manager
                 _gasTokenMetadata
             )
         );
