@@ -342,7 +342,6 @@ async function main() {
         for (let i = 0; i < attemptsDeployProxy; i++) {
             try {
                 polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
-                    initializer: false,
                     constructorArgs: [precalculateRollupManager, proxyBridgeAddress],
                     unsafeAllow: ["constructor", "state-variable-immutable"],
                 });
@@ -424,13 +423,9 @@ async function main() {
                         admin,
                         timelockAddressRollupManager,
                         emergencyCouncilAddress,
-                        ethers.ZeroAddress, // unused parameter
-                        ethers.ZeroAddress, // unused parameter
-                        0, // unused parameter
-                        0, // unused parameter
                     ],
                     {
-                        initializer: "initialize",
+                        initializer: "initialize(address,uint64,uint64,address,address,address)",
                         constructorArgs: [
                             polygonZkEVMGlobalExitRoot?.target,
                             polTokenAddress,

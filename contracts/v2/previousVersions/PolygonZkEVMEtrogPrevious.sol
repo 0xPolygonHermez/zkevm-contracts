@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
 
 import "./PolygonRollupBaseEtrogPrevious.sol";
 
@@ -22,7 +22,7 @@ contract PolygonZkEVMEtrogPrevious is PolygonRollupBaseEtrogPrevious {
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        PolygonRollupManager _rollupManager
+        PolygonRollupManagerPrevious _rollupManager
     )
         PolygonRollupBaseEtrogPrevious(
             _globalExitRootManager,

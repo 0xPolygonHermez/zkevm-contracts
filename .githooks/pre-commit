@@ -3,9 +3,9 @@
 ## To use this hook execute in the project root:
 ## git config --local core.hooksPath .githooks/
 if npm run lint; then
-    npx hardhat compile --force
-    npm run docgen
-    git add docs
+    # npx hardhat compile --force
+    # npm run docgen
+    # git add docs
     cp artifacts/contracts/PolygonZkEVMBridge.sol/PolygonZkEVMBridge.json compiled-contracts/
     cp artifacts/contracts/PolygonZkEVMGlobalExitRoot.sol/PolygonZkEVMGlobalExitRoot.json compiled-contracts/
     cp artifacts/contracts/PolygonZkEVMGlobalExitRootL2.sol/PolygonZkEVMGlobalExitRootL2.json compiled-contracts/
@@ -25,18 +25,15 @@ if npm run lint; then
     
     cp artifacts/contracts/v2/PolygonRollupManager.sol/PolygonRollupManager.json compiled-contracts/
     cp artifacts/contracts/v2/mocks/PolygonRollupManagerMock.sol/PolygonRollupManagerMock.json compiled-contracts/
-    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMockInternalTest.sol/PolygonRollupManagerMockInternalTest.json compiled-contracts/
 
     cp artifacts/contracts/v2/PolygonZkEVMBridgeV2.sol/PolygonZkEVMBridgeV2.json compiled-contracts/
     cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
 
     cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
-    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol/PolygonZkEVMEtrog.json compiled-contracts/
-    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMExistentEtrog.sol/PolygonZkEVMExistentEtrog.json compiled-contracts/
-    cp artifacts/contracts/v2/previousVersions/PolygonZkEVMEtrogPrevious.sol/PolygonZkEVMEtrogPrevious.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/feijoa/zkEVM/PolygonZkEVMFeijoa.sol/PolygonZkEVMFeijoa.json compiled-contracts/
 
-    cp artifacts/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol/PolygonValidiumEtrog.json compiled-contracts/
-    cp artifacts/contracts/v2/consensus/validium/PolygonDataCommittee.sol/PolygonDataCommittee.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/feijoa/validium/PolygonValidiumFeijoa.sol/PolygonValidiumFeijoa.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/feijoa/validium/PolygonDataCommittee.sol/PolygonDataCommittee.json compiled-contracts/
 
     cp artifacts/contracts/v2/utils/ClaimCompressor.sol/ClaimCompressor.json compiled-contracts/
 

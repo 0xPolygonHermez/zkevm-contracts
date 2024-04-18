@@ -66,7 +66,7 @@ async function main() {
         consensusContract,
     } = createRollupParameters;
 
-    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
+    const supportedConensus = ["PolygonZkEVMFeijoa", "PolygonValidiumFeijoa"];
 
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);

@@ -1,0 +1,17 @@
+{
+    "aggregator": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "inputs": [
+        {
+            "oldStateRoot": "0xef3fd2231e77d062fa70d0e4f33cb0850e69e4916e8a6867577f5babdd957165",
+            "newStateRoot": "0xb5f1e0dd31ffe9f1e8fe0aa1e71131ad121d40b7b772237f651dbb0b427a2ef2",
+            "oldAccInputHash": "0x5090e9f4799c60e89720db042dcb00e44f9a9703ec380601c58dbe43891f4737",
+            "newAccInputHash": "0x114d19d9df2b435c1bd52a916033e915712cc1ab5f2a2f9fadd4c35c57b2699b",
+            "newLocalExitRoot": "0x394efc53ed255033f94418085d8c1bffa378171330c5705cadab74e408c941bd",
+            "oldNumBlob": 9,
+            "newNumBlob": 10,
+            "chainId": 5,
+            "forkId": 9
+        }
+    ],
+    "result": "13592026265584898652475005343496483039173704170287343086141203092636623734753"
+}

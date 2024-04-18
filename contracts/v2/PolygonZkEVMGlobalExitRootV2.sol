@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
 
 import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "./lib/PolygonZkEVMGlobalExitRootBaseStorage.sol";
 import "../lib/GlobalExitRootLib.sol";
 import "./lib/DepositContractBase.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
 contract PolygonZkEVMGlobalExitRootV2 is
     PolygonZkEVMGlobalExitRootBaseStorage,
-    DepositContractBase
+    DepositContractBase,
+    Initializable
 {
     // PolygonZkEVMBridge address
     address public immutable bridgeAddress;
@@ -20,12 +22,17 @@ contract PolygonZkEVMGlobalExitRootV2 is
     // Rollup manager contract address
     address public immutable rollupManager;
 
+    // Store every l1InfoLeaf
+    mapping(uint256 depositCount => bytes32 l1InfoLeafHash)
+        public l1InfoLeafMap;
+
     /**
      * @dev Emitted when the global exit root is updated
      */
-    event UpdateL1InfoTree(
+    event UpdateL1InfoTreeRecursive(
         bytes32 indexed mainnetExitRoot,
-        bytes32 indexed rollupExitRoot
+        bytes32 indexed rollupExitRoot,
+        bytes32 currentHistoricRoot
     );
 
     /**
@@ -35,6 +42,53 @@ contract PolygonZkEVMGlobalExitRootV2 is
     constructor(address _rollupManager, address _bridgeAddress) {
         rollupManager = _rollupManager;
         bridgeAddress = _bridgeAddress;
+
+        // disable initializers
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Reset the deposit tree since will be replace by a recursive one
+     */
+    function initialize() external virtual initializer {
+        if (depositCount != 0) {
+            for (uint256 i = 0; i < _DEPOSIT_CONTRACT_TREE_DEPTH; i++) {
+                delete _branch[i];
+            }
+            depositCount = 0;
+
+            // First leaf set to 0
+            _addLeaf(bytes32(0));
+
+            // Add second leaf with previous information
+            bytes32 newGlobalExitRoot = getLastGlobalExitRoot();
+            uint256 lastBlockHash = uint256(blockhash(block.number - 1));
+
+            // Get the current historic roo
+            bytes32 currentHistoricRoot = getRoot();
+
+            // save new leaf in L1InfoTree
+            bytes32 newLeaf = getLeafValue(
+                getL1InfoTreeHash(
+                    newGlobalExitRoot,
+                    lastBlockHash,
+                    uint64(block.timestamp)
+                ),
+                currentHistoricRoot
+            );
+
+            // Add previous info
+            l1InfoLeafMap[depositCount] = newLeaf;
+            _addLeaf(newLeaf);
+
+            emit UpdateL1InfoTreeRecursive(
+                lastMainnetExitRoot,
+                lastRollupExitRoot,
+                currentHistoricRoot
+            );
+        } else {
+            _addLeaf(bytes32(0));
+        }
     }
 
     /**
@@ -69,17 +123,28 @@ contract PolygonZkEVMGlobalExitRootV2 is
             globalExitRootMap[newGlobalExitRoot] = lastBlockHash;
 
             // save new leaf in L1InfoTree
-            _addLeaf(
-                getLeafValue(
+
+            // Get the current historic root
+            bytes32 currentHistoricRoot = getRoot();
+
+            // New leaf of the HistoricRoot, which contains the global exit root, current blockchain information
+            // and the previous root of the tree
+            bytes32 newLeaf = getLeafValue(
+                getL1InfoTreeHash(
                     newGlobalExitRoot,
                     lastBlockHash,
                     uint64(block.timestamp)
-                )
+                ),
+                currentHistoricRoot
             );
 
-            emit UpdateL1InfoTree(
+            l1InfoLeafMap[depositCount] = newLeaf;
+            _addLeaf(newLeaf);
+
+            emit UpdateL1InfoTreeRecursive(
                 cacheLastMainnetExitRoot,
-                cacheLastRollupExitRoot
+                cacheLastRollupExitRoot,
+                currentHistoricRoot
             );
         }
     }
@@ -113,7 +178,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
      * @param lastBlockHash Last accesible block hash
      * @param timestamp Ethereum timestamp in seconds
      */
-    function getLeafValue(
+    function getL1InfoTreeHash(
         bytes32 newGlobalExitRoot,
         uint256 lastBlockHash,
         uint64 timestamp
@@ -122,5 +187,17 @@ contract PolygonZkEVMGlobalExitRootV2 is
             keccak256(
                 abi.encodePacked(newGlobalExitRoot, lastBlockHash, timestamp)
             );
+    }
+
+    /**
+     * @notice Given the leaf data returns the leaf hash
+     * @param l1InfoRoot Last global exit root
+     * @param l1InfoTreeHash Last accesible block hash
+     */
+    function getLeafValue(
+        bytes32 l1InfoRoot,
+        bytes32 l1InfoTreeHash
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(l1InfoRoot, l1InfoTreeHash));
     }
 }

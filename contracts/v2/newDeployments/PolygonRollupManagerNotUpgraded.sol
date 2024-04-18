@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
 import "../PolygonRollupManager.sol";
 
 /**
@@ -17,25 +17,25 @@ contract PolygonRollupManagerNotUpgraded is PolygonRollupManager {
         IPolygonZkEVMBridge _bridgeAddress
     ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}
 
+    function initialize() external override reinitializer(3) {
+        revert();
+    }
+
     function initialize(
         address trustedAggregator,
         uint64 _pendingStateTimeout,
         uint64 _trustedAggregatorTimeout,
         address admin,
         address timelock,
-        address emergencyCouncil,
-        PolygonZkEVMExistentEtrog /*polygonZkEVM*/,
-        IVerifierRollup /*zkEVMVerifier*/,
-        uint64 /*zkEVMForkID*/,
-        uint64 /*zkEVMChainID*/
-    ) external override reinitializer(2) {
+        address emergencyCouncil
+    ) external reinitializer(3) {
         pendingStateTimeout = _pendingStateTimeout;
         trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
         // Constant deployment variables
-        _batchFee = 0.1 ether; // 0.1 Matic
-        verifyBatchTimeTarget = 30 minutes;
-        multiplierBatchFee = 1002;
+        _zkGasPrice = 0.1 ether / ZK_GAS_LIMIT_BATCH; // 0.1 Matic
+        verifySequenceTimeTarget = 30 minutes;
+        multiplierZkGasPrice = 1002;
 
         // Initialize OZ contracts
         __AccessControl_init();

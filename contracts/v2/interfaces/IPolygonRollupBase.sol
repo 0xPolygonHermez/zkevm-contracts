@@ -12,8 +12,8 @@ interface IPolygonRollupBase {
         string memory _networkName
     ) external;
 
-    function onVerifyBatches(
-        uint64 lastVerifiedBatch,
+    function onVerifySequences(
+        uint64 lastVerifiedSequenceNum,
         bytes32 newStateRoot,
         address aggregator
     ) external;
