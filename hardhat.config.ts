@@ -119,7 +119,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 200,
+                        runs: 150,
                     },
                     evmVersion: "cancun",
                 }, // try yul optimizer
