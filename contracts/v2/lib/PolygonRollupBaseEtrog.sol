@@ -302,9 +302,7 @@ abstract contract PolygonRollupBaseEtrog is
         string memory sequencerURL,
         string memory _networkName
     ) external virtual onlyRollupManager initializer {
-        bytes memory gasTokenMetadata;
-
-        _verifyOrigin(_gasTokenAddress);
+        bytes memory gasTokenMetadata = _verifyOrigin(_gasTokenAddress);
 
         // Sequence transaction to initilize the bridge
 
@@ -930,7 +928,9 @@ abstract contract PolygonRollupBaseEtrog is
         return transaction;
     }
 
-    function _verifyOrigin(address _gasTokenAddress) internal virtual {
+    function _verifyOrigin(
+        address _gasTokenAddress
+    ) internal virtual returns (bytes memory gasTokenMetadata) {
         if (_gasTokenAddress != address(0)) {
             // Ask for token metadata, the same way is enconded in the bridge
             // Note that this function will revert if the token is not in this network
