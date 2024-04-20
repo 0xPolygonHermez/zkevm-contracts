@@ -8,9 +8,14 @@ import {PolygonAccessControlUpgradeable} from "./lib/PolygonAccessControlUpgrade
  * Contract responsible for managing the exit roots for the L2 and global exit roots
  * The special zkRom variables will be accessed and updated directly by the zkRom
  */
-contract PolygonZkEVMGlobalExitRootL2 is PolygonAccessControlUpgradeable, IBasePolygonZkEVMGlobalExitRoot {
-    bytes32 constant internal _GLOBAL_EXIT_ROOT_SETTER_ROLE = keccak256("GLOBAL_EXIT_ROOT_SETTER_ROLE");
-    bytes32 constant internal _GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN = keccak256("GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN");
+contract PolygonZkEVMGlobalExitRootV2L2 is
+    PolygonAccessControlUpgradeable,
+    IBasePolygonZkEVMGlobalExitRoot
+{
+    bytes32 internal constant _GLOBAL_EXIT_ROOT_SETTER_ROLE =
+        keccak256("GLOBAL_EXIT_ROOT_SETTER_ROLE");
+    bytes32 internal constant _GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN =
+        keccak256("GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN");
 
     // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
@@ -26,7 +31,14 @@ contract PolygonZkEVMGlobalExitRootL2 is PolygonAccessControlUpgradeable, IBaseP
      */
     constructor(address _bridgeAddress) {
         bridgeAddress = _bridgeAddress;
-        _setRoleAdmin(_GLOBAL_EXIT_ROOT_SETTER_ROLE, _GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN);
+        _setRoleAdmin(
+            _GLOBAL_EXIT_ROOT_SETTER_ROLE,
+            _GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN
+        );
+        _setRoleAdmin(
+            _GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN,
+            _GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN
+        );
         _grantRole(_GLOBAL_EXIT_ROOT_SETTER_ROLE_ADMIN, msg.sender);
         _disableInitializers();
     }
@@ -43,7 +55,9 @@ contract PolygonZkEVMGlobalExitRootL2 is PolygonAccessControlUpgradeable, IBaseP
         lastRollupExitRoot = newRoot;
     }
 
-    function updateGlobalExitRoot(bytes32 _newRoot) external onlyRole(_GLOBAL_EXIT_ROOT_SETTER_ROLE) {
+    function updateGlobalExitRoot(
+        bytes32 _newRoot
+    ) external onlyRole(_GLOBAL_EXIT_ROOT_SETTER_ROLE) {
         // do not update timestamp if already set
         if (globalExitRootMap[_newRoot] == 0) {
             globalExitRootMap[_newRoot] = block.timestamp;
