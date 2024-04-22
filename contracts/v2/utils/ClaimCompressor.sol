@@ -217,7 +217,7 @@ contract ClaimCompressor {
         assembly {
             // Get the last free memory pointer
             // let freeMemPointer := mload(0x40)
-            // no need to reserve memory since the rest of the funcion will happen on assembly
+            // no need to reserve memory since the rest of the function will happen on assembly
 
             let compressedClaimCallsOffset := compressedClaimCalls.offset
             let compressedClaimCallsLen := compressedClaimCalls.length
@@ -251,7 +251,7 @@ contract ClaimCompressor {
             // Write the constant parameters for all claims in this call
 
             // TODO set both arrays to zero hashes
-            // Trick to emtpy the memory, copyng calldata out of bounds,
+            // Trick to empty the memory, copyng calldata out of bounds,
             // set smtProofLocalExitRoot to all zeroes
             // calldatacopy(
             //     4, // Memory offset, signature = 4 bytes

@@ -748,7 +748,7 @@ Emitted when a new rollup type is added
   )
 ```
 
-Emitted when a a rolup type is obsoleted
+Emitted when a rolup type is obsoleted
 
 ### CreateNewRollup
 ```solidity
