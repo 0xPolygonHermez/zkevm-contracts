@@ -25,7 +25,7 @@ contract PolygonZkEVMExistentEtrog is PolygonRollupBaseEtrog {
         "gasPrice": "0",
         "chainId": 4242,
         "overwrite": {
-          "v": "0x1b",
+          "v": "0x2147",
           "r": "0x00000000000000000000000000000000000000000000000000000005ca1ab1e0",
           "s": "0x00000000000000000000000000000000000000000000000000000005ca1ab1e0"
         }
