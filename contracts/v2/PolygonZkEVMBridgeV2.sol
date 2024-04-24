@@ -134,6 +134,11 @@ contract PolygonZkEVMBridgeV2 is
     );
 
     /**
+     * @dev Emitted when a bridge manager is updated
+     */
+    event BridgeManagerUpdated(address bridgeManager);
+
+    /**
      * Disable initalizers on the implementation following the best practices
      */
     constructor() {
@@ -148,8 +153,6 @@ contract PolygonZkEVMBridgeV2 is
      * @param _polygonRollupManager polygonZkEVM address
      * @notice The value of `_polygonRollupManager` on the L2 deployment of the contract will be address(0), so
      * emergency state is not possible for the L2 deployment of the bridge, intentionally
-     * @param _bridgeManager Bridge manager address
-     * @notice Bridge manager can set custom mapping for any token.
      * @param _gasTokenMetadata Abi encoded gas token metadata
      */
     function initialize(
@@ -158,13 +161,12 @@ contract PolygonZkEVMBridgeV2 is
         uint32 _gasTokenNetwork,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager,
-        address _bridgeManager,
         bytes memory _gasTokenMetadata
     ) external virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonRollupManager = _polygonRollupManager;
-        bridgeManager = _bridgeManager;
+        bridgeManager = msg.sender; // Set deployer as default bridge manager
 
         // Set gas token
         if (_gasTokenAddress == address(0)) {
@@ -750,6 +752,15 @@ contract PolygonZkEVMBridgeV2 is
     }
 
     /**
+     *
+     */
+    function setBridgeManager(address _bridgeManager) external onlyBridgeManager {
+        if(_bridgeManager == address(0)) revert NotValidBridgeManager();
+        bridgeManager = _bridgeManager;
+        emit BridgeManagerUpdated(bridgeManager);
+    }
+
+    /**
      * @notice Set the address of a wrapper using the token information if already exist
      * @dev This function is used to allow any existing token to be mapped with
      *      origin token. Wrapper contract should handle mint/burn of the existing token.
@@ -778,6 +789,7 @@ contract PolygonZkEVMBridgeV2 is
         );
         existingTokenToWrapper[existingTokenAddress] = wrappedTokenAddress;
     }
+
 
     /**
      * @notice Function to activate the emergency state

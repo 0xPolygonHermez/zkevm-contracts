@@ -126,9 +126,9 @@ describe("PolygonZkEVMBridgeV2: Custom Tokens", () => {
             0,
             polygonZkEVMGlobalExitRoot.target,
             rollupManager.address,
-            deployer.address, // deployer as bridge manager
             "0x"
         );
+        await polygonZkEVMBridge.setBridgeManager(deployer.address)
     });
 
     it("should set correct custom wrapper storages", async () => {

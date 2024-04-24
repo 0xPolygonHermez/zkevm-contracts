@@ -95,6 +95,11 @@ interface IPolygonZkEVMBridgeV2 {
      */
     error FailedTokenWrappedDeployment();
 
+    /**
+     * @dev Thrown when bridge manager address is invalid
+     */
+    error NotValidBridgeManager();
+
     function wrappedTokenToTokenInfo(
         address destinationAddress
     ) external view returns (uint32, address);
@@ -163,7 +168,6 @@ interface IPolygonZkEVMBridgeV2 {
         uint32 _gasTokenNetwork,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager,
-        address _bridgeManager,
         bytes memory _gasTokenMetadata
     ) external;
 
