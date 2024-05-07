@@ -516,9 +516,13 @@ contract ClaimCompressor {
                     add(metadataLen, mod(sub(32, mod(metadataLen, 32)), 32))
                 )
 
+                if lt(gas(), 2500000) {
+                    revert(0, 0)
+                }
+
                 // SHould i limit the gas TODO of the call
                 let success := call(
-                    gas(), // gas
+                    2000000, // gas // TODO gas Limited to 2M, could be better to check if it's created the token or not and limit later
                     bridgeAddress, // address
                     0, // value
                     0, // args offset
