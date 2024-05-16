@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  */
 contract Ethda is IDataAvailabilityProtocol, OwnableUpgradeable {
     // Address of the ethda sequencer
-    address public ethdaSequencerAddress = 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266;
+    address public ethdaSequencerAddress;
 
     // Name of the data availability protocol
     string internal constant _PROTOCOL_NAME = "Ethda";
@@ -41,11 +41,15 @@ contract Ethda is IDataAvailabilityProtocol, OwnableUpgradeable {
     }
 
     function initialize() external initializer {
+        ethdaSequencerAddress = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+
         // Initialize OZ contracts
         __Ownable_init_unchained();
     }
 
-    function setEthdaSequencerAddress(address _ethdaSequencerAddress) public onlyOwner {
+    function setEthdaSequencerAddress(
+        address _ethdaSequencerAddress
+    ) public onlyOwner {
         ethdaSequencerAddress = _ethdaSequencerAddress;
     }
 
@@ -70,7 +74,10 @@ contract Ethda is IDataAvailabilityProtocol, OwnableUpgradeable {
         }
 
         // Recover sequencerAddress from the signature
-        address signer = ECDSA.recover(signedHash, signaturesAndAddrs[:_SIGNATURE_SIZE]);
+        address signer = ECDSA.recover(
+            signedHash,
+            signaturesAndAddrs[:_SIGNATURE_SIZE]
+        );
 
         if (signer != ethdaSequencerAddress) {
             revert WrongSignature();
