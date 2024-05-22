@@ -590,6 +590,9 @@ abstract contract PolygonRollupBaseEtrog is
         uint64 batchToRollback,
         bytes32 accInputHashToRollback
     ) public virtual override onlyRollupManager {
+        // Rollback the accumulated input hash
+        lastAccInputHash = accInputHashToRollback;
+
         emit RollbackBatches(batchToRollback, accInputHashToRollback);
     }
 
