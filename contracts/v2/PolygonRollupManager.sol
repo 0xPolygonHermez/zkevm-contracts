@@ -852,21 +852,21 @@ contract PolygonRollupManager is
         RollupData storage rollup = rollupIDToRollupData[rollupID];
         uint64 lastBatchSequenced = rollup.lastBatchSequenced;
 
-        // Sequence to rollback should already sequenced
+        // Batch to rollback should be already sequenced
         if (batchToRollback >= lastBatchSequenced) {
             revert RollbackBatchIsNotSequenced();
         }
 
         uint64 currentBatch = lastBatchSequenced;
 
-        // delete sequences
+        // delete sequence batches structs until the batchToRollback
         while (currentBatch != batchToRollback) {
             // Load previous end of sequence batch
             currentBatch = rollup
                 .sequencedBatches[currentBatch]
                 .previousLastBatchSequenced;
 
-            // If batch to rollback was not end of sequence revert
+            // Batch to rollback must be end of a sequence
             if (currentBatch < batchToRollback) {
                 revert RollbackBatchIsNotEndOfSequence();
             }
