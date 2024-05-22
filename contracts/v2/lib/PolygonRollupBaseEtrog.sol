@@ -234,14 +234,14 @@ abstract contract PolygonRollupBaseEtrog is
         bytes32 stateRoot,
         address indexed aggregator
     );
-  /**
+    /**
      * @dev Emitted when a aggregator verifies batches
      */
     event RollbackBatches(
         uint64 indexed batchToRollback,
         bytes32 accInputHashToRollback
     );
-    
+
     /**
      * @dev Emitted when the admin updates the trusted sequencer address
      */
@@ -404,7 +404,7 @@ abstract contract PolygonRollupBaseEtrog is
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
      * @param indexL1InfoRoot Index of the L1InfoRoot that will be used in this sequence
-     * @param finalAccInputHash This parameter must match the acc input hash after hash all the batch data
+     * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * note Pol is not a reentrant token
@@ -413,7 +413,7 @@ abstract contract PolygonRollupBaseEtrog is
         BatchData[] calldata batches,
         uint64 maxSequenceTimestamp,
         uint32 indexL1InfoRoot,
-        bytes32 finalAccInputHash,
+        bytes32 expectedFinalAccInputHash,
         address l2Coinbase
     ) public virtual onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
@@ -436,10 +436,12 @@ abstract contract PolygonRollupBaseEtrog is
         bridgeAddress.updateGlobalExitRoot();
 
         // Get global batch variables
-        bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(indexL1InfoRoot);
+        bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
+            indexL1InfoRoot
+        );
 
-        if(l1InfoRoot == bytes32(0)) {
-           revert L1InfoRootIndexInvalid();
+        if (l1InfoRoot == bytes32(0)) {
+            revert L1InfoRootIndexInvalid();
         }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
@@ -557,7 +559,7 @@ abstract contract PolygonRollupBaseEtrog is
         );
 
         // Check init sequenced blob
-        if (currentAccInputHash != finalAccInputHash) {
+        if (currentAccInputHash != expectedFinalAccInputHash) {
             revert FinalAccInputHashDoesNotMatch();
         }
 
@@ -586,9 +588,10 @@ abstract contract PolygonRollupBaseEtrog is
     function rollbackBatches(
         uint64 batchToRollback,
         bytes32 accInputHashToRollback
-    )public virtual override onlyRollupManager {
+    ) public virtual override onlyRollupManager {
         emit RollbackBatches(batchToRollback, accInputHashToRollback);
     }
+
     ////////////////////////////
     // Force batches functions
     ////////////////////////////
