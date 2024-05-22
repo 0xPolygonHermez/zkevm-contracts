@@ -17,4 +17,6 @@ interface IPolygonRollupBase {
         bytes32 newStateRoot,
         address aggregator
     ) external;
+
+    function admin() external returns (address);
 }

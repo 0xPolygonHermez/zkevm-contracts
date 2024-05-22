@@ -448,8 +448,7 @@ contract PolygonRollupManager is
             zkEVMVerifier,
             zkEVMForkID,
             zkEVMChainID,
-            0, // Rollup compatibility ID is 0
-            _legacyLastVerifiedBatch
+            0 // Rollup compatibility ID is 0
         );
 
         // Copy variables from legacy
@@ -548,7 +547,7 @@ contract PolygonRollupManager is
     /**
      * @notice Create a new rollup
      * @param rollupTypeID Rollup type to deploy
-     * @param chainID ChainID of the rollup, must be a new one
+     * @param chainID ChainID of the rollup, must be a new one, can not have more than 32 bits
      * @param admin Admin of the new created rollup
      * @param sequencer Sequencer of the new created rollup
      * @param gasTokenAddress Indicates the token address that will be used to pay gas fees in the new rollup
@@ -574,6 +573,12 @@ contract PolygonRollupManager is
         RollupType storage rollupType = rollupTypeMap[rollupTypeID];
         if (rollupType.obsolete == true) {
             revert RollupTypeObsolete();
+        }
+
+        // check chainID max value
+        // Currently we have this limitation by the circuit, might be removed in a future
+        if (chainID > type(uint32).max) {
+            revert ChainIDOutOfRange();
         }
 
         // Check chainID nullifier
@@ -660,8 +665,7 @@ contract PolygonRollupManager is
             verifier,
             forkID,
             chainID,
-            rollupCompatibilityID,
-            0 // last verified batch it's always 0
+            rollupCompatibilityID
         );
         rollup.batchNumToStateRoot[0] = genesis;
     }
@@ -674,15 +678,13 @@ contract PolygonRollupManager is
      * @param forkID Fork id of the added rollup
      * @param chainID Chain id of the added rollup
      * @param rollupCompatibilityID Compatibility ID for the added rollup
-     * @param lastVerifiedBatch Last verified batch before adding the rollup
      */
     function _addExistingRollup(
         IPolygonRollupBase rollupAddress,
         IVerifierRollup verifier,
         uint64 forkID,
         uint64 chainID,
-        uint8 rollupCompatibilityID,
-        uint64 lastVerifiedBatch
+        uint8 rollupCompatibilityID
     ) internal returns (RollupData storage rollup) {
         uint32 rollupID = ++rollupCount;
 
@@ -706,8 +708,35 @@ contract PolygonRollupManager is
             address(rollupAddress),
             chainID,
             rollupCompatibilityID,
-            lastVerifiedBatch
+            0
         );
+    }
+
+    function updateRollupByRollupAdmin(
+        ITransparentUpgradeableProxy rollupContract,
+        uint32 newRollupTypeID
+    ) external {
+        // Check admin of the network is msg.sender
+        if (IPolygonRollupBase(address(rollupContract)).admin() != msg.sender) {
+            revert OnlyRollupAdmin();
+        }
+
+        // Check all sequences are verified before upgrading
+        RollupData storage rollup = rollupIDToRollupData[
+            rollupAddressToID[address(rollupContract)]
+        ];
+
+        // If rollupID does not exist (rollupID = 0), will revert afterwards
+        if (rollup.lastBatchSequenced != rollup.lastVerifiedBatch) {
+            revert AllSequencedMustBeVerified();
+        }
+
+        // review sanity check
+        if (rollup.rollupTypeID >= newRollupTypeID) {
+            revert UpdateToOldRollupTypeID();
+        }
+
+        _updateRollup(rollupContract, newRollupTypeID, new bytes(0));
     }
 
     /**
@@ -719,8 +748,22 @@ contract PolygonRollupManager is
     function updateRollup(
         ITransparentUpgradeableProxy rollupContract,
         uint32 newRollupTypeID,
-        bytes calldata upgradeData
+        bytes memory upgradeData
     ) external onlyRole(_UPDATE_ROLLUP_ROLE) {
+        _updateRollup(rollupContract, newRollupTypeID, upgradeData);
+    }
+
+    /**
+     * @notice Upgrade an existing rollup
+     * @param rollupContract Rollup consensus proxy address
+     * @param newRollupTypeID New rolluptypeID to upgrade to
+     * @param upgradeData Upgrade data
+     */
+    function _updateRollup(
+        ITransparentUpgradeableProxy rollupContract,
+        uint32 newRollupTypeID,
+        bytes memory upgradeData
+    ) internal {
         // Check that rollup type exists
         if (newRollupTypeID == 0 || newRollupTypeID > rollupTypeCount) {
             revert RollupTypeDoesNotExist();
@@ -757,6 +800,11 @@ contract PolygonRollupManager is
         rollup.verifier = newRollupType.verifier;
         rollup.forkID = newRollupType.forkID;
         rollup.rollupTypeID = newRollupTypeID;
+
+        // review fix to vulnerability front running attack
+        if (rollup.lastPendingState != rollup.lastPendingStateConsolidated) {
+            revert CannotUpdateWithUnconsolidatedPendingState();
+        }
 
         uint64 lastVerifiedBatch = getLastVerifiedBatch(rollupID);
         rollup.lastVerifiedBatchBeforeUpgrade = lastVerifiedBatch;
