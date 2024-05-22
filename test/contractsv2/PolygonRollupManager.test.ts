@@ -360,6 +360,21 @@ describe("Polygon Rollup Manager", () => {
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
+        // ChainId greater than 31 bits
+        await expect(
+            rollupManagerContract
+                .connect(admin)
+                .createNewRollup(
+                    newRollupTypeID,
+                    4294967296, // 2**32
+                    admin.address,
+                    trustedSequencer.address,
+                    gasTokenAddress,
+                    urlSequencer,
+                    networkName
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDOutOfRange");
+
         // UNexisting rollupType
         await expect(
             rollupManagerContract
@@ -1090,6 +1105,21 @@ describe("Polygon Rollup Manager", () => {
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
+         // ChainId greater than 31 bits
+         await expect(
+            rollupManagerContract
+                .connect(admin)
+                .createNewRollup(
+                    newRollupTypeID,
+                    4294967296, // 2**32
+                    admin.address,
+                    trustedSequencer.address,
+                    gasTokenAddress,
+                    urlSequencer,
+                    networkName
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDOutOfRange");
+
         // Unexisting rollupType
         await expect(
             rollupManagerContract
@@ -1670,7 +1700,22 @@ describe("Polygon Rollup Manager", () => {
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
-        // UNexisting rollupType
+          // ChainId greater than 31 bits
+          await expect(
+            rollupManagerContract
+                .connect(admin)
+                .createNewRollup(
+                    newRollupTypeID,
+                    4294967296, // 2**32
+                    admin.address,
+                    trustedSequencer.address,
+                    gasTokenAddress,
+                    urlSequencer,
+                    networkName
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDOutOfRange");
+
+        // Unexisting rollupType
         await expect(
             rollupManagerContract
                 .connect(admin)
@@ -2757,6 +2802,18 @@ describe("Polygon Rollup Manager", () => {
                 rollupCompatibilityID
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
+
+        // ChainId greater than 31 bits
+        await expect(
+            rollupManagerContract.connect(timelock).addExistingRollup(
+                PolygonZKEVMV2Contract.target,
+                verifierContract.target,
+                forkID,
+                4294967296, // 2**32
+                genesisRandom,
+                rollupCompatibilityID
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDOutOfRange");
 
         await expect(
             rollupManagerContract
