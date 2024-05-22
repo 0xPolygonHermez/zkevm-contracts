@@ -86,7 +86,6 @@ contract PolygonZkEVMGlobalExitRootV2 is
             // Store L1InfoRoot
             l1InfoRootMap[uint32(depositCount)] = currentL1InfoRoot;
 
-
             emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot,
