@@ -664,6 +664,11 @@ contract PolygonRollupManager is
             revert ChainIDAlreadyExist();
         }
 
+        // check chainID max value
+        // Currently we have this limitation by the circuit, might be removed in a future
+        if (chainID > type(uint32).max) {
+            revert ChainIDOutOfRange();
+        }
         // Check if rollup address was already added
         if (rollupAddressToID[address(rollupAddress)] != 0) {
             revert RollupAddressAlreadyExist();
