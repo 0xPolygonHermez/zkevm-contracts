@@ -382,7 +382,8 @@ describe("PolygonZkEVMEtrog", () => {
         expect(tx.nonce).to.be.equal(0);
         expect(tx.chainId).to.be.equal(0);
 
-        const expectedAccInputHash = calculateAccInputHashetrog(
+        // calculate accINputHash
+        const initExpectedAccInputHash = calculateAccInputHashetrog(
             ethers.ZeroHash,
             ethers.keccak256(transaction),
             await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot(),
@@ -390,9 +391,7 @@ describe("PolygonZkEVMEtrog", () => {
             trustedSequencer.address,
             blockCreatedRollup?.parentHash
         );
-
-        // calculate accINputHash
-        expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash);
+        expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(initExpectedAccInputHash);
 
         // try verify batches
         const l2txData = "0x123456";
@@ -411,9 +410,68 @@ describe("PolygonZkEVMEtrog", () => {
         ).to.emit(polTokenContract, "Approval");
 
         // Sequence Batches
-        const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const indexL1InfoRoot = 0; // No bridges in sequence
+        const indexL1InfoRoot = 1;
+        // Do one bridge to have first leaf of l1InfoTree with value
+        const depositCount = await polygonZkEVMBridgeContract.depositCount();
+        const originNetwork = networkIDMainnet;
+        const originAddress = deployer.address;
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDRollup;
+        const destinationAddress = deployer.address;
+        const tokenName = "Matic Token";
+        const tokenSymbol = "MATIC";
+        const decimals = 18;
+        const metadataToken = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["string", "string", "uint8"],
+            [tokenName, tokenSymbol, decimals]
+        );
+        const metadata = metadataToken;
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
 
+        // create a new deposit
+        await expect(polTokenContract.approve(polygonZkEVMBridgeContract.target, amount))
+            .to.emit(polTokenContract, "Approval")
+            .withArgs(deployer.address, polygonZkEVMBridgeContract.target, amount);
+
+        // pre compute root merkle tree in Js
+        const height = 32;
+        const merkleTree = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_ASSET,
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+        merkleTree.add(leafValue);
+
+        await expect(
+            polygonZkEVMBridgeContract.bridgeMessage(destinationNetwork, destinationAddress, true, metadata, {
+                value: amount,
+            })
+        )
+            .to.emit(polygonZkEVMBridgeContract, "BridgeEvent")
+            .withArgs(
+                LEAF_TYPE_MESSAGE,
+                originNetwork,
+                originAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                depositCount
+            );
+        const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
+        const expectedAccInputHash = calculateAccInputHashetrog(
+            await PolygonZKEVMV2Contract.lastAccInputHash(),
+            ethers.keccak256(l2txData),
+            await polygonZkEVMGlobalExitRoot.getRoot(),
+            currentTime + 10,
+            trustedSequencer.address,
+            ethers.ZeroHash
+        );
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
@@ -427,7 +485,7 @@ describe("PolygonZkEVMEtrog", () => {
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
-                1,
+                5,
                 currentTime + 10,
                 expectedAccInputHash,
                 trustedSequencer.address
@@ -439,7 +497,7 @@ describe("PolygonZkEVMEtrog", () => {
                 [sequence],
                 indexL1InfoRoot,
                 currentTime + 10,
-                expectedAccInputHash,
+                ethers.keccak256(ethers.ZeroHash), // Random expectedAccInputHash
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "FinalAccInputHashDoesNotMatch");
@@ -518,7 +576,7 @@ describe("PolygonZkEVMEtrog", () => {
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForcedDataDoesNotMatch");
 
         const expectedAccInputHash2 = calculateAccInputHashetrog(
-            expectedAccInputHash,
+            await PolygonZKEVMV2Contract.lastAccInputHash(),
             ethers.keccak256(l2txData),
             await polygonZkEVMGlobalExitRoot.l1InfoRootMap(indexL1InfoRoot),
             currentTime,
