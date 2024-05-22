@@ -580,12 +580,13 @@ describe("PolygonZkEVMEtrog", () => {
 
         // Sequence Batches
         const currentLastBatchSequenced = 1;
-
+        const indexL1InfoRoot = 0; // No bridges in sequence
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
                 0,
-                currentLastBatchSequenced,
+                indexL1InfoRoot,
+                expectedAccInputHash,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceWithDataAvailabilityNotAllowed");
@@ -603,7 +604,8 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
                 currentTime + 38,
-                currentLastBatchSequenced,
+                indexL1InfoRoot,
+                expectedAccInputHash,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "MaxTimestampSequenceInvalid");
@@ -612,7 +614,8 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.sequenceBatches(
                 [sequence],
                 currentTime,
-                currentLastBatchSequenced,
+                indexL1InfoRoot,
+                expectedAccInputHash,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "OnlyTrustedSequencer");
@@ -621,7 +624,8 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [],
                 currentTime,
-                currentLastBatchSequenced,
+                indexL1InfoRoot,
+                expectedAccInputHash,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "SequenceZeroBatches");
@@ -637,7 +641,8 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 hugeBatchArray,
                 currentTime,
-                currentLastBatchSequenced,
+                indexL1InfoRoot,
+                expectedAccInputHash,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ExceedMaxVerifyBatches");
@@ -654,7 +659,8 @@ describe("PolygonZkEVMEtrog", () => {
                     },
                 ],
                 currentTime,
-                currentLastBatchSequenced,
+                indexL1InfoRoot,
+                expectedAccInputHash,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "TransactionsLengthAboveMax");
@@ -671,30 +677,31 @@ describe("PolygonZkEVMEtrog", () => {
                     },
                 ],
                 currentTime,
-                currentLastBatchSequenced,
+                indexL1InfoRoot,
+                expectedAccInputHash,
                 trustedSequencer.address
             )
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "ForcedDataDoesNotMatch");
 
+        const expectedAccInputHash2 = calculateAccInputHashetrog(
+            expectedAccInputHash,
+            ethers.keccak256(l2txData),
+            ethers.ZeroHash,
+            currentTime,
+            trustedSequencer.address,
+            ethers.ZeroHash
+        );
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
                 currentTime,
-                currentLastBatchSequenced,
+                indexL1InfoRoot,
+                expectedAccInputHash2,
                 trustedSequencer.address
             )
         ).to.emit(PolygonZKEVMV2Contract, "SequenceBatches");
 
         const currentTimestampSequenced = (await ethers.provider.getBlock("latest"))?.timestamp;
-
-        const expectedAccInputHash2 = calculateAccInputHashetrog(
-            expectedAccInputHash,
-            ethers.keccak256(l2txData),
-            await polygonZkEVMGlobalExitRoot.getRoot(),
-            currentTime,
-            trustedSequencer.address,
-            ethers.ZeroHash
-        );
 
         // calcualte accINputHash
         expect(await PolygonZKEVMV2Contract.lastAccInputHash()).to.be.equal(expectedAccInputHash2);
