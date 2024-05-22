@@ -19,7 +19,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
     // Rollup manager contract address
     address public immutable rollupManager;
-    
+
     mapping(uint32 depositCount => bytes32 l1InfoRoot) public l1InfoRootMap;
 
     /**
