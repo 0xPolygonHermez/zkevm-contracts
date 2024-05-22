@@ -19,4 +19,10 @@ interface IPolygonRollupBase {
     ) external;
 
     function admin() external returns (address);
+
+    function rollbackBatches(
+        uint64 batchToRollback,
+        bytes32 accInputHashToRollback
+    ) external;
+
 }

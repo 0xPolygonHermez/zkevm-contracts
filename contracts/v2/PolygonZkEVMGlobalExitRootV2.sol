@@ -19,13 +19,16 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
     // Rollup manager contract address
     address public immutable rollupManager;
+    
+    mapping(uint32 depositCount => bytes32 l1InfoRoot) public l1InfoRootMap;
 
     /**
      * @dev Emitted when the global exit root is updated
      */
     event UpdateL1InfoTree(
         bytes32 indexed mainnetExitRoot,
-        bytes32 indexed rollupExitRoot
+        bytes32 indexed rollupExitRoot,
+        bytes32 currentL1InfoRoot
     );
 
     /**
@@ -77,9 +80,17 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 )
             );
 
+            // Get the current historic root
+            bytes32 currentL1InfoRoot = getRoot();
+
+            // Store L1InfoRoot
+            l1InfoRootMap[uint32(depositCount)] = currentL1InfoRoot;
+
+
             emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
-                cacheLastRollupExitRoot
+                cacheLastRollupExitRoot,
+                currentL1InfoRoot
             );
         }
     }

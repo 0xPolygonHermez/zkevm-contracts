@@ -322,6 +322,16 @@ contract PolygonRollupManager is
         address aggregator
     );
 
+  /**
+     * @dev Emitted when an aggregator verifies batches
+     */
+    event RollbackBatches(
+        uint32 indexed rollupID,
+        uint64 indexed batchToRollback,
+        bytes32 accInputHashToRollback
+    );
+    
+
     /**
      * @dev Emitted when is updated the trusted aggregator timeout
      */
@@ -816,6 +826,61 @@ contract PolygonRollupManager is
         );
 
         emit UpdateRollup(rollupID, newRollupTypeID, lastVerifiedBatch);
+    }
+
+
+/**
+     * @notice Rollback batches of the target rollup
+     * @param rollupContract Rollup consensus proxy address
+     * @param batchToRollback Batch to rollback
+     */
+    function rollbackBatches(
+        IPolygonRollupBase rollupContract,
+        uint64 batchToRollback
+    ) external onlyRole(_UPDATE_ROLLUP_ROLE) {
+        // Check the rollup exists
+        uint32 rollupID = rollupAddressToID[address(rollupContract)];
+        if (rollupID == 0) {
+            revert RollupMustExist();
+        }
+
+        RollupData storage rollup = rollupIDToRollupData[rollupID];
+
+        uint64 lastBatchSequenced = rollup.lastBatchSequenced;
+
+
+        // Sequence to rollback should already sequenced
+        if (
+            batchToRollback >= lastBatchSequenced
+        ) {
+            revert();
+        }
+
+        uint64 currentBatch = lastBatchSequenced;
+
+        // delete sequences
+        while (currentBatch != batchToRollback) {
+            // Load previous end of sequence batch
+            currentBatch = rollup
+                .sequencedBatches[currentBatch].previousLastBatchSequenced;
+            
+            // If batch to rollback was not end of sequence revert
+            if(currentBatch < batchToRollback) {
+                revert();
+            }
+
+            // delete sequence information
+            delete rollup
+                .sequencedBatches[currentBatch];
+        }
+
+        // Update totalSequencedBatches
+        totalSequencedBatches -= lastBatchSequenced - batchToRollback;
+
+        // Callback the consensus contract
+        rollupContract.rollbackBatches(batchToRollback, rollup.sequencedBatches[batchToRollback].accInputHash);
+
+        emit RollbackBatches(rollupID, batchToRollback, rollup.sequencedBatches[batchToRollback].accInputHash);
     }
 
     /////////////////////////////////////
