@@ -322,7 +322,7 @@ contract PolygonRollupManager is
         address aggregator
     );
 
-  /**
+    /**
      * @dev Emitted when an aggregator verifies batches
      */
     event RollbackBatches(
@@ -330,7 +330,6 @@ contract PolygonRollupManager is
         uint64 indexed batchToRollback,
         bytes32 accInputHashToRollback
     );
-    
 
     /**
      * @dev Emitted when is updated the trusted aggregator timeout
@@ -722,6 +721,12 @@ contract PolygonRollupManager is
         );
     }
 
+    /**
+     * @notice Upgrade an existing rollup from the rollup admin address
+     * This address is able to udpate the rollup with more restrictions that the _UPDATE_ROLLUP_ROLE
+     * @param rollupContract Rollup consensus proxy address
+     * @param newRollupTypeID New rolluptypeID to upgrade to
+     */
     function updateRollupByRollupAdmin(
         ITransparentUpgradeableProxy rollupContract,
         uint32 newRollupTypeID
@@ -828,8 +833,7 @@ contract PolygonRollupManager is
         emit UpdateRollup(rollupID, newRollupTypeID, lastVerifiedBatch);
     }
 
-
-/**
+    /**
      * @notice Rollback batches of the target rollup
      * @param rollupContract Rollup consensus proxy address
      * @param batchToRollback Batch to rollback
@@ -844,16 +848,13 @@ contract PolygonRollupManager is
             revert RollupMustExist();
         }
 
+        // Load rollup
         RollupData storage rollup = rollupIDToRollupData[rollupID];
-
         uint64 lastBatchSequenced = rollup.lastBatchSequenced;
 
-
         // Sequence to rollback should already sequenced
-        if (
-            batchToRollback >= lastBatchSequenced
-        ) {
-            revert();
+        if (batchToRollback >= lastBatchSequenced) {
+            revert RollbackBatchIsNotSequenced();
         }
 
         uint64 currentBatch = lastBatchSequenced;
@@ -862,25 +863,32 @@ contract PolygonRollupManager is
         while (currentBatch != batchToRollback) {
             // Load previous end of sequence batch
             currentBatch = rollup
-                .sequencedBatches[currentBatch].previousLastBatchSequenced;
-            
+                .sequencedBatches[currentBatch]
+                .previousLastBatchSequenced;
+
             // If batch to rollback was not end of sequence revert
-            if(currentBatch < batchToRollback) {
-                revert();
+            if (currentBatch < batchToRollback) {
+                revert RollbackBatchIsNotEndOfSequence();
             }
 
             // delete sequence information
-            delete rollup
-                .sequencedBatches[currentBatch];
+            delete rollup.sequencedBatches[currentBatch];
         }
 
         // Update totalSequencedBatches
         totalSequencedBatches -= lastBatchSequenced - batchToRollback;
 
         // Callback the consensus contract
-        rollupContract.rollbackBatches(batchToRollback, rollup.sequencedBatches[batchToRollback].accInputHash);
+        rollupContract.rollbackBatches(
+            batchToRollback,
+            rollup.sequencedBatches[batchToRollback].accInputHash
+        );
 
-        emit RollbackBatches(rollupID, batchToRollback, rollup.sequencedBatches[batchToRollback].accInputHash);
+        emit RollbackBatches(
+            rollupID,
+            batchToRollback,
+            rollup.sequencedBatches[batchToRollback].accInputHash
+        );
     }
 
     /////////////////////////////////////

@@ -244,7 +244,17 @@ interface IPolygonRollupManager {
     error UpdateToOldRollupTypeID();
 
     /**
-     * @dev ALl batches must be verified before the upgrade
+     * @dev All batches must be verified before the upgrade
      */
     error AllBatchesMustBeVerified();
+
+    /**
+     * @dev Rollback batch is not sequenced
+     */
+    error RollbackBatchIsNotSequenced();
+
+    /**
+     * @dev Rollback batch is not the end of any sequence
+     */
+    error RollbackBatchIsNotEndOfSequence();
 }
