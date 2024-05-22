@@ -77,7 +77,7 @@ describe("Polygon Globlal exit root v2", () => {
         )) as PolygonZkEVMGlobalExitRootV2;
     });
 
-    it("should check the initalized parameters", async () => {
+    it("should check the initialized parameters", async () => {
         expect(await polygonZkEVMGlobalExitRootV2.bridgeAddress()).to.be.equal(bridge.address);
         expect(await polygonZkEVMGlobalExitRootV2.rollupManager()).to.be.equal(rollupManager.address);
         expect(polygonZkEVMGlobalExitRoot.rollupAddress()).to.be.reverted;
