@@ -234,6 +234,7 @@ abstract contract PolygonRollupBaseEtrog is
         bytes32 stateRoot,
         address indexed aggregator
     );
+
     /**
      * @dev Emitted when a aggregator verifies batches
      */
