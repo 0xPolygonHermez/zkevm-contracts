@@ -880,6 +880,9 @@ contract PolygonRollupManager is
             delete rollup.sequencedBatches[currentBatch];
         }
 
+        // Update last batch sequenced on rollup data
+        rollup.lastBatchSequenced = batchToRollback;
+
         // Update totalSequencedBatches
         totalSequencedBatches -= lastBatchSequenced - batchToRollback;
 
