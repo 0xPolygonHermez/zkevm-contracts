@@ -43,4 +43,14 @@ interface IPolygonZkEVMVEtrogErrors is IPolygonZkEVMErrors {
      * @dev Thrown when the try to update the force batch address once is set to address(0)
      */
     error ForceBatchesDecentralized();
+
+    /**
+     * @dev Thrown when the last sequenced batch nmber does not match the init sequeced batch number
+     */
+    error InitSequencedBatchDoesNotMatch();
+
+    /**
+     * @dev Thrown when the max timestamp is out of range
+     */
+    error MaxTimestampSequenceInvalid();
 }

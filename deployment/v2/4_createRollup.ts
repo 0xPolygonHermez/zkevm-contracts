@@ -135,7 +135,7 @@ async function main() {
     // Load Rollup manager
     const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager", deployer);
     const rollupManagerContract = PolgonRollupManagerFactory.attach(
-        deployOutput.polygonRollupManager
+        deployOutput.polygonRollupManagerAddress
     ) as PolygonRollupManager;
 
     const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
@@ -178,7 +178,7 @@ async function main() {
         deployOutput.polygonZkEVMGlobalExitRootAddress,
         deployOutput.polTokenAddress,
         deployOutput.polygonZkEVMBridgeAddress,
-        deployOutput.polygonRollupManager
+        deployOutput.polygonRollupManagerAddress
     );
     await PolygonconsensusContract.waitForDeployment();
 
@@ -293,7 +293,7 @@ async function main() {
             await (await polygonDataCommittee?.transferOwnership(adminZkEVM)).wait();
         }
 
-        outputJson.polygonDataCommittee = polygonDataCommittee?.target;
+        outputJson.polygonDataCommitteeAddress = polygonDataCommittee?.target;
     }
 
     // Assert admin address
@@ -329,7 +329,7 @@ async function main() {
 
     outputJson.firstBatchData = batchData;
     outputJson.genesis = genesis.root;
-    outputJson.createRollupBlock = blockDeploymentRollup.number;
+    outputJson.createRollupBlockNumber = blockDeploymentRollup.number;
     outputJson.rollupAddress = newZKEVMAddress;
     outputJson.verifierAddress = verifierContract.target;
     outputJson.consensusContract = consensusContract;

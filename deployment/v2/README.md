@@ -55,15 +55,15 @@ A new folder will be created witth the following name `deployments/${network}_$(
 
 ## deploy-parameters.json
 
--   `test` : bool, Indicate if it's a test deployment, which will fund the deployer address with pre minted ether and will give more powers to the deployer address to make easier the flow.
+-   `test`: bool, Indicate if it's a test deployment, which will fund the deployer address with pre minted ether and will give more powers to the deployer address to make easier the flow.
 -   `timelockAdminAddress`: address, Timelock owner address, able to send start an upgradability process via timelock
 -   `minDelayTimelock`: number, Minimum timelock delay,
 -   `salt`: bytes32, Salt used in `PolygonZkEVMDeployer` to deploy deterministic contracts, such as the PolygonZkEVMBridge
 -   `initialZkEVMDeployerOwner`: address, Initial owner of the `PolygonZkEVMDeployer`
--   `admin`:address, Admin address, can adjust RollupManager parameters or stop the emergency state
--   `trustedAggregator`:address, Trusted aggregator address
+-   `admin`: address, Admin address, can adjust RollupManager parameters or stop the emergency state
+-   `trustedAggregator`: address, Trusted aggregator address
 -   `trustedAggregatorTimeout`: uint64, If a sequence is not verified in this timeout everyone can verify it
--   `pendingStateTimeout`: uint64, Once a pending state exceeds this timeout it can be consolidated
+-   `pendingStateTimeout`: uint64, Once a pending state exceeds this timeout it can be consolidated by everyone
 -   `emergencyCouncilAddress`:address, Emergency council addres
 -   `polTokenAddress`: address, Matic token address, only if deploy on testnet can be left blank and will fullfilled by the scripts.
 -   `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:goerli` script.
@@ -73,19 +73,19 @@ A new folder will be created witth the following name `deployments/${network}_$(
 -   `realVerifier`: bool, Indicates whether deploy a real verifier or not for the new created
 -   `trustedSequencerURL`: string, trustedSequencer URL
 -   `networkName`: string, networkName
--   `description`:string, Description of the new rollup type
+-   `description`: string, Description of the new rollup type
 -   `trustedSequencer`: address, trusted sequencer addresss
 -   `chainID`: uint64, chainID of the new rollup
--   `adminZkEVM`:address, Admin address, can adjust Rollup parameters
+-   `adminZkEVM`: address, Admin address, can adjust Rollup parameters
 -   `forkID`: uint64, Fork ID of the new rollup, indicates the prover (zkROM/executor) version
--   `consensusContract`: string, Consensus contract name of the new rollup deployed, current options are: "PolygonZkEVMEtrog","PolygonZkEVMV2","PolygonDataComittee", "PolygonDataComitteeEtrog",
--   `gasTokenAddress`:address, Gas token address, empty or address(0) for ether
+-   `consensusContract`: string, Consensus contract name of the new rollup deployed, current options are: "PolygonZkEVMEtrog","PolygonValidiumEtrog",
+-   `gasTokenAddress`: address, Gas token address, empty or address(0) for ether
 
 ### Optional Parameters on both parameters
 
 -   `deployerPvtKey`: string, pvtKey of the deployer, overrides the address in `MNEMONIC` of `.env` if exist
--   `maxFeePerGas`:string, Set `maxFeePerGas`, must define aswell `maxPriorityFeePerGas` to use it
--   `maxPriorityFeePerGas`:string, Set `maxPriorityFeePerGas`, must define aswell `maxFeePerGas` to use it
+-   `maxFeePerGas`: string, Set `maxFeePerGas`, must define aswell `maxPriorityFeePerGas` to use it
+-   `maxPriorityFeePerGas`: string, Set `maxPriorityFeePerGas`, must define aswell `maxFeePerGas` to use it
 -   `multiplierGas`: number, Gas multiplier with 3 decimals. If `maxFeePerGas` and `maxPriorityFeePerGas` are set, this will not take effect
 -   `dataAvailabilityProtocol`: string, Data availability protocol, only mandatory/used when consensus contract is a Validiums, currently the only supported value is: `PolygonDataCommittee`
 

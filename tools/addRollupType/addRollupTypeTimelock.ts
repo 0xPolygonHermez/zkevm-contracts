@@ -54,8 +54,9 @@ async function main() {
     } = addRollupParameters;
 
     const salt = addRollupParameters.timelockSalt || ethers.ZeroHash;
+    const predecessor = addRollupParameters.predecessor || ethers.ZeroHash;
 
-    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
+    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog", "PolygonValidiumStorageMigration"];
 
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
@@ -115,28 +116,38 @@ async function main() {
     // Create consensus implementation
     const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
     let PolygonconsensusContract;
+    let PolygonconsensusContractAddress;
 
-    PolygonconsensusContract = await PolygonconsensusFactory.deploy(
-        polygonZkEVMGlobalExitRootAddress,
-        polTokenAddress,
-        polygonZkEVMBridgeAddress,
-        polygonRollupManagerAddress
-    );
-    await PolygonconsensusContract.waitForDeployment();
+    if (
+        addRollupParameters.polygonconsensusContract === undefined ||
+        addRollupParameters.polygonconsensusContract === ""
+    ) {
+        PolygonconsensusContract = await PolygonconsensusFactory.deploy(
+            polygonZkEVMGlobalExitRootAddress,
+            polTokenAddress,
+            polygonZkEVMBridgeAddress,
+            polygonRollupManagerAddress
+        );
+        await PolygonconsensusContract.waitForDeployment();
 
-    console.log("#######################\n");
-    console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContract.target}`);
+        PolygonconsensusContractAddress = PolygonconsensusContract.target;
 
-    console.log("you can verify the new impl address with:");
-    console.log(
-        `npx hardhat verify --constructor-args upgrade/arguments.js ${PolygonconsensusContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
-    );
-    console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
-        polygonZkEVMGlobalExitRootAddress,
-        polTokenAddress,
-        polygonZkEVMBridgeAddress,
-        polygonRollupManagerAddress,
-    ]);
+        console.log("#######################\n");
+        console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContractAddress}`);
+
+        console.log("you can verify the new impl address with:");
+        console.log(
+            `npx hardhat verify --constructor-args upgrade/arguments.js ${PolygonconsensusContractAddress} --network ${process.env.HARDHAT_NETWORK}\n`
+        );
+        console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
+            polygonZkEVMGlobalExitRootAddress,
+            polTokenAddress,
+            polygonZkEVMBridgeAddress,
+            polygonRollupManagerAddress,
+        ]);
+    } else {
+        PolygonconsensusContractAddress = addRollupParameters.polygonconsensusContract;
+    }
 
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
@@ -145,14 +156,14 @@ async function main() {
         polygonRollupManagerAddress,
         0, // value
         PolgonRollupManagerFactory.interface.encodeFunctionData("addNewRollupType", [
-            PolygonconsensusContract.target,
+            PolygonconsensusContractAddress,
             verifierAddress,
             forkID,
             rollupCompatibilityID,
             genesis.root,
             description,
         ]),
-        ethers.ZeroHash, // predecesoor
+        predecessor, // predecessor
         salt // salt
     );
 
@@ -182,6 +193,36 @@ async function main() {
     outputJson.consensusContract = consensusContract;
     outputJson.scheduleData = scheduleData;
     outputJson.executeData = executeData;
+    outputJson.id = operation.id;
+
+    // Decode the scheduleData for better readibility
+    const timelockTx = timelockContractFactory.interface.parseTransaction({data: scheduleData});
+    const paramsArray = timelockTx?.fragment.inputs;
+    const objectDecoded = {};
+
+    for (let i = 0; i < paramsArray?.length; i++) {
+        const currentParam = paramsArray[i];
+
+        objectDecoded[currentParam.name] = timelockTx?.args[i];
+
+        if (currentParam.name == "data") {
+            const decodedRollupManagerData = PolgonRollupManagerFactory.interface.parseTransaction({
+                data: timelockTx?.args[i],
+            });
+            const objectDecodedData = {};
+            const paramsArrayData = decodedRollupManagerData?.fragment.inputs;
+
+            for (let j = 0; j < paramsArrayData?.length; j++) {
+                const currentParam = paramsArrayData[j];
+                objectDecodedData[currentParam.name] = decodedRollupManagerData?.args[j];
+            }
+            objectDecoded["decodedData"] = objectDecodedData;
+        }
+    }
+
+    outputJson.decodedScheduleData = objectDecoded;
+
+    // Decode the schedule data to better readibiltiy:
 
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
@@ -193,10 +234,11 @@ main().catch((e) => {
 
 // OZ test functions
 function genOperation(target: any, value: any, data: any, predecessor: any, salt: any) {
-    const id = ethers.solidityPackedKeccak256(
+    const abiEncoded = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address", "uint256", "bytes", "uint256", "bytes32"],
         [target, value, data, predecessor, salt]
     );
+    const id = ethers.keccak256(abiEncoded);
     return {
         id,
         target,

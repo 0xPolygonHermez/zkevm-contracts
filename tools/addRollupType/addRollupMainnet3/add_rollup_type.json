@@ -1,0 +1,19 @@
+{
+    "consensusContract": "PolygonValidiumStorageMigration",
+    "polygonRollupManagerAddress": "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2",
+    "polygonZkEVMBridgeAddress": "0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe",
+    "polygonZkEVMGlobalExitRootAddress": "0x580bda1e7A0CFAe92Fa7F6c20A3794F169CE3CFb",
+    "polTokenAddress": "0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6",
+    "verifierAddress": "0x4AaBBA26EA9E7A7fbD052d17a167e6aE3F8eC7Be",
+    "description": "Type: Validium, Version: incaberry, genesis: /ipfs/QmUXnRoPbUmZuEZCGyiHjEsoNcFVu3hLtSvhpnfBS2mAYU",
+    "forkID": 8,
+    "rollupCompatibilityID": 0,
+    "timelockDelay": 864000,
+    "predecessor": "0x8bae5e2a8aaf4501e263b917591e7fcf9b1d28c85962a8847a845aff916b50ad",
+    "gasTokenAddress": "",
+    "timelockSalt": "",
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": ""
+}
