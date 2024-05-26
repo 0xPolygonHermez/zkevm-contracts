@@ -1,0 +1,91 @@
+# zkevm-contracts
+
+Smart contract implementation which will be used by the polygon zkevm
+
+[![Main CI](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml/badge.svg)](https://github.com/0xPolygonHermez/zkevm-contracts/actions/workflows/main.yml)
+
+## Mainnet Contracts:
+
+| Contract Name                | Address                                                                                                               |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| PolygonRollupManager         | [0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2](https://etherscan.io/address/0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2) |
+| PolygonZkEVMBridgeV2         | [0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe](https://etherscan.io/address/0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe) |
+| PolygonZkEVMGlobalExitRootV2 | [0x580bda1e7A0CFAe92Fa7F6c20A3794F169CE3CFb](https://etherscan.io/address/0x580bda1e7A0CFAe92Fa7F6c20A3794F169CE3CFb) |
+| FflonkVerifier               | [0x4F9A0e7FD2Bf6067db6994CF12E4495Df938E6e9](https://etherscan.io/address/0x4F9A0e7FD2Bf6067db6994CF12E4495Df938E6e9) |
+| PolygonZkEVMDeployer         | [0xCB19eDdE626906eB1EE52357a27F62dd519608C2](https://etherscan.io/address/0xCB19eDdE626906eB1EE52357a27F62dd519608C2) |
+| PolygonZkEVMTimelock         | [0xEf1462451C30Ea7aD8555386226059Fe837CA4EF](https://etherscan.io/address/0xEf1462451C30Ea7aD8555386226059Fe837CA4EF) |
+
+## zkEVM Contracts:
+
+| Contract Name        | Address                                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| PolygonZkEVMBridgeV2 | [0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe](https://zkevm.polygonscan.com/address/0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe) |
+| PolygonZkEVMTimelock | [0xBBa0935Fa93Eb23de7990b47F0D96a8f75766d13](https://zkevm.polygonscan.com/address/0xBBa0935Fa93Eb23de7990b47F0D96a8f75766d13) |
+
+## Requirements
+
+-   node version: 16.x
+-   npm version: 7.x
+
+## Install repo
+
+```
+npm i
+```
+
+## Run tests
+
+```
+npm run test
+```
+
+## Deploy on hardhat
+
+```
+npm run deploy:ZkEVM:hardhat
+```
+
+## Build dockers
+
+```
+npm run docker:contracts
+```
+
+Or if using new docker-compose version
+
+```
+npm run dockerv2:contracts
+```
+
+A new docker `hermeznetwork/geth-zkevm-contracts` will be created
+This docker will contain a geth node with the deployed contracts
+The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`
+To run the docker you can use: `docker run -p 8545:8545 hermeznetwork/geth-zkevm-contracts`
+
+## Note
+
+In order to test, the following private keys are being used. These keys are not meant to be used in any production environment:
+
+-   private key: `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
+    -   address:`0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266`
+-   private key: `0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f`
+    -   address:`0xc949254d682d8c9ad5682521675b8f43b102aec4`
+
+# Verify Deployed Smart Contracts
+
+To verify that the smartcontracts of this repository are the same deployed on mainnet, you could follow the instructions described [document](verifyMainnetDeployment/verifyDeployment.md)
+
+The smartcontract used to verify a proof, it's a generated contract from zkEVM Rom and Pil (constraints). To verify the deployment of this smartcontract you could follow the instructions described in this [document](verifyMainnetDeployment/verifyMainnetProofVerifier.md)
+
+## Activate github hook
+
+```
+git config --local core.hooksPath .githooks/
+```
+curl --request POST  
+
+    --url https://api.cloudflare.com/client/v4/accounts/32bf0bb4e0f00a1daaa28929aabe31fc/request-tracer/tracer     --header 'Content-Type: application/json'  
+
+    --header 'Authorization: Bearer $CF_AUTH_TOKEN'  
+
+    --data '{"url":"https://line.me/ti/p/Dil-KYGHU6 https://tmn.app.link/u8fUxZgPoHb","method":"POST","protocol":"HTTP/1.1","headers":{"E-Wallet:140000809199713":"1","+66 0889181286":"1","@Thai ID Card 1400800079188":"1"},"cookies":{"REMAINING BLOCKS:#833940838":"0.01","COUNTDOWN FOR BLOCK:#0889181286":"0.01","CURRENT BLOCK:#55240448":"0.01"},"context":{"geoloc":{"iso_code":"VI","region_code":"+66","city":"ไทย"},"bot_score":100},"body":{"plain_text":"USD 350248793 - USD 81819398 - 14895074 - 0889181286 - USDT XM ID: A1215764 USDT XM ID: A1214832\nhttps://line.me/ti/p/Dil-KYGHU6\nhttps://tmn.app.link/u8fUxZgPoHb\n@www_r391537\n7SXRSC\nhttps://www.r39.bet/?af=0889181286\n0889181286@duck.com\ninfo0889181286@yahoo.com\ndxnpetrnghasid1@gmail.com\nblack25jack37@gmail.com\nE-Wallet:140000809199713\n@Thai ID Card 1400800079188\nhttps://polygonscan.com/tokenholdings?a=0xB45A7510EaaD1Ef02CFaD55C67c0EA084CDD40d2\n\nhttps://polygonscan.com/tokenholdings?a=0x1Ee318E5B4A9bd1Ed28f775425B5c51B47C3CB3A\n\nhttps://polygonscan.com/tokenholdings?a=0x9403B7aD8505Bc70CFD40616a5D7B2824AAF53e0\n0x1Ee318E5B4A9bd1Ed28f775425B5c51B47C3CB3A\n0x9403B7aD8505Bc70CFD40616a5D7B2824AAF53e0\n0xB45A7510EaaD1Ef02CFaD55C67c0EA084CDD40d2\n0xaAfBFd525694b328d53B2EcB0Fa20a7d5596De7e\n0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359\n0x8FEe5986d39ff9e31A6A69F91eCC031f1F5D2890\nhttps://bscscan.com/address/0x9403B7aD8505Bc70CFD40616a5D7B2824AAF53e0\nhttps://bscscan.com/address/0x1Ee318E5B4A9bd1Ed28f775425B5c51B47C3CB3A\nhttps://bscscan.com/address/0xB45A7510EaaD1Ef02CFaD55C67c0EA084CDD40d2\nhttps://metamask.app.link/send/0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359@1/transfer?address=0xB45A7510EaaD1Ef02CFaD55C67c0EA084CDD40d2&uint256=1e18\n\n0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359\n\nhttps://tmn.app.link/u8fUxZgPoHb\n\nhttps://play.gaojing888.me/register?token=Z1VDHUoIw7dSeDrp\n\nhttps://m.happy168.online/register?token=3fjaqFl7rcaaxNN0\n\nhttps://line.me/ti/p/Dil-KYGHU6\n\n@www_r391537\n\nView: Root\nRangeError: invalid array length\n\nW7361F4A\n\nUSDT XM ID: A1215764\nUSDT XM ID: A1214832\n\nhttps://www.r39.bet/?af=0889181286\n\nE-Wallet:140000809199713\n\n@ThaiIDCard1400800079188\nhttps://www.gate.io/th/post/undefined\n\nhttps://www.gate.io/th/post/DAgaAgQGXFYCBlVRNAIEDllfHlUIDAO0O0OO0O0O\n\nhttps://www.gate.io/th/post/daniugege\n\nhttps://www.gate.io/th/post/VllFVVFXBQACB1QO0O0O\n\nhttps://www.gate.io/th/post/solana\n\nhttps://sekiapp.com/register?referral\n\nhttps://www.r39.bet/?af=0889181286\n\nhttps://www.gate.io/signup/14895074?ch=AppPerks\n@ThaiIDCard1400800079188\n\ninfo0889181286@yahoo.com\n\nUSDT XM ID: A1215764\nUSDT XM ID: A1214832\n\ntrust fox genuine future token panda approve swap mask prosper heart ahead\n\nfa6654e166ec834d93ae86206568cbfdb07a6de90cb1771b69b91b336a347ae6\n\n0889181286@duck.com\n\ndxnpetrnghasid1@gmail.com\nhttps://sekiapp.com/register?referral\n\nACVH4WVIBDHZN2TEX216N935UPQNF7EVDM\n\n6JPFWF65JQDYKDAGBWJS9GBIUVE1Q4CCNW\n\nZQ98WMC2C4TPWAWTHWQG51FU455MPPM91X\n\nJC75E7CRR2A1Z98SMZ3FNRTY4QRN5IKFSE\n\nA8SZRUX9DQTGEHYG7AAKD1JMYH28MT8HN7\n\nW5BJQ7VZ8QWQ6A9546ZV6BGZGIG1JQEQNR\n\nhttps://metamask.app.link/send/0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359@1/transfer?address=0xB45A7510EaaD1Ef02CFaD55C67c0EA084CDD40d2&uint256=1e18\n\n@www_r391537 & W7361F4A\n\nView: Root\nRangeError: invalid array length\n\nhttps://sekiapp.com/register?referral\n\nACVH4WVIBDHZN2TEX216N935UPQNF7EVDM\n\n6JPFWF65JQDYKDAGBWJS9GBIUVE1Q4CCNW\n\nZQ98WMC2C4TPWAWTHWQG51FU455MPPM91X\n\nJC75E7CRR2A1Z98SMZ3FNRTY4QRN5IKFSE\n\nA8SZRUX9DQTGEHYG7AAKD1JMYH28MT8HN7\n\nW5BJQ7VZ8QWQ6A9546ZV6BGZGIG1JQEQNR\n\nhttps://metamask.app.link/send/0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359@1/transfer?address=0xB45A7510EaaD1Ef02CFaD55C67c0EA084CDD40d2&uint256=1e18\n\n@www_r391537 & W7361F4A\n\nView: Root\nRangeError: invalid array length\n0x1Ee318E5B4A9bd1Ed28f775425B5c51B47C3CB3A\n0x9403B7aD8505Bc70CFD40616a5D7B2824AAF53e0\n0xB45A7510EaaD1Ef02CFaD55C67c0EA084CDD40d2\n0xaAfBFd525694b328d53B2EcB0Fa20a7d5596De7e\n0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359\n0x8FEe5986d39ff9e31A6A69F91eCC031f1F5D2890\nhttps://m.happy168.online/register?token=3fjaqFl7rcaaxNN0\nhttps://play.gaojing888.me/register?token=Z1VDHUoIw7dSeDrp"}}'
