@@ -54,7 +54,7 @@ Verify merkle proof
     uint32 index
   ) public returns (bytes32)
 ```
-calcualte root from merkle proof
+calculate root from merkle proof
 
 
 #### Parameters:
