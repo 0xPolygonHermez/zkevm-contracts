@@ -6,13 +6,15 @@ import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "./lib/PolygonZkEVMGlobalExitRootBaseStorage.sol";
 import "../lib/GlobalExitRootLib.sol";
 import "./lib/DepositContractBase.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
 contract PolygonZkEVMGlobalExitRootV2 is
     PolygonZkEVMGlobalExitRootBaseStorage,
-    DepositContractBase
+    DepositContractBase,
+    Initializable
 {
     // PolygonZkEVMBridge address
     address public immutable bridgeAddress;
@@ -32,12 +34,33 @@ contract PolygonZkEVMGlobalExitRootV2 is
     );
 
     /**
+     * @dev Emitted when the global exit root manager starts adding leafs to the L1InfoRootMap
+     */
+    event InitL1InfoRootMap(uint32 depositCount, bytes32 currentL1InfoRoot);
+
+    /**
      * @param _rollupManager Rollup manager contract address
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
     constructor(address _rollupManager, address _bridgeAddress) {
         rollupManager = _rollupManager;
         bridgeAddress = _bridgeAddress;
+
+        // disable initializers
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Reset the deposit tree since will be replace by a recursive one
+     */
+    function initialize() external virtual initializer {
+        // Get the current historic root
+        bytes32 currentL1InfoRoot = getRoot();
+
+        // Store L1InfoRoot
+        l1InfoRootMap[uint32(depositCount)] = currentL1InfoRoot;
+
+        emit InitL1InfoRootMap(uint32(depositCount), currentL1InfoRoot);
     }
 
     /**
@@ -85,7 +108,6 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
             // Store L1InfoRoot
             l1InfoRootMap[uint32(depositCount)] = currentL1InfoRoot;
-
 
             emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
