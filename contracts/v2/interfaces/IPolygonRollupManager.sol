@@ -251,7 +251,7 @@ interface IPolygonRollupManager {
     /**
      * @dev Rollback batch is not sequenced
      */
-    error RollbackBatchIsNotSequenced();
+    error RollbackBatchIsNotValid();
 
     /**
      * @dev Rollback batch is not the end of any sequence

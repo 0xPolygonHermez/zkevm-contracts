@@ -402,9 +402,9 @@ abstract contract PolygonRollupBaseEtrog is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param indexL1InfoRoot Index of the L1InfoRoot that will be used in this sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-     * @param indexL1InfoRoot Index of the L1InfoRoot that will be used in this sequence
      * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
@@ -412,8 +412,8 @@ abstract contract PolygonRollupBaseEtrog is
      */
     function sequenceBatches(
         BatchData[] calldata batches,
-        uint64 maxSequenceTimestamp,
         uint32 indexL1InfoRoot,
+        uint64 maxSequenceTimestamp,
         bytes32 expectedFinalAccInputHash,
         address l2Coinbase
     ) public virtual onlyTrustedSequencer {

@@ -77,9 +77,10 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param indexL1InfoRoot Index of the L1InfoRoot that will be used in this sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-     * @param initSequencedBatch This parameter must match the current last batch sequenced.
+     * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * @param dataAvailabilityMessage Byte array containing the signatures and all the addresses of the committee in ascending order
@@ -89,8 +90,9 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
      */
     function sequenceBatchesValidium(
         ValidiumBatchData[] calldata batches,
+        uint32 indexL1InfoRoot,
         uint64 maxSequenceTimestamp,
-        uint64 initSequencedBatch,
+        bytes32 expectedFinalAccInputHash,
         address l2Coinbase,
         bytes calldata dataAvailabilityMessage
     ) external onlyTrustedSequencer {
@@ -114,7 +116,13 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         bridgeAddress.updateGlobalExitRoot();
 
         // Get global batch variables
-        bytes32 l1InfoRoot = globalExitRootManager.getRoot();
+        bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
+            indexL1InfoRoot
+        );
+
+        if (l1InfoRoot == bytes32(0)) {
+            revert L1InfoRootIndexInvalid();
+        }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
@@ -239,32 +247,30 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
             currentAccInputHash
         );
 
-        // Check init sequenced batch
-        if (
-            initSequencedBatch != (currentBatchSequenced - uint64(batchesNum))
-        ) {
-            revert InitSequencedBatchDoesNotMatch();
+        // Check init sequenced blob
+        if (currentAccInputHash != expectedFinalAccInputHash) {
+            revert FinalAccInputHashDoesNotMatch();
         }
 
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
     }
 
-      /**
+    /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
+     * @param indexL1InfoRoot Index of the L1InfoRoot that will be used in this sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-     * @param indexL1InfoRoot Index of the L1InfoRoot that will be used in this sequence
-     * @param finalAccInputHash This parameter must match the acc input hash after hash all the batch data
+     * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * note Pol is not a reentrant token
      */
     function sequenceBatches(
-       BatchData[] calldata batches,
-        uint64 maxSequenceTimestamp,
+        BatchData[] calldata batches,
         uint32 indexL1InfoRoot,
-        bytes32 finalAccInputHash,
+        uint64 maxSequenceTimestamp,
+        bytes32 expectedFinalAccInputHash,
         address l2Coinbase
     ) public override {
         if (!isSequenceWithDataAvailabilityAllowed) {
@@ -272,9 +278,9 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         }
         super.sequenceBatches(
             batches,
-            maxSequenceTimestamp,
             indexL1InfoRoot,
-            finalAccInputHash,
+            maxSequenceTimestamp,
+            expectedFinalAccInputHash,
             l2Coinbase
         );
     }
