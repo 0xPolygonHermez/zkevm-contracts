@@ -379,115 +379,6 @@ contract PolygonRollupManager is
         _disableInitializers();
     }
 
-    /**
-     * @param trustedAggregator Trusted aggregator address
-     * @param _pendingStateTimeout Pending state timeout
-     * @param _trustedAggregatorTimeout Trusted aggregator timeout
-     * @param admin Admin of the rollup manager
-     * @param timelock Timelock address
-     * @param emergencyCouncil Emergency council address
-     * @param polygonZkEVM New deployed Polygon zkEVM which will be initialized wiht previous values
-     * @param zkEVMVerifier Verifier of the new zkEVM deployed
-     * @param zkEVMForkID Fork id of the new zkEVM deployed
-     * @param zkEVMChainID Chain id of the new zkEVM deployed
-     */
-    function initialize(
-        address trustedAggregator,
-        uint64 _pendingStateTimeout,
-        uint64 _trustedAggregatorTimeout,
-        address admin,
-        address timelock,
-        address emergencyCouncil,
-        PolygonZkEVMExistentEtrog polygonZkEVM,
-        IVerifierRollup zkEVMVerifier,
-        uint64 zkEVMForkID,
-        uint64 zkEVMChainID
-    ) external virtual reinitializer(2) {
-        pendingStateTimeout = _pendingStateTimeout;
-        trustedAggregatorTimeout = _trustedAggregatorTimeout;
-
-        // Constant deployment variables
-        _batchFee = 0.1 ether; // 0.1 POL
-        verifyBatchTimeTarget = 30 minutes;
-        multiplierBatchFee = 1002;
-
-        // Initialize OZ contracts
-        __AccessControl_init();
-
-        // setup roles
-
-        // trusted aggregator role
-        _setupRole(_TRUSTED_AGGREGATOR_ROLE, trustedAggregator);
-
-        // Timelock roles
-        _setupRole(DEFAULT_ADMIN_ROLE, timelock);
-        _setupRole(_ADD_ROLLUP_TYPE_ROLE, timelock);
-        _setupRole(_ADD_EXISTING_ROLLUP_ROLE, timelock);
-
-        // note even this role can only update to an already added verifier/consensus
-        // Could break the compatibility of them, changing the virtual state
-        _setupRole(_UPDATE_ROLLUP_ROLE, timelock);
-
-        // admin roles
-        _setupRole(_OBSOLETE_ROLLUP_TYPE_ROLE, admin);
-        _setupRole(_CREATE_ROLLUP_ROLE, admin);
-        _setupRole(_STOP_EMERGENCY_ROLE, admin);
-        _setupRole(_TWEAK_PARAMETERS_ROLE, admin);
-
-        // admin should be able to update the trusted aggregator address
-        _setRoleAdmin(_TRUSTED_AGGREGATOR_ROLE, _TRUSTED_AGGREGATOR_ROLE_ADMIN);
-        _setupRole(_TRUSTED_AGGREGATOR_ROLE_ADMIN, admin);
-        _setupRole(_SET_FEE_ROLE, admin);
-
-        // Emergency council roles
-        _setRoleAdmin(_EMERGENCY_COUNCIL_ROLE, _EMERGENCY_COUNCIL_ADMIN);
-        _setupRole(_EMERGENCY_COUNCIL_ROLE, emergencyCouncil);
-        _setupRole(_EMERGENCY_COUNCIL_ADMIN, emergencyCouncil);
-
-        // Check last verified batch
-        uint64 zkEVMLastBatchSequenced = _legacylastBatchSequenced;
-        uint64 zkEVMLastVerifiedBatch = _legacyLastVerifiedBatch;
-        if (zkEVMLastBatchSequenced != zkEVMLastVerifiedBatch) {
-            revert AllzkEVMSequencedBatchesMustBeVerified();
-        }
-
-        // Initialize current zkEVM
-        RollupData storage currentZkEVM = _addExistingRollup(
-            IPolygonRollupBase(polygonZkEVM),
-            zkEVMVerifier,
-            zkEVMForkID,
-            zkEVMChainID,
-            0 // Rollup compatibility ID is 0
-        );
-
-        // Copy variables from legacy
-        currentZkEVM.batchNumToStateRoot[
-            zkEVMLastVerifiedBatch
-        ] = _legacyBatchNumToStateRoot[zkEVMLastVerifiedBatch];
-
-        // note previousLastBatchSequenced of the SequencedBatchData will be inconsistent,
-        // since there will not be a previous sequence stored in the sequence mapping.
-        // However since lastVerifiedBatch is equal to the lastBatchSequenced
-        // won't affect in any case
-        currentZkEVM.sequencedBatches[
-            zkEVMLastBatchSequenced
-        ] = _legacySequencedBatches[zkEVMLastBatchSequenced];
-
-        currentZkEVM.lastBatchSequenced = zkEVMLastBatchSequenced;
-        currentZkEVM.lastVerifiedBatch = zkEVMLastVerifiedBatch;
-        currentZkEVM.lastVerifiedBatchBeforeUpgrade = zkEVMLastVerifiedBatch;
-        // rollupType and rollupCompatibilityID will be both 0
-
-        // Initialize polygon zkevm
-        polygonZkEVM.initializeUpgrade(
-            _legacyAdmin,
-            _legacyTrustedSequencer,
-            _legacyTrustedSequencerURL,
-            _legacyNetworkName,
-            _legacySequencedBatches[zkEVMLastBatchSequenced].accInputHash
-        );
-    }
-
     ///////////////////////////////////////
     // Rollups management functions
     ///////////////////////////////////////
@@ -858,8 +749,11 @@ contract PolygonRollupManager is
         uint64 lastBatchSequenced = rollup.lastBatchSequenced;
 
         // Batch to rollback should be already sequenced
-        if (batchToRollback >= lastBatchSequenced) {
-            revert RollbackBatchIsNotSequenced();
+        if (
+            batchToRollback >= lastBatchSequenced ||
+            batchToRollback < rollup.lastVerifiedBatch
+        ) {
+            revert RollbackBatchIsNotValid();
         }
 
         uint64 currentBatch = lastBatchSequenced;

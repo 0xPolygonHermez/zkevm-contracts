@@ -603,8 +603,8 @@ describe("PolygonZkEVMEtrog", () => {
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
-                currentTime + 38,
                 indexL1InfoRoot,
+                currentTime + 38,
                 expectedAccInputHash,
                 trustedSequencer.address
             )
@@ -613,8 +613,8 @@ describe("PolygonZkEVMEtrog", () => {
         await expect(
             PolygonZKEVMV2Contract.sequenceBatches(
                 [sequence],
-                currentTime,
                 indexL1InfoRoot,
+                currentTime,
                 expectedAccInputHash,
                 trustedSequencer.address
             )
@@ -623,8 +623,8 @@ describe("PolygonZkEVMEtrog", () => {
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [],
-                currentTime,
                 indexL1InfoRoot,
+                currentTime,
                 expectedAccInputHash,
                 trustedSequencer.address
             )
