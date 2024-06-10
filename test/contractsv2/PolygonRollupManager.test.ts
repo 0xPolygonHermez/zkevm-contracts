@@ -370,6 +370,21 @@ describe("Polygon Rollup Manager", () => {
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDOutOfRange");
 
+        // UNexisting rollupType: other branch
+        await expect(
+            rollupManagerContract
+                .connect(admin)
+                .createNewRollup(
+                    999999999,
+                    chainID,
+                    admin.address,
+                    trustedSequencer.address,
+                    gasTokenAddress,
+                    urlSequencer,
+                    networkName
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
+
         // UNexisting rollupType
         await expect(
             rollupManagerContract
