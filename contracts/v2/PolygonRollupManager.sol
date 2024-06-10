@@ -323,7 +323,7 @@ contract PolygonRollupManager is
     );
 
     /**
-     * @dev Emitted when an aggregator verifies batches
+     * @dev Emitted when rollback batches
      */
     event RollbackBatches(
         uint32 indexed rollupID,
