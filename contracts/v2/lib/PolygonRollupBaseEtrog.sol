@@ -559,7 +559,7 @@ abstract contract PolygonRollupBaseEtrog is
             currentAccInputHash
         );
 
-        // Check init sequenced blob
+        // Check expectedFinalAccInputHash
         if (currentAccInputHash != expectedFinalAccInputHash) {
             revert FinalAccInputHashDoesNotMatch();
         }

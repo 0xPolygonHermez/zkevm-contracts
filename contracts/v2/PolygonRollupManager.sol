@@ -737,7 +737,15 @@ contract PolygonRollupManager is
     function rollbackBatches(
         IPolygonRollupBase rollupContract,
         uint64 batchToRollback
-    ) external onlyRole(_UPDATE_ROLLUP_ROLE) {
+    ) external {
+        // Check msg.sender has _UPDATE_ROLLUP_ROLE rol or is the admin of the network
+        if (
+            !hasRole(_UPDATE_ROLLUP_ROLE, msg.sender) &&
+            IPolygonRollupBase(address(rollupContract)).admin() != msg.sender
+        ) {
+            revert NotAllowedAddress();
+        }
+
         // Check the rollup exists
         uint32 rollupID = rollupAddressToID[address(rollupContract)];
         if (rollupID == 0) {

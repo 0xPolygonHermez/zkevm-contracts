@@ -257,4 +257,9 @@ interface IPolygonRollupManager {
      * @dev Rollback batch is not the end of any sequence
      */
     error RollbackBatchIsNotEndOfSequence();
+
+    /**
+     * @dev rollbackBatches is called from a non authorized address
+     */
+    error NotAllowedAddress();
 }
