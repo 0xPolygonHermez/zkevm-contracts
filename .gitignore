@@ -22,3 +22,22 @@ typechain-types/
 create_rollup_parameters.json
 
 docker/deploymentOutput
+
+# From foundry-template:
+
+/target
+/out
+/cache
+/coverage
+lcov.info
+.DS_Store
+.env
+.vscode
+.password
+
+broadcast/*/31337
+deployments/**/31337.*
+
+# storage layout checker library
+storage_check_cache
+storage_check_report
