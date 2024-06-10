@@ -247,7 +247,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
             currentAccInputHash
         );
 
-        // Check init sequenced blob
+        // Check expectedFinalAccInputHash
         if (currentAccInputHash != expectedFinalAccInputHash) {
             revert FinalAccInputHashDoesNotMatch();
         }
