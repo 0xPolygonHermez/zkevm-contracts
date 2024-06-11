@@ -4,7 +4,7 @@ out = "out"
 libs = ["lib"]
 optimizer = true
 optimizer_runs = 999999
-via_ir = true
+#via_ir = true
 verbosity = 2
 ffi = true
 
