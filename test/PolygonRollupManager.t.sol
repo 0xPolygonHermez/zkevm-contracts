@@ -10,10 +10,23 @@ import "contracts/v2/PolygonZkEVMBridgeV2.sol";
 import "contracts/mocks/ERC20PermitMock.sol";
 
 import "contracts/mocks/VerifierRollupHelperMock.sol";
+import "contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol";
 
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
+    struct CreateNewRollupEvent {
+        uint32 rollupID;
+        CreateNewRollupEventData data;
+    }
+
+    struct CreateNewRollupEventData {
+        uint32 rollupTypeID;
+        address rollupAddress;
+        uint64 chainID;
+        address gasTokenAddress;
+    }
+
     // todo change to PolygonRollupManager
     PolygonRollupManagerMock internal rollupManager;
     PolygonZkEVMGlobalExitRootV2 internal globalExitRoot;
@@ -23,13 +36,15 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
 
     // todo change to IVerifierRollup
     VerifierRollupHelperMock internal verifier;
+    PolygonZkEVMEtrog internal zkEvm;
 
     address internal trustedAggregator = makeAddr("trustedAggregator");
+    address internal trustedSequencer = makeAddr("trustedAggregator");
     address internal admin = makeAddr("admin");
     address internal timelock = makeAddr("timelock");
     address internal emergencyCouncil = makeAddr("emergencyCouncil");
 
-    // note mimics beforeEach from PolygonRollupManager.tests.ts
+    // note mimics beforeEach "Deploy contract" from PolygonRollupManager.tests.ts
     function setUp() public {
         // BRIDGE
         bridge = new PolygonZkEVMBridgeV2();
@@ -70,6 +85,12 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         );
 
         // OTHER
+        zkEvm = new PolygonZkEVMEtrog(
+            globalExitRoot,
+            IERC20Upgradeable(address(token)),
+            bridge,
+            rollupManager
+        );
         verifier = new VerifierRollupHelperMock();
 
         // INITIALIZATION
@@ -92,16 +113,64 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     }
 
     function testRevert_updateRollupByRollupAdmin_OnlyRollupAdmin() public {
-        address rollupContractAddr;
-        vm.mockCall(
-            rollupContractAddr,
-            abi.encodePacked(IPolygonRollupBase.admin.selector),
-            abi.encode(makeAddr("not msg.sender"))
-        );
+        CreateNewRollupEvent memory createNewRollupEvent = _createNewRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
         vm.expectRevert(OnlyRollupAdmin.selector);
-        rollupManager.updateRollupByRollupAdmin(
-            ITransparentUpgradeableProxy(rollupContractAddr),
-            0
+        rollupManager.updateRollupByRollupAdmin(rollupContract, 0);
+    }
+
+    function testRevert_updateRollupByRollupAdmin_AllSequencedMustBeVerified()
+        public
+    {
+        CreateNewRollupEvent memory createNewRollupEvent = _createNewRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        vm.prank(address(rollupContract));
+        rollupManager.onSequenceBatches(1, "");
+        vm.expectRevert(AllSequencedMustBeVerified.selector);
+        vm.prank(admin);
+        rollupManager.updateRollupByRollupAdmin(rollupContract, 0);
+    }
+
+    // note mimics it "should check full flow etrog" from PolygonRollupManager.tests.ts
+    function _createNewRollup()
+        internal
+        returns (CreateNewRollupEvent memory createNewRollupEvent)
+    {
+        // ADD ROLLUP TYPE
+        vm.prank(timelock);
+        rollupManager.addNewRollupType(
+            address(zkEvm),
+            verifier,
+            0,
+            0,
+            bytes32(uint256(1)),
+            "zkEVM test"
+        );
+
+        // CREATE ROLLUP
+        vm.recordLogs();
+        vm.prank(admin);
+        rollupManager.createNewRollup(
+            1,
+            1000,
+            admin,
+            trustedSequencer,
+            address(0),
+            "http://zkevm-json-rpc:8123",
+            "zkEVM"
+        );
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        CreateNewRollupEventData memory createNewRollupEventData = abi.decode(
+            logs[2].data,
+            (CreateNewRollupEventData)
+        );
+        createNewRollupEvent = CreateNewRollupEvent(
+            uint32(uint256(logs[2].topics[1])),
+            createNewRollupEventData
         );
     }
 
