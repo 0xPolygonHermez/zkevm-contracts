@@ -925,6 +925,7 @@ describe("Polygon Rollup Manager", () => {
         expect(await newZkEVMContract.lastAccInputHash()).to.be.equal(expectedAccInputHash3);
 
         await snapshot3.restore();
+
         // sequence force batches
 
         const timestampForceBatch = (await ethers.provider.getBlock("latest"))?.timestamp as any;
@@ -1010,10 +1011,15 @@ describe("Polygon Rollup Manager", () => {
             rollupManagerContract.connect(admin).rollbackBatches(newZkEVMContract.target, 3)
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollbackBatchIsNotValid");
 
-        // last sequenced batch
+        // compare accINputHash
+        expect(await newZkEVMContract.lastAccInputHash()).not.to.be.equal(expectedAccInputHash2);
+
         await expect(rollupManagerContract.connect(admin).rollbackBatches(newZkEVMContract.target, 2))
             .to.emit(rollupManagerContract, "RollbackBatches")
             .withArgs(newCreatedRollupID, 2, expectedAccInputHash2);
+
+        // compare accINputHash
+        expect(await newZkEVMContract.lastAccInputHash()).to.be.equal(expectedAccInputHash2);
 
         await expect(newZkEVMContract.connect(deployer).acceptAdminRole())
             .to.emit(newZkEVMContract, "AcceptAdminRole")
