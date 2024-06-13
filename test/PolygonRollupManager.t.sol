@@ -28,6 +28,9 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         address gasTokenAddress;
     }
 
+    mapping(string functionName => mapping(string snapshotName => uint256 snapshotId))
+        private snapshot;
+
     // todo change to PolygonRollupManager
     PolygonRollupManagerMock internal rollupManager;
     PolygonZkEVMGlobalExitRootV2 internal globalExitRoot;
@@ -45,6 +48,12 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     address internal timelock = makeAddr("timelock");
     address internal emergencyCouncil = makeAddr("emergencyCouncil");
     address internal beneficiary = makeAddr("beneficiary");
+
+    event UpdateRollup(
+        uint32 indexed rollupID,
+        uint32 newRollupTypeID,
+        uint64 lastVerifiedBatchBeforeUpgrade
+    );
 
     // note mimics beforeEach "Deploy contract"
     function setUp() public {
@@ -115,7 +124,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     }
 
     function testRevert_updateRollupByRollupAdmin_OnlyRollupAdmin() public {
-        CreateNewRollupEvent memory createNewRollupEvent = _createNewRollup();
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
         ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
                 createNewRollupEvent.data.rollupAddress
             );
@@ -126,7 +135,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     function testRevert_updateRollupByRollupAdmin_AllSequencedMustBeVerified()
         public
     {
-        CreateNewRollupEvent memory createNewRollupEvent = _createNewRollup();
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
         ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
                 createNewRollupEvent.data.rollupAddress
             );
@@ -140,7 +149,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     function testRevert_updateRollupByRollupAdmin_UpdateToOldRollupTypeID()
         public
     {
-        CreateNewRollupEvent memory createNewRollupEvent = _createNewRollup();
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
         ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
                 createNewRollupEvent.data.rollupAddress
             );
@@ -152,7 +161,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     function testRevert_updateRollupByRollupAdmin_RollupTypeDoesNotExist_NonZero()
         public
     {
-        CreateNewRollupEvent memory createNewRollupEvent = _createNewRollup();
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
         ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
                 createNewRollupEvent.data.rollupAddress
             );
@@ -166,7 +175,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     }
 
     function testRevert_updateRollupByRollupAdmin_RollupMustExist() public {
-        _createNewRollup();
+        _createRollup();
         ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
                 makeAddr("not rollup")
             );
@@ -179,8 +188,78 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         rollupManager.updateRollupByRollupAdmin(rollupContract, 1);
     }
 
+    function testRevert_updateRollupByRollupAdmin_RollupTypeObsolete() public {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        _addSecondRollupType(zkEvm, verifier, 1);
+        vm.prank(admin);
+        rollupManager.obsoleteRollupType(2);
+        vm.expectRevert(RollupTypeObsolete.selector);
+        vm.prank(admin);
+        rollupManager.updateRollupByRollupAdmin(rollupContract, 2);
+    }
+
+    function testRevert_updateRollupByRollupAdmin_UpdateNotCompatible() public {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        _addSecondRollupType(zkEvm, verifier, 2);
+        vm.expectRevert(UpdateNotCompatible.selector);
+        vm.prank(admin);
+        rollupManager.updateRollupByRollupAdmin(rollupContract, 2);
+    }
+
+    // @note didn't hit CannotUpdateWithUnconsolidatedPendingState from updateRollupByRollupAdmin
+
+    function test_updateRollupByRollupAdmin() public {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        PolygonZkEVMEtrog zkEvm2 = new PolygonZkEVMEtrog(
+            globalExitRoot,
+            IERC20Upgradeable(address(token)),
+            bridge,
+            rollupManager
+        );
+        VerifierRollupHelperMock verifier2 = new VerifierRollupHelperMock();
+        _addSecondRollupType(zkEvm2, verifier2, 1);
+        vm.expectCall(
+            address(rollupContract),
+            abi.encodeCall(
+                rollupContract.upgradeToAndCall,
+                (address(zkEvm2), "")
+            )
+        );
+        vm.expectEmit();
+        emit UpdateRollup(createNewRollupEvent.rollupID, 2, 1);
+        vm.prank(admin);
+        rollupManager.updateRollupByRollupAdmin(rollupContract, 2);
+        (
+            ,
+            ,
+            IVerifierRollup verifier_,
+            uint64 forkID,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            uint64 lastVerifiedBatchBeforeUpgrade,
+            uint64 rollupTypeID
+        ) = rollupManager.rollupIDToRollupData(createNewRollupEvent.rollupID);
+        assertEq(address(verifier_), address(verifier2));
+        assertEq(forkID, 2);
+        assertEq(rollupTypeID, 1);
+        assertEq(lastVerifiedBatchBeforeUpgrade, 2);
+    }
+
     function testRevert_updateRollup_RollupTypeDoesNotExist_Zero() public {
-        CreateNewRollupEvent memory createNewRollupEvent = _createNewRollup();
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
         ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
                 createNewRollupEvent.data.rollupAddress
             );
@@ -190,7 +269,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     }
 
     function testRevert_updateRollup_RollupTypeDoesNotExist_NonZero() public {
-        CreateNewRollupEvent memory createNewRollupEvent = _createNewRollup();
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
         ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
                 createNewRollupEvent.data.rollupAddress
             );
@@ -201,7 +280,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     }
 
     function testRevert_updateRollup_RollupMustExist() public {
-        _createNewRollup();
+        _createRollup();
         ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
                 makeAddr("not rollup")
             );
@@ -215,8 +294,121 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         rollupManager.updateRollup(rollupContract, 1, "");
     }
 
+    function testRevert_updateRollup_UpdateToSameRollupTypeID() public {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        vm.expectRevert(UpdateToSameRollupTypeID.selector);
+        vm.prank(timelock);
+        rollupManager.updateRollup(
+            rollupContract,
+            createNewRollupEvent.data.rollupTypeID,
+            ""
+        );
+    }
+
+    function testRevert_updateRollup_RollupTypeObsolete() public {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        _addSecondRollupType(zkEvm, verifier, 1);
+        vm.prank(admin);
+        rollupManager.obsoleteRollupType(2);
+        vm.expectRevert(RollupTypeObsolete.selector);
+        vm.prank(timelock);
+        rollupManager.updateRollup(rollupContract, 2, "");
+    }
+
+    function testRevert_updateRollup_UpdateNotCompatible() public {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        _addSecondRollupType(zkEvm, verifier, 2);
+        vm.expectRevert(UpdateNotCompatible.selector);
+        vm.prank(timelock);
+        rollupManager.updateRollup(rollupContract, 2, "");
+    }
+
+    function test_updateRollup_CannotUpdateWithUnconsolidatedPendingState()
+        public
+    {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        vm.revertTo(
+            snapshot["_createRollup"]["before verifyBatchesTrustedAggregator"]
+        );
+        vm.warp(99999999);
+        bytes32[24] memory proof;
+        rollupManager.verifyBatches(
+            1,
+            0,
+            0,
+            1,
+            0xbc02d42b4cf5e49efd5b4d51ff4d4f4981128a48d603e2f73be9338a4fb09fb4,
+            0x0000000000000000000000000000000000000000000000000000000000000123,
+            beneficiary,
+            proof
+        );
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        _addSecondRollupType(zkEvm, verifier, 1);
+        vm.expectRevert(CannotUpdateWithUnconsolidatedPendingState.selector);
+        vm.prank(timelock);
+        rollupManager.updateRollup(rollupContract, 2, "");
+    }
+
+    function test_updateRollup() public {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        PolygonZkEVMEtrog zkEvm2 = new PolygonZkEVMEtrog(
+            globalExitRoot,
+            IERC20Upgradeable(address(token)),
+            bridge,
+            rollupManager
+        );
+        VerifierRollupHelperMock verifier2 = new VerifierRollupHelperMock();
+        _addSecondRollupType(zkEvm2, verifier2, 1);
+        bytes memory data = abi.encodePacked(
+            zkEvm2.calculatePolPerForceBatch.selector
+        );
+        vm.expectCall(
+            address(rollupContract),
+            abi.encodeCall(
+                rollupContract.upgradeToAndCall,
+                (address(zkEvm2), data)
+            )
+        );
+        vm.expectEmit();
+        emit UpdateRollup(createNewRollupEvent.rollupID, 2, 1);
+        vm.prank(timelock);
+        rollupManager.updateRollup(rollupContract, 2, data);
+        (
+            ,
+            ,
+            IVerifierRollup verifier_,
+            uint64 forkID,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            uint64 lastVerifiedBatchBeforeUpgrade,
+            uint64 rollupTypeID
+        ) = rollupManager.rollupIDToRollupData(createNewRollupEvent.rollupID);
+        assertEq(address(verifier_), address(verifier2));
+        assertEq(forkID, 2);
+        assertEq(rollupTypeID, 1);
+        assertEq(lastVerifiedBatchBeforeUpgrade, 2);
+    }
+
     // note mimics it "should check full flow etrog"
-    function _createNewRollup()
+    function _createRollup()
         internal
         returns (CreateNewRollupEvent memory createNewRollupEvent)
     {
@@ -225,8 +417,8 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         rollupManager.addNewRollupType(
             address(zkEvm),
             verifier,
-            0,
-            0,
+            1,
+            1,
             bytes32(uint256(1)),
             "zkEVM test"
         );
@@ -253,6 +445,9 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
             createNewRollupEventData
         );
 
+        snapshot["_createRollup"]["before verifyBatchesTrustedAggregator"] = vm
+            .snapshot();
+
         // VERIFY BATCH
         bytes32[24] memory proof;
         vm.prank(trustedAggregator);
@@ -265,6 +460,22 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
             0x0000000000000000000000000000000000000000000000000000000000000123,
             beneficiary,
             proof
+        );
+    }
+
+    function _addSecondRollupType(
+        PolygonZkEVMEtrog zkEvm_,
+        VerifierRollupHelperMock verifier_,
+        uint8 rollupCompatibilityID
+    ) internal {
+        vm.prank(timelock);
+        rollupManager.addNewRollupType(
+            address(zkEvm_),
+            verifier_,
+            2,
+            rollupCompatibilityID,
+            bytes32(uint256(2)),
+            "zkEVM test 2"
         );
     }
 
