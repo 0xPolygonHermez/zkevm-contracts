@@ -245,7 +245,7 @@ describe("Polygon Rollup manager upgraded", () => {
         });
     });
 
-    it("Cannot initialzie again", async () => {
+    it("Cannot initialize again", async () => {
         await expect(
             rollupManagerContract.initialize(
                 trustedAggregator.address,
