@@ -42,7 +42,7 @@ function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any,
         [newGlobalExitRoot, lastBlockHash, timestamp]
     );
 }
-describe("Polygon Globlal exit root v2", () => {
+describe("Polygon Global exit root v2", () => {
     let deployer: any;
     let rollupManager: any;
     let bridge: any;
