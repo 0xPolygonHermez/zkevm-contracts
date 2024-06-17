@@ -239,7 +239,7 @@ abstract contract PolygonRollupBaseEtrog is
      * @dev Emitted when a aggregator verifies batches
      */
     event RollbackBatches(
-        uint64 indexed batchToRollback,
+        uint64 indexed targetBatch,
         bytes32 accInputHashToRollback
     );
 
@@ -583,17 +583,17 @@ abstract contract PolygonRollupBaseEtrog is
 
     /**
      * @notice Callback on rollback batches, can only be called by the rollup manager
-     * @param batchToRollback Batch to rollback
+     * @param targetBatch Batch to rollback up to but not including this batch
      * @param accInputHashToRollback Acc input hash to rollback
      */
     function rollbackBatches(
-        uint64 batchToRollback,
+        uint64 targetBatch,
         bytes32 accInputHashToRollback
     ) public virtual override onlyRollupManager {
         // Rollback the accumulated input hash
         lastAccInputHash = accInputHashToRollback;
 
-        emit RollbackBatches(batchToRollback, accInputHashToRollback);
+        emit RollbackBatches(targetBatch, accInputHashToRollback);
     }
 
     ////////////////////////////

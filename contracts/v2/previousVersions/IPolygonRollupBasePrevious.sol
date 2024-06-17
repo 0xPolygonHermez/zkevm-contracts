@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-interface IPolygonRollupBase {
+interface IPolygonRollupBasePrevious {
     function initialize(
         address _admin,
         address sequencer,
@@ -19,9 +19,4 @@ interface IPolygonRollupBase {
     ) external;
 
     function admin() external returns (address);
-
-    function rollbackBatches(
-        uint64 targetBatch,
-        bytes32 accInputHashToRollback
-    ) external;
 }
