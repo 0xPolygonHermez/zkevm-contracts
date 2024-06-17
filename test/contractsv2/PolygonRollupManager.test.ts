@@ -2074,6 +2074,10 @@ describe("Polygon Rollup Manager", () => {
                 )
         ).to.be.revertedWithCustomError(rollupManagerContract, "NewAccInputHashDoesNotExist");
 
+        await expect(
+            rollupManagerContract.connect(admin).updateRollupByRollupAdmin(newZKEVMAddress, 10)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "AllSequencedMustBeVerified");
+
         // Calcualte new globalExitroot
         const merkleTreeRollups = new MerkleTreeBridge(height);
         merkleTreeRollups.add(newLocalExitRoot);
@@ -2090,6 +2094,7 @@ describe("Polygon Rollup Manager", () => {
         const merkleTreeGLobalExitRoot = new MerkleTreeBridge(height);
         merkleTreeGLobalExitRoot.add(leafValueUpdateGER2);
         const currentL1InfoRoot = merkleTreeGLobalExitRoot.getRoot();
+
         await ethers.provider.send("evm_setNextBlockTimestamp", [lastBlock2?.timestamp + 5]);
         // Verify batch
         await expect(
@@ -2302,7 +2307,9 @@ describe("Polygon Rollup Manager", () => {
         expect(createdEtrogRollupType).to.be.deep.equal(expectedEtrogRollupType);
 
         // Validate upgrade OZ
-        await upgrades.validateUpgrade(PolygonZKEVMV2Factory, PolygonZKEVMEtrogFactory, {
+        const PolygonPreviousFactory = await ethers.getContractFactory("PolygonZkEVMEtrogPrevious");
+
+        await upgrades.validateUpgrade(PolygonPreviousFactory, PolygonZKEVMEtrogFactory, {
             constructorArgs: [
                 polygonZkEVMGlobalExitRoot.target,
                 polTokenContract.target,
@@ -2322,6 +2329,15 @@ describe("Polygon Rollup Manager", () => {
                 .connect(timelock)
                 .updateRollup(polygonZkEVMGlobalExitRoot.target, etrogRollupType, "0x")
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupMustExist");
+
+        // Try update random address
+        await expect(
+            rollupManagerContract.connect(timelock).updateRollupByRollupAdmin(newZKEVMAddress, etrogRollupType)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OnlyRollupAdmin");
+
+        await expect(
+            rollupManagerContract.connect(admin).updateRollupByRollupAdmin(newZKEVMAddress, 0)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "UpdateToOldRollupTypeID");
 
         // Try update same type
         await expect(
@@ -2347,6 +2363,10 @@ describe("Polygon Rollup Manager", () => {
 
         await expect(
             rollupManagerContract.connect(timelock).updateRollup(newZKEVMAddress, etrogRollupType, "0x")
+        ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeObsolete");
+
+        await expect(
+            rollupManagerContract.connect(admin).updateRollupByRollupAdmin(newZKEVMAddress, etrogRollupType)
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeObsolete");
 
         await snapshotUpdateRollup.restore();
