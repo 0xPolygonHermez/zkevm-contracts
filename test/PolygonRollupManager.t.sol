@@ -16,6 +16,8 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 
 // note extends PolygonRollupManager.tests.ts
 contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
+    error OnlyNotEmergencyState();
+
     struct CreateNewRollupEvent {
         uint32 rollupID;
         CreateNewRollupEventData data;
@@ -405,6 +407,46 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         assertEq(forkID, 2);
         assertEq(rollupTypeID, 1);
         assertEq(lastVerifiedBatchBeforeUpgrade, 2);
+    }
+
+    function testRevert_rollbackBatches_RollupMustExist() public {
+        IPolygonRollupBase rollupContract = IPolygonRollupBase(
+            makeAddr("not rollup")
+        );
+        vm.mockCall(
+            address(rollupContract),
+            abi.encodePacked(IPolygonRollupBase.admin.selector),
+            abi.encode(address(this))
+        );
+        vm.expectRevert(RollupMustExist.selector);
+        rollupManager.rollbackBatches(rollupContract, 0);
+    }
+
+    function testRevert_rollbackBatches_RollbackBatchIsNotEndOfSequence()
+        public
+    {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        IPolygonRollupBase rollupContract = IPolygonRollupBase(
+            createNewRollupEvent.data.rollupAddress
+        );
+        vm.prank(address(rollupContract));
+        rollupManager.onSequenceBatches(2, "");
+        vm.expectRevert(RollbackBatchIsNotEndOfSequence.selector);
+        vm.prank(timelock);
+        rollupManager.rollbackBatches(rollupContract, 2);
+    }
+
+    function testRevert_onSequenceBatches_OnlyNotEmergencyState() public {
+        vm.prank(emergencyCouncil);
+        rollupManager.activateEmergencyState();
+        vm.expectRevert(OnlyNotEmergencyState.selector);
+        rollupManager.onSequenceBatches(0, "");
+    }
+
+    function testRevert_activateEmergencyState_HaltTimeoutNotExpired() public {
+        _createRollup();
+        vm.expectRevert(HaltTimeoutNotExpired.selector);
+        rollupManager.activateEmergencyState();
     }
 
     // note mimics it "should check full flow etrog"
