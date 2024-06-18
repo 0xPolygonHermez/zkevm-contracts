@@ -443,6 +443,194 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         rollupManager.onSequenceBatches(0, "");
     }
 
+    // @todo verifyBatches
+
+    function test_verifyBatchesTrustedAggregator_CleansState() public {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        vm.revertTo(
+            snapshot["_createRollup"]["before verifyBatchesTrustedAggregator"]
+        );
+        vm.warp(99999999);
+        bytes32[24] memory proof;
+        rollupManager.verifyBatches(
+            1,
+            0,
+            0,
+            1,
+            0xbc02d42b4cf5e49efd5b4d51ff4d4f4981128a48d603e2f73be9338a4fb09fb4,
+            0x0000000000000000000000000000000000000000000000000000000000000123,
+            beneficiary,
+            proof
+        );
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        vm.prank(address(rollupContract));
+        rollupManager.onSequenceBatches(1, hex"01");
+        vm.prank(address(rollupContract));
+        rollupManager.onSequenceBatches(1, hex"01");
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            uint64 lastPendingState,
+            uint64 lastPendingStateConsolidated,
+            ,
+            ,
+
+        ) = rollupManager.rollupIDToRollupData(createNewRollupEvent.rollupID);
+        assertTrue(lastPendingState != 0 || lastPendingStateConsolidated != 0);
+        vm.prank(trustedAggregator);
+        rollupManager.verifyBatchesTrustedAggregator(
+            1,
+            0,
+            0,
+            2,
+            0xbc02d42b4cf5e49efd5b4d51ff4d4f4981128a48d603e2f73be9338a4fb09fb4,
+            0x0000000000000000000000000000000000000000000000000000000000000123,
+            beneficiary,
+            proof
+        );
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            lastPendingState,
+            lastPendingStateConsolidated,
+            ,
+            ,
+
+        ) = rollupManager.rollupIDToRollupData(createNewRollupEvent.rollupID);
+        assertEq(lastPendingState, 0);
+        assertEq(lastPendingStateConsolidated, 0);
+    }
+
+    function testRevert_verifyBatchesTrustedAggregator_InitBatchMustMatchCurrentForkID()
+        public
+    {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        PolygonZkEVMEtrog zkEvm2 = new PolygonZkEVMEtrog(
+            globalExitRoot,
+            IERC20Upgradeable(address(token)),
+            bridge,
+            rollupManager
+        );
+        VerifierRollupHelperMock verifier2 = new VerifierRollupHelperMock();
+        _addSecondRollupType(zkEvm2, verifier2, 1);
+        bytes memory data = abi.encodePacked(
+            zkEvm2.calculatePolPerForceBatch.selector
+        );
+        vm.prank(timelock);
+        rollupManager.updateRollup(rollupContract, 2, data);
+        rollupManager.rollupIDToRollupData(createNewRollupEvent.rollupID);
+        bytes32[24] memory proof;
+        vm.expectRevert(InitBatchMustMatchCurrentForkID.selector);
+        vm.prank(trustedAggregator);
+        rollupManager.verifyBatchesTrustedAggregator(
+            1,
+            0,
+            0,
+            1,
+            0xbc02d42b4cf5e49efd5b4d51ff4d4f4981128a48d603e2f73be9338a4fb09fb4,
+            0x0000000000000000000000000000000000000000000000000000000000000123,
+            beneficiary,
+            proof
+        );
+    }
+
+    function testRevert_verifyBatchesTrustedAggregator_PendingStateDoesNotExist()
+        public
+    {
+        _createRollup();
+        vm.revertTo(
+            snapshot["_createRollup"]["before verifyBatchesTrustedAggregator"]
+        );
+        bytes32[24] memory proof;
+        vm.expectRevert(PendingStateDoesNotExist.selector);
+        vm.prank(trustedAggregator);
+        rollupManager.verifyBatchesTrustedAggregator(
+            1,
+            1,
+            0,
+            1,
+            0xbc02d42b4cf5e49efd5b4d51ff4d4f4981128a48d603e2f73be9338a4fb09fb4,
+            0x0000000000000000000000000000000000000000000000000000000000000123,
+            beneficiary,
+            proof
+        );
+    }
+
+    function testRevert_verifyBatchesTrustedAggregator_InitNumBatchDoesNotMatchPendingState()
+        public
+    {
+        CreateNewRollupEvent memory createNewRollupEvent = _createRollup();
+        vm.revertTo(
+            snapshot["_createRollup"]["before verifyBatchesTrustedAggregator"]
+        );
+        vm.warp(99999999);
+        bytes32[24] memory proof;
+        rollupManager.verifyBatches(
+            1,
+            0,
+            0,
+            1,
+            0xbc02d42b4cf5e49efd5b4d51ff4d4f4981128a48d603e2f73be9338a4fb09fb4,
+            0x0000000000000000000000000000000000000000000000000000000000000123,
+            beneficiary,
+            proof
+        );
+        ITransparentUpgradeableProxy rollupContract = ITransparentUpgradeableProxy(
+                createNewRollupEvent.data.rollupAddress
+            );
+        vm.prank(address(rollupContract));
+        rollupManager.onSequenceBatches(1, hex"01");
+        vm.prank(address(rollupContract));
+        rollupManager.onSequenceBatches(1, hex"01");
+        rollupManager.rollupIDToRollupData(createNewRollupEvent.rollupID);
+        vm.expectRevert(InitNumBatchDoesNotMatchPendingState.selector);
+        vm.prank(trustedAggregator);
+        rollupManager.verifyBatchesTrustedAggregator(
+            1,
+            1,
+            0,
+            1,
+            0xbc02d42b4cf5e49efd5b4d51ff4d4f4981128a48d603e2f73be9338a4fb09fb4,
+            0x0000000000000000000000000000000000000000000000000000000000000123,
+            beneficiary,
+            proof
+        );
+    }
+
+    function testRevert_verifyBatchesTrustedAggregator_OldStateRootDoesNotExist()
+        public
+    {
+        _createRollup();
+        bytes32[24] memory proof;
+        vm.expectRevert(OldStateRootDoesNotExist.selector);
+        vm.prank(trustedAggregator);
+        rollupManager.verifyBatchesTrustedAggregator(
+            1,
+            0,
+            999999999,
+            1,
+            0xbc02d42b4cf5e49efd5b4d51ff4d4f4981128a48d603e2f73be9338a4fb09fb4,
+            0x0000000000000000000000000000000000000000000000000000000000000123,
+            beneficiary,
+            proof
+        );
+    }
+
     function testRevert_activateEmergencyState_HaltTimeoutNotExpired() public {
         _createRollup();
         vm.expectRevert(HaltTimeoutNotExpired.selector);
