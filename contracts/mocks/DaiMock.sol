@@ -3,7 +3,7 @@
  */
 
 // hevm: flattened sources of /nix/store/8xb41r4qd0cjb63wcrxf1qmfg88p0961-dss-6fd7de0/src/dai.sol
-pragma solidity =0.5.12;
+pragma solidity <=0.5.12;
 
 // Copeid DAi for testing porpuses. The notes are removed from this contract as it does not work correctly woith the
 // coverage solidity compiler
