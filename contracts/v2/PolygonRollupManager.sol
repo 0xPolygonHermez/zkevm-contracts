@@ -791,13 +791,19 @@ contract PolygonRollupManager is
         // Update totalSequencedBatches
         totalSequencedBatches -= lastBatchSequenced - targetBatch;
 
-        // Clean pending state if any
+        // Check pending state
         if (rollup.lastPendingState > 0) {
+            // update total verified batches
+            uint64 currentLastVerifiedBatch = _getLastVerifiedBatch(rollup);
+            totalVerifiedBatches -=
+                currentLastVerifiedBatch -
+                rollup.lastVerifiedBatch;
+
             rollup.lastPendingState = 0;
             rollup.lastPendingStateConsolidated = 0;
         }
 
-        // Callback the consensus contract
+        // Clean pending state if any
         rollupContract.rollbackBatches(
             targetBatch,
             rollup.sequencedBatches[targetBatch].accInputHash
