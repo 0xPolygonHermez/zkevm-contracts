@@ -195,6 +195,17 @@ const config: HardhatUserConfig = {
                 count: 20,
             },
         },
+        holesky: {
+            url: process.env.HOLESKY_PROVIDER
+                ? process.env.HOLESKY_PROVIDER
+                : `https://holesky.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+            accounts: {
+                mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+                path: "m/44'/60'/0'/0",
+                initialIndex: 0,
+                count: 20,
+            },
+        },
         localhost: {
             url: "http://127.0.0.1:8545",
             accounts: {
@@ -254,6 +265,7 @@ const config: HardhatUserConfig = {
             polygonZKEVMMainnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
             goerli: `${process.env.ETHERSCAN_API_KEY}`,
             sepolia: `${process.env.ETHERSCAN_API_KEY}`,
+            holesky: `${process.env.ETHERSCAN_API_KEY}`,
             mainnet: `${process.env.ETHERSCAN_API_KEY}`,
             zkevmDevnet: `${process.env.ETHERSCAN_API_KEY}`,
         },
