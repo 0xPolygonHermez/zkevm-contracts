@@ -42,7 +42,7 @@ function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any,
         [newGlobalExitRoot, lastBlockHash, timestamp]
     );
 }
-describe("Polygon Globlal exit root v2", () => {
+describe("Polygon Global exit root v2", () => {
     let deployer: any;
     let rollupManager: any;
     let bridge: any;
@@ -77,7 +77,7 @@ describe("Polygon Globlal exit root v2", () => {
         )) as PolygonZkEVMGlobalExitRootV2;
     });
 
-    it("should check the initalized parameters", async () => {
+    it("should check the initialized parameters", async () => {
         expect(await polygonZkEVMGlobalExitRootV2.bridgeAddress()).to.be.equal(bridge.address);
         expect(await polygonZkEVMGlobalExitRootV2.rollupManager()).to.be.equal(rollupManager.address);
         expect(polygonZkEVMGlobalExitRoot.rollupAddress()).to.be.reverted;
@@ -93,11 +93,15 @@ describe("Polygon Globlal exit root v2", () => {
             "OnlyAllowedContracts"
         );
         const blockUpdates = [];
+        // Update Exit root
+        const updateExitRoot = await polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup)
+        // Retrieve l1InfoRoot
+        const currentL1InfoRoot = await polygonZkEVMGlobalExitRootV2.getRoot()
 
-        // Update root from the rollup
-        await expect(polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup))
+        // Check event
+        await expect(updateExitRoot)
             .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTree")
-            .withArgs(ethers.ZeroHash, newRootRollup);
+            .withArgs(ethers.ZeroHash, newRootRollup, currentL1InfoRoot);
 
         blockUpdates.push({
             block: await ethers.provider.getBlock("latest"),
@@ -110,9 +114,13 @@ describe("Polygon Globlal exit root v2", () => {
 
         // Update root from the PolygonZkEVMBridge
         const newRootBridge = ethers.hexlify(ethers.randomBytes(32));
-        await expect(polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge))
+        // Update Bridge Exit root
+        const updateBridgeExitRoot = await polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge)
+        // Retrieve l1InfoRoot
+        const updatedL1InfoRoot = await polygonZkEVMGlobalExitRootV2.getRoot()
+        await expect(updateBridgeExitRoot)
             .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTree")
-            .withArgs(newRootBridge, newRootRollup);
+            .withArgs(newRootBridge, newRootRollup, updatedL1InfoRoot);
 
         const newGlobalExitRoot = calculateGlobalExitRoot(newRootBridge, newRootRollup);
         blockUpdates.push({
