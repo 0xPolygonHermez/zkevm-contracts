@@ -75,7 +75,7 @@ const config: HardhatUserConfig = {
             },
         ],
         overrides: {
-            "contracts/v2/PolygonRollupManager.sol": {
+            "contracts/PolygonRollupManager.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
@@ -85,7 +85,7 @@ const config: HardhatUserConfig = {
                     evmVersion: "shanghai",
                 }, // try yul optimizer
             },
-            "contracts/v2/PolygonZkEVMBridgeV2.sol": {
+            "contracts/PolygonZkEVMBridgeV2.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
@@ -95,7 +95,7 @@ const config: HardhatUserConfig = {
                     evmVersion: "shanghai",
                 },
             },
-            "contracts/v2/newDeployments/PolygonRollupManagerNotUpgraded.sol": {
+            "contracts/newDeployments/PolygonRollupManagerNotUpgraded.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
@@ -105,7 +105,7 @@ const config: HardhatUserConfig = {
                     evmVersion: "shanghai",
                 }, // try yul optimizer
             },
-            "contracts/v2/mocks/PolygonRollupManagerMock.sol": {
+            "contracts/mocks/PolygonRollupManagerMock.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
@@ -116,7 +116,7 @@ const config: HardhatUserConfig = {
                 }, // try yul optimizer
             },
             // Should have the same optimizations than the RollupManager to verify
-            "contracts/v2/lib/PolygonTransparentProxy.sol": {
+            "contracts/lib/PolygonTransparentProxy.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
@@ -126,7 +126,7 @@ const config: HardhatUserConfig = {
                     evmVersion: "shanghai",
                 }, // try yul optimizer
             },
-            "contracts/v2/utils/ClaimCompressor.sol": {
+            "contracts/utils/ClaimCompressor.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
