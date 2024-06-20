@@ -5,12 +5,12 @@ pragma solidity 0.8.20;
 import "./lib/DepositContractV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "../lib/TokenWrapped.sol";
-import "../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
-import "../interfaces/IBridgeMessageReceiver.sol";
+import "./lib/TokenWrapped.sol";
+import "./interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
+import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IPolygonZkEVMBridgeV2.sol";
-import "../lib/EmergencyManager.sol";
-import "../lib/GlobalExitRootLib.sol";
+import "./lib/EmergencyManager.sol";
+import "./lib/GlobalExitRootLib.sol";
 
 /**
  * PolygonZkEVMBridge that will be deployed on Ethereum and all Polygon rollups
