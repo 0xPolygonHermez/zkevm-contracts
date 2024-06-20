@@ -141,7 +141,7 @@ async function main() {
         await hre.run(
             'verify:verify',
             {
-                contract: 'contracts/v2/lib/PolygonTransparentProxy.sol:PolygonTransparentProxy',
+                contract: 'contracts/lib/PolygonTransparentProxy.sol:PolygonTransparentProxy',
                 address: createRollupOutputParameters.rollupAddress,
                 constructorArguments: [
                     await upgrades.erc1967.getImplementationAddress(createRollupOutputParameters.rollupAddress),
@@ -173,7 +173,7 @@ async function main() {
             await hre.run(
                 'verify:verify',
                 {
-                    contract: 'contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol:PolygonZkEVMEtrog',
+                    contract: 'contracts/consensus/zkEVM/PolygonZkEVMEtrog.sol:PolygonZkEVMEtrog',
                     address: createRollupOutputParameters.rollupAddress,
                     constructorArguments: [
                         deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
@@ -191,7 +191,7 @@ async function main() {
             await hre.run(
                 'verify:verify',
                 {
-                    contract: 'contracts/v2/consensus/validium/PolygonValidiumEtrog.sol:PolygonValidiumEtrog',
+                    contract: 'contracts/consensus/validium/PolygonValidiumEtrog.sol:PolygonValidiumEtrog',
                     address: createRollupOutputParameters.rollupAddress,
                     constructorArguments: [
                         deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
