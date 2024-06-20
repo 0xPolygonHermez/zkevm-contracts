@@ -4,13 +4,13 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "../../interfaces/IPolygonZkEVMErrors.sol";
+import "../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
 import "../PolygonRollupManager.sol";
-import "../interfaces/IPolygonRollupBase.sol";
+import "./IPolygonRollupBasePrevious.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import "./PolygonConstantsBase.sol";
+import "../lib/PolygonConstantsBase.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -20,11 +20,11 @@ import "./PolygonConstantsBase.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-abstract contract PolygonRollupBaseEtrog is
+abstract contract PolygonRollupBaseEtrogPrevious is
     Initializable,
     PolygonConstantsBase,
     IPolygonZkEVMVEtrogErrors,
-    IPolygonRollupBase
+    IPolygonRollupBasePrevious
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -236,14 +236,6 @@ abstract contract PolygonRollupBaseEtrog is
     );
 
     /**
-     * @dev Emitted when a aggregator verifies batches
-     */
-    event RollbackBatches(
-        uint64 indexed targetBatch,
-        bytes32 accInputHashToRollback
-    );
-
-    /**
      * @dev Emitted when the admin updates the trusted sequencer address
      */
     event SetTrustedSequencer(address newTrustedSequencer);
@@ -402,19 +394,17 @@ abstract contract PolygonRollupBaseEtrog is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param l1InfoTreeLeafCount Index of the L1InfoRoot that will be used in this sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-     * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
+     * @param initSequencedBatch This parameter must match the current last batch sequenced.
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * note Pol is not a reentrant token
      */
     function sequenceBatches(
         BatchData[] calldata batches,
-        uint32 l1InfoTreeLeafCount,
         uint64 maxSequenceTimestamp,
-        bytes32 expectedFinalAccInputHash,
+        uint64 initSequencedBatch,
         address l2Coinbase
     ) public virtual onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
@@ -437,13 +427,7 @@ abstract contract PolygonRollupBaseEtrog is
         bridgeAddress.updateGlobalExitRoot();
 
         // Get global batch variables
-        bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
-            l1InfoTreeLeafCount
-        );
-
-        if (l1InfoRoot == bytes32(0)) {
-            revert L1InfoTreeLeafCountInvalid();
-        }
+        bytes32 l1InfoRoot = globalExitRootManager.getRoot();
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
@@ -559,9 +543,11 @@ abstract contract PolygonRollupBaseEtrog is
             currentAccInputHash
         );
 
-        // Check expectedFinalAccInputHash
-        if (currentAccInputHash != expectedFinalAccInputHash) {
-            revert FinalAccInputHashDoesNotMatch();
+        // Check init sequenced batch
+        if (
+            initSequencedBatch != (currentBatchSequenced - uint64(batchesNum))
+        ) {
+            revert InitSequencedBatchDoesNotMatch();
         }
 
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
@@ -579,21 +565,6 @@ abstract contract PolygonRollupBaseEtrog is
         address aggregator
     ) public virtual override onlyRollupManager {
         emit VerifyBatches(lastVerifiedBatch, newStateRoot, aggregator);
-    }
-
-    /**
-     * @notice Callback on rollback batches, can only be called by the rollup manager
-     * @param targetBatch Batch to rollback up to but not including this batch
-     * @param accInputHashToRollback Acc input hash to rollback
-     */
-    function rollbackBatches(
-        uint64 targetBatch,
-        bytes32 accInputHashToRollback
-    ) public virtual override onlyRollupManager {
-        // Rollback the accumulated input hash
-        lastAccInputHash = accInputHashToRollback;
-
-        emit RollbackBatches(targetBatch, accInputHashToRollback);
     }
 
     ////////////////////////////

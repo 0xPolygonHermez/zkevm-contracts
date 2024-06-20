@@ -3,14 +3,14 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 
-import "contracts/v2/mocks/PolygonRollupManagerMock.sol";
-import "contracts/v2/PolygonZkEVMGlobalExitRootV2.sol";
+import "contracts/mocks/PolygonRollupManagerMock.sol";
+import "contracts/PolygonZkEVMGlobalExitRootV2.sol";
 import "contracts/interfaces/IPolygonZkEVMBridge.sol";
-import "contracts/v2/PolygonZkEVMBridgeV2.sol";
+import "contracts/PolygonZkEVMBridgeV2.sol";
 import "contracts/mocks/ERC20PermitMock.sol";
 
 import "contracts/mocks/VerifierRollupHelperMock.sol";
-import "contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol";
+import "contracts/consensus/zkEVM/PolygonZkEVMEtrog.sol";
 
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 

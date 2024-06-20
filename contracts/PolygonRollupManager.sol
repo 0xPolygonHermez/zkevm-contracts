@@ -4,10 +4,10 @@ pragma solidity 0.8.20;
 
 import "./interfaces/IPolygonRollupManager.sol";
 import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
-import "../interfaces/IPolygonZkEVMBridge.sol";
+import "./interfaces/IPolygonZkEVMBridge.sol";
 import "./interfaces/IPolygonRollupBase.sol";
-import "../interfaces/IVerifierRollup.sol";
-import "../lib/EmergencyManager.sol";
+import "./interfaces/IVerifierRollup.sol";
+import "./lib/EmergencyManager.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./lib/PolygonTransparentProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";

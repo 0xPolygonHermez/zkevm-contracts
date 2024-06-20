@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity ^0.8.20;
-import "../../interfaces/IPolygonZkEVMErrors.sol";
+import "./IPolygonZkEVMErrors.sol";
 
 interface IPolygonZkEVMVEtrogErrors is IPolygonZkEVMErrors {
     /**

@@ -2,12 +2,12 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "./interfaces/IVerifierRollup.sol";
-import "./interfaces/IPolygonZkEVMGlobalExitRoot.sol";
+import "../interfaces/IVerifierRollup.sol";
+import "../interfaces/IPolygonZkEVMGlobalExitRoot.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "./interfaces/IPolygonZkEVMBridge.sol";
-import "./lib/EmergencyManager.sol";
-import "./interfaces/IPolygonZkEVMErrors.sol";
+import "../interfaces/IPolygonZkEVMBridge.sol";
+import "../lib/EmergencyManager.sol";
+import "../interfaces/IPolygonZkEVMErrors.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
