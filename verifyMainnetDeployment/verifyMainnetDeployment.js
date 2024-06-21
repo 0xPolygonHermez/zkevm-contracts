@@ -8,7 +8,7 @@ const deployMainnet = require("./mainnetDeployment.json");
 const mainnetDeployParameters = require("./mainnetDeployParameters.json");
 
 const pathFflonkVerifier = '../artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json';
-const pathPolygonZkEVMDeployer = '../artifacts/contracts/outdated/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json';
+const pathPolygonZkEVMDeployer = '../artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json';
 const pathPolygonZkEVMBridge = '../artifacts/contracts/outdated/PolygonZkEVMBridge.sol/PolygonZkEVMBridge.json';
 const pathTransparentProxyOZUpgradeDep = '../node_modules/@openzeppelin/upgrades-core/artifacts/@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json';
 const pathProxyAdmin = '../artifacts/@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json';
