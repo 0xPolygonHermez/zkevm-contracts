@@ -4,3 +4,6 @@
 [submodule "lib/deployer-kit"]
 	path = lib/deployer-kit
 	url = https://github.com/0xPolygon/deployer-kit
+[submodule "lib/solmate"]
+	path = lib/solmate
+	url = https://github.com/transmissions11/solmate
