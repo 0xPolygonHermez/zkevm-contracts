@@ -30,8 +30,8 @@ The value is on `100 gweis`, if it's necessary to update it go to `helpers/deplo
 Note that this operation will change all the deterministic address deployed.
 
 ```
-npm run deploy:deployer:ZkEVM:goerli
-npm run verify:deployer:ZkEVM:goerli
+npm run deploy:deployer:ZkEVM:sepolia
+npm run verify:deployer:ZkEVM:sepolia
 ```
 
 To deploy on testnet is necessary a token MATIC contract, therefore, there's another script that previously to the actual deployment, deploys a matic contracts and adds it automatically to the `deploy_parameters.json`
@@ -41,14 +41,14 @@ To deploy on testnet use:`deploy:testnet:ZkEVM:${network}`
 In other cases use fullfill `maticTokenAddress` in the `deploy_parameters.json` and run `deploy:ZkEVM:${network}`
 
 ```
-npm run deploy:testnet:ZkEVM:goerli
+npm run deploy:testnet:ZkEVM:sepolia
 
 ```
 
 To verify contracts use `npm run verify:ZkEVM:${network}`
 
 ```
-npm run verify:ZkEVM:goerli
+npm run verify:ZkEVM:sepolia
 ```
 
 A new folder will be created witth the following name `deployments/${network}_$(date +%s)` with all the output information and the OZ proxy information.
@@ -66,7 +66,7 @@ A new folder will be created witth the following name `deployments/${network}_$(
 -   `pendingStateTimeout`: uint64, Once a pending state exceeds this timeout it can be consolidated by everyone
 -   `emergencyCouncilAddress`:address, Emergency council addres
 -   `polTokenAddress`: address, Matic token address, only if deploy on testnet can be left blank and will fullfilled by the scripts.
--   `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:goerli` script.
+-   `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:sepolia` script.
 
 ## create_rollup_parameters.json
 
