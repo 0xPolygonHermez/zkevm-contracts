@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import "contracts/mocks/ERC20PermitMock.sol";
 import "contracts/PolygonZkEVMGlobalExitRootV2.sol";
-import "contracts/interfaces/IPolygonZkEVMBridgeV2.sol";
+import "contracts/interfaces/IPolygonZkEVMBridgeV2Extended.sol";
 
 import "script/deployers/PolygonZkEVMBridgeV2Deployer.s.sol";
 import "script/deployers/PolygonZkEVMGlobalExitRootV2Deployer.s.sol";
@@ -15,7 +15,7 @@ contract PolygonZkEVMBridgeV2Test is
     PolygonZkEVMBridgeV2Deployer,
     PolygonZkEVMGlobalExitRootV2Deployer
 {
-    PolygonZkEVMBridgeV2 polygonZkEVMBridge;
+    IPolygonZkEVMBridgeV2Extended polygonZkEVMBridge;
     ERC20PermitMock pol;
 
     address deployer = makeAddr("deployer");
@@ -43,11 +43,11 @@ contract PolygonZkEVMBridgeV2Test is
     //     private snapshot;
 
     function setUp() public virtual {
-        PolygonZkEVMBridgeV2 polygonZkEVMBridgeImplementation = PolygonZkEVMBridgeV2(
+        IPolygonZkEVMBridgeV2Extended polygonZkEVMBridgeImplementation = IPolygonZkEVMBridgeV2Extended(
                 deployPolygonZkEVMBridgeV2Implementation()
             );
 
-        polygonZkEVMBridge = PolygonZkEVMBridgeV2(
+        polygonZkEVMBridge = IPolygonZkEVMBridgeV2Extended(
             _proxify(address(polygonZkEVMBridgeImplementation))
         );
 
@@ -111,7 +111,7 @@ contract PolygonZkEVMBridgeV2Test is
 
     function testRevert_bridgeAsset_destinationNetworkInvalid() public {
         vm.expectRevert(
-            IPolygonZkEVMBridgeV2.DestinationNetworkInvalid.selector
+            IPolygonZkEVMBridgeV2Extended.DestinationNetworkInvalid.selector
         );
         polygonZkEVMBridge.bridgeAsset(
             networkIDMainnet,
@@ -126,7 +126,7 @@ contract PolygonZkEVMBridgeV2Test is
     function testRevert_bridgeAsset_amountDoesNotMatchMsgValue() public {
         // sending native asset
         vm.expectRevert(
-            IPolygonZkEVMBridgeV2.AmountDoesNotMatchMsgValue.selector
+            IPolygonZkEVMBridgeV2Extended.AmountDoesNotMatchMsgValue.selector
         );
         polygonZkEVMBridge.bridgeAsset( // msg.value = 0
             networkIDRollup,
@@ -139,7 +139,7 @@ contract PolygonZkEVMBridgeV2Test is
     }
 
     function testRevert_bridgeAsset_msgValueNotZero() public {
-        vm.expectRevert(IPolygonZkEVMBridgeV2.MsgValueNotZero.selector);
+        vm.expectRevert(IPolygonZkEVMBridgeV2Extended.MsgValueNotZero.selector);
         polygonZkEVMBridge.bridgeAsset{value: 1 ether}(
             networkIDRollup,
             destinationAddress,

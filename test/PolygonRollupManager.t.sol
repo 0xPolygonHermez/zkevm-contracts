@@ -6,16 +6,22 @@ import "forge-std/Test.sol";
 import "contracts/mocks/PolygonRollupManagerMock.sol";
 import "contracts/PolygonZkEVMGlobalExitRootV2.sol";
 import "contracts/interfaces/IPolygonZkEVMBridge.sol";
-import "contracts/PolygonZkEVMBridgeV2.sol";
+import "contracts/interfaces/IPolygonZkEVMBridgeV2Extended.sol";
+import "contracts/interfaces/IPolygonZkEVMBridgeV2.sol";
 import "contracts/mocks/ERC20PermitMock.sol";
 
 import "contracts/mocks/VerifierRollupHelperMock.sol";
 import "contracts/consensus/zkEVM/PolygonZkEVMEtrog.sol";
 
+import {PolygonZkEVMBridgeV2Deployer} from "script/deployers/PolygonZkEVMBridgeV2Deployer.s.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 // note extends PolygonRollupManager.tests.ts
-contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
+contract PolygonRollupManagerTest is
+    Test,
+    IPolygonRollupManager,
+    PolygonZkEVMBridgeV2Deployer
+{
     error OnlyNotEmergencyState();
 
     struct CreateNewRollupEvent {
@@ -36,7 +42,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     // todo change to PolygonRollupManager
     PolygonRollupManagerMock internal rollupManager;
     PolygonZkEVMGlobalExitRootV2 internal globalExitRoot;
-    PolygonZkEVMBridgeV2 internal bridge;
+    IPolygonZkEVMBridgeV2Extended internal bridge;
     // todo change to IERC20Upgradeable
     ERC20PermitMock internal token;
 
@@ -60,8 +66,10 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
     // note mimics beforeEach "Deploy contract"
     function setUp() public {
         // BRIDGE
-        bridge = new PolygonZkEVMBridgeV2();
-        bridge = PolygonZkEVMBridgeV2(_proxify(address(bridge)));
+        bridge = IPolygonZkEVMBridgeV2Extended(
+            deployPolygonZkEVMBridgeV2Implementation()
+        );
+        bridge = IPolygonZkEVMBridgeV2Extended(_proxify(address(bridge)));
 
         // GLOBAL EXIT ROOT
         address rollupManagerAddr = vm.computeCreateAddress(
@@ -86,7 +94,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         rollupManager = new PolygonRollupManagerMock(
             globalExitRoot,
             IERC20Upgradeable(address(token)),
-            // todo change to PolygonZkEVMBridgeV2
+            // todo change to IPolygonZkEVMBridgeV2Extended
             IPolygonZkEVMBridge(address(bridge))
         );
         rollupManager = PolygonRollupManagerMock(
@@ -101,7 +109,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         zkEvm = new PolygonZkEVMEtrog(
             globalExitRoot,
             IERC20Upgradeable(address(token)),
-            bridge,
+            IPolygonZkEVMBridgeV2(address(bridge)),
             rollupManager
         );
         verifier = new VerifierRollupHelperMock();
@@ -224,7 +232,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         PolygonZkEVMEtrog zkEvm2 = new PolygonZkEVMEtrog(
             globalExitRoot,
             IERC20Upgradeable(address(token)),
-            bridge,
+            IPolygonZkEVMBridgeV2(address(bridge)),
             rollupManager
         );
         VerifierRollupHelperMock verifier2 = new VerifierRollupHelperMock();
@@ -370,7 +378,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         PolygonZkEVMEtrog zkEvm2 = new PolygonZkEVMEtrog(
             globalExitRoot,
             IERC20Upgradeable(address(token)),
-            bridge,
+            IPolygonZkEVMBridgeV2(address(bridge)),
             rollupManager
         );
         VerifierRollupHelperMock verifier2 = new VerifierRollupHelperMock();
@@ -523,7 +531,7 @@ contract PolygonRollupManagerTest is Test, IPolygonRollupManager {
         PolygonZkEVMEtrog zkEvm2 = new PolygonZkEVMEtrog(
             globalExitRoot,
             IERC20Upgradeable(address(token)),
-            bridge,
+            IPolygonZkEVMBridgeV2(address(bridge)),
             rollupManager
         );
         VerifierRollupHelperMock verifier2 = new VerifierRollupHelperMock();
