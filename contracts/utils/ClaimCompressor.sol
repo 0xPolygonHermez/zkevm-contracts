@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-import "../PolygonZkEVMBridgeV2.sol";
+import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "hardhat/console.sol";
 
 pragma solidity 0.8.20;
@@ -15,10 +15,10 @@ contract ClaimCompressor {
     uint256 private constant _GLOBAL_INDEX_MAINNET_FLAG = 2 ** 64;
 
     bytes4 private constant _CLAIM_ASSET_SIGNATURE =
-        PolygonZkEVMBridgeV2.claimAsset.selector;
+        IPolygonZkEVMBridgeV2.claimAsset.selector;
 
     bytes4 private constant _CLAIM_MESSAGE_SIGNATURE =
-        PolygonZkEVMBridgeV2.claimMessage.selector;
+        IPolygonZkEVMBridgeV2.claimMessage.selector;
 
     // Bytes that will be added to the snark input for every rollup aggregated
     // 4 bytes signature

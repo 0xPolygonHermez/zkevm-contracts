@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 
-import "../PolygonZkEVMBridgeV2.sol";
+import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 pragma solidity 0.8.20;
 
 /**
