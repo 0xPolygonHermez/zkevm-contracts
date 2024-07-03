@@ -35,7 +35,7 @@ contract PolygonRollupManager is
      * @param consensusImplementation Consensus implementation ( contains the consensus logic for the transaparent proxy)
      * @param verifier verifier
      * @param forkID fork ID
-     * @param rollupCompatibilityID Rollup compatibility ID, to check upgradability between rollup types
+     * @param rollupVerifierType Rollup compatibility ID, to check upgradability between rollup types
      * @param obsolete Indicates if the rollup type is obsolete
      * @param genesis Genesis block of the rollup, note that will only be used on creating new rollups, not upgrade them
      */
@@ -43,7 +43,7 @@ contract PolygonRollupManager is
         address consensusImplementation;
         IVerifierRollup verifier;
         uint64 forkID;
-        uint8 rollupCompatibilityID;
+        uint8 rollupVerifierType;
         bool obsolete;
         bytes32 genesis;
     }
@@ -65,7 +65,8 @@ contract PolygonRollupManager is
      * @param lastPendingStateConsolidated Last pending state consolidated
      * @param lastVerifiedBatchBeforeUpgrade Last batch verified before the last upgrade
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
-     * @param rollupCompatibilityID Rollup ID used for compatibility checks when upgrading
+     * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
+     * @param pessimisticInfo Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
      */
     struct RollupData {
         IPolygonRollupBase rollupContract;
@@ -82,7 +83,8 @@ contract PolygonRollupManager is
         uint64 lastPendingStateConsolidated;
         uint64 lastVerifiedBatchBeforeUpgrade;
         uint64 rollupTypeID;
-        uint8 rollupCompatibilityID;
+        uint8 rollupVerifierType;
+        bytes32 pessimisticInfo;
     }
 
     // Modulus zkSNARK
@@ -223,7 +225,7 @@ contract PolygonRollupManager is
         address consensusImplementation,
         address verifier,
         uint64 forkID,
-        uint8 rollupCompatibilityID,
+        uint8 rollupVerifierType,
         bytes32 genesis,
         string description
     );
@@ -252,7 +254,7 @@ contract PolygonRollupManager is
         uint64 forkID,
         address rollupAddress,
         uint64 chainID,
-        uint8 rollupCompatibilityID,
+        uint8 rollupVerifierType,
         uint64 lastVerifiedBatchBeforeUpgrade
     );
 
@@ -395,7 +397,7 @@ contract PolygonRollupManager is
         address consensusImplementation,
         IVerifierRollup verifier,
         uint64 forkID,
-        uint8 rollupCompatibilityID,
+        uint8 rollupVerifierType,
         bytes32 genesis,
         string memory description
     ) external onlyRole(_ADD_ROLLUP_TYPE_ROLE) {
@@ -405,7 +407,7 @@ contract PolygonRollupManager is
             consensusImplementation: consensusImplementation,
             verifier: verifier,
             forkID: forkID,
-            rollupCompatibilityID: rollupCompatibilityID,
+            rollupVerifierType: rollupVerifierType,
             obsolete: false,
             genesis: genesis
         });
@@ -415,7 +417,7 @@ contract PolygonRollupManager is
             consensusImplementation,
             address(verifier),
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             genesis,
             description
         );
@@ -511,7 +513,7 @@ contract PolygonRollupManager is
         rollup.chainID = chainID;
         rollup.batchNumToStateRoot[0] = rollupType.genesis;
         rollup.rollupTypeID = rollupTypeID;
-        rollup.rollupCompatibilityID = rollupType.rollupCompatibilityID;
+        rollup.rollupVerifierType = rollupType.rollupVerifierType;
 
         emit CreateNewRollup(
             rollupID,
@@ -540,7 +542,7 @@ contract PolygonRollupManager is
      * @param forkID Fork id of the added rollup
      * @param chainID Chain id of the added rollup
      * @param genesis Genesis block for this rollup
-     * @param rollupCompatibilityID Compatibility ID for the added rollup
+     * @param rollupVerifierType Compatibility ID for the added rollup
      */
     function addExistingRollup(
         IPolygonRollupBase rollupAddress,
@@ -548,7 +550,7 @@ contract PolygonRollupManager is
         uint64 forkID,
         uint64 chainID,
         bytes32 genesis,
-        uint8 rollupCompatibilityID
+        uint8 rollupVerifierType
     ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
         // Check chainID nullifier
         if (chainIDToRollupID[chainID] != 0) {
@@ -570,7 +572,7 @@ contract PolygonRollupManager is
             verifier,
             forkID,
             chainID,
-            rollupCompatibilityID
+            rollupVerifierType
         );
         rollup.batchNumToStateRoot[0] = genesis;
     }
@@ -582,14 +584,14 @@ contract PolygonRollupManager is
      * @param verifier Verifier address, must be added before
      * @param forkID Fork id of the added rollup
      * @param chainID Chain id of the added rollup
-     * @param rollupCompatibilityID Compatibility ID for the added rollup
+     * @param rollupVerifierType Compatibility ID for the added rollup
      */
     function _addExistingRollup(
         IPolygonRollupBase rollupAddress,
         IVerifierRollup verifier,
         uint64 forkID,
         uint64 chainID,
-        uint8 rollupCompatibilityID
+        uint8 rollupVerifierType
     ) internal returns (RollupData storage rollup) {
         uint32 rollupID = ++rollupCount;
 
@@ -604,7 +606,7 @@ contract PolygonRollupManager is
         rollup.forkID = forkID;
         rollup.verifier = verifier;
         rollup.chainID = chainID;
-        rollup.rollupCompatibilityID = rollupCompatibilityID;
+        rollup.rollupVerifierType = rollupVerifierType;
         // rollup type is 0, since it does not follow any rollup type
 
         emit AddExistingRollup(
@@ -612,7 +614,7 @@ contract PolygonRollupManager is
             forkID,
             address(rollupAddress),
             chainID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             0
         );
     }
@@ -701,9 +703,7 @@ contract PolygonRollupManager is
         }
 
         // Check compatibility of the rollups
-        if (
-            rollup.rollupCompatibilityID != newRollupType.rollupCompatibilityID
-        ) {
+        if (rollup.rollupVerifierType != newRollupType.rollupVerifierType) {
             revert UpdateNotCompatible();
         }
 
@@ -999,6 +999,44 @@ contract PolygonRollupManager is
             rollup.lastPendingState = 0;
             rollup.lastPendingStateConsolidated = 0;
         }
+
+        // Interact with globalExitRootManager
+        globalExitRootManager.updateExitRoot(getRollupExitRoot());
+
+        emit VerifyBatchesTrustedAggregator(
+            rollupID,
+            finalNewBatch,
+            newStateRoot,
+            newLocalExitRoot,
+            msg.sender
+        );
+    }
+
+    function verifyPessimisticTrustedAggregator(
+        uint32 rollupID,
+        bytes32 newNullifierRoot,
+        bytes32 newBalanceRoot,
+        bytes32 newLocalExitRoot,
+        address beneficiary,
+        bytes32[24] calldata proof
+    ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
+        RollupData storage rollup = rollupIDToRollupData[rollupID];
+
+        _verifyPessimisticProof(
+            rollup,
+            pendingStateNum,
+            initNumBatch,
+            finalNewBatch,
+            newLocalExitRoot,
+            newStateRoot,
+            beneficiary,
+            proof
+        );
+
+        // Consolidate state
+        rollup.lastLocalExitRoot = newLocalExitRoot;
+        rollup.newBalanceRoot = newLocalExitRoot;
+        rollup.newNullifierRoot = newLocalExitRoot;
 
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
