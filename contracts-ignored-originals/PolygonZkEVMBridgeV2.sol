@@ -9,7 +9,6 @@ import "contracts/lib/DepositContractV2.sol";
 import "contracts/lib/EmergencyManager.sol";
 import "contracts/lib/GlobalExitRootLib.sol";
 import "contracts/lib/TokenWrapped.sol";
-import "contracts/lib/TokenWrapped.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 

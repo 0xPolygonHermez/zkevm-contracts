@@ -7,12 +7,12 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Script.sol";
 
-import "contracts/interfaces/IPolygonZkEVMBridgeV2Extended.sol";
+import "contracts-ignored-originals/PolygonZkEVMBridgeV2.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts5/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 abstract contract PolygonZkEVMBridgeV2Deployer is Script {
-    IPolygonZkEVMBridgeV2Extended internal polygonZkEVMBridgeV2;
+    PolygonZkEVMBridgeV2 internal polygonZkEVMBridgeV2;
     ProxyAdmin internal polygonZkEVMBridgeV2ProxyAdmin;
     address internal polygonZkEVMBridgeV2Implementation;
 
@@ -40,8 +40,10 @@ abstract contract PolygonZkEVMBridgeV2Deployer is Script {
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
 
-        polygonZkEVMBridgeV2Implementation = preDeployPolygonZkEVMBridgeV2();
-        polygonZkEVMBridgeV2 = IPolygonZkEVMBridgeV2Extended(
+        polygonZkEVMBridgeV2Implementation = address(
+            new PolygonZkEVMBridgeV2()
+        );
+        polygonZkEVMBridgeV2 = PolygonZkEVMBridgeV2(
             address(
                 new TransparentUpgradeableProxy(
                     polygonZkEVMBridgeV2Implementation,
@@ -78,30 +80,7 @@ abstract contract PolygonZkEVMBridgeV2Deployer is Script {
         returns (address implementation)
     {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-        implementation = preDeployPolygonZkEVMBridgeV2();
+        implementation = address(new PolygonZkEVMBridgeV2());
         vm.stopBroadcast();
-    }
-
-    function preDeployPolygonZkEVMBridgeV2()
-        internal
-        returns (address implementation)
-    {
-        string[] memory exe = new string[](6);
-        exe[0] = "forge";
-        exe[1] = "inspect";
-        exe[2] = "PolygonZkEVMBridgeV2";
-        exe[3] = "bytecode";
-        exe[
-            4
-        ] = "--contracts=contracts-ignored-originals/PolygonZkEVMBridgeV2.sol";
-        exe[5] = "--optimize";
-
-        bytes memory creationCode = vm.ffi(exe);
-        implementation = makeAddr("PolygonZkEVMBridgeV2");
-
-        vm.etch(implementation, creationCode);
-        (bool success, bytes memory runtimeBytecode) = implementation.call("");
-        require(success, "Failed to predeploy PolygonZkEVMBridgeV2");
-        vm.etch(implementation, runtimeBytecode);
     }
 }
