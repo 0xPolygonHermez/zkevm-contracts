@@ -13,15 +13,14 @@ const IGNORED_CONTRACTS = [
  */
 task("compile", "Compiles the entire project, building all artifacts and build ignored contracts.").setAction(
     async (args, hre, runSuper) => {
-        // Copy the ignored contracts to the original file name
+        // Rename the ignored contracts to the original file name to allow compilation
         var renamedFiles: string[] = [];
         IGNORED_CONTRACTS.forEach((contract) => {
             var sourceFilePath = path.join(contract);
             var renamedContract = contract.replace(".ignored", "");
             var destinationFilePath = path.join(renamedContract);
             renamedFiles.push(destinationFilePath);
-            console.log(`Copying ${sourceFilePath} to ${destinationFilePath}`);
-            copyFile(sourceFilePath, destinationFilePath);
+            renameFile(sourceFilePath, destinationFilePath);
         });
 
         // Run the original compile task
@@ -29,38 +28,25 @@ task("compile", "Compiles the entire project, building all artifacts and build i
             await runSuper();
         }
 
-        // Delete the copied ignored after the compilation
+        // Revert the renaming of the ignored contracts
         // Note: Check the artifacts folder to see if the ignored contracts are compiled
         renamedFiles.forEach((file) => {
-            console.log(`Deleting ${file}`);
-            deleteFile(file);
+            var originalFilePath = file + ".ignored";
+            renameFile(file, originalFilePath);
         });
     }
 );
 
 /**
- * Copy a file from sourcePath to destinationPath
+ * Rename a file from sourcePath to destinationPath
  * @param sourcePath
  * @param destinationPath
  */
-async function copyFile(sourcePath: string, destinationPath: string): Promise<void> {
+async function renameFile(sourcePath: string, destinationPath: string): Promise<void> {
     try {
-        await fs.copyFile(sourcePath, destinationPath);
-        console.log(`Successfully copied ${sourcePath} to ${destinationPath}`);
+        await fs.rename(sourcePath, destinationPath);
+        console.log(`Successfully renamed from ${sourcePath} to ${destinationPath}`);
     } catch (error) {
-        console.error(`Failed to copy file: ${error}`);
-    }
-}
-
-/**
- * Delete a file from the file system
- * @param filePath
- */
-async function deleteFile(filePath: string): Promise<void> {
-    try {
-        await fs.unlink(filePath);
-        console.log(`Successfully deleted ${filePath}`);
-    } catch (error) {
-        console.error(`Failed to delete file: ${error}`);
+        console.error(`Failed to rename file: ${error}`);
     }
 }

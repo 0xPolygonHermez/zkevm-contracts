@@ -67,7 +67,7 @@ contract PolygonRollupManagerTest is
     function setUp() public {
         // BRIDGE
         bridge = IPolygonZkEVMBridgeV2Extended(
-            deployPolygonZkEVMBridgeV2Implementation()
+            _preDeployPolygonZkEVMBridgeV2()
         );
         bridge = IPolygonZkEVMBridgeV2Extended(_proxify(address(bridge)));
 
@@ -724,5 +724,27 @@ contract PolygonRollupManagerTest is
             ""
         );
         return (address(proxy_));
+    }
+
+    function _preDeployPolygonZkEVMBridgeV2()
+        internal
+        returns (address implementation)
+    {
+        string[] memory exe = new string[](5);
+        exe[0] = "forge";
+        exe[1] = "inspect";
+        exe[2] = "PolygonZkEVMBridgeV2";
+        exe[3] = "bytecode";
+        exe[
+            4
+        ] = "--contracts=contracts-ignored-originals/PolygonZkEVMBridgeV2.sol";
+
+        bytes memory creationCode = vm.ffi(exe);
+        implementation = makeAddr("PolygonZkEVMBridgeV2");
+
+        vm.etch(implementation, creationCode);
+        (bool success, bytes memory runtimeBytecode) = implementation.call("");
+        require(success, "Failed to predeploy PolygonZkEVMBridgeV2");
+        vm.etch(implementation, runtimeBytecode);
     }
 }
