@@ -6,13 +6,15 @@ import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "./lib/PolygonZkEVMGlobalExitRootBaseStorage.sol";
 import "../lib/GlobalExitRootLib.sol";
 import "./lib/DepositContractBase.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks
  */
 contract PolygonZkEVMGlobalExitRootV2 is
     PolygonZkEVMGlobalExitRootBaseStorage,
-    DepositContractBase
+    DepositContractBase,
+    Initializable
 {
     // PolygonZkEVMBridge address
     address public immutable bridgeAddress;
@@ -20,13 +22,21 @@ contract PolygonZkEVMGlobalExitRootV2 is
     // Rollup manager contract address
     address public immutable rollupManager;
 
+    mapping(uint32 depositCount => bytes32 l1InfoRoot) public l1InfoRootMap;
+
     /**
      * @dev Emitted when the global exit root is updated
      */
     event UpdateL1InfoTree(
         bytes32 indexed mainnetExitRoot,
-        bytes32 indexed rollupExitRoot
+        bytes32 indexed rollupExitRoot,
+        bytes32 currentL1InfoRoot
     );
+
+    /**
+     * @dev Emitted when the global exit root manager starts adding leafs to the L1InfoRootMap
+     */
+    event InitL1InfoRootMap(uint32 depositCount, bytes32 currentL1InfoRoot);
 
     /**
      * @param _rollupManager Rollup manager contract address
@@ -35,6 +45,22 @@ contract PolygonZkEVMGlobalExitRootV2 is
     constructor(address _rollupManager, address _bridgeAddress) {
         rollupManager = _rollupManager;
         bridgeAddress = _bridgeAddress;
+
+        // disable initializers
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Reset the deposit tree since will be replace by a recursive one
+     */
+    function initialize() external virtual initializer {
+        // Get the current historic root
+        bytes32 currentL1InfoRoot = getRoot();
+
+        // Store L1InfoRoot
+        l1InfoRootMap[uint32(depositCount)] = currentL1InfoRoot;
+
+        emit InitL1InfoRootMap(uint32(depositCount), currentL1InfoRoot);
     }
 
     /**
@@ -77,9 +103,16 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 )
             );
 
+            // Get the current historic root
+            bytes32 currentL1InfoRoot = getRoot();
+
+            // Store L1InfoRoot
+            l1InfoRootMap[uint32(depositCount)] = currentL1InfoRoot;
+
             emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
-                cacheLastRollupExitRoot
+                cacheLastRollupExitRoot,
+                currentL1InfoRoot
             );
         }
     }
