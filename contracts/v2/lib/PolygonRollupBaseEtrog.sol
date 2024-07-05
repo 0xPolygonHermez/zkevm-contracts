@@ -426,7 +426,8 @@ abstract contract PolygonRollupBaseEtrog is
         BatchData[] calldata batches,
         uint64 maxSequenceTimestamp,
         uint64 initSequencedBatch,
-        address l2Coinbase
+        address l2Coinbase,
+        uint32 indexL1InfoRoot,
     ) public virtual onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
@@ -448,6 +449,7 @@ abstract contract PolygonRollupBaseEtrog is
         bridgeAddress.updateGlobalExitRoot();
 
         // Get global batch variables
+        // bytes32 selectedL1InfoRoot = mappinAllL1InfoRoot[indexL1InfoRoot];
         bytes32 l1InfoRoot = globalExitRootManager.getRoot();
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
