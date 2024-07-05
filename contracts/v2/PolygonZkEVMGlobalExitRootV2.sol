@@ -30,7 +30,9 @@ contract PolygonZkEVMGlobalExitRootV2 is
     event UpdateL1InfoTree(
         bytes32 indexed mainnetExitRoot,
         bytes32 indexed rollupExitRoot,
-        bytes32 currentL1InfoRoot
+        bytes32 currentL1InfoRoot,
+        uint32 indexed index,
+        uint256 blockhash,
     );
 
     /**
@@ -112,7 +114,9 @@ contract PolygonZkEVMGlobalExitRootV2 is
             emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
                 cacheLastRollupExitRoot,
-                currentL1InfoRoot
+                currentL1InfoRoot,
+                uint32(depositCount),
+                bytes32(lastBlockHash),
             );
         }
     }
