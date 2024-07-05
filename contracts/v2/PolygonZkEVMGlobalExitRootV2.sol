@@ -32,7 +32,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
         bytes32 indexed rollupExitRoot,
         bytes32 currentL1InfoRoot,
         uint32 indexed index,
-        uint256 blockhash,
+        uint256 blockhash
     );
 
     /**
@@ -116,7 +116,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 cacheLastRollupExitRoot,
                 currentL1InfoRoot,
                 uint32(depositCount),
-                bytes32(lastBlockHash),
+                lastBlockHash
             );
         }
     }
