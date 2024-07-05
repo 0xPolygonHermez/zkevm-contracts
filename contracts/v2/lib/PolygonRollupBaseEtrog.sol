@@ -236,14 +236,6 @@ abstract contract PolygonRollupBaseEtrog is
     );
 
     /**
-     * @dev Emitted when a aggregator verifies batches
-     */
-    event RollbackBatches(
-        uint64 indexed targetBatch,
-        bytes32 accInputHashToRollback
-    );
-
-    /**
      * @dev Emitted when the admin updates the trusted sequencer address
      */
     event SetTrustedSequencer(address newTrustedSequencer);
@@ -310,8 +302,29 @@ abstract contract PolygonRollupBaseEtrog is
         string memory sequencerURL,
         string memory _networkName
     ) external virtual onlyRollupManager initializer {
-        bytes memory gasTokenMetadata = _verifyOrigin(_gasTokenAddress);
+        bytes memory gasTokenMetadata;
 
+        if (_gasTokenAddress != address(0)) {
+            // Ask for token metadata, the same way is enconded in the bridge
+            // Note that this function will revert if the token is not in this network
+            // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
+            gasTokenMetadata = bridgeAddress.getTokenMetadata(_gasTokenAddress);
+
+            // Check gas token address on the bridge
+            (
+                uint32 originWrappedNetwork,
+                address originWrappedAddress
+            ) = bridgeAddress.wrappedTokenToTokenInfo(_gasTokenAddress);
+
+            if (originWrappedNetwork != 0) {
+                // It's a wrapped token, get the wrapped parameters
+                gasTokenAddress = originWrappedAddress;
+                gasTokenNetwork = originWrappedNetwork;
+            } else {
+                // gasTokenNetwork will be mainnet, for instance 0
+                gasTokenAddress = _gasTokenAddress;
+            }
+        }
         // Sequence transaction to initilize the bridge
 
         // Calculate transaction to initialize the bridge
@@ -402,20 +415,19 @@ abstract contract PolygonRollupBaseEtrog is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param indexL1InfoRoot Index of the L1InfoRoot that will be used in this sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-     * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
+     * @param initSequencedBatch This parameter must match the current last batch sequenced.
      * This will be a protection for the sequencer to avoid sending undesired data
      * @param l2Coinbase Address that will receive the fees from L2
      * note Pol is not a reentrant token
      */
     function sequenceBatches(
         BatchData[] calldata batches,
-        uint32 indexL1InfoRoot,
         uint64 maxSequenceTimestamp,
-        bytes32 expectedFinalAccInputHash,
-        address l2Coinbase
+        uint64 initSequencedBatch,
+        address l2Coinbase,
+        uint32 indexL1InfoRoot,
     ) public virtual onlyTrustedSequencer {
         uint256 batchesNum = batches.length;
         if (batchesNum == 0) {
@@ -437,13 +449,8 @@ abstract contract PolygonRollupBaseEtrog is
         bridgeAddress.updateGlobalExitRoot();
 
         // Get global batch variables
-        bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
-            indexL1InfoRoot
-        );
-
-        if (l1InfoRoot == bytes32(0)) {
-            revert L1InfoRootIndexInvalid();
-        }
+        // bytes32 selectedL1InfoRoot = mappinAllL1InfoRoot[indexL1InfoRoot];
+        bytes32 l1InfoRoot = globalExitRootManager.getRoot();
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times
         uint64 currentLastForceBatchSequenced = lastForceBatchSequenced;
@@ -559,9 +566,11 @@ abstract contract PolygonRollupBaseEtrog is
             currentAccInputHash
         );
 
-        // Check expectedFinalAccInputHash
-        if (currentAccInputHash != expectedFinalAccInputHash) {
-            revert FinalAccInputHashDoesNotMatch();
+        // Check init sequenced batch
+        if (
+            initSequencedBatch != (currentBatchSequenced - uint64(batchesNum))
+        ) {
+            revert InitSequencedBatchDoesNotMatch();
         }
 
         emit SequenceBatches(currentBatchSequenced, l1InfoRoot);
@@ -579,21 +588,6 @@ abstract contract PolygonRollupBaseEtrog is
         address aggregator
     ) public virtual override onlyRollupManager {
         emit VerifyBatches(lastVerifiedBatch, newStateRoot, aggregator);
-    }
-
-    /**
-     * @notice Callback on rollback batches, can only be called by the rollup manager
-     * @param targetBatch Batch to rollback up to but not including this batch
-     * @param accInputHashToRollback Acc input hash to rollback
-     */
-    function rollbackBatches(
-        uint64 targetBatch,
-        bytes32 accInputHashToRollback
-    ) public virtual override onlyRollupManager {
-        // Rollback the accumulated input hash
-        lastAccInputHash = accInputHashToRollback;
-
-        emit RollbackBatches(targetBatch, accInputHashToRollback);
     }
 
     ////////////////////////////
@@ -955,31 +949,5 @@ abstract contract PolygonRollupBaseEtrog is
         );
 
         return transaction;
-    }
-
-    function _verifyOrigin(
-        address _gasTokenAddress
-    ) internal virtual returns (bytes memory gasTokenMetadata) {
-        if (_gasTokenAddress != address(0)) {
-            // Ask for token metadata, the same way is enconded in the bridge
-            // Note that this function will revert if the token is not in this network
-            // Note that this could be a possible reentrant call, but cannot make changes on the state since are static call
-            gasTokenMetadata = bridgeAddress.getTokenMetadata(_gasTokenAddress);
-
-            // Check gas token address on the bridge
-            (
-                uint32 originWrappedNetwork,
-                address originWrappedAddress
-            ) = bridgeAddress.wrappedTokenToTokenInfo(_gasTokenAddress);
-
-            if (originWrappedNetwork != 0) {
-                // It's a wrapped token, get the wrapped parameters
-                gasTokenAddress = originWrappedAddress;
-                gasTokenNetwork = originWrappedNetwork;
-            } else {
-                // gasTokenNetwork will be mainnet, for instance 0
-                gasTokenAddress = _gasTokenAddress;
-            }
-        }
     }
 }
