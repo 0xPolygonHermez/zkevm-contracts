@@ -1,0 +1,9 @@
+{
+ "genesis": "0xba1fbb6c11ba3abc9dbee98d8920b8bd832e531ce9360c6f427ef6bfacebe3d1",
+ "createRollupBlockNumber": 5328218,
+ "rollupAddress": "0x83DE684f04D8CFdAC5f0f18E86868C0292466c9c",
+ "consensusContract": "Type: Validium, Version: etrog, genesis: /ipfs/QmfQrHbnovbHMCbbNkpRhVkyXiCpTS553kRbxXh5DsaZBF",
+ "rollupID": 2,
+ "L2ChainID": 99901,
+ "gasTokenAddress": "0x0000000000000000000000000000000000000000"
+}
