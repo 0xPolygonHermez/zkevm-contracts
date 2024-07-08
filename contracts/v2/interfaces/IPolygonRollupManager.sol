@@ -277,4 +277,14 @@ interface IPolygonRollupManager {
      * @dev Global exit root deos not exists
      */
     error GlobalExitRootNotExist();
+
+    /**
+     * @dev Global exit root deos not exists
+     */
+    error OnlyPessimisticChains();
+
+    /**
+     * @dev Global exit root deos not exists
+     */
+    error OnlyStateTransitionChains();
 }
