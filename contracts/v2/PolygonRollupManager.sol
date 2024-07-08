@@ -74,7 +74,7 @@ contract PolygonRollupManager is
      * @param lastVerifiedBatchBeforeUpgrade Last batch verified before the last upgrade
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
-     * @param pessimisticInfo Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
+     * @param lastPessimisticRoot Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
      */
     struct RollupData {
         IPolygonRollupBase rollupContract;
@@ -93,7 +93,7 @@ contract PolygonRollupManager is
         uint64 lastVerifiedBatchBeforeUpgrade;
         uint64 rollupTypeID;
         VerifierType rollupVerifierType;
-        bytes32 pessimisticInfo;
+        bytes32 lastPessimisticRoot;
     }
 
     // Modulus zkSNARK
@@ -925,10 +925,10 @@ contract PolygonRollupManager is
      * @param rollupID Rollup identifier
      * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
      * @param bridgeInfoHash Hashed information regarding the new bridges on the network
-     * and the imported bridges of other networks
+     * the imported bridges of other networks and the authentication for this pessimistic proof (e.g signature)
      * @param newLocalExitRoot New local exit root once the batch is processed
-     * @param newPessimisticInfo New pessimistic information,
-     * currently contains the local balance tree and the local nullifier tree hashed
+     * @param newPessimisticRoot New pessimistic information,
+     * currently contains the local balance tree, the local nullifier tree hashed and some auth pubkey
      * @param proof Fflonk proof
      */
     function verifyPessimisticTrustedAggregator(
@@ -936,11 +936,14 @@ contract PolygonRollupManager is
         bytes32 selectedGlobalExitRoot,
         bytes32 bridgeInfoHash,
         bytes32 newLocalExitRoot,
-        bytes32 newPessimisticInfo,
-        //address beneficiary,
+        bytes32 newPessimisticRoot,
         bytes32[24] calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
         RollupData storage rollup = rollupIDToRollupData[rollupID];
+
+        if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
+            revert OnlyPessimisticChains();
+        }
 
         if (
             globalExitRootManager.globalExitRootMap(selectedGlobalExitRoot) == 0
@@ -952,10 +955,10 @@ contract PolygonRollupManager is
         bytes32 snarkHashBytes = sha256(
             abi.encodePacked(
                 rollup.lastLocalExitRoot,
-                rollup.pessimisticInfo,
+                rollup.lastPessimisticRoot,
                 bridgeInfoHash,
                 newLocalExitRoot,
-                newPessimisticInfo
+                newPessimisticRoot
             )
         );
 
@@ -976,7 +979,7 @@ contract PolygonRollupManager is
 
         // Consolidate state
         rollup.lastLocalExitRoot = newLocalExitRoot;
-        rollup.pessimisticInfo = newPessimisticInfo;
+        rollup.lastPessimisticRoot = newPessimisticRoot;
 
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
