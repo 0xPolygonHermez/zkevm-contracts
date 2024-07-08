@@ -80,7 +80,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
@@ -90,7 +90,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 999,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 },
@@ -100,7 +100,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
@@ -121,7 +121,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
@@ -143,7 +143,7 @@ const config: HardhatUserConfig = {
         mainnet: {
             url: process.env.MAINNET_PROVIDER
                 ? process.env.MAINNET_PROVIDER
-                : `https://mainnet.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+                : `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_PROJECT_ID}`,
             accounts: {
                 mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
                 path: "m/44'/60'/0'/0",
@@ -187,7 +187,7 @@ const config: HardhatUserConfig = {
         sepolia: {
             url: process.env.SEPOLIA_PROVIDER
                 ? process.env.SEPOLIA_PROVIDER
-                : `https://sepolia.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+                : `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_PROJECT_ID}`,
             accounts: {
                 mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
                 path: "m/44'/60'/0'/0",

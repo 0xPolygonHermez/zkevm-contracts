@@ -59,7 +59,6 @@ async function main() {
     const networkIDMainnet = 0;
 
     // Gas token variables are 0 in mainnet, since native token it's ether
-    const gasTokenAddressMainnet = ethers.ZeroAddress;
     const gasTokenNetworkMainnet = 0n;
     const attemptsDeployProxy = 20;
     const gasTokenMetadata = "0x";
@@ -79,6 +78,8 @@ async function main() {
         "emergencyCouncilAddress",
         "zkEVMDeployerAddress",
         "polTokenAddress",
+        "gasTokenAddress",
+        "gasTokenNetwork",
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -98,6 +99,8 @@ async function main() {
         salt,
         zkEVMDeployerAddress,
         polTokenAddress,
+        gasTokenAddress,
+        gasTokenNetwork,
     } = deployParameters;
 
     // Load provider
@@ -105,7 +108,7 @@ async function main() {
     if (deployParameters.multiplierGas || deployParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK !== "hardhat") {
             currentProvider = ethers.getDefaultProvider(
-                `https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`
+                `https://eth-${process.env.HARDHAT_NETWORK}.g.alchemy.com/v2/${process.env.ALCHEMY_PROJECT_ID}`
             ) as any;
             if (deployParameters.maxPriorityFeePerGas && deployParameters.maxFeePerGas) {
                 console.log(
@@ -295,8 +298,8 @@ async function main() {
 
     const dataCallProxy = polygonZkEVMBridgeFactory.interface.encodeFunctionData("initialize", [
         networkIDMainnet,
-        gasTokenAddressMainnet,
-        gasTokenNetworkMainnet,
+        gasTokenAddress,
+        gasTokenNetwork,
         precalculateGlobalExitRootAddress,
         precalculateRollupManager,
         gasTokenMetadata,

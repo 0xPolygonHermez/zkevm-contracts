@@ -5,10 +5,12 @@ pragma solidity 0.8.20;
 import "./lib/DepositContractV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "../lib/TokenWrapped.sol";
 import "../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import "../interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IPolygonZkEVMBridgeV2.sol";
+import "./interfaces/IALCB.sol";
 import "../lib/EmergencyManager.sol";
 import "../lib/GlobalExitRootLib.sol";
 
@@ -19,7 +21,8 @@ import "../lib/GlobalExitRootLib.sol";
 contract PolygonZkEVMBridgeV2 is
     DepositContractV2,
     EmergencyManager,
-    IPolygonZkEVMBridgeV2
+    IPolygonZkEVMBridgeV2,
+    OwnableUpgradeable // if new interfaces, contracts are added by the upstream, they should be added after OwnableUpgradeable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -91,6 +94,14 @@ contract PolygonZkEVMBridgeV2 is
     // WETH address
     TokenWrapped public WETHToken;
 
+    //// Varaibles exclusive for the ALCB network /////
+    // ALCB token address
+    IALCB public ALCBToken;
+
+    // Allowed assets
+    mapping(address => bool) public whitelistedAssets;
+    //// Future updates from upstream should add variables after this line
+
     /**
      * @dev Emitted when bridge assets or messages to another network
      */
@@ -134,6 +145,62 @@ contract PolygonZkEVMBridgeV2 is
     }
 
     /**
+     * @dev Emitted when the owner sets the ALCB contract's address
+     */
+    event SetALCBToken(address alcbToken);
+
+    /**
+     * @dev Emitted when the owner whitelists the asset for bridging
+     */
+    event WhitelistAsset(address token);
+
+    /**
+     * @dev Emitted when the owner revokes the asset from bridging
+     */
+    event RevokeAsset(address token);
+
+    /**
+     * @dev Thrown if the asset is not whitelisted
+     */
+    error OnlyWhitelistedAssets();
+
+    /**
+     * @notice Whitelist token for bridging
+     * @param token Token address
+     *
+     * Must only be called by the owner
+     */
+    function whitelistAsset(address token) external onlyOwner {
+        whitelistedAssets[token] = true;
+
+        emit WhitelistAsset(token);
+    }
+
+    /**
+     * @notice Revoke token from bridging
+     * @param token Token address
+     *
+     * Must only be called by the owner
+     */
+    function revokeAsset(address token) external onlyOwner {
+        delete whitelistedAssets[token];
+
+        emit RevokeAsset(token);
+    }
+
+    /**
+     * @notice Set ALCB contract's address
+     * @param _ALCBToken Token address
+     *
+     * Must only be called by the owner
+     */
+    function setALCBToken(IALCB _ALCBToken) external onlyOwner {
+        ALCBToken = _ALCBToken;
+
+        emit SetALCBToken(address(_ALCBToken));
+    }
+
+    /**
      * @param _networkID networkID
      * @param _gasTokenAddress gas token address
      * @param _gasTokenNetwork gas token network
@@ -156,10 +223,14 @@ contract PolygonZkEVMBridgeV2 is
         polygonRollupManager = _polygonRollupManager;
 
         // Set gas token
-        if (_gasTokenAddress == address(0)) {
+        if (_networkID == _MAINNET_NETWORK_ID) {
             // Gas token will be ether
-            if (_gasTokenNetwork != 0) {
+            if (_gasTokenNetwork != _MAINNET_NETWORK_ID) {
                 revert GasTokenNetworkMustBeZeroOnEther();
+            }
+            if (_gasTokenAddress != address(0)) {
+                // We dont set the gasToken on mainnet instead we set the ALCB token
+                ALCBToken = IALCB(_gasTokenAddress);
             }
             // WETHToken, gasTokenAddress and gasTokenNetwork will be 0
             // gasTokenMetadata will be empty
@@ -175,6 +246,9 @@ contract PolygonZkEVMBridgeV2 is
                 abi.encode("Wrapped Ether", "WETH", 18)
             );
         }
+
+        // Initialize owner;
+        __Ownable_init();
 
         // Initialize OZ contracts
         __ReentrancyGuard_init();
@@ -218,70 +292,92 @@ contract PolygonZkEVMBridgeV2 is
         bytes memory metadata;
         uint256 leafAmount = amount;
 
-        if (token == address(0)) {
-            // Check gas token transfer
-            if (msg.value != amount) {
-                revert AmountDoesNotMatchMsgValue();
-            }
+        // Check if it's ALCB
+        if (networkID == _MAINNET_NETWORK_ID && token == address(ALCBToken)) {
+            // Send funds to the Bridge before destroying
+            IERC20Upgradeable(token).safeTransferFrom(
+                msg.sender,
+                address(this),
+                amount
+            );
 
-            // Set gas token parameters
-            originNetwork = gasTokenNetwork;
-            originTokenAddress = gasTokenAddress;
-            metadata = gasTokenMetadata;
+            // Destroy ALCB tokens
+            IALCB(token).destroyTokens(amount);
+
+            originNetwork = _MAINNET_NETWORK_ID;
+            originTokenAddress = address(ALCBToken);
+
+            // Encode metadata
+            metadata = getTokenMetadata(token);
         } else {
-            // Check msg.value is 0 if tokens are bridged
-            if (msg.value != 0) {
-                revert MsgValueNotZero();
+            // Check whether the token is whitelisted for bridging
+            if (!whitelistedAssets[token]) {
+                revert OnlyWhitelistedAssets();
             }
 
-            // Check if it's WETH, this only applies on L2 networks with gasTokens
-            // In case ether is the native token, WETHToken will be 0, and the address 0 is already checked
-            if (token == address(WETHToken)) {
-                // Burn tokens
-                TokenWrapped(token).burn(msg.sender, amount);
+            if (token == address(0)) {
+                // Check gas token transfer
+                if (msg.value != amount) {
+                    revert AmountDoesNotMatchMsgValue();
+                }
 
-                // Both origin network and originTokenAddress will be 0
-                // Metadata will be empty
+                // Set gas token parameters
+                originNetwork = gasTokenNetwork;
+                originTokenAddress = gasTokenAddress;
+                metadata = gasTokenMetadata;
             } else {
-                TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
-                    token
-                ];
+                // Check msg.value is 0 if tokens are bridged
+                if (msg.value != 0) {
+                    revert MsgValueNotZero();
+                }
 
-                if (tokenInfo.originTokenAddress != address(0)) {
-                    // The token is a wrapped token from another network
-
+                // Check if it's WETH, this only applies on L2 networks with gasTokens
+                // In case ether is the native token, WETHToken will be 0, and the address 0 is already checked
+                if (token == address(WETHToken)) {
                     // Burn tokens
                     TokenWrapped(token).burn(msg.sender, amount);
 
-                    originTokenAddress = tokenInfo.originTokenAddress;
-                    originNetwork = tokenInfo.originNetwork;
+                    // Both origin network and originTokenAddress will be 0
+                    // Metadata will be empty
                 } else {
-                    // Use permit if any
-                    if (permitData.length != 0) {
-                        _permit(token, amount, permitData);
+                    TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
+                        token
+                    ];
+
+                    if (tokenInfo.originTokenAddress != address(0)) {
+                        // The token is a wrapped token from another network
+
+                        // Burn tokens
+                        TokenWrapped(token).burn(msg.sender, amount);
+
+                        originTokenAddress = tokenInfo.originTokenAddress;
+                        originNetwork = tokenInfo.originNetwork;
+                    } else {
+                        // Use permit if any
+                        if (permitData.length != 0) {
+                            _permit(token, amount, permitData);
+                        }
+
+                        // In order to support fee tokens check the amount received, not the transferred
+                        uint256 balanceBefore = IERC20Upgradeable(token)
+                            .balanceOf(address(this));
+                        IERC20Upgradeable(token).safeTransferFrom(
+                            msg.sender,
+                            address(this),
+                            amount
+                        );
+                        uint256 balanceAfter = IERC20Upgradeable(token)
+                            .balanceOf(address(this));
+
+                        // Override leafAmount with the received amount
+                        leafAmount = balanceAfter - balanceBefore;
+
+                        originTokenAddress = token;
+                        originNetwork = networkID;
                     }
-
-                    // In order to support fee tokens check the amount received, not the transferred
-                    uint256 balanceBefore = IERC20Upgradeable(token).balanceOf(
-                        address(this)
-                    );
-                    IERC20Upgradeable(token).safeTransferFrom(
-                        msg.sender,
-                        address(this),
-                        amount
-                    );
-                    uint256 balanceAfter = IERC20Upgradeable(token).balanceOf(
-                        address(this)
-                    );
-
-                    // Override leafAmount with the received amount
-                    leafAmount = balanceAfter - balanceBefore;
-
-                    originTokenAddress = token;
-                    originNetwork = networkID;
+                    // Encode metadata
+                    metadata = getTokenMetadata(token);
                 }
-                // Encode metadata
-                metadata = getTokenMetadata(token);
             }
         }
 
@@ -333,6 +429,11 @@ contract PolygonZkEVMBridgeV2 is
             revert NoValueInMessagesOnGasTokenNetworks();
         }
 
+        // Check if we can bridge ether to the l2
+        if (msg.value != 0 && !whitelistedAssets[address(0)]) {
+            revert OnlyWhitelistedAssets();
+        }
+
         _bridgeMessage(
             destinationNetwork,
             destinationAddress,
@@ -361,6 +462,11 @@ contract PolygonZkEVMBridgeV2 is
         // If native token is ether, disable this function
         if (address(WETHToken) == address(0)) {
             revert NativeTokenIsEther();
+        }
+
+        // Check if we can bridge ether to the l2
+        if (amountWETH != 0 && !whitelistedAssets[address(WETHToken)]) {
+            revert OnlyWhitelistedAssets();
         }
 
         // Burn wETH tokens

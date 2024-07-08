@@ -90,7 +90,7 @@ async function main() {
     if (createRollupParameters.multiplierGas || createRollupParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK !== "hardhat") {
             currentProvider = ethers.getDefaultProvider(
-                `https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`
+                `https://eth-${process.env.HARDHAT_NETWORK}.g.alchemy.com/v2/${process.env.ALCHEMY_PROJECT_ID}`
             ) as any;
             if (createRollupParameters.maxPriorityFeePerGas && createRollupParameters.maxFeePerGas) {
                 console.log(

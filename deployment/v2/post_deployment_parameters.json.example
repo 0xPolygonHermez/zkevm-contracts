@@ -1,0 +1,17 @@
+{
+    "committeeMembersAddresses": [
+        "0xc5e5dbf664c448cc257b9c9dd4a149abd834bcf9",
+        "0xe16509683048485183c7ea9e7feed905d9d51cf9",
+        "0xfe95082c21d3fd64941b23cc5a44c52c02a5dbb5"
+    ],
+    "committeeMembersURLs": [
+        "http://127.0.0.1:8444",
+        "http://127.0.0.1:8445",
+        "http://127.0.0.1:8446"
+    ],
+    "committeeMembersThreshold": 2,
+    "deployerPvtKey": "",
+    "maxFeePerGas": "30",
+    "maxPriorityFeePerGas": "1",
+    "multiplierGas": ""
+}

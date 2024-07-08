@@ -20,5 +20,8 @@ docker/gethData/
 *.ignore/
 typechain-types/
 create_rollup_parameters.json
+post_deployment_parameters.json
 
 docker/deploymentOutput
+create_rollup_output.json
+genesis.json
