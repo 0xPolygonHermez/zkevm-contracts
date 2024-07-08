@@ -262,4 +262,19 @@ interface IPolygonRollupManager {
      * @dev rollbackBatches is called from a non authorized address
      */
     error NotAllowedAddress();
+
+    /**
+     * @dev Invalid Rollup type parameters
+     */
+    error InvalidRollupType();
+
+    /**
+     * @dev Invalid Rollup parameters
+     */
+    error InvalidRollup();
+
+    /**
+     * @dev Global exit root deos not exists
+     */
+    error GlobalExitRootNotExist();
 }
