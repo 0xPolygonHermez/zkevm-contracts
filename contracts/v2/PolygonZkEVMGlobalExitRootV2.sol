@@ -22,7 +22,8 @@ contract PolygonZkEVMGlobalExitRootV2 is
     // Rollup manager contract address
     address public immutable rollupManager;
 
-    mapping(uint32 depositCount => bytes32 l1InfoRoot) public l1InfoRootMap;
+    // Store every l1InfoLeaf
+    mapping(uint32 leafIndex => bytes32 l1InfoRoot) public l1InfoRootMap;
 
     /**
      * @dev Emitted when the global exit root is updated
@@ -36,7 +37,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
     /**
      * @dev Emitted when the global exit root manager starts adding leafs to the L1InfoRootMap
      */
-    event InitL1InfoRootMap(uint32 depositCount, bytes32 currentL1InfoRoot);
+    event InitL1InfoRootMap(uint32 leafIndex, bytes32 currentL1InfoRoot);
 
     /**
      * @param _rollupManager Rollup manager contract address
