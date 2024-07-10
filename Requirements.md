@@ -11,6 +11,7 @@
 9. Store the .keystore files and passwords in the GCP secrets Manager as backups
 10. Fill out the CDK deployment parameters
 11. Deploy the CDK smart contracts
+12. Using the sequencer account, approve the rollup Manager to transfer Weth from the sequencer account
 
 
 ## Gas Costs
