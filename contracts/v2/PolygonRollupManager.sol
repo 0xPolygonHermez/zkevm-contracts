@@ -214,7 +214,7 @@ contract PolygonRollupManager is
     uint64 public verifyBatchTimeTarget;
 
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
-    uint16 public multiplierBatchFee;
+    uint16 internal __legacyMultiplierBatchFee;
 
     // Current POL fee per batch sequenced
     // note This variable is internal, since the view function getBatchFee is likely to be upgraded
@@ -303,11 +303,6 @@ contract PolygonRollupManager is
      * @dev Emitted when is updated the trusted aggregator timeout
      */
     event SetTrustedAggregatorTimeout(uint64 newTrustedAggregatorTimeout);
-
-    /**
-     * @dev Emitted when is updated the multiplier batch fee
-     */
-    event SetMultiplierBatchFee(uint16 newMultiplierBatchFee);
 
     /**
      * @dev Emitted when is updated the trusted aggregator address
@@ -1009,10 +1004,6 @@ contract PolygonRollupManager is
     ) internal virtual {
         bytes32 oldStateRoot;
 
-        if(pendingStateNum != 0) {
-            revert PendingStateNumExist();
-        }
-
         uint64 currentLastVerifiedBatch = _getLastVerifiedBatch(rollup);
 
         if (initNumBatch < rollup.lastVerifiedBatchBeforeUpgrade) {
@@ -1146,21 +1137,6 @@ contract PolygonRollupManager is
 
         trustedAggregatorTimeout = newTrustedAggregatorTimeout;
         emit SetTrustedAggregatorTimeout(newTrustedAggregatorTimeout);
-    }
-
-    /**
-     * @notice Set a new multiplier batch fee
-     * @param newMultiplierBatchFee multiplier batch fee
-     */
-    function setMultiplierBatchFee(
-        uint16 newMultiplierBatchFee
-    ) external onlyRole(_TWEAK_PARAMETERS_ROLE) {
-        if (newMultiplierBatchFee < 1000 || newMultiplierBatchFee > 1023) {
-            revert InvalidRangeMultiplierBatchFee();
-        }
-
-        multiplierBatchFee = newMultiplierBatchFee;
-        emit SetMultiplierBatchFee(newMultiplierBatchFee);
     }
 
     /**
