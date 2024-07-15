@@ -198,52 +198,6 @@ abstract contract PolygonConsensusContract is
     uint256[50] private _gap;
 
     /**
-     * @dev Emitted when the trusted sequencer sends a new batch of transactions
-     */
-    event SequenceBatches(uint64 indexed numBatch, bytes32 l1InfoRoot);
-
-    /**
-     * @dev Emitted when a batch is forced
-     */
-    event ForceBatch(
-        uint64 indexed forceBatchNum,
-        bytes32 lastGlobalExitRoot,
-        address sequencer,
-        bytes transactions
-    );
-
-    /**
-     * @dev Emitted when forced batches are sequenced by not the trusted sequencer
-     */
-    event SequenceForceBatches(uint64 indexed numBatch);
-
-    /**
-     * @dev Emitted when the contract is initialized, contain the first sequenced transaction
-     */
-    event InitialSequenceBatches(
-        bytes transactions,
-        bytes32 lastGlobalExitRoot,
-        address sequencer
-    );
-
-    /**
-     * @dev Emitted when a aggregator verifies batches
-     */
-    event VerifyBatches(
-        uint64 indexed numBatch,
-        bytes32 stateRoot,
-        address indexed aggregator
-    );
-
-    /**
-     * @dev Emitted when a aggregator verifies batches
-     */
-    event RollbackBatches(
-        uint64 indexed targetBatch,
-        bytes32 accInputHashToRollback
-    );
-
-    /**
      * @dev Emitted when the admin updates the trusted sequencer address
      */
     event SetTrustedSequencer(address newTrustedSequencer);
@@ -310,43 +264,6 @@ abstract contract PolygonConsensusContract is
         string memory sequencerURL,
         string memory _networkName
     ) external virtual onlyRollupManager initializer {
-        bytes memory gasTokenMetadata = _verifyOrigin(_gasTokenAddress);
-
-        // Sequence transaction to initilize the bridge
-
-        // Calculate transaction to initialize the bridge
-        bytes memory transaction = generateInitializeTransaction(
-            networkID,
-            gasTokenAddress,
-            gasTokenNetwork,
-            gasTokenMetadata
-        );
-
-        bytes32 currentTransactionsHash = keccak256(transaction);
-
-        // Get current timestamp and global exit root
-        uint64 currentTimestamp = uint64(block.timestamp);
-        bytes32 lastGlobalExitRoot = globalExitRootManager
-            .getLastGlobalExitRoot();
-
-        // Add the transaction to the sequence as if it was a force transaction
-        bytes32 newAccInputHash = keccak256(
-            abi.encodePacked(
-                bytes32(0), // Current acc Input hash
-                currentTransactionsHash,
-                lastGlobalExitRoot, // Global exit root
-                currentTimestamp,
-                sequencer,
-                blockhash(block.number - 1)
-            )
-        );
-
-        lastAccInputHash = newAccInputHash;
-
-        rollupManager.onSequenceBatches(
-            uint64(1), // num total batches
-            newAccInputHash
-        );
 
         // Set initialize variables
         admin = _admin;
@@ -360,7 +277,6 @@ abstract contract PolygonConsensusContract is
         // Constant deployment variables
         forceBatchTimeout = 5 days;
 
-        emit InitialSequenceBatches(transaction, lastGlobalExitRoot, sequencer);
     }
 
     modifier onlyAdmin() {
@@ -608,7 +524,7 @@ abstract contract PolygonConsensusContract is
     }
 
     function getConsensusHash() public view returns (bytes32) {
-        return keccak256(trustedSequencer);
+        return keccak256(abi.encodePacked(trustedSequencer));
     }
 
 }
