@@ -274,17 +274,23 @@ interface IPolygonRollupManager {
     error InvalidRollup();
 
     /**
-     * @dev Global exit root deos not exists
+     * @dev Global exit root does not exists
      */
     error GlobalExitRootNotExist();
 
     /**
-     * @dev Global exit root deos not exists
+     * @dev Only Pessimistic Chains
      */
     error OnlyPessimisticChains();
 
     /**
-     * @dev Global exit root deos not exists
+     * @dev Only State Transition Chains
      */
     error OnlyStateTransitionChains();
+
+    /**
+     * @dev Pending state num exist
+     */
+    error PendingStateNumExist();
+
 }
