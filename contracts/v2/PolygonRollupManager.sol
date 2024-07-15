@@ -65,12 +65,12 @@ contract PolygonRollupManager is
      * @param forkID ForkID of the rollup
      * @param batchNumToStateRoot State root mapping
      * @param sequencedBatches Queue of batches that defines the virtual state
-     * @param pendingStateTransitionsDeprecated Pending state mapping (deprecated)
+     * @param _legacyPendingStateTransitions Pending state mapping (deprecated)
      * @param lastLocalExitRoot Last exit root verified, used for compute the rollupExitRoot
      * @param lastBatchSequenced Last batch sent by the consensus contract
      * @param lastVerifiedBatch Last batch verified
-     * @param lastPendingStateDeprecated Last pending state (deprecated)
-     * @param lastPendingStateConsolidatedDeprecated Last pending state consolidated (deprecated)
+     * @param _legacyLastPendingState Last pending state (deprecated)
+     * @param _legacyLastPendingStateConsolidated Last pending state consolidated (deprecated)
      * @param lastVerifiedBatchBeforeUpgrade Last batch verified before the last upgrade
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
@@ -83,12 +83,12 @@ contract PolygonRollupManager is
         uint64 forkID;
         mapping(uint64 batchNum => bytes32) batchNumToStateRoot;
         mapping(uint64 batchNum => SequencedBatchData) sequencedBatches;
-        mapping(uint256 pendingStateNumDeprecated => PendingStateDeprecated) pendingStateTransitionsDeprecated;
+        mapping(uint256 _legacyPendingStateNum => PendingState) _legacyPendingStateTransitions;
         bytes32 lastLocalExitRoot;
         uint64 lastBatchSequenced;
         uint64 lastVerifiedBatch;
-        uint64 lastPendingStateDeprecated;
-        uint64 lastPendingStateConsolidatedDeprecated;
+        uint64 _legacyLastPendingState;
+        uint64 _legacyLastPendingStateConsolidated;
         uint64 lastVerifiedBatchBeforeUpgrade;
         uint64 rollupTypeID;
         VerifierType rollupVerifierType;
@@ -207,18 +207,18 @@ contract PolygonRollupManager is
     uint64 internal __legacyTrustedAggregatorTimeout;
 
     // Once a pending state exceeds this timeout it can be consolidated (deprecated)
-    uint64 public pendingStateTimeoutDeprecated;
+    uint64 internal __legacyPendingStateTimeout;
 
     // Time target of the verification of a batch
     // Adaptively the batchFee will be updated to achieve this target
     uint64 internal __legacyVerifyBatchTimeTarget;
 
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
-    uint16 public multiplierBatchFeeDeprecated;
+    uint16 public multiplierBatchFee;
 
     // Current POL fee per batch sequenced
     // note This variable is internal, since the view function getBatchFee is likely to be upgraded
-    uint256 internal _batchFeeDeprecated;
+    uint256 internal _batchFee;
 
     // Timestamp when the last emergency state was deactivated
     uint64 public lastDeactivatedEmergencyStateTimestamp;
@@ -291,18 +291,34 @@ contract PolygonRollupManager is
         address indexed aggregator
     );
 
+    /**
+     * @dev Emitted when rollback batches
+     */
+    event RollbackBatches(
+        uint32 indexed rollupID,
+        uint64 indexed targetBatch,
+        bytes32 accInputHashToRollback
+    );
 
-  /**
+    /**
      * @dev Emitted when is updated the trusted aggregator timeout
      */
     event SetTrustedAggregatorTimeout(uint64 newTrustedAggregatorTimeout);
 
+    /**
+     * @dev Emitted when is updated the multiplier batch fee
+     */
+    event SetMultiplierBatchFee(uint16 newMultiplierBatchFee);
 
     /**
      * @dev Emitted when is updated the trusted aggregator address
      */
     event SetTrustedAggregator(address newTrustedAggregator);
 
+    /**
+     * @dev Emitted when is updated the batch fee
+     */
+    event SetBatchFee(uint256 newBatchFee);
 
     /**
      * @param _globalExitRootManager Global exit root manager address
@@ -727,6 +743,81 @@ contract PolygonRollupManager is
         emit UpdateRollup(rollupID, newRollupTypeID, lastVerifiedBatch);
     }
 
+    /**
+     * @notice Rollback batches of the target rollup
+     * Only applies to state transition rollups
+     * @param rollupContract Rollup consensus proxy address
+     * @param targetBatch Batch to rollback up to but not including this batch
+     */
+    function rollbackBatches(
+        IPolygonRollupBase rollupContract,
+        uint64 targetBatch
+    ) external {
+        // Check msg.sender has _UPDATE_ROLLUP_ROLE rol or is the admin of the network
+        if (
+            !hasRole(_UPDATE_ROLLUP_ROLE, msg.sender) &&
+            IPolygonRollupBase(address(rollupContract)).admin() != msg.sender
+        ) {
+            revert NotAllowedAddress();
+        }
+
+        // Check the rollup exists
+        uint32 rollupID = rollupAddressToID[address(rollupContract)];
+        if (rollupID == 0) {
+            revert RollupMustExist();
+        }
+
+        // Load rollup
+        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        uint64 lastBatchSequenced = rollup.lastBatchSequenced;
+
+        // Batch to rollback should be already sequenced
+        if (
+            targetBatch >= lastBatchSequenced ||
+            targetBatch < rollup.lastVerifiedBatch
+        ) {
+            revert RollbackBatchIsNotValid();
+        }
+
+        uint64 currentBatch = lastBatchSequenced;
+
+        // delete sequence batches structs until the targetBatch
+        while (currentBatch != targetBatch) {
+            // Load previous end of sequence batch
+            uint64 previousBatch = rollup
+                .sequencedBatches[currentBatch]
+                .previousLastBatchSequenced;
+
+            // Batch to rollback must be end of a sequence
+            if (previousBatch < targetBatch) {
+                revert RollbackBatchIsNotEndOfSequence();
+            }
+
+            // delete sequence information
+            delete rollup.sequencedBatches[currentBatch];
+
+            // Update current batch for next iteration
+            currentBatch = previousBatch;
+        }
+
+        // Update last batch sequenced on rollup data
+        rollup.lastBatchSequenced = targetBatch;
+
+        // Update totalSequencedBatches
+        totalSequencedBatches -= lastBatchSequenced - targetBatch;
+
+        // Clean pending state if any
+        rollupContract.rollbackBatches(
+            targetBatch,
+            rollup.sequencedBatches[targetBatch].accInputHash
+        );
+
+        emit RollbackBatches(
+            rollupID,
+            targetBatch,
+            rollup.sequencedBatches[targetBatch].accInputHash
+        );
+    }
 
     /////////////////////////////////////
     // Sequence/Verify batches functions
@@ -778,7 +869,7 @@ contract PolygonRollupManager is
     /**
      * @notice Allows a trusted aggregator to verify multiple batches
      * @param rollupID Rollup identifier
-     * @param pendingStateNumDeprecated Init pending state, 0 if consolidated state is used (deprecated)
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used (deprecated)
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot New local exit root once the batch is processed
@@ -788,7 +879,7 @@ contract PolygonRollupManager is
      */
     function verifyBatchesTrustedAggregator(
         uint32 rollupID,
-        uint64 pendingStateNumDeprecated,
+        uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
@@ -797,7 +888,9 @@ contract PolygonRollupManager is
         bytes32[24] calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
 
-        require(pendingStateNumDeprecated == 0, "pendingStateNumDeprecated must be 0 ");
+        if(pendingStateNum != 0) {
+            revert PendingStateNumExist();
+        }
 
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
@@ -807,7 +900,7 @@ contract PolygonRollupManager is
 
         _verifyAndRewardBatches(
             rollup,
-            pendingStateNumDeprecated,
+            pendingStateNum,
             initNumBatch,
             finalNewBatch,
             newLocalExitRoot,
@@ -976,7 +1069,7 @@ contract PolygonRollupManager is
     /**
      * @notice Verify and reward batches internal function
      * @param rollup Rollup Data storage pointer that will be used to the verification
-     * @param pendingStateNumDeprecated Init pending state, 0 if consolidated state is used (deprecated)
+     * @param pendingStateNum Init pending state, 0 if consolidated state is used (deprecated)
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot New local exit root once the batch is processed
@@ -986,7 +1079,7 @@ contract PolygonRollupManager is
      */
     function _verifyAndRewardBatches(
         RollupData storage rollup,
-        uint64 pendingStateNumDeprecated,
+        uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
@@ -996,7 +1089,9 @@ contract PolygonRollupManager is
     ) internal virtual {
         bytes32 oldStateRoot;
 
-        require(pendingStateNumDeprecated == 0, "pendingStateTimeoutDeprecated must be 0 ");
+        if(pendingStateNum != 0) {
+            revert PendingStateNumExist();
+        }
 
         uint64 currentLastVerifiedBatch = _getLastVerifiedBatch(rollup);
 
@@ -1135,6 +1230,33 @@ contract PolygonRollupManager is
         emit SetTrustedAggregatorTimeout(newTrustedAggregatorTimeout);
     }
 
+    /**
+     * @notice Set a new multiplier batch fee
+     * @param newMultiplierBatchFee multiplier batch fee
+     */
+    function setMultiplierBatchFee(
+        uint16 newMultiplierBatchFee
+    ) external onlyRole(_TWEAK_PARAMETERS_ROLE) {
+        if (newMultiplierBatchFee < 1000 || newMultiplierBatchFee > 1023) {
+            revert InvalidRangeMultiplierBatchFee();
+        }
+
+        multiplierBatchFee = newMultiplierBatchFee;
+        emit SetMultiplierBatchFee(newMultiplierBatchFee);
+    }
+
+    /**
+     * @notice Set the current batch fee
+     * @param newBatchFee new batch fee
+     */
+    function setBatchFee(uint256 newBatchFee) external onlyRole(_SET_FEE_ROLE) {
+        // check fees min and max
+        if (newBatchFee > _MAX_BATCH_FEE || newBatchFee < _MIN_BATCH_FEE) {
+            revert BatchFeeOutOfRange();
+        }
+        _batchFee = newBatchFee;
+        emit SetBatchFee(newBatchFee);
+    }
 
     ////////////////////////
     // view/pure functions
@@ -1225,14 +1347,7 @@ contract PolygonRollupManager is
     function _getLastVerifiedBatch(
         RollupData storage rollup
     ) internal view returns (uint64) {
-        if (rollup.lastPendingState > 0) {
-            return
-                rollup
-                    .pendingStateTransitions[rollup.lastPendingState]
-                    .lastVerifiedBatch;
-        } else {
-            return rollup.lastVerifiedBatch;
-        }
+        return rollup.lastVerifiedBatch;
     }
 
     /**
@@ -1249,6 +1364,21 @@ contract PolygonRollupManager is
         return currentBalance / totalBatchesToVerify;
     }
 
+    /**
+     * @notice Get batch fee
+     * This function is used instad of the automatic public view one,
+     * because in a future might change the behaviour and we will be able to mantain the interface
+     */
+    function getBatchFee() public view returns (uint256) {
+        return _batchFee;
+    }
+
+    /**
+     * @notice Get forced batch fee
+     */
+    function getForcedBatchFee() public view returns (uint256) {
+        return _batchFee * 100;
+    }
 
     /**
      * @notice Function to calculate the pessimistic input bytes
