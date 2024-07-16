@@ -11,7 +11,9 @@ import {ethers, upgrades} from "hardhat";
 const addRollupParameters = require("./add_rollup_type.json");
 const genesis = require("./genesis.json");
 
-const pathOutputJson = path.join(__dirname, "./add_rollup_type_output.json");
+const dateStr = new Date().toISOString();
+const pathOutputJson = path.join(__dirname, `./add_rollup_type_output-${dateStr}.json`);
+import {PolygonRollupManager} from "../../typechain-types";
 import "../../deployment/helpers/utils";
 
 async function main() {
@@ -25,13 +27,11 @@ async function main() {
         "description",
         "forkID",
         "consensusContract",
-        "polygonRollupManagerAddress",
-        "polygonZkEVMBridgeAddress",
-        "polygonZkEVMGlobalExitRootAddress",
         "polTokenAddress",
         "verifierAddress",
         "rollupCompatibilityID",
         "timelockDelay",
+        "genesisRoot"
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -46,11 +46,9 @@ async function main() {
         forkID,
         consensusContract,
         polygonRollupManagerAddress,
-        polygonZkEVMBridgeAddress,
-        polygonZkEVMGlobalExitRootAddress,
-        polTokenAddress,
         verifierAddress,
         timelockDelay,
+        genesisRoot
     } = addRollupParameters;
 
     const salt = addRollupParameters.timelockSalt || ethers.ZeroHash;
@@ -112,6 +110,36 @@ async function main() {
 
     // Load Rollup manager
     const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager", deployer);
+    const rollupManagerContract = PolgonRollupManagerFactory.attach(
+        polygonRollupManagerAddress
+    ) as PolygonRollupManager;
+
+    // get data from rollupManagerContract
+    const polygonZkEVMBridgeAddress = await rollupManagerContract.bridgeAddress();
+    const polygonZkEVMGlobalExitRootAddress = await rollupManagerContract.globalExitRootManager();
+    const polTokenAddress = await rollupManagerContract.pol();
+
+    // Sanity checks genesisRoot
+    if (genesisRoot !== genesis.root) {
+        throw new Error(
+            `Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`
+        );
+    }
+
+    // get bridge address in genesis file
+    let genesisBridgeAddress = ethers.constants.AddresZero;
+    for (let i = 0; i < genesis.genesis.lenght; i++) {
+        if (genesis.genesis[i].contractName === 'PolygonZkEVMBridge proxy') {
+            genesisBridgeAddress = genesis.genesis[i].address;
+            break;
+        }
+    }
+
+    if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress ) {
+        throw new Error(
+            `'PolygonZkEVMBridge proxy' root in the 'genesis.json' does not match 'bridgeAddress' in the 'PolygonRollupManager'`
+        );
+    }
 
     // Create consensus implementation
     const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;

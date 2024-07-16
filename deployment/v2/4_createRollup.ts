@@ -147,7 +147,14 @@ async function main() {
 
     let verifierContract;
     if (realVerifier === true) {
-        const VerifierRollup = await ethers.getContractFactory("FflonkVerifier", deployer);
+        let verifierName;
+        if (forkID > 9) {
+            verifierName = `FflonkVerifier_${forkID}`;
+        } else {
+            verifierName = "FflonkVerifier";
+        }
+
+        const VerifierRollup = await ethers.getContractFactory(verifierName, deployer);
         verifierContract = await VerifierRollup.deploy();
         await verifierContract.waitForDeployment();
     } else {

@@ -56,27 +56,33 @@ async function main() {
         [deployer] = await ethers.getSigners();
     }
 
-    console.log("deploying with: ", deployer.address);
+    console.log("--> Deploying with: ", deployer.address);
 
     /*
-     *Deployment pol
+     * Deployment Verifier
      */
+    const verifierName = `FflonkVerifier_${deployParameters.forkID}`;
     let verifierContract;
     if (deployParameters.realVerifier === true) {
-        const VerifierRollup = await ethers.getContractFactory("FflonkVerifier", deployer);
+        const VerifierRollup = await ethers.getContractFactory(verifierName, deployer);
+        console.log(`--> Deploying verifier: ${verifierName}`);
         verifierContract = await VerifierRollup.deploy();
         await verifierContract.waitForDeployment();
     } else {
         const VerifierRollupHelperFactory = await ethers.getContractFactory("VerifierRollupHelperMock", deployer);
+        console.log("Deploying verifier VerifierRollupHelperMock");
         verifierContract = await VerifierRollupHelperFactory.deploy();
         await verifierContract.waitForDeployment();
     }
-    console.log("#######################\n");
+    // print contract address deployed
+    console.log("\n#######################");
     console.log("Verifier deployed to:", verifierContract.target);
     console.log("#######################\n");
-    console.log("verifierContract deployed to:", verifierContract.target);
-    console.log("you can verify the new verifierContract address with:");
-    console.log(`npx hardhat verify ${verifierContract.target} --network ${process.env.HARDHAT_NETWORK}\n`);
+    // print verification command line
+    console.log("#######################");
+    console.log("you can verify the new verifierContract address with the following command:");
+    console.log(`npx hardhat verify ${verifierContract.target} --network ${process.env.HARDHAT_NETWORK}`);
+    console.log("#######################");
 }
 
 main().catch((e) => {
