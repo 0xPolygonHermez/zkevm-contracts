@@ -93,6 +93,7 @@ contract PolygonRollupManager is
         uint64 rollupTypeID;
         VerifierType rollupVerifierType;
         bytes32 lastPessimisticRoot;
+        bytes32 programVKey;
     }
 
     // Modulus zkSNARK
@@ -262,7 +263,8 @@ contract PolygonRollupManager is
         address rollupAddress,
         uint64 chainID,
         VerifierType rollupVerifierType,
-        uint64 lastVerifiedBatchBeforeUpgrade
+        uint64 lastVerifiedBatchBeforeUpgrade,
+        bytes32 programVKey
     );
 
     /**
@@ -516,7 +518,9 @@ contract PolygonRollupManager is
         uint64 forkID,
         uint64 chainID,
         bytes32 genesis,
-        VerifierType rollupVerifierType
+        VerifierType rollupVerifierType,
+        bytes32 programVKey,
+        bytes32 newLocalExitRoot
     ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
         // Check chainID nullifier
         if (chainIDToRollupID[chainID] != 0) {
@@ -533,6 +537,7 @@ contract PolygonRollupManager is
         uint32 rollupID = ++rollupCount;
 
         if (rollupVerifierType == VerifierType.Pessimistic) {
+            // No rollup address or genessis allowed for pessimistic rollups
             if (address(rollupAddress) != address(0) || genesis != bytes32(0)) {
                 revert InvalidRollup();
             }
@@ -556,7 +561,10 @@ contract PolygonRollupManager is
         rollup.chainID = chainID;
         rollup.rollupVerifierType = rollupVerifierType;
         rollup.batchNumToStateRoot[0] = genesis;
-
+        if (rollupVerifierType == VerifierType.Pessimistic) {
+            rollup.programVKey = programVKey;
+            rollup.lastLocalExitRoot = newLocalExitRoot;
+        }
         // rollup type is 0, since it does not follow any rollup type
         emit AddExistingRollup(
             rollupID,
@@ -564,7 +572,8 @@ contract PolygonRollupManager is
             address(rollupAddress),
             chainID,
             rollupVerifierType,
-            0
+            0,
+            programVKey
         );
     }
 
