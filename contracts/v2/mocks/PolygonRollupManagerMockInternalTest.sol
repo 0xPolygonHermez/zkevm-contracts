@@ -29,13 +29,13 @@ contract PolygonRollupManagerMockInternalTest is PolygonRollupManager {
         uint64 zkEVMForkID,
         uint64 zkEVMChainID
     ) external reinitializer(2) {
-        pendingStateTimeout = _pendingStateTimeout;
-        trustedAggregatorTimeout = _trustedAggregatorTimeout;
+        //pendingStateTimeout = _pendingStateTimeout;
+        //trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
         // Constant deployment variables
         _batchFee = 0.1 ether; // 0.1 Matic
-        verifyBatchTimeTarget = 30 minutes;
-        multiplierBatchFee = 1002;
+        //verifyBatchTimeTarget = 30 minutes;
+        //multiplierBatchFee = 1002;
 
         // Initialize OZ contracts
         __AccessControl_init();
