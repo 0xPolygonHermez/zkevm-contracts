@@ -83,7 +83,7 @@ contract PolygonRollupManager is
         uint64 forkID;
         mapping(uint64 batchNum => bytes32) batchNumToStateRoot;
         mapping(uint64 batchNum => SequencedBatchData) sequencedBatches;
-        mapping(uint256 _legacyPendingStateNum => PendingState) _legacyPendingStateTransitions;
+        mapping(uint256 pendingStateNum => PendingState) _legacyPendingStateTransitions;
         bytes32 lastLocalExitRoot;
         uint64 lastBatchSequenced;
         uint64 lastVerifiedBatch;
@@ -204,14 +204,14 @@ contract PolygonRollupManager is
 
     // Trusted aggregator timeout, if a sequence is not verified in this time frame,
     // everyone can verify that sequence
-    uint64 internal __legacyTrustedAggregatorTimeout;
+    uint64 public __legacyTrustedAggregatorTimeout;
 
     // Once a pending state exceeds this timeout it can be consolidated (deprecated)
     uint64 internal __legacyPendingStateTimeout;
 
     // Time target of the verification of a batch
     // Adaptively the batchFee will be updated to achieve this target
-    uint64 internal __legacyVerifyBatchTimeTarget;
+    uint64 public __legacyVerifyBatchTimeTarget;
 
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
     uint16 internal __legacyMultiplierBatchFee;
@@ -279,7 +279,6 @@ contract PolygonRollupManager is
      */
     event OnSequenceBatches(uint32 indexed rollupID, uint64 lastBatchSequenced);
 
-
     /**
      * @dev Emitted when the trusted aggregator verifies batches
      */
@@ -299,11 +298,6 @@ contract PolygonRollupManager is
         uint64 indexed targetBatch,
         bytes32 accInputHashToRollback
     );
-
-    /**
-     * @dev Emitted when is updated the trusted aggregator timeout
-     */
-    event SetTrustedAggregatorTimeout(uint64 newTrustedAggregatorTimeout);
 
     /**
      * @dev Emitted when is updated the trusted aggregator address
@@ -860,7 +854,6 @@ contract PolygonRollupManager is
         return newLastBatchSequenced;
     }
 
-
     /**
      * @notice Allows a trusted aggregator to verify multiple batches
      * @param rollupID Rollup identifier
@@ -882,8 +875,9 @@ contract PolygonRollupManager is
         address beneficiary,
         bytes32[24] calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
-
-        if(pendingStateNum != 0) {
+        // Pending state became deprecated,
+        // It's still there just to have backwards compatibility
+        if (pendingStateNum != 0) {
             revert PendingStateNumExist();
         }
 
@@ -895,7 +889,6 @@ contract PolygonRollupManager is
 
         _verifyAndRewardBatches(
             rollup,
-            pendingStateNum,
             initNumBatch,
             finalNewBatch,
             newLocalExitRoot,
@@ -1064,7 +1057,6 @@ contract PolygonRollupManager is
     /**
      * @notice Verify and reward batches internal function
      * @param rollup Rollup Data storage pointer that will be used to the verification
-     * @param pendingStateNum Init pending state, 0 if consolidated state is used (deprecated)
      * @param initNumBatch Batch which the aggregator starts the verification
      * @param finalNewBatch Last batch aggregator intends to verify
      * @param newLocalExitRoot New local exit root once the batch is processed
@@ -1074,7 +1066,6 @@ contract PolygonRollupManager is
      */
     function _verifyAndRewardBatches(
         RollupData storage rollup,
-        uint64 pendingStateNum,
         uint64 initNumBatch,
         uint64 finalNewBatch,
         bytes32 newLocalExitRoot,
@@ -1202,24 +1193,6 @@ contract PolygonRollupManager is
     //////////////////
     // Setter functions
     //////////////////
-
-    /**
-     * @notice Set a new pending state timeout
-     * The timeout can only be lowered, except if emergency state is active
-     * @param newTrustedAggregatorTimeout Trusted aggregator timeout
-     */
-    function setTrustedAggregatorTimeout(
-        uint64 newTrustedAggregatorTimeout
-    ) external onlyRole(_TWEAK_PARAMETERS_ROLE) {
-        if (!isEmergencyState) {
-            if (newTrustedAggregatorTimeout >= trustedAggregatorTimeout) {
-                revert NewTrustedAggregatorTimeoutMustBeLower();
-            }
-        }
-
-        trustedAggregatorTimeout = newTrustedAggregatorTimeout;
-        emit SetTrustedAggregatorTimeout(newTrustedAggregatorTimeout);
-    }
 
     /**
      * @notice Set the current batch fee
@@ -1533,5 +1506,4 @@ contract PolygonRollupManager is
     ) public view returns (SequencedBatchData memory) {
         return rollupIDToRollupData[rollupID].sequencedBatches[batchNum];
     }
-
 }
