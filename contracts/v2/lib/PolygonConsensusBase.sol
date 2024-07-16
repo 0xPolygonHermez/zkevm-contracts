@@ -26,8 +26,6 @@ abstract contract PolygonConsensusBase is
     IPolygonZkEVMVEtrogErrors,
     IPolygonRollupBase
 {
-    using SafeERC20Upgradeable for IERC20Upgradeable;
-
     /**
      * @notice Struct which will be used to call sequenceBatches
      * @param transactions L2 ethereum transactions EIP-155 or pre-EIP-155 with signature:
