@@ -236,6 +236,15 @@ Generate Initialize transaction for hte bridge on L2
 |`_gasTokenNetwork` | uint32 | Indicates the native network of the token address
 |`_gasTokenMetadata` | bytes | Abi encoded gas token metadata
 
+### _verifyOrigin
+```solidity
+  function _verifyOrigin(
+  ) internal returns (bytes gasTokenMetadata)
+```
+
+
+
+
 ## Events
 ### SequenceBatches
 ```solidity
