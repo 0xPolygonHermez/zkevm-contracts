@@ -1,0 +1,6 @@
+{
+ "genesis": "0xa598a6bb9cca27d437b9371331eb9d8f50fc5a509099f5af4c3c5cae08575f04",
+ "verifierAddress": "0xbD60710AA740c3210F811292866C2e59339cA273",
+ "consensusContract": "PolygonValidiumEtrog",
+ "rollupTypeID": "3"
+}
