@@ -75,7 +75,6 @@ contract PolygonRollupManager is
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
      * @param lastPessimisticRoot Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
-     * @param programVKey Program Key, which uniquely identifies the "rust" program to be verified
      */
     struct RollupData {
         IPolygonRollupBase rollupContract;
@@ -94,7 +93,7 @@ contract PolygonRollupManager is
         uint64 rollupTypeID;
         VerifierType rollupVerifierType;
         bytes32 lastPessimisticRoot;
-        bytes32 programVKey;
+        //bytes32 programVKey;
     }
 
     // Modulus zkSNARK
