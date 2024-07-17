@@ -17,6 +17,15 @@ Contract responsible for managing the exit roots across multiple networks
 |`_rollupManager` | address | Rollup manager contract address
 |`_bridgeAddress` | address | PolygonZkEVMBridge contract address
 
+### initialize
+```solidity
+  function initialize(
+  ) external
+```
+Reset the deposit tree since will be replace by a recursive one
+
+
+
 ### updateExitRoot
 ```solidity
   function updateExitRoot(
@@ -75,4 +84,12 @@ Given the leaf data returns the leaf hash
 ```
 
 Emitted when the global exit root is updated
+
+### InitL1InfoRootMap
+```solidity
+  event InitL1InfoRootMap(
+  )
+```
+
+Emitted when the global exit root manager starts adding leafs to the L1InfoRootMap
 

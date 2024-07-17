@@ -54,8 +54,9 @@ Note if a wrapped token of the bridge is used, the original network and address 
 ```solidity
   function sequenceBatches(
     struct PolygonRollupBaseEtrog.BatchData[] batches,
+    uint32 indexL1InfoRoot,
     uint64 maxSequenceTimestamp,
-    uint64 initSequencedBatch,
+    bytes32 expectedFinalAccInputHash,
     address l2Coinbase
   ) public
 ```
@@ -66,9 +67,10 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
+|`indexL1InfoRoot` | uint32 | Index of the L1InfoRoot that will be used in this sequence
 |`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
 This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-|`initSequencedBatch` | uint64 | This parameter must match the current last batch sequenced.
+|`expectedFinalAccInputHash` | bytes32 | This parameter must match the acc input hash after hash all the batch data
 This will be a protection for the sequencer to avoid sending undesired data
 |`l2Coinbase` | address | Address that will receive the fees from L2
 note Pol is not a reentrant token
@@ -90,6 +92,22 @@ Callback on verify batches, can only be called by the rollup manager
 |`lastVerifiedBatch` | uint64 | Last verified batch
 |`newStateRoot` | bytes32 | new state root
 |`aggregator` | address | Aggregator address
+
+### rollbackBatches
+```solidity
+  function rollbackBatches(
+    uint64 targetBatch,
+    bytes32 accInputHashToRollback
+  ) public
+```
+Callback on rollback batches, can only be called by the rollup manager
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`targetBatch` | uint64 | Batch to rollback up to but not including this batch
+|`accInputHashToRollback` | bytes32 | Acc input hash to rollback
 
 ### forceBatch
 ```solidity
@@ -125,34 +143,6 @@ Allows anyone to sequence forced Batches if the trusted sequencer has not done s
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append force batches
 
-### setTrustedSequencer
-```solidity
-  function setTrustedSequencer(
-    address newTrustedSequencer
-  ) external
-```
-Allow the admin to set a new trusted sequencer
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newTrustedSequencer` | address | Address of the new trusted sequencer
-
-### setTrustedSequencerURL
-```solidity
-  function setTrustedSequencerURL(
-    string newTrustedSequencerURL
-  ) external
-```
-Allow the admin to set the trusted sequencer URL
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newTrustedSequencerURL` | string | URL of trusted sequencer
-
 ### setForceBatchAddress
 ```solidity
   function setForceBatchAddress(
@@ -183,30 +173,6 @@ The new value can only be lower, except if emergency state is active
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newforceBatchTimeout` | uint64 | New force batch timeout
 
-### transferAdminRole
-```solidity
-  function transferAdminRole(
-    address newPendingAdmin
-  ) external
-```
-Starts the admin role transfer
-This is a two step process, the pending admin must accepted to finalize the process
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newPendingAdmin` | address | Address of the new pending admin
-
-### acceptAdminRole
-```solidity
-  function acceptAdminRole(
-  ) external
-```
-Allow the current pending admin to accept the admin role
-
-
-
 ### calculatePolPerForceBatch
 ```solidity
   function calculatePolPerForceBatch(
@@ -235,6 +201,15 @@ Generate Initialize transaction for hte bridge on L2
 |`_gasTokenAddress` | address | Indicates the token address that will be used to pay gas fees in the new rollup
 |`_gasTokenNetwork` | uint32 | Indicates the native network of the token address
 |`_gasTokenMetadata` | bytes | Abi encoded gas token metadata
+
+### _verifyOrigin
+```solidity
+  function _verifyOrigin(
+  ) internal returns (bytes gasTokenMetadata)
+```
+
+
+
 
 ## Events
 ### SequenceBatches
@@ -277,21 +252,13 @@ Emitted when the contract is initialized, contain the first sequenced transactio
 
 Emitted when a aggregator verifies batches
 
-### SetTrustedSequencer
+### RollbackBatches
 ```solidity
-  event SetTrustedSequencer(
+  event RollbackBatches(
   )
 ```
 
-Emitted when the admin updates the trusted sequencer address
-
-### SetTrustedSequencerURL
-```solidity
-  event SetTrustedSequencerURL(
-  )
-```
-
-Emitted when the admin updates the sequencer URL
+Emitted when a aggregator verifies batches
 
 ### SetForceBatchTimeout
 ```solidity
@@ -308,20 +275,4 @@ Emitted when the admin update the force batch timeout
 ```
 
 Emitted when the admin update the force batch address
-
-### TransferAdminRole
-```solidity
-  event TransferAdminRole(
-  )
-```
-
-Emitted when the admin starts the two-step transfer role setting a new pending admin
-
-### AcceptAdminRole
-```solidity
-  event AcceptAdminRole(
-  )
-```
-
-Emitted when the pending admin accepts the admin role
 
