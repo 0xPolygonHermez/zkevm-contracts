@@ -27,16 +27,16 @@ contract PolygonConsensusBase is
     IPolygonZkEVMVEtrogErrors
 {
     // POL token address
-    IERC20Upgradeable public pol;
+    IERC20Upgradeable public immutable pol;
 
     // Global Exit Root interface
-    IPolygonZkEVMGlobalExitRootV2 public globalExitRootManager;
+    IPolygonZkEVMGlobalExitRootV2 public immutable globalExitRootManager;
 
     // PolygonZkEVM Bridge Address
-    IPolygonZkEVMBridgeV2 public bridgeAddress;
+    IPolygonZkEVMBridgeV2 public immutable bridgeAddress;
 
     // Rollup manager
-    PolygonRollupManager public rollupManager;
+    PolygonRollupManager public immutable rollupManager;
 
     // Address that will be able to adjust contract parameters
     address public admin;
