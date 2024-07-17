@@ -72,6 +72,7 @@ contract PolygonRollupManager is
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
      * @param lastPessimisticRoot Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
+     * @param programVKey Program Key, which uniquely identifies the "rust" program to be verified
      */
     struct RollupData {
         IPolygonRollupBase rollupContract;
@@ -96,9 +97,6 @@ contract PolygonRollupManager is
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
-
-    // Max batch multiplier per verification
-    uint256 internal constant _MAX_BATCH_MULTIPLIER = 12;
 
     // Max batch fee value
     uint256 internal constant _MAX_BATCH_FEE = 1000 ether;
@@ -205,14 +203,14 @@ contract PolygonRollupManager is
 
     // Trusted aggregator timeout, if a sequence is not verified in this time frame,
     // everyone can verify that sequence
-    uint64 public __legacyTrustedAggregatorTimeout;
+    uint64 internal __legacyTrustedAggregatorTimeout;
 
     // Once a pending state exceeds this timeout it can be consolidated (deprecated)
     uint64 internal __legacyPendingStateTimeout;
 
     // Time target of the verification of a batch
     // Adaptively the batchFee will be updated to achieve this target
-    uint64 public __legacyVerifyBatchTimeTarget;
+    uint64 internal __legacyVerifyBatchTimeTarget;
 
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
     uint16 internal __legacyMultiplierBatchFee;
@@ -497,80 +495,80 @@ contract PolygonRollupManager is
         );
     }
 
-    /**
-     * @notice Add an already deployed rollup
-     * note that this rollup does not follow any rollupType
-     * @param rollupAddress Rollup address
-     * @param verifier Verifier address, must be added before
-     * @param forkID Fork id of the added rollup
-     * @param chainID Chain id of the added rollup
-     * @param genesis Genesis block for this rollup
-     * @param rollupVerifierType Compatibility ID for the added rollup
-     */
-    function addExistingRollup(
-        IPolygonRollupBase rollupAddress,
-        IVerifierRollup verifier,
-        uint64 forkID,
-        uint64 chainID,
-        bytes32 genesis,
-        VerifierType rollupVerifierType,
-        bytes32 programVKey,
-        bytes32 newLocalExitRoot
-    ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
-        // Check chainID nullifier
-        if (chainIDToRollupID[chainID] != 0) {
-            revert ChainIDAlreadyExist();
-        }
+    // /**
+    //  * @notice Add an already deployed rollup
+    //  * note that this rollup does not follow any rollupType
+    //  * @param rollupAddress Rollup address
+    //  * @param verifier Verifier address, must be added before
+    //  * @param forkID Fork id of the added rollup
+    //  * @param chainID Chain id of the added rollup
+    //  * @param genesis Genesis block for this rollup
+    //  * @param rollupVerifierType Compatibility ID for the added rollup
+    //  */
+    // function addExistingRollup(
+    //     IPolygonRollupBase rollupAddress,
+    //     IVerifierRollup verifier,
+    //     uint64 forkID,
+    //     uint64 chainID,
+    //     bytes32 genesis,
+    //     VerifierType rollupVerifierType,
+    //     bytes32 programVKey,
+    //     bytes32 newLocalExitRoot
+    // ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
+    //     // Check chainID nullifier
+    //     if (chainIDToRollupID[chainID] != 0) {
+    //         revert ChainIDAlreadyExist();
+    //     }
 
-        // check chainID max value
-        // Currently we have this limitation by the circuit, might be removed in a future
-        if (chainID > type(uint32).max) {
-            revert ChainIDOutOfRange();
-        }
+    //     // check chainID max value
+    //     // Currently we have this limitation by the circuit, might be removed in a future
+    //     if (chainID > type(uint32).max) {
+    //         revert ChainIDOutOfRange();
+    //     }
 
-        // Increment rollup count
-        uint32 rollupID = ++rollupCount;
+    //     // Increment rollup count
+    //     uint32 rollupID = ++rollupCount;
 
-        if (rollupVerifierType == VerifierType.Pessimistic) {
-            // No rollup address or genessis allowed for pessimistic rollups
-            if (address(rollupAddress) != address(0) || genesis != bytes32(0)) {
-                revert InvalidRollup();
-            }
-        } else {
-            // Check if rollup address was already added
-            if (rollupAddressToID[address(rollupAddress)] != 0) {
-                revert RollupAddressAlreadyExist();
-            }
+    //     if (rollupVerifierType == VerifierType.Pessimistic) {
+    //         // No rollup address or genessis allowed for pessimistic rollups
+    //         if (address(rollupAddress) != address(0) || genesis != bytes32(0)) {
+    //             revert InvalidRollup();
+    //         }
+    //     } else {
+    //         // Check if rollup address was already added
+    //         if (rollupAddressToID[address(rollupAddress)] != 0) {
+    //             revert RollupAddressAlreadyExist();
+    //         }
 
-            // Store rollup data
-            rollupAddressToID[address(rollupAddress)] = rollupID;
-        }
+    //         // Store rollup data
+    //         rollupAddressToID[address(rollupAddress)] = rollupID;
+    //     }
 
-        // Set chainID nullifier
-        chainIDToRollupID[chainID] = rollupID;
+    //     // Set chainID nullifier
+    //     chainIDToRollupID[chainID] = rollupID;
 
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
-        rollup.rollupContract = rollupAddress;
-        rollup.forkID = forkID;
-        rollup.verifier = verifier;
-        rollup.chainID = chainID;
-        rollup.rollupVerifierType = rollupVerifierType;
-        rollup.batchNumToStateRoot[0] = genesis;
-        if (rollupVerifierType == VerifierType.Pessimistic) {
-            rollup.programVKey = programVKey;
-            rollup.lastLocalExitRoot = newLocalExitRoot;
-        }
-        // rollup type is 0, since it does not follow any rollup type
-        emit AddExistingRollup(
-            rollupID,
-            forkID,
-            address(rollupAddress),
-            chainID,
-            rollupVerifierType,
-            0,
-            programVKey
-        );
-    }
+    //     RollupData storage rollup = rollupIDToRollupData[rollupID];
+    //     rollup.rollupContract = rollupAddress;
+    //     rollup.forkID = forkID;
+    //     rollup.verifier = verifier;
+    //     rollup.chainID = chainID;
+    //     rollup.rollupVerifierType = rollupVerifierType;
+    //     rollup.batchNumToStateRoot[0] = genesis;
+    //     if (rollupVerifierType == VerifierType.Pessimistic) {
+    //         rollup.programVKey = programVKey;
+    //         //rollup.lastLocalExitRoot = newLocalExitRoot;
+    //     }
+    //     // rollup type is 0, since it does not follow any rollup type
+    //     emit AddExistingRollup(
+    //         rollupID,
+    //         forkID,
+    //         address(rollupAddress),
+    //         chainID,
+    //         rollupVerifierType,
+    //         0,
+    //         programVKey
+    //     );
+    // }
 
     /**
      * @notice Upgrade an existing rollup from the rollup admin address
