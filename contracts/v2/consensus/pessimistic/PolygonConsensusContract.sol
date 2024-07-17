@@ -2,8 +2,12 @@
 pragma solidity ^0.8.20;
 
 import "../../lib/PolygonConsensusBase.sol";
+import "../../interfaces/IPolygonPessimisticConsensus.sol";
 
-abstract contract PolygonConsensusContract is PolygonConsensusBase {
+abstract contract PolygonPessimisticConsensus is
+    PolygonConsensusBase,
+    IPolygonPessimisticConsensus
+{
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol POL token address
