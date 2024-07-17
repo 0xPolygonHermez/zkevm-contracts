@@ -356,7 +356,7 @@ contract PolygonRollupManager is
             rollupVerifierType == VerifierType.Pessimistic &&
             genesis != bytes32(0)
         ) {
-            revert InvalidRollupType();
+            revert InvalidRollupType(); // TODO: rename
         }
 
         rollupTypeMap[rollupTypeID] = RollupType({
@@ -366,7 +366,7 @@ contract PolygonRollupManager is
             rollupVerifierType: rollupVerifierType,
             obsolete: false,
             genesis: genesis,
-            programVKey
+            programVKey: programVKey
         });
 
         emit AddNewRollupType(
@@ -865,8 +865,6 @@ contract PolygonRollupManager is
      * @notice Allows a trusted aggregator to verify multiple batches
      * @param rollupID Rollup identifier
      * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
-     * @param bridgeInfoHash Hashed information regarding the new bridges on the network
-     * the imported bridges of other networks and the authentication for this pessimistic proof (e.g signature)
      * @param newLocalExitRoot New local exit root once the batch is processed
      * @param newPessimisticRoot New pessimistic information,
      * currently contains the local balance tree, the local nullifier tree hashed and some auth pubkey
@@ -875,7 +873,6 @@ contract PolygonRollupManager is
     function verifyPessimisticTrustedAggregator(
         uint32 rollupID,
         bytes32 selectedGlobalExitRoot,
-        bytes32 bridgeInfoHash,
         bytes32 newLocalExitRoot,
         bytes32 newPessimisticRoot,
         bytes32[24] calldata proof
@@ -892,14 +889,16 @@ contract PolygonRollupManager is
             revert GlobalExitRootNotExist();
         }
 
+        bytes32 consensusHash = IPolygonPessimisticConsensus(address(rollup.rollupContract))
+            .getConsensusHash();
+
         // Get snark bytes
         bytes32 snarkHashBytes = sha256(
             abi.encodePacked(
                 rollup.lastLocalExitRoot,
                 rollup.lastPessimisticRoot,
-                bridgeInfoHash,
-                IPolygonPessimisticConsensus(address(rollup.rollupContract))
-                    .getConsensusHash(),
+                selectedGlobalExitRoot,
+                consensusHash,
                 newLocalExitRoot,
                 newPessimisticRoot
             )

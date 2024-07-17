@@ -21,7 +21,7 @@ import "./PolygonConstantsBase.sol";
  * The aggregators will be able to verify the sequenced state with zkProofs and therefore make available the withdrawals from L2 network.
  * To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart contract that will be deployed in both networks.
  */
-contract PolygonConsensusBase is
+abstract contract PolygonConsensusBase is
     Initializable,
     IPolygonConsensusBase,
     IPolygonZkEVMVEtrogErrors
@@ -149,8 +149,6 @@ contract PolygonConsensusBase is
 
         trustedSequencerURL = sequencerURL;
         networkName = _networkName;
-
-        forceBatchAddress = _admin;
 
         gasTokenAddress = _gasTokenAddress;
     }
