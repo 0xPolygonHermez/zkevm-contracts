@@ -2,18 +2,18 @@
 
 
 ## Functions
-### initialize
+### onVerifyBatches
 ```solidity
-  function initialize(
+  function onVerifyBatches(
   ) external
 ```
 
 
 
 
-### onVerifyBatches
+### rollbackBatches
 ```solidity
-  function onVerifyBatches(
+  function rollbackBatches(
   ) external
 ```
 
