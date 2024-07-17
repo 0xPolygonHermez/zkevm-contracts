@@ -8,7 +8,7 @@ contract PolygonPessimisticConsensus is
     PolygonConsensusBase,
     IPolygonPessimisticConsensus
 {
-    uint32 constant public consensusType = 0;
+    uint32 public constant CONSENSUS_TYPE = 0;
 
     /**
      * @param _globalExitRootManager Global exit root manager address
@@ -34,9 +34,6 @@ contract PolygonPessimisticConsensus is
      * Note Return the necessary consensus information for the proof hashed
      */
     function getConsensusHash() public view returns (bytes32) {
-        return keccak256(abi.encodePacked(
-            consensusType,
-            trustedSequencer
-        ));
+        return keccak256(abi.encodePacked(CONSENSUS_TYPE, trustedSequencer));
     }
 }
