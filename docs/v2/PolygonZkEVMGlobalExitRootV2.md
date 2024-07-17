@@ -85,6 +85,7 @@ Given the leaf data returns the leaf hash
 
 Emitted when the global exit root is updated
 
+<<<<<<< HEAD
 ### UpdateL1InfoTreeV2
 ```solidity
   event UpdateL1InfoTreeV2(
@@ -93,6 +94,8 @@ Emitted when the global exit root is updated
 
 Emitted when the global exit root is updated with the L1InfoTree leaf information
 
+=======
+>>>>>>> wip
 ### InitL1InfoRootMap
 ```solidity
   event InitL1InfoRootMap(
