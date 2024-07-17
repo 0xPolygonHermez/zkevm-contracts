@@ -143,34 +143,6 @@ Allows anyone to sequence forced Batches if the trusted sequencer has not done s
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append force batches
 
-### setTrustedSequencer
-```solidity
-  function setTrustedSequencer(
-    address newTrustedSequencer
-  ) external
-```
-Allow the admin to set a new trusted sequencer
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newTrustedSequencer` | address | Address of the new trusted sequencer
-
-### setTrustedSequencerURL
-```solidity
-  function setTrustedSequencerURL(
-    string newTrustedSequencerURL
-  ) external
-```
-Allow the admin to set the trusted sequencer URL
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newTrustedSequencerURL` | string | URL of trusted sequencer
-
 ### setForceBatchAddress
 ```solidity
   function setForceBatchAddress(
@@ -200,30 +172,6 @@ The new value can only be lower, except if emergency state is active
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`newforceBatchTimeout` | uint64 | New force batch timeout
-
-### transferAdminRole
-```solidity
-  function transferAdminRole(
-    address newPendingAdmin
-  ) external
-```
-Starts the admin role transfer
-This is a two step process, the pending admin must accepted to finalize the process
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`newPendingAdmin` | address | Address of the new pending admin
-
-### acceptAdminRole
-```solidity
-  function acceptAdminRole(
-  ) external
-```
-Allow the current pending admin to accept the admin role
-
-
 
 ### calculatePolPerForceBatch
 ```solidity
@@ -312,22 +260,6 @@ Emitted when a aggregator verifies batches
 
 Emitted when a aggregator verifies batches
 
-### SetTrustedSequencer
-```solidity
-  event SetTrustedSequencer(
-  )
-```
-
-Emitted when the admin updates the trusted sequencer address
-
-### SetTrustedSequencerURL
-```solidity
-  event SetTrustedSequencerURL(
-  )
-```
-
-Emitted when the admin updates the sequencer URL
-
 ### SetForceBatchTimeout
 ```solidity
   event SetForceBatchTimeout(
@@ -343,20 +275,4 @@ Emitted when the admin update the force batch timeout
 ```
 
 Emitted when the admin update the force batch address
-
-### TransferAdminRole
-```solidity
-  event TransferAdminRole(
-  )
-```
-
-Emitted when the admin starts the two-step transfer role setting a new pending admin
-
-### AcceptAdminRole
-```solidity
-  event AcceptAdminRole(
-  )
-```
-
-Emitted when the pending admin accepts the admin role
 
