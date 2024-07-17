@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 import "../../lib/PolygonConsensusBase.sol";
 import "../../interfaces/IPolygonPessimisticConsensus.sol";
 
-abstract contract PolygonPessimisticConsensus is
+contract PolygonPessimisticConsensus is
     PolygonConsensusBase,
     IPolygonPessimisticConsensus
 {
+    uint32 constant public consensusType = 0;
+
     /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol POL token address
@@ -32,6 +34,9 @@ abstract contract PolygonPessimisticConsensus is
      * Note Return the necessary consensus information for the proof hashed
      */
     function getConsensusHash() public view returns (bytes32) {
-        return keccak256(abi.encodePacked(trustedSequencer));
+        return keccak256(abi.encodePacked(
+            consensusType,
+            trustedSequencer
+        ));
     }
 }
