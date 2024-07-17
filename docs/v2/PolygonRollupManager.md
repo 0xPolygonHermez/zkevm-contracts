@@ -28,7 +28,7 @@ them will be done in this one. In this way, the proof aggregation of the rollups
     address consensusImplementation,
     address verifier,
     uint64 forkID,
-    enum IPolygonRollupManager.VerifierType genesis,
+    enum PolygonRollupManager.VerifierType genesis,
     bytes32 description,
     string programVKey
   ) external
@@ -42,7 +42,7 @@ Add a new rollup type
 |`consensusImplementation` | address | Consensus implementation
 |`verifier` | address | Verifier address
 |`forkID` | uint64 | ForkID of the verifier
-|`genesis` | enum IPolygonRollupManager.VerifierType | Genesis block of the rollup
+|`genesis` | enum PolygonRollupManager.VerifierType | Genesis block of the rollup
 |`description` | bytes32 | Description of the rollup type
 |`programVKey` | string | Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
 
@@ -94,8 +94,8 @@ Note if a wrapped token of the bridge is used, the original network and address 
     address verifier,
     uint64 forkID,
     uint64 chainID,
-    bytes32 initRoot,
-    enum IPolygonRollupManager.VerifierType rollupVerifierType,
+    bytes32 genesis,
+    enum PolygonRollupManager.VerifierType rollupVerifierType,
     bytes32 programVKey
   ) external
 ```
@@ -110,8 +110,8 @@ note that this rollup does not follow any rollupType
 |`verifier` | address | Verifier address, must be added before
 |`forkID` | uint64 | Fork id of the added rollup
 |`chainID` | uint64 | Chain id of the added rollup
-|`initRoot` | bytes32 | Genesis block for StateTransitionChains & localExitRoot for pessimistic chain
-|`rollupVerifierType` | enum IPolygonRollupManager.VerifierType | Compatibility ID for the added rollup
+|`genesis` | bytes32 | Genesis block for this rollup
+|`rollupVerifierType` | enum PolygonRollupManager.VerifierType | Compatibility ID for the added rollup
 |`programVKey` | bytes32 | Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
 
 ### updateRollupByRollupAdmin
@@ -235,10 +235,10 @@ Allows a trusted aggregator to verify multiple batches
     bytes32 selectedGlobalExitRoot,
     bytes32 newLocalExitRoot,
     bytes32 newPessimisticRoot,
-    bytes proof
+    bytes32[24] proof
   ) external
 ```
-Allows a trusted aggregator to verify pessimistic proof
+Allows a trusted aggregator to verify multiple batches
 
 
 #### Parameters:
@@ -246,9 +246,10 @@ Allows a trusted aggregator to verify pessimistic proof
 | :--- | :--- | :------------------------------------------------------------------- |
 |`rollupID` | uint32 | Rollup identifier
 |`selectedGlobalExitRoot` | bytes32 | Selected global exit root to proof imported bridges
-|`newLocalExitRoot` | bytes32 | New local exit root
-|`newPessimisticRoot` | bytes32 | New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
-|`proof` | bytes | SP1 proof (Plonk)
+|`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
+|`newPessimisticRoot` | bytes32 | New pessimistic information,
+currently contains the local balance tree, the local nullifier tree hashed and some auth pubkey
+|`proof` | bytes32[24] | Fflonk proof
 
 ### _verifyAndRewardBatches
 ```solidity
