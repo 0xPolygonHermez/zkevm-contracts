@@ -3,5 +3,5 @@
 pragma solidity ^0.8.20;
 
 interface IPolygonPessimisticConsensus {
-    function getConsensusHash() external view returns (bytes32);
+    function getConsensusHash() external returns (bytes32);
 }
