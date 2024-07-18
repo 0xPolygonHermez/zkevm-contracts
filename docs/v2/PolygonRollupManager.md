@@ -282,7 +282,7 @@ Allows a trusted aggregator to verify multiple batches
     bytes32 selectedGlobalExitRoot,
     bytes32 newLocalExitRoot,
     bytes32 newPessimisticRoot,
-    bytes32[24] proof
+    bytes proof
   ) external
 ```
 
