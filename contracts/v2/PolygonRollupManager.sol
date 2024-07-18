@@ -14,6 +14,7 @@ import "./lib/LegacyZKEVMStateVariables.sol";
 import "./consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
 import "./lib/PolygonConstantsBase.sol";
 import "./interfaces/IPolygonPessimisticConsensus.sol";
+import "./interfaces/ISP1Verifier.sol";
 
 /**
  * Contract responsible for managing rollups and the verification of their batches.
@@ -864,25 +865,24 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Allows a trusted aggregator to verify multiple batches
+     * @notice Allows a trusted aggregator to verify pessimistic proof
      * @param rollupID Rollup identifier
      * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
-     * @param newLocalExitRoot New local exit root once the batch is processed
-     * @param newPessimisticRoot New pessimistic information,
-     * currently contains the local balance tree, the local nullifier tree hashed and some auth pubkey
-     * @param proof Fflonk proof
+     * @param newLocalExitRoot New local exit root
+     * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
+     * @param proof SP1 proof (Plonk)
      */
     function verifyPessimisticTrustedAggregator(
         uint32 rollupID,
         bytes32 selectedGlobalExitRoot,
         bytes32 newLocalExitRoot,
         bytes32 newPessimisticRoot,
-        bytes32[24] calldata proof
+        bytes calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
         if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
-            revert OnlyPessimisticChains();
+            revert OnlyChainsWithPessimisticProofs();
         }
 
         if (
@@ -894,31 +894,25 @@ contract PolygonRollupManager is
         bytes32 consensusHash = IPolygonPessimisticConsensus(address(rollup.rollupContract))
             .getConsensusHash();
 
-        // Get snark bytes
-        bytes32 snarkHashBytes = sha256(
-            abi.encodePacked(
-                rollup.lastLocalExitRoot,
-                rollup.lastPessimisticRoot,
-                selectedGlobalExitRoot,
-                consensusHash,
-                newLocalExitRoot,
-                newPessimisticRoot
-            )
+        bytes memory publicValues = abi.encodePacked(
+            rollup.lastLocalExitRoot,
+            rollup.lastPessimisticRoot,
+            selectedGlobalExitRoot,
+            consensusHash,
+            newLocalExitRoot,
+            newPessimisticRoot
         );
 
-        // Calulate the snark input // TODO assume same proof input for now..
-        uint256 inputSnark = uint256(snarkHashBytes) % _RFIELD;
-
         // Verify proof
-        if (!rollup.verifier.verifyProof(proof, [inputSnark])) {
-            revert InvalidProof();
-        }
+        // TODO: double interface casting
+        ISP1Verifier(address(rollup.verifier)).verifyProof(rollup.programVKey, publicValues, proof);
 
-        // TODO Since there are no batches we could have either:
+        // TODO: Since there are no batches we could have either:
         // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
         // dependency with the trusted aggregator ( or pessimistic aggregator)
 
         // Update aggregation parameters
+        // TODO: not needed
         lastAggregationTimestamp = uint64(block.timestamp);
 
         // Consolidate state
@@ -928,10 +922,11 @@ contract PolygonRollupManager is
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
+        // TODO: Add new event for pessimistic (besides the VerifyBatchesTrustedAggregator) or a completelly new one
         emit VerifyBatchesTrustedAggregator(
             rollupID,
-            0, // final batch, does not apply in pessimistic
-            bytes32(0), // new state root, does not apply in pessimistic
+            0, // final batch: does not apply in pessimistic
+            bytes32(0), // new state root: does not apply in pessimistic
             newLocalExitRoot,
             msg.sender
         );
