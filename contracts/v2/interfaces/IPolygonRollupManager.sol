@@ -297,4 +297,13 @@ interface IPolygonRollupManager {
      */
     error PendingStateNumExist();
 
+    /**
+     * @dev Only Chains with Pesismistic proofs
+     */
+    error OnlyChainsWithPessimisticProofs();
+
+    /**
+     * @dev Invalid Pessimistic proof
+     */
+    error InvalidPessimisticProof();
 }
