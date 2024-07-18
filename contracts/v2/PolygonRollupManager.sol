@@ -925,7 +925,7 @@ contract PolygonRollupManager is
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
-        // TODO: Add new event for pessimistic (besides the VerifyBatchesTrustedAggregator) or a completelly new one
+        // Same event as verifyBatches to support current bridge service to synchronize everything
         emit VerifyBatchesTrustedAggregator(
             rollupID,
             0, // final batch: does not apply in pessimistic
