@@ -40,7 +40,7 @@ contract PolygonRollupManager is
     /**
      * @notice Struct which to store the rollup type data
      * @param consensusImplementation Consensus implementation ( contains the consensus logic for the transaparent proxy)
-     * @param verifier verifier
+     * @param address verifier
      * @param forkID fork ID
      * @param rollupVerifierType Rollup compatibility ID, to check upgradability between rollup types
      * @param obsolete Indicates if the rollup type is obsolete
@@ -48,7 +48,7 @@ contract PolygonRollupManager is
      */
     struct RollupType {
         address consensusImplementation;
-        IVerifierRollup verifier;
+        address verifier;
         uint64 forkID;
         VerifierType rollupVerifierType;
         bool obsolete;
@@ -80,7 +80,7 @@ contract PolygonRollupManager is
     struct RollupData {
         IPolygonRollupBase rollupContract;
         uint64 chainID;
-        IVerifierRollup verifier;
+        address verifier;
         uint64 forkID;
         mapping(uint64 batchNum => bytes32) batchNumToStateRoot;
         mapping(uint64 batchNum => SequencedBatchData) sequencedBatches;
@@ -344,7 +344,7 @@ contract PolygonRollupManager is
      */
     function addNewRollupType(
         address consensusImplementation,
-        IVerifierRollup verifier,
+        address verifier,
         uint64 forkID,
         VerifierType rollupVerifierType,
         bytes32 genesis,
@@ -357,7 +357,7 @@ contract PolygonRollupManager is
             rollupVerifierType == VerifierType.Pessimistic &&
             genesis != bytes32(0)
         ) {
-            revert InvalidRollupType(); // TODO: rename
+            revert InvalidRollupType();
         }
 
         rollupTypeMap[rollupTypeID] = RollupType({
@@ -373,7 +373,7 @@ contract PolygonRollupManager is
         emit AddNewRollupType(
             rollupTypeID,
             consensusImplementation,
-            address(verifier),
+            verifier,
             forkID,
             rollupVerifierType,
             genesis,
@@ -506,7 +506,7 @@ contract PolygonRollupManager is
      */
     function addExistingRollup(
         IPolygonRollupBase rollupAddress,
-        IVerifierRollup verifier,
+        address verifier,
         uint64 forkID,
         uint64 chainID,
         bytes32 genesis,
@@ -902,15 +902,13 @@ contract PolygonRollupManager is
         );
 
         // Verify proof
-        // TODO: double interface casting
-        ISP1Verifier(address(rollup.verifier)).verifyProof(rollup.programVKey, publicValues, proof);
+        ISP1Verifier(rollup.verifier).verifyProof(rollup.programVKey, publicValues, proof);
 
         // TODO: Since there are no batches we could have either:
         // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
         // dependency with the trusted aggregator ( or pessimistic aggregator)
 
         // Update aggregation parameters
-        // TODO: not needed
         lastAggregationTimestamp = uint64(block.timestamp);
 
         // Consolidate state
@@ -988,7 +986,7 @@ contract PolygonRollupManager is
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
-        if (!rollup.verifier.verifyProof(proof, [inputSnark])) {
+        if (!IVerifierRollup(rollup.verifier).verifyProof(proof, [inputSnark])) {
             revert InvalidProof();
         }
 
