@@ -236,7 +236,8 @@ contract PolygonRollupManager is
         uint64 forkID,
         VerifierType rollupVerifierType,
         bytes32 genesis,
-        string description
+        string description,
+        bytes32 programVKey
     );
 
     /**
@@ -379,7 +380,8 @@ contract PolygonRollupManager is
             forkID,
             rollupVerifierType,
             genesis,
-            description
+            description,
+            programVKey
         );
     }
 
@@ -929,7 +931,7 @@ contract PolygonRollupManager is
         // Interact with globalExitRootManager
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
-        // TODO: Add new event for pessimistic (besides the VerifyBatchesTrustedAggregator) or a completelly new one
+        // Same event as verifyBatches to support current bridge service to synchronize everything
         emit VerifyBatchesTrustedAggregator(
             rollupID,
             0, // final batch: does not apply in pessimistic
