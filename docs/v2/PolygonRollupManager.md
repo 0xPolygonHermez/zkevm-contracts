@@ -28,7 +28,7 @@ them will be done in this one. In this way, the proof aggregation of the rollups
 ```solidity
   function addNewRollupType(
     address consensusImplementation,
-    contract IVerifierRollup verifier,
+    address verifier,
     uint64 forkID,
     enum PolygonRollupManager.VerifierType genesis,
     bytes32 description,
@@ -100,7 +100,7 @@ Note if a wrapped token of the bridge is used, the original network and address 
 ```solidity
   function addExistingRollup(
     contract IPolygonRollupBase rollupAddress,
-    contract IVerifierRollup verifier,
+    address verifier,
     uint64 forkID,
     uint64 chainID,
     bytes32 genesis,
