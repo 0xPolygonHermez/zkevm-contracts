@@ -274,7 +274,7 @@ async function main() {
     const rollupID = await rollupManagerContract.chainIDToRollupID(chainID);
 
     console.log("#######################\n");
-    console.log("Created new Rollup:", newZKEVMAddress);
+    console.log(`Created new ${consensusContract} Rollup:`, newZKEVMAddress);
 
     if (consensusContract.includes("PolygonValidium") && dataAvailabilityProtocol === "PolygonDataCommittee") {
         // deploy data commitee
