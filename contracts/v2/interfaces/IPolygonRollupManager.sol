@@ -2,6 +2,10 @@
 
 pragma solidity ^0.8.20;
 
+import "../../interfaces/IVerifierRollup.sol";
+import "./IPolygonRollupBase.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts5/proxy/transparent/TransparentUpgradeableProxy.sol";
+
 interface IPolygonRollupManager {
     /**
      * @dev Thrown when sender is not the PolygonZkEVM address
@@ -279,11 +283,6 @@ interface IPolygonRollupManager {
     error GlobalExitRootNotExist();
 
     /**
-     * @dev Only Pessimistic Chains
-     */
-    error OnlyPessimisticChains();
-
-    /**
      * @dev Only State Transition Chains
      */
     error OnlyStateTransitionChains();
@@ -302,4 +301,121 @@ interface IPolygonRollupManager {
      * @dev Invalid Pessimistic proof
      */
     error InvalidPessimisticProof();
+
+    enum VerifierType {
+        StateTransition,
+        Pessimistic
+    }
+
+    function addNewRollupType(
+        address consensusImplementation,
+        IVerifierRollup verifier,
+        uint64 forkID,
+        VerifierType rollupVerifierType,
+        bytes32 initRoot,
+        string memory description,
+        bytes32 programVKey
+    ) external;
+
+    function obsoleteRollupType(
+        uint32 rollupTypeID
+    ) external;
+
+    function createNewRollup(
+        uint32 rollupTypeID,
+        uint64 chainID,
+        address admin,
+        address sequencer,
+        address gasTokenAddress,
+        string memory sequencerURL,
+        string memory networkName
+    ) external;
+
+    function addExistingRollup(
+        IPolygonRollupBase rollupAddress,
+        IVerifierRollup verifier,
+        uint64 forkID,
+        uint64 chainID,
+        bytes32 genesis,
+        VerifierType rollupVerifierType,
+        bytes32 programVKey
+    ) external;
+
+    function updateRollupByRollupAdmin(
+        ITransparentUpgradeableProxy rollupContract,
+        uint32 newRollupTypeID
+    ) external;
+
+    function updateRollup(
+        ITransparentUpgradeableProxy rollupContract,
+        uint32 newRollupTypeID,
+        bytes memory upgradeData
+    ) external;
+
+    function rollbackBatches(
+        IPolygonRollupBase rollupContract,
+        uint64 targetBatch
+    ) external;
+
+    function onSequenceBatches(
+        uint64 newSequencedBatches,
+        bytes32 newAccInputHash
+    ) external returns (uint64);
+
+    function verifyBatchesTrustedAggregator(
+        uint32 rollupID,
+        uint64 pendingStateNum,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        address beneficiary,
+        bytes32[24] calldata proof
+    ) external;
+    
+    function verifyPessimisticTrustedAggregator(
+        uint32 rollupID,
+        bytes32 selectedGlobalExitRoot,
+        bytes32 newLocalExitRoot,
+        bytes32 newPessimisticRoot,
+        bytes32[24] calldata proof
+    ) external;
+
+    function activateEmergencyState() external;
+
+    function deactivateEmergencyState() external;
+    
+    function setBatchFee(uint256 newBatchFee) external;
+
+    function getRollupExitRoot() external returns (bytes32);
+
+    function getLastVerifiedBatch(
+        uint32 rollupID
+    ) external returns (uint64);
+
+    function calculateRewardPerBatch() external returns (uint256);
+
+    function getBatchFee() external returns (uint256);
+
+    function getForcedBatchFee() external returns (uint256);
+
+    function getInputSnarkBytes(
+        uint32 rollupID,
+        uint64 initNumBatch,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 oldStateRoot,
+        bytes32 newStateRoot
+    ) external returns (bytes memory);
+
+    function getRollupBatchNumToStateRoot(
+        uint32 rollupID,
+        uint64 batchNum
+    ) external returns (bytes32);
+
+    // function getRollupSequencedBatches(
+    //     uint32 rollupID,
+    //     uint64 batchNum
+    // ) external returns (SequencedBatchData memory);
+
 }
