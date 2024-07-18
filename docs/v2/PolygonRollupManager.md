@@ -271,10 +271,10 @@ Allows a trusted aggregator to verify multiple batches
     bytes32 selectedGlobalExitRoot,
     bytes32 newLocalExitRoot,
     bytes32 newPessimisticRoot,
-    bytes32[24] proof
+    bytes proof
   ) external
 ```
-Allows a trusted aggregator to verify multiple batches
+Allows a trusted aggregator to verify pessimistic proof
 
 
 #### Parameters:
@@ -282,10 +282,9 @@ Allows a trusted aggregator to verify multiple batches
 | :--- | :--- | :------------------------------------------------------------------- |
 |`rollupID` | uint32 | Rollup identifier
 |`selectedGlobalExitRoot` | bytes32 | Selected global exit root to proof imported bridges
-|`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
-|`newPessimisticRoot` | bytes32 | New pessimistic information,
-currently contains the local balance tree, the local nullifier tree hashed and some auth pubkey
-|`proof` | bytes32[24] | Fflonk proof
+|`newLocalExitRoot` | bytes32 | New local exit root
+|`newPessimisticRoot` | bytes32 | New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
+|`proof` | bytes | SP1 proof (Plonk)
 
 ### _verifyAndRewardBatches
 ```solidity
