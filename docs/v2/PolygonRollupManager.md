@@ -26,7 +26,7 @@ them will be done in this one. In this way, the proof aggregation of the rollups
 ```solidity
   function addNewRollupType(
     address consensusImplementation,
-    contract IVerifierRollup verifier,
+    address verifier,
     uint64 forkID,
     enum PolygonRollupManager.VerifierType genesis,
     bytes32 description,
@@ -40,7 +40,7 @@ Add a new rollup type
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`consensusImplementation` | address | Consensus implementation
-|`verifier` | contract IVerifierRollup | Verifier address
+|`verifier` | address | Verifier address
 |`forkID` | uint64 | ForkID of the verifier
 |`genesis` | enum PolygonRollupManager.VerifierType | Genesis block of the rollup
 |`description` | bytes32 | Description of the rollup type
@@ -91,7 +91,7 @@ Note if a wrapped token of the bridge is used, the original network and address 
 ```solidity
   function addExistingRollup(
     contract IPolygonRollupBase rollupAddress,
-    contract IVerifierRollup verifier,
+    address verifier,
     uint64 forkID,
     uint64 chainID,
     bytes32 genesis,
@@ -107,7 +107,7 @@ note that this rollup does not follow any rollupType
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`rollupAddress` | contract IPolygonRollupBase | Rollup address
-|`verifier` | contract IVerifierRollup | Verifier address, must be added before
+|`verifier` | address | Verifier address, must be added before
 |`forkID` | uint64 | Fork id of the added rollup
 |`chainID` | uint64 | Chain id of the added rollup
 |`genesis` | bytes32 | Genesis block for this rollup
