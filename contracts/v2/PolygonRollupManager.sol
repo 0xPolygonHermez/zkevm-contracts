@@ -357,7 +357,7 @@ contract PolygonRollupManager is
             rollupVerifierType == VerifierType.Pessimistic &&
             genesis != bytes32(0)
         ) {
-            revert InvalidRollupType(); // TODO: rename
+            revert InvalidRollupType();
         }
 
         rollupTypeMap[rollupTypeID] = RollupType({
@@ -507,7 +507,7 @@ contract PolygonRollupManager is
      */
     function addExistingRollup(
         IPolygonRollupBase rollupAddress,
-        IVerifierRollup verifier,
+        address verifier,
         uint64 forkID,
         uint64 chainID,
         bytes32 genesis,
@@ -904,15 +904,13 @@ contract PolygonRollupManager is
         );
 
         // Verify proof
-        // TODO: double interface casting
-        ISP1Verifier(address(rollup.verifier)).verifyProof(rollup.programVKey, publicValues, proof);
+        ISP1Verifier(rollup.verifier).verifyProof(rollup.programVKey, publicValues, proof);
 
         // TODO: Since there are no batches we could have either:
         // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
         // dependency with the trusted aggregator ( or pessimistic aggregator)
 
         // Update aggregation parameters
-        // TODO: not needed
         lastAggregationTimestamp = uint64(block.timestamp);
 
         // Consolidate state
@@ -1057,9 +1055,7 @@ contract PolygonRollupManager is
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
-        if (
-            !IVerifierRollup(rollup.verifier).verifyProof(proof, [inputSnark])
-        ) {
+        if (!IVerifierRollup(rollup.verifier).verifyProof(proof, [inputSnark])) {
             revert InvalidProof();
         }
 
