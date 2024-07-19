@@ -54,8 +54,9 @@ Note if a wrapped token of the bridge is used, the original network and address 
 ```solidity
   function sequenceBatches(
     struct PolygonRollupBaseEtrog.BatchData[] batches,
+    uint32 indexL1InfoRoot,
     uint64 maxSequenceTimestamp,
-    uint64 initSequencedBatch,
+    bytes32 expectedFinalAccInputHash,
     address l2Coinbase
   ) public
 ```
@@ -66,9 +67,10 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
+|`indexL1InfoRoot` | uint32 | Index of the L1InfoRoot that will be used in this sequence
 |`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
 This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-|`initSequencedBatch` | uint64 | This parameter must match the current last batch sequenced.
+|`expectedFinalAccInputHash` | bytes32 | This parameter must match the acc input hash after hash all the batch data
 This will be a protection for the sequencer to avoid sending undesired data
 |`l2Coinbase` | address | Address that will receive the fees from L2
 note Pol is not a reentrant token
@@ -90,6 +92,22 @@ Callback on verify batches, can only be called by the rollup manager
 |`lastVerifiedBatch` | uint64 | Last verified batch
 |`newStateRoot` | bytes32 | new state root
 |`aggregator` | address | Aggregator address
+
+### rollbackBatches
+```solidity
+  function rollbackBatches(
+    uint64 targetBatch,
+    bytes32 accInputHashToRollback
+  ) public
+```
+Callback on rollback batches, can only be called by the rollup manager
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`targetBatch` | uint64 | Batch to rollback up to but not including this batch
+|`accInputHashToRollback` | bytes32 | Acc input hash to rollback
 
 ### forceBatch
 ```solidity
@@ -281,6 +299,14 @@ Emitted when the contract is initialized, contain the first sequenced transactio
 ### VerifyBatches
 ```solidity
   event VerifyBatches(
+  )
+```
+
+Emitted when a aggregator verifies batches
+
+### RollbackBatches
+```solidity
+  event RollbackBatches(
   )
 ```
 

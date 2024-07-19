@@ -30,8 +30,17 @@ contract PolygonZkEVMGlobalExitRootV2 is
      */
     event UpdateL1InfoTree(
         bytes32 indexed mainnetExitRoot,
-        bytes32 indexed rollupExitRoot,
-        bytes32 currentL1InfoRoot
+        bytes32 indexed rollupExitRoot
+    );
+
+    /**
+     * @dev Emitted when the global exit root is updated with the L1InfoTree leaf information
+     */
+    event UpdateL1InfoTreeV2(
+        bytes32 currentL1InfoRoot,
+        uint32 indexed leafIndex,
+        uint256 blockhash,
+        uint64 minTimestamp
     );
 
     /**
@@ -92,16 +101,14 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
         // If it already exists, do not modify the blockhash
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
+            uint64 currentTimestmap = uint64(block.timestamp);
+
             uint256 lastBlockHash = uint256(blockhash(block.number - 1));
             globalExitRootMap[newGlobalExitRoot] = lastBlockHash;
 
             // save new leaf in L1InfoTree
             _addLeaf(
-                getLeafValue(
-                    newGlobalExitRoot,
-                    lastBlockHash,
-                    uint64(block.timestamp)
-                )
+                getLeafValue(newGlobalExitRoot, lastBlockHash, currentTimestmap)
             );
 
             // Get the current historic root
@@ -112,8 +119,14 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
             emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
-                cacheLastRollupExitRoot,
-                currentL1InfoRoot
+                cacheLastRollupExitRoot
+            );
+
+            emit UpdateL1InfoTreeV2(
+                currentL1InfoRoot,
+                uint32(depositCount),
+                lastBlockHash,
+                currentTimestmap
             );
         }
     }
