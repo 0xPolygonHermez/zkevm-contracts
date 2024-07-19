@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.20;
 
-import "./interfaces/IPolygonRollupManager.sol";
 import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "../interfaces/IPolygonZkEVMBridge.sol";
 import "./interfaces/IPolygonRollupBase.sol";
@@ -184,7 +183,6 @@ contract PolygonRollupManager is
     mapping(uint32 rollupID => RollupData) public rollupIDToRollupData;
 
     // Rollups address mapping
-    // NonZkChains does not have setted this mapping
     mapping(address rollupAddress => uint32 rollupID) public rollupAddressToID;
 
     // Chain ID mapping for nullifying
@@ -497,7 +495,7 @@ contract PolygonRollupManager is
      * @param verifier Verifier address, must be added before
      * @param forkID Fork id of the added rollup
      * @param chainID Chain id of the added rollup
-     * @param initRoot Genesis block for StateTransitionChains & localExitRoot for nonZkChains
+     * @param initRoot Genesis block for StateTransitionChains & localExitRoot for pessimistic chain
      * @param rollupVerifierType Compatibility ID for the added rollup
      * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
      */
