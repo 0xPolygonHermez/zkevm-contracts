@@ -309,7 +309,7 @@ interface IPolygonRollupManager {
 
     function addNewRollupType(
         address consensusImplementation,
-        IVerifierRollup verifier,
+        address verifier,
         uint64 forkID,
         VerifierType rollupVerifierType,
         bytes32 initRoot,
@@ -336,7 +336,7 @@ interface IPolygonRollupManager {
         IVerifierRollup verifier,
         uint64 forkID,
         uint64 chainID,
-        bytes32 genesis,
+        bytes32 initRoot,
         VerifierType rollupVerifierType,
         bytes32 programVKey
     ) external;
@@ -398,6 +398,13 @@ interface IPolygonRollupManager {
     function getBatchFee() external returns (uint256);
 
     function getForcedBatchFee() external returns (uint256);
+
+    function getInputPessimisticBytes(
+        uint32 rollupID,
+        bytes32 selectedGlobalExitRoot,
+        bytes32 newLocalExitRoot,
+        bytes32 newPessimisticRoot
+    ) external returns (bytes memory);
 
     function getInputSnarkBytes(
         uint32 rollupID,
