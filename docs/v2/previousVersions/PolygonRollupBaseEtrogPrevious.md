@@ -14,7 +14,7 @@ To enter and exit of the L2 network will be used a PolygonZkEVMBridge smart cont
     contract IERC20Upgradeable _pol,
     contract IPolygonZkEVMBridgeV2 _bridgeAddress,
     contract PolygonRollupManager _rollupManager
-  ) public
+  ) internal
 ```
 
 
@@ -54,6 +54,8 @@ Note if a wrapped token of the bridge is used, the original network and address 
 ```solidity
   function sequenceBatches(
     struct PolygonRollupBaseEtrogPrevious.BatchData[] batches,
+    uint64 maxSequenceTimestamp,
+    uint64 initSequencedBatch,
     address l2Coinbase
   ) public
 ```
@@ -64,6 +66,10 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonRollupBaseEtrogPrevious.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
+|`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
+This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
+|`initSequencedBatch` | uint64 | This parameter must match the current last batch sequenced.
+This will be a protection for the sequencer to avoid sending undesired data
 |`l2Coinbase` | address | Address that will receive the fees from L2
 note Pol is not a reentrant token
 
@@ -229,6 +235,15 @@ Generate Initialize transaction for hte bridge on L2
 |`_gasTokenAddress` | address | Indicates the token address that will be used to pay gas fees in the new rollup
 |`_gasTokenNetwork` | uint32 | Indicates the native network of the token address
 |`_gasTokenMetadata` | bytes | Abi encoded gas token metadata
+
+### _verifyOrigin
+```solidity
+  function _verifyOrigin(
+  ) internal returns (bytes gasTokenMetadata)
+```
+
+
+
 
 ## Events
 ### SequenceBatches
