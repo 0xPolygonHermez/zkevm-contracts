@@ -66,7 +66,7 @@ async function main() {
         consensusContract,
     } = createRollupParameters;
 
-    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
+    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog", "PolygonPessimisticConsensus"];
 
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
@@ -190,15 +190,27 @@ async function main() {
     await PolygonconsensusContract.waitForDeployment();
 
     // Add a new rollup type with timelock
-    const rollupCompatibilityID = 0;
+    let rollupVerifierType;
+    let genesisFinal;
+    if (consensusContract == "PolygonPessimisticConsensus") {
+        rollupVerifierType = 1;
+        genesisFinal = ethers.ZeroHash;
+    } else {
+        rollupVerifierType = 0;
+        genesisFinal = genesis.root;
+    }
+
+    const programVKey = createRollupParameters.programVKey || ethers.ZeroHash;
+
     await (
         await rollupManagerContract.addNewRollupType(
             PolygonconsensusContract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
-            genesis.root,
-            description
+            rollupVerifierType,
+            genesisFinal,
+            description,
+            programVKey
         )
     ).wait();
 
@@ -322,19 +334,22 @@ async function main() {
 
     // Add the first batch of the created rollup
     const newZKEVMContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonZkEVMV2;
-    const batchData = {
-        transactions: await newZKEVMContract.generateInitializeTransaction(
-            rollupID,
-            gasTokenAddress,
-            gasTokenNetwork,
-            gasTokenMetadata as any
-        ),
-        globalExitRoot: globalExitRoot,
-        timestamp: timestampReceipt,
-        sequencer: trustedSequencer,
-    };
 
-    outputJson.firstBatchData = batchData;
+    if (consensusContract != "PolygonPessimisticConsensus") {
+        const batchData = {
+            transactions: await newZKEVMContract.generateInitializeTransaction(
+                rollupID,
+                gasTokenAddress,
+                gasTokenNetwork,
+                gasTokenMetadata as any
+            ),
+            globalExitRoot: globalExitRoot,
+            timestamp: timestampReceipt,
+            sequencer: trustedSequencer,
+        };
+        outputJson.firstBatchData = batchData;
+    }
+
     outputJson.genesis = genesis.root;
     outputJson.createRollupBlockNumber = blockDeploymentRollup.number;
     outputJson.rollupAddress = newZKEVMAddress;
