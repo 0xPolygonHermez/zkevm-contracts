@@ -7,17 +7,13 @@ import fs = require("fs");
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../.env")});
 import {ethers, upgrades} from "hardhat";
-import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
-const {create2Deployment} = require("../helpers/deployment-helpers");
-
-const pathGenesis = path.join(__dirname, "./genesis.json");
 
 const createRollupParameters = require("./create_rollup_parameters.json");
 const genesis = require("./genesis.json");
 const deployOutput = require("./deploy_output.json");
 import "../helpers/utils";
 
-const pathOutputJson = path.join(__dirname, "./create_rollup_output.json");
+const pathOutputJson = path.join(__dirname, "./create_rollup_pp_output.json");
 
 import {
     PolygonRollupManager,
@@ -27,6 +23,9 @@ import {
     PolygonValidiumEtrog,
 } from "../../typechain-types";
 
+/**
+ * This script force to de ploy a PP rollup with the given create rollup parameters
+ */
 async function main() {
     const attemptsDeployProxy = 20;
 
@@ -60,7 +59,6 @@ async function main() {
         networkName,
         description,
         trustedSequencer,
-        chainID,
         adminZkEVM,
         forkID,
         consensusContract,
@@ -71,7 +69,9 @@ async function main() {
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
     }
-
+    // Make pp deploy from zkEVM roluup parameters
+    const consensusContractPP = "PolygonPessimisticConsensus"
+    const chainID = createRollupParameters.chainID + 1;
     const dataAvailabilityProtocol = createRollupParameters.dataAvailabilityProtocol || "PolygonDataCommittee";
 
     const supporteDataAvailabilityProtocols = ["PolygonDataCommittee"];
@@ -151,12 +151,12 @@ async function main() {
         verifierContract = await VerifierRollup.deploy();
         await verifierContract.waitForDeployment();
     } else {
-        const VerifierRollupHelperFactory = await ethers.getContractFactory("VerifierRollupHelperMock", deployer);
+        const VerifierRollupHelperFactory = await ethers.getContractFactory("PPVerifierRollupHelperMock", deployer);
         verifierContract = await VerifierRollupHelperFactory.deploy();
         await verifierContract.waitForDeployment();
     }
     console.log("#######################\n");
-    console.log("Verifier deployed to:", verifierContract.target);
+    console.log("PP Verifier deployed to:", verifierContract.target);
 
     // Since it's a mock deployment deployer has all the rights
     const ADD_ROLLUP_TYPE_ROLE = ethers.id("ADD_ROLLUP_TYPE_ROLE");
@@ -171,7 +171,7 @@ async function main() {
         await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, deployer.address);
 
     // Create consensus implementation
-    const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
+    const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContractPP, deployer)) as any;
     let PolygonconsensusContract;
 
     PolygonconsensusContract = await PolygonconsensusFactory.deploy(
@@ -181,6 +181,9 @@ async function main() {
         deployOutput.polygonRollupManagerAddress
     );
     await PolygonconsensusContract.waitForDeployment();
+
+    console.log("#######################\n");
+    console.log("PP Consensus contract deployed to:", PolygonconsensusContract.target);
 
     // Add a new rollup type with timelock
     const rollupCompatibilityID = 0;
@@ -192,7 +195,7 @@ async function main() {
             rollupCompatibilityID,
             genesis.root,
             description,
-            '0x0000000000000000000000000000000000000000000000000000000000000000' // 0x00000... value for zkEVM rollup deploy
+            '0x65ccca7101ace9ec66528005ec8330f5938a6f90089fad88eebf6fba32fd7a9e' // Random 32 bytes hex string for programVKey (SP1 verifier key)
         )
     ).wait();
 
@@ -247,16 +250,14 @@ async function main() {
         trustedSequencer,
         gasTokenAddress,
         trustedSequencerURL,
-        networkName
+        `${networkName}-pp`
     );
 
     const receipt = (await txDeployRollup.wait()) as any;
     const blockDeploymentRollup = await receipt?.getBlock();
-    const timestampReceipt = blockDeploymentRollup.timestamp;
-    const rollupID = await rollupManagerContract.chainIDToRollupID(chainID);
 
     console.log("#######################\n");
-    console.log("Created new Rollup:", newZKEVMAddress);
+    console.log("Created new PP Rollup:", newZKEVMAddress);
 
     if (consensusContract.includes("PolygonValidium") && dataAvailabilityProtocol === "PolygonDataCommittee") {
         // deploy data commitee
@@ -315,25 +316,11 @@ async function main() {
     }
 
     // Add the first batch of the created rollup
-    const newZKEVMContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonZkEVMV2;
-    const batchData = {
-        transactions: await newZKEVMContract.generateInitializeTransaction(
-            rollupID,
-            gasTokenAddress,
-            gasTokenNetwork,
-            gasTokenMetadata as any
-        ),
-        globalExitRoot: globalExitRoot,
-        timestamp: timestampReceipt,
-        sequencer: trustedSequencer,
-    };
-
-    outputJson.firstBatchData = batchData;
     outputJson.genesis = genesis.root;
     outputJson.createRollupBlockNumber = blockDeploymentRollup.number;
     outputJson.rollupAddress = newZKEVMAddress;
     outputJson.verifierAddress = verifierContract.target;
-    outputJson.consensusContract = consensusContract;
+    outputJson.consensusContract = consensusContractPP;
 
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
