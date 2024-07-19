@@ -491,9 +491,6 @@ async function main() {
     console.log("polTokenAddress:", await polygonRollupManagerContract.pol());
     console.log("polygonZkEVMBridgeContract:", await polygonRollupManagerContract.bridgeAddress());
 
-    console.log("pendingStateTimeout:", await polygonRollupManagerContract.pendingStateTimeout());
-    console.log("trustedAggregatorTimeout:", await polygonRollupManagerContract.trustedAggregatorTimeout());
-
     // Check roles
     expect(await polygonRollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelockAddressRollupManager)).to.be.equal(
         true

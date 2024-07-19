@@ -88,7 +88,8 @@ contract PolygonRollupManager is
         bytes32 lastLocalExitRoot;
         uint64 lastBatchSequenced;
         uint64 lastVerifiedBatch;
-        uint128 _legacyLastPendingState;
+        uint128 _legacyPendingStateGap;
+        // uint64 _legacyLastPendingState;
         // uint64 _legacyLastPendingStateConsolidated;
         uint64 lastVerifiedBatchBeforeUpgrade;
         uint64 rollupTypeID;
@@ -353,11 +354,12 @@ contract PolygonRollupManager is
     ) external onlyRole(_ADD_ROLLUP_TYPE_ROLE) {
         uint32 rollupTypeID = ++rollupTypeCount;
 
-        if (
-            rollupVerifierType == VerifierType.Pessimistic &&
-            genesis != bytes32(0)
-        ) {
-            revert InvalidRollupType();
+        if (rollupVerifierType == VerifierType.Pessimistic) {
+            // No genesis on state transition rollups
+            if (genesis != bytes32(0)) revert InvalidRollupType();
+        } else {
+            // No programVKey on state transition rollups
+            if (programVKey != bytes32(0)) revert InvalidRollupType();
         }
 
         rollupTypeMap[rollupTypeID] = RollupType({
@@ -545,7 +547,7 @@ contract PolygonRollupManager is
         rollup.chainID = chainID;
         rollup.rollupVerifierType = rollupVerifierType;
 
-        // Check veriifer type
+        // Check verifier type
         if (rollupVerifierType == VerifierType.Pessimistic) {
             rollup.programVKey = programVKey;
             rollup.lastLocalExitRoot = genesis;
@@ -654,13 +656,21 @@ contract PolygonRollupManager is
             revert RollupTypeObsolete();
         }
 
-        // Check compatibility of the rollups
-        // TODO allow conversion between rollups
-        //TODO
+        // Check rollup types
+        if (rollup.rollupVerifierType != newRollupType.rollupVerifierType) {
+            // Currently the transition from pessimistic to state transition is not allowed
+            if (rollup.rollupVerifierType == VerifierType.Pessimistic) {
+                revert RollupTypeObsolete();
+            }
+
+            // Update rollup verifier type
+            rollup.rollupVerifierType = newRollupType.rollupVerifierType;
+        }
 
         // Update rollup parameters
         rollup.verifier = newRollupType.verifier;
         rollup.forkID = newRollupType.forkID;
+        rollup.programVKey = newRollupType.programVKey;
         rollup.rollupTypeID = newRollupTypeID;
 
         uint64 lastVerifiedBatch = getLastVerifiedBatch(rollupID);
@@ -824,7 +834,7 @@ contract PolygonRollupManager is
         bytes32[24] calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
         // Pending state became deprecated,
-        // It's still there just to have backwards compatibility
+        // It's still there just to have backwards compatibility interface
         if (pendingStateNum != 0) {
             revert PendingStateNumExist();
         }
@@ -879,30 +889,31 @@ contract PolygonRollupManager is
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
         RollupData storage rollup = rollupIDToRollupData[rollupID];
 
+        // Only for pessimistic verifiers
         if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
             revert OnlyChainsWithPessimisticProofs();
         }
 
+        // Check selected global exit root exist
         if (
             globalExitRootManager.globalExitRootMap(selectedGlobalExitRoot) == 0
         ) {
             revert GlobalExitRootNotExist();
         }
 
-        bytes32 consensusHash = IPolygonPessimisticConsensus(address(rollup.rollupContract))
-            .getConsensusHash();
-
-        bytes memory publicValues = abi.encodePacked(
-            rollup.lastLocalExitRoot,
-            rollup.lastPessimisticRoot,
+        bytes memory inputPessimisticBytes = _getInputPessimisticBytes(
+            rollup,
             selectedGlobalExitRoot,
-            consensusHash,
             newLocalExitRoot,
             newPessimisticRoot
         );
 
         // Verify proof
-        ISP1Verifier(rollup.verifier).verifyProof(rollup.programVKey, publicValues, proof);
+        ISP1Verifier(rollup.verifier).verifyProof(
+            rollup.programVKey,
+            inputPessimisticBytes,
+            proof
+        );
 
         // TODO: Since there are no batches we could have either:
         // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
@@ -986,7 +997,9 @@ contract PolygonRollupManager is
         uint256 inputSnark = uint256(sha256(snarkHashBytes)) % _RFIELD;
 
         // Verify proof
-        if (!IVerifierRollup(rollup.verifier).verifyProof(proof, [inputSnark])) {
+        if (
+            !IVerifierRollup(rollup.verifier).verifyProof(proof, [inputSnark])
+        ) {
             revert InvalidProof();
         }
 
@@ -1199,6 +1212,57 @@ contract PolygonRollupManager is
      */
     function getForcedBatchFee() public view returns (uint256) {
         return _batchFee * 100;
+    }
+
+    /**
+     * @notice Function to calculate the pessimistic input bytes
+     * @param rollupID Rollup id used to calculate the input snark bytes
+     * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
+     * @param newLocalExitRoot New local exit root
+     * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
+     */
+    function getInputPessimisticBytes(
+        uint32 rollupID,
+        bytes32 selectedGlobalExitRoot,
+        bytes32 newLocalExitRoot,
+        bytes32 newPessimisticRoot
+    ) public view returns (bytes memory) {
+        return
+            _getInputPessimisticBytes(
+                rollupIDToRollupData[rollupID],
+                selectedGlobalExitRoot,
+                newLocalExitRoot,
+                newPessimisticRoot
+            );
+    }
+
+    /**
+     * @notice Function to calculate the input snark bytes
+     * @param rollup Rollup data storage pointer
+     * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
+     * @param newLocalExitRoot New local exit root
+     * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
+     */
+    function _getInputPessimisticBytes(
+        RollupData storage rollup,
+        bytes32 selectedGlobalExitRoot,
+        bytes32 newLocalExitRoot,
+        bytes32 newPessimisticRoot
+    ) internal view returns (bytes memory) {
+        // Get consensus information from the consensus contract
+        bytes32 consensusHash = IPolygonPessimisticConsensus(
+            address(rollup.rollupContract)
+        ).getConsensusHash();
+
+        return
+            abi.encodePacked(
+                rollup.lastLocalExitRoot,
+                rollup.lastPessimisticRoot,
+                selectedGlobalExitRoot,
+                consensusHash,
+                newLocalExitRoot,
+                newPessimisticRoot
+            );
     }
 
     /**
