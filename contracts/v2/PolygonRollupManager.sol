@@ -540,7 +540,7 @@ contract PolygonRollupManager is
         rollup.chainID = chainID;
         rollup.rollupVerifierType = rollupVerifierType;
 
-        // Check veriifer type
+        // Check verifier type
         if (rollupVerifierType == VerifierType.Pessimistic) {
             rollup.programVKey = programVKey;
             rollup.lastLocalExitRoot = initRoot;
@@ -591,7 +591,10 @@ contract PolygonRollupManager is
 
         if (
             rollup.rollupVerifierType !=
-            rollupTypeMap[newRollupTypeID].rollupVerifierType
+            rollupTypeMap[newRollupTypeID].rollupVerifierType 
+            &&
+            rollupTypeMap[newRollupTypeID].rollupVerifierType !=
+            VerifierType.Pessimistic
         ) {
             revert UpdateNotCompatible();
         }
@@ -658,6 +661,13 @@ contract PolygonRollupManager is
         rollup.forkID = newRollupType.forkID;
         rollup.rollupTypeID = newRollupTypeID;
 
+        if (rollup.rollupVerifierType == VerifierType.Pessimistic) {
+            rollup.rollupVerifierType = newRollupType.rollupVerifierType;
+            rollup.programVKey = newRollupType.programVKey;
+            // TODO: lastPessimisticRoot == ?
+            rollup.lastPessimisticRoot = newRollupType.lastPessimisticRoot;
+        }
+        
         uint64 lastVerifiedBatch = getLastVerifiedBatch(rollupID);
         rollup.lastVerifiedBatchBeforeUpgrade = lastVerifiedBatch;
 
