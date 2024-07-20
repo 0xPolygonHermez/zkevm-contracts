@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.20;
 
-import "./interfaces/IPolygonRollupManager.sol";
 import "./interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "../interfaces/IPolygonZkEVMBridge.sol";
 import "./interfaces/IPolygonRollupBase.sol";
@@ -31,11 +30,6 @@ contract PolygonRollupManager is
     IPolygonRollupManager
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-
-    enum VerifierType {
-        StateTransition,
-        Pessimistic
-    }
 
     /**
      * @notice Struct which to store the rollup type data
@@ -189,7 +183,6 @@ contract PolygonRollupManager is
     mapping(uint32 rollupID => RollupData) public rollupIDToRollupData;
 
     // Rollups address mapping
-    // Pessimistic rollups does not have setted this mapping
     mapping(address rollupAddress => uint32 rollupID) public rollupAddressToID;
 
     // Chain ID mapping for nullifying
@@ -502,7 +495,7 @@ contract PolygonRollupManager is
      * @param verifier Verifier address, must be added before
      * @param forkID Fork id of the added rollup
      * @param chainID Chain id of the added rollup
-     * @param genesis Genesis block for this rollup
+     * @param initRoot Genesis block for StateTransitionChains & localExitRoot for pessimistic chain
      * @param rollupVerifierType Compatibility ID for the added rollup
      * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
      */
@@ -511,7 +504,7 @@ contract PolygonRollupManager is
         address verifier,
         uint64 forkID,
         uint64 chainID,
-        bytes32 genesis,
+        bytes32 initRoot,
         VerifierType rollupVerifierType,
         bytes32 programVKey
     ) external onlyRole(_ADD_EXISTING_ROLLUP_ROLE) {
@@ -550,9 +543,9 @@ contract PolygonRollupManager is
         // Check verifier type
         if (rollupVerifierType == VerifierType.Pessimistic) {
             rollup.programVKey = programVKey;
-            rollup.lastLocalExitRoot = genesis;
+            rollup.lastLocalExitRoot = initRoot;
         } else {
-            rollup.batchNumToStateRoot[0] = genesis;
+            rollup.batchNumToStateRoot[0] = initRoot;
         }
         // rollup type is 0, since it does not follow any rollup type
         emit AddExistingRollup(
