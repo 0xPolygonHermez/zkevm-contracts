@@ -15,6 +15,7 @@ import "./consensus/zkEVM/PolygonZkEVMExistentEtrog.sol";
 import "./lib/PolygonConstantsBase.sol";
 import "./interfaces/IPolygonPessimisticConsensus.sol";
 import "./interfaces/ISP1Verifier.sol";
+import "./interfaces/IPolygonRollupManager.sol";
 
 /**
  * Contract responsible for managing rollups and the verification of their batches.
