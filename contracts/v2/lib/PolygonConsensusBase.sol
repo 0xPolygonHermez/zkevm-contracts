@@ -7,11 +7,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../../interfaces/IPolygonZkEVMErrors.sol";
 import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
 import "../interfaces/IPolygonConsensusBase.sol";
-import "../interfaces/IPolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "./PolygonConstantsBase.sol";
+import "../PolygonRollupManager.sol";
 
 /**
  * Contract responsible for managing the states and the updates of L2 network.
@@ -36,7 +36,7 @@ abstract contract PolygonConsensusBase is
     IPolygonZkEVMBridgeV2 public immutable bridgeAddress;
 
     // Rollup manager
-    IPolygonRollupManager public immutable rollupManager;
+    PolygonRollupManager public immutable rollupManager;
 
     // Address that will be able to adjust contract parameters
     address public admin;
@@ -119,7 +119,7 @@ abstract contract PolygonConsensusBase is
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
         IPolygonZkEVMBridgeV2 _bridgeAddress,
-        IPolygonRollupManager _rollupManager
+        PolygonRollupManager _rollupManager
     ) {
         globalExitRootManager = _globalExitRootManager;
         pol = _pol;
