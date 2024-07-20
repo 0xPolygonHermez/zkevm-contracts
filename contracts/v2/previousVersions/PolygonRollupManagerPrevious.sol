@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-import "../interfaces/IPolygonRollupManager.sol";
+import "./IPolygonRollupManagerPrevious.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "../../interfaces/IPolygonZkEVMBridge.sol";
 import "../interfaces/IPolygonRollupBase.sol";
@@ -26,7 +26,7 @@ contract PolygonRollupManagerPrevious is
     EmergencyManager,
     LegacyZKEVMStateVariables,
     PolygonConstantsBase,
-    IPolygonRollupManager
+    IPolygonRollupManagerPrevious
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
