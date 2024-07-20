@@ -317,9 +317,7 @@ interface IPolygonRollupManager {
         bytes32 programVKey
     ) external;
 
-    function obsoleteRollupType(
-        uint32 rollupTypeID
-    ) external;
+    function obsoleteRollupType(uint32 rollupTypeID) external;
 
     function createNewRollup(
         uint32 rollupTypeID,
@@ -333,7 +331,7 @@ interface IPolygonRollupManager {
 
     function addExistingRollup(
         IPolygonRollupBase rollupAddress,
-        IVerifierRollup verifier,
+        address verifier,
         uint64 forkID,
         uint64 chainID,
         bytes32 initRoot,
@@ -372,26 +370,24 @@ interface IPolygonRollupManager {
         address beneficiary,
         bytes32[24] calldata proof
     ) external;
-    
+
     function verifyPessimisticTrustedAggregator(
         uint32 rollupID,
         bytes32 selectedGlobalExitRoot,
         bytes32 newLocalExitRoot,
         bytes32 newPessimisticRoot,
-        bytes32[24] calldata proof
+        bytes calldata proof
     ) external;
 
     function activateEmergencyState() external;
 
     function deactivateEmergencyState() external;
-    
+
     function setBatchFee(uint256 newBatchFee) external;
 
     function getRollupExitRoot() external returns (bytes32);
 
-    function getLastVerifiedBatch(
-        uint32 rollupID
-    ) external returns (uint64);
+    function getLastVerifiedBatch(uint32 rollupID) external returns (uint64);
 
     function calculateRewardPerBatch() external returns (uint256);
 
@@ -420,9 +416,5 @@ interface IPolygonRollupManager {
         uint64 batchNum
     ) external returns (bytes32);
 
-    // function getRollupSequencedBatches(
-    //     uint32 rollupID,
-    //     uint64 batchNum
-    // ) external returns (SequencedBatchData memory);
-
+    function lastDeactivatedEmergencyStateTimestamp() external returns (uint64);
 }
