@@ -24,8 +24,8 @@ cd deployment
 cp upgrade_parameters.json.example upgrade_parameters.json
 ```
 
-Fill created `upgrade_parameters.json` with appropiate parameters.
-You should fullfill the upgrades array, with all the updates that you intend to do ( more information in `upgrade-parameters.json` section)
+Fill created `upgrade_parameters.json` with appropriate parameters.
+You should fulfill the upgrades array, with all the updates that you intend to do ( more information in `upgrade-parameters.json` section)
 
 if the deployment was deployed without a timelock you can use the `simpleUpgradeScript.js`:
 

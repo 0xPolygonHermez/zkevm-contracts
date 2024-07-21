@@ -8,7 +8,7 @@ Contract responsible to manage the token interactions with other networks
   function constructor(
   ) public
 ```
-Disable initalizers on the implementation following the best practices
+Disable initializers on the implementation following the best practices
 
 
 
