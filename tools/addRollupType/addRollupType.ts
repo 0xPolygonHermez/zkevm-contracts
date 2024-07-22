@@ -11,7 +11,8 @@ import {ethers, upgrades} from "hardhat";
 const addRollupParameters = require("./add_rollup_type.json");
 const genesis = require("./genesis.json");
 
-const pathOutputJson = path.join(__dirname, "./add_rollup_type_output.json");
+const dateStr = new Date().toISOString();
+const pathOutputJson = path.join(__dirname, `./add_rollup_type_output-${dateStr}.json`);
 
 import {PolygonRollupManager} from "../../typechain-types";
 import "../../deployment/helpers/utils";
@@ -28,11 +29,9 @@ async function main() {
         "forkID",
         "consensusContract",
         "polygonRollupManagerAddress",
-        "polygonZkEVMBridgeAddress",
-        "polygonZkEVMGlobalExitRootAddress",
-        "polTokenAddress",
         "verifierAddress",
         "rollupCompatibilityID",
+        "genesisRoot"
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -47,10 +46,8 @@ async function main() {
         forkID,
         consensusContract,
         polygonRollupManagerAddress,
-        polygonZkEVMBridgeAddress,
-        polygonZkEVMGlobalExitRootAddress,
-        polTokenAddress,
         verifierAddress,
+        genesisRoot
     } = addRollupParameters;
 
     const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
@@ -113,6 +110,34 @@ async function main() {
         polygonRollupManagerAddress
     ) as PolygonRollupManager;
 
+    // get data from rollupManagerContract
+    const polygonZkEVMBridgeAddress = await rollupManagerContract.bridgeAddress();
+    const polygonZkEVMGlobalExitRootAddress = await rollupManagerContract.globalExitRootManager();
+    const polTokenAddress = await rollupManagerContract.pol();
+
+    // Sanity checks genesisRoot
+    if (genesisRoot !== genesis.root) {
+        throw new Error(
+            `Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`
+        );
+    }
+
+    // get bridge address in genesis file
+    let genesisBridgeAddress = ethers.constants.AddresZero;
+    for (let i = 0; i < genesis.genesis.lenght; i++) {
+        if (genesis.genesis[i].contractName === 'PolygonZkEVMBridge proxy') {
+            genesisBridgeAddress = genesis.genesis[i].address;
+            break;
+        }
+    }
+
+    if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress ) {
+        throw new Error(
+            `'PolygonZkEVMBridge proxy' root in the 'genesis.json' does not match 'bridgeAddress' in the 'PolygonRollupManager'`
+        );
+    }
+
+    // Check roles
     const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
     if ((await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)) == false) {
         throw new Error(
@@ -127,37 +152,45 @@ async function main() {
     if ((await rollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, deployer.address)) == false)
         await rollupManagerContract.grantRole(ADD_ROLLUP_TYPE_ROLE, deployer.address);
 
-    // Create consensus implementation
-    const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
-    let PolygonconsensusContract;
+    // Create consensus implementation if needed
+    let polygonConsensusContractAddress;
 
-    PolygonconsensusContract = await PolygonconsensusFactory.deploy(
-        polygonZkEVMGlobalExitRootAddress,
-        polTokenAddress,
-        polygonZkEVMBridgeAddress,
-        polygonRollupManagerAddress
-    );
-    await PolygonconsensusContract.waitForDeployment();
+    if (typeof addRollupParameters.polygonconsensusContract !== 'undefined' && ethers.isAddress(addRollupParameters.polygonconsensusContract)) {
+        polygonConsensusContractAddress = addRollupParameters.polygonconsensusContract;
+    } else {
+        const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
+        let PolygonconsensusContract;
 
-    console.log("#######################\n");
-    console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContract.target}`);
+        PolygonconsensusContract = await PolygonconsensusFactory.deploy(
+            polygonZkEVMGlobalExitRootAddress,
+            polTokenAddress,
+            polygonZkEVMBridgeAddress,
+            polygonRollupManagerAddress
+        );
+        await PolygonconsensusContract.waitForDeployment();
 
-    console.log("you can verify the new impl address with:");
-    console.log(
-        `npx hardhat verify --constructor-args upgrade/arguments.js ${PolygonconsensusContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
-    );
-    console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
-        polygonZkEVMGlobalExitRootAddress,
-        polTokenAddress,
-        polygonZkEVMBridgeAddress,
-        polygonRollupManagerAddress,
-    ]);
+        console.log("#######################\n");
+        console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContract.target}`);
+
+        console.log("you can verify the new impl address with:");
+        console.log(
+            `npx hardhat verify --constructor-args upgrade/arguments.js ${PolygonconsensusContract.target} --network ${process.env.HARDHAT_NETWORK}\n`
+        );
+        console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
+            polygonZkEVMGlobalExitRootAddress,
+            polTokenAddress,
+            polygonZkEVMBridgeAddress,
+            polygonRollupManagerAddress,
+        ]);
+
+        polygonConsensusContractAddress = PolygonconsensusContract.target;
+    }
 
     // Add a new rollup type with timelock
     console.log(
         await (
             await rollupManagerContract.addNewRollupType(
-                PolygonconsensusContract.target,
+                polygonConsensusContractAddress,
                 verifierAddress,
                 forkID,
                 rollupCompatibilityID,
@@ -176,6 +209,8 @@ async function main() {
     outputJson.consensusContract = consensusContract;
     outputJson.rollupTypeID = newRollupTypeID;
 
+    // add time to output path
+    const dateStr = new Date().toISOString();
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
 
