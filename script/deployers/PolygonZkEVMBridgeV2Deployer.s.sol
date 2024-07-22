@@ -28,14 +28,16 @@ abstract contract PolygonZkEVMBridgeV2Deployer is Script {
         internal
         returns (address implementation, address proxyAdmin, address proxy)
     {
-        bytes memory initData = abi.encodeWithSignature(
-            "initialize(uint32,address,uint32,address,address,bytes)",
-            _networkID,
-            _gasTokenAddress,
-            _gasTokenNetwork,
-            _globalExitRootManager,
-            _polygonRollupManager,
-            _gasTokenMetadata
+        bytes memory initData = abi.encodeCall(
+            PolygonZkEVMBridgeV2.initialize,
+            (
+                _networkID,
+                _gasTokenAddress,
+                _gasTokenNetwork,
+                _globalExitRootManager,
+                _polygonRollupManager,
+                _gasTokenMetadata
+            )
         );
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));

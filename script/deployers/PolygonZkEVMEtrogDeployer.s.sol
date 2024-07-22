@@ -43,7 +43,6 @@ abstract contract PolygonZkEVMEtrogDeployer is Script {
         );
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-
         polygonZkEVMEtrogImplementation = address(
             new PolygonZkEVMEtrog(
                 _globalExitRootManager,
@@ -52,6 +51,10 @@ abstract contract PolygonZkEVMEtrogDeployer is Script {
                 _rollupManager
             )
         );
+        vm.stopBroadcast();
+
+        // two step deployment as rollupManager is required for initialization
+        vm.startBroadcast(address(_rollupManager));
         polygonZkEVMEtrog = PolygonZkEVMEtrog(
             address(
                 new TransparentUpgradeableProxy(
@@ -61,7 +64,6 @@ abstract contract PolygonZkEVMEtrogDeployer is Script {
                 )
             )
         );
-
         vm.stopBroadcast();
 
         polygonZkEVMEtrogProxyAdmin = ProxyAdmin(

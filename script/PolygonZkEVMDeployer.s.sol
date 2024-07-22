@@ -6,7 +6,8 @@ import "script/deployers/PolygonZkEVMDeployerDeployer.s.sol";
 
 contract Deploy is Script, PolygonZkEVMDeployerDeployer {
     function run() public {
+        address proxyAdminOwner = makeAddr("proxyAdminOwner");
         address _owner = makeAddr("Owner");
-        deployPolygonZkEVMDeployerImplementation(_owner);
+        deployPolygonZkEVMDeployerTransparent(proxyAdminOwner, _owner);
     }
 }

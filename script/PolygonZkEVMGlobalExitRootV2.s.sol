@@ -6,9 +6,12 @@ import "script/deployers/PolygonZkEVMGlobalExitRootV2Deployer.s.sol";
 
 contract Deploy is Script, PolygonZkEVMGlobalExitRootV2Deployer {
     function run() public {
+        address proxyAdminOwner = makeAddr("proxyAdminOwner");
         address _rollupManager = makeAddr("RollupManager");
         address _bridgeAddress = makeAddr("PolygonZkEVMBridgeV2");
-        deployPolygonZkEVMGlobalExitRootV2Implementation(
+
+        deployPolygonZkEVMGlobalExitRootV2Transparent(
+            proxyAdminOwner,
             _rollupManager,
             _bridgeAddress
         );
