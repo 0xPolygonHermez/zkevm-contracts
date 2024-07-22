@@ -94,14 +94,22 @@ describe("Polygon Global exit root v2", () => {
         );
         const blockUpdates = [];
         // Update Exit root
-        const updateExitRoot = await polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup)
+        const updateExitRoot = await polygonZkEVMGlobalExitRootV2.connect(rollupManager).updateExitRoot(newRootRollup);
         // Retrieve l1InfoRoot
-        const currentL1InfoRoot = await polygonZkEVMGlobalExitRootV2.getRoot()
+        const currentL1InfoRoot = await polygonZkEVMGlobalExitRootV2.getRoot();
+        // Retrieve depositCount
+        const depositCount = await polygonZkEVMGlobalExitRootV2.depositCount();
+        // Retrieve parentHash and timestamp
+        const blockInfo = await ethers.provider.getBlock(updateExitRoot?.blockHash as any);
 
         // Check event
         await expect(updateExitRoot)
             .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTree")
-            .withArgs(ethers.ZeroHash, newRootRollup, currentL1InfoRoot);
+            .withArgs(ethers.ZeroHash, newRootRollup);
+
+        await expect(updateExitRoot)
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeV2")
+            .withArgs(currentL1InfoRoot, depositCount, blockInfo?.parentHash, blockInfo?.timestamp);
 
         blockUpdates.push({
             block: await ethers.provider.getBlock("latest"),
@@ -115,12 +123,21 @@ describe("Polygon Global exit root v2", () => {
         // Update root from the PolygonZkEVMBridge
         const newRootBridge = ethers.hexlify(ethers.randomBytes(32));
         // Update Bridge Exit root
-        const updateBridgeExitRoot = await polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge)
+        const updateBridgeExitRoot = await polygonZkEVMGlobalExitRootV2.connect(bridge).updateExitRoot(newRootBridge);
         // Retrieve l1InfoRoot
-        const updatedL1InfoRoot = await polygonZkEVMGlobalExitRootV2.getRoot()
+        const newUpdatedL1InfoRoot = await polygonZkEVMGlobalExitRootV2.getRoot();
+        // Retrieve depositCount
+        const newDepositCount = await polygonZkEVMGlobalExitRootV2.depositCount();
+        // Retrieve parentHash and timestamp
+        const newBlockInfo = await ethers.provider.getBlock(updateBridgeExitRoot?.blockHash as any);
+
         await expect(updateBridgeExitRoot)
             .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTree")
-            .withArgs(newRootBridge, newRootRollup, updatedL1InfoRoot);
+            .withArgs(newRootBridge, newRootRollup);
+
+        await expect(updateBridgeExitRoot)
+            .to.emit(polygonZkEVMGlobalExitRootV2, "UpdateL1InfoTreeV2")
+            .withArgs(newUpdatedL1InfoRoot, newDepositCount, newBlockInfo?.parentHash, newBlockInfo?.timestamp);
 
         const newGlobalExitRoot = calculateGlobalExitRoot(newRootBridge, newRootRollup);
         blockUpdates.push({
