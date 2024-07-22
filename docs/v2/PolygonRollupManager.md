@@ -414,6 +414,46 @@ Get forced batch fee
 
 
 
+### getInputPessimisticBytes
+```solidity
+  function getInputPessimisticBytes(
+    uint32 rollupID,
+    bytes32 selectedGlobalExitRoot,
+    bytes32 newLocalExitRoot,
+    bytes32 newPessimisticRoot
+  ) public returns (bytes)
+```
+Function to calculate the pessimistic input bytes
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`rollupID` | uint32 | Rollup id used to calculate the input snark bytes
+|`selectedGlobalExitRoot` | bytes32 | Selected global exit root to proof imported bridges
+|`newLocalExitRoot` | bytes32 | New local exit root
+|`newPessimisticRoot` | bytes32 | New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
+
+### _getInputPessimisticBytes
+```solidity
+  function _getInputPessimisticBytes(
+    struct PolygonRollupManager.RollupData rollup,
+    bytes32 selectedGlobalExitRoot,
+    bytes32 newLocalExitRoot,
+    bytes32 newPessimisticRoot
+  ) internal returns (bytes)
+```
+Function to calculate the input snark bytes
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`rollup` | struct PolygonRollupManager.RollupData | Rollup data storage pointer
+|`selectedGlobalExitRoot` | bytes32 | Selected global exit root to proof imported bridges
+|`newLocalExitRoot` | bytes32 | New local exit root
+|`newPessimisticRoot` | bytes32 | New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
+
 ### getInputSnarkBytes
 ```solidity
   function getInputSnarkBytes(
