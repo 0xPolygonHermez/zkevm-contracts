@@ -43,7 +43,6 @@ abstract contract PolygonValidiumEtrogDeployer is Script {
         );
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-
         polygonValidiumEtrogImplementation = address(
             new PolygonValidiumEtrog(
                 _globalExitRootManager,
@@ -52,6 +51,10 @@ abstract contract PolygonValidiumEtrogDeployer is Script {
                 _rollupManager
             )
         );
+        vm.stopBroadcast();
+
+        // two step deployment as rollupManager is required for initialization
+        vm.startBroadcast(address(_rollupManager));
         polygonValidiumEtrog = PolygonValidiumEtrog(
             address(
                 new TransparentUpgradeableProxy(
@@ -61,7 +64,6 @@ abstract contract PolygonValidiumEtrogDeployer is Script {
                 )
             )
         );
-
         vm.stopBroadcast();
 
         polygonValidiumEtrogProxyAdmin = ProxyAdmin(

@@ -8,9 +8,64 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 
 import "contracts/PolygonRollupManager.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts5/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 abstract contract PolygonRollupManagerDeployer is Script {
     PolygonRollupManager internal polygonRollupManager;
+    ProxyAdmin internal polygonRollupManagerProxyAdmin;
+    address internal polygonRollupManagerImplementation;
+
+    function deployPolygonRollupManagerTransparent(
+        address proxyAdminOwner,
+        IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
+        IERC20Upgradeable _pol,
+        IPolygonZkEVMBridge _bridgeAddress
+    )
+        internal
+        returns (address implementation, address proxyAdmin, address proxy)
+    {
+        bytes memory initData = "";
+
+        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+
+        polygonRollupManagerImplementation = address(
+            new PolygonRollupManager(
+                _globalExitRootManager,
+                _pol,
+                _bridgeAddress
+            )
+        );
+        polygonRollupManager = PolygonRollupManager(
+            address(
+                new TransparentUpgradeableProxy(
+                    polygonRollupManagerImplementation,
+                    proxyAdminOwner,
+                    initData
+                )
+            )
+        );
+
+        vm.stopBroadcast();
+
+        polygonRollupManagerProxyAdmin = ProxyAdmin(
+            address(
+                uint160(
+                    uint256(
+                        vm.load(
+                            address(polygonRollupManager),
+                            hex"b53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
+                        )
+                    )
+                )
+            )
+        );
+
+        return (
+            polygonRollupManagerImplementation,
+            address(polygonRollupManagerProxyAdmin),
+            address(polygonRollupManager)
+        );
+    }
 
     function deployPolygonRollupManagerImplementation(
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
