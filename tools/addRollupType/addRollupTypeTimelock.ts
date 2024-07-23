@@ -126,7 +126,7 @@ async function main() {
 
     // get bridge address in genesis file
     let genesisBridgeAddress = ethers.ZeroAddress;
-    for (let i = 0; i < genesis.genesis.length; i++) {
+    for (let i = 0; i < genesis.genesis.lenght; i++) {
         if (genesis.genesis[i].contractName === "PolygonZkEVMBridge proxy") {
             genesisBridgeAddress = genesis.genesis[i].address;
             break;
