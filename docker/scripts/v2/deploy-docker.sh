@@ -1,6 +1,6 @@
 #!/bin/bash
 sudo rm -rf docker/gethData/geth_data
-DEV_PERIOD=1 docker-compose -f docker/docker-compose.yml up -d geth
+sudo DEV_PERIOD=1 docker-compose -f docker/docker-compose.yml up -d geth
 sleep 5
 node docker/scripts/fund-accounts.js
 cp docker/scripts/v2/deploy_parameters_docker.json deployment/v2/deploy_parameters.json
