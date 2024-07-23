@@ -241,6 +241,11 @@
     },
     {
       "inputs": [],
+      "name": "OnlyPessimisticChains",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "OnlyRollupAdmin",
       "type": "error"
     },
