@@ -126,16 +126,14 @@ async function main() {
 
     // get bridge address in genesis file
     let genesisBridgeAddress = ethers.ZeroAddress;
-    for (let i = 0; i < genesis.genesis.length; i++) {
+    for (let i = 0; i < genesis.genesis.lenght; i++) {
         if (genesis.genesis[i].contractName === "PolygonZkEVMBridge proxy") {
             genesisBridgeAddress = genesis.genesis[i].address;
             break;
         }
     }
 
-    if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress.toLowerCase()) {
-        console.log(polygonZkEVMBridgeAddress, genesisBridgeAddress);
-
+    if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress) {
         throw new Error(
             `'PolygonZkEVMBridge proxy' root in the 'genesis.json' does not match 'bridgeAddress' in the 'PolygonRollupManager'`
         );
