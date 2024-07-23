@@ -20,21 +20,3 @@
 
 
 
-### admin
-```solidity
-  function admin(
-  ) external returns (address)
-```
-
-
-
-
-### rollbackBatches
-```solidity
-  function rollbackBatches(
-  ) external
-```
-
-
-
-
