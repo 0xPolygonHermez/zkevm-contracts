@@ -75,12 +75,6 @@
           "internalType": "bytes32",
           "name": "rollupExitRoot",
           "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "currentL1InfoRoot",
-          "type": "bytes32"
         }
       ],
       "name": "UpdateL1InfoTree",
