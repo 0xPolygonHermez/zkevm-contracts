@@ -22,21 +22,31 @@ contract PolygonZkEVMGlobalExitRootV2 is
     // Rollup manager contract address
     address public immutable rollupManager;
 
-    mapping(uint32 depositCount => bytes32 l1InfoRoot) public l1InfoRootMap;
+    // Store every l1InfoLeaf
+    mapping(uint32 leafIndex => bytes32 l1InfoRoot) public l1InfoRootMap;
 
     /**
      * @dev Emitted when the global exit root is updated
      */
     event UpdateL1InfoTree(
         bytes32 indexed mainnetExitRoot,
-        bytes32 indexed rollupExitRoot,
-        bytes32 currentL1InfoRoot
+        bytes32 indexed rollupExitRoot
+    );
+
+    /**
+     * @dev Emitted when the global exit root is updated with the L1InfoTree leaf information
+     */
+    event UpdateL1InfoTreeV2(
+        bytes32 currentL1InfoRoot,
+        uint32 indexed leafIndex,
+        uint256 blockhash,
+        uint64 minTimestamp
     );
 
     /**
      * @dev Emitted when the global exit root manager starts adding leafs to the L1InfoRootMap
      */
-    event InitL1InfoRootMap(uint32 depositCount, bytes32 currentL1InfoRoot);
+    event InitL1InfoRootMap(uint32 leafIndex, bytes32 currentL1InfoRoot);
 
     /**
      * @param _rollupManager Rollup manager contract address
@@ -91,16 +101,14 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
         // If it already exists, do not modify the blockhash
         if (globalExitRootMap[newGlobalExitRoot] == 0) {
+            uint64 currentTimestmap = uint64(block.timestamp);
+
             uint256 lastBlockHash = uint256(blockhash(block.number - 1));
             globalExitRootMap[newGlobalExitRoot] = lastBlockHash;
 
             // save new leaf in L1InfoTree
             _addLeaf(
-                getLeafValue(
-                    newGlobalExitRoot,
-                    lastBlockHash,
-                    uint64(block.timestamp)
-                )
+                getLeafValue(newGlobalExitRoot, lastBlockHash, currentTimestmap)
             );
 
             // Get the current historic root
@@ -111,8 +119,14 @@ contract PolygonZkEVMGlobalExitRootV2 is
 
             emit UpdateL1InfoTree(
                 cacheLastMainnetExitRoot,
-                cacheLastRollupExitRoot,
-                currentL1InfoRoot
+                cacheLastRollupExitRoot
+            );
+
+            emit UpdateL1InfoTreeV2(
+                currentL1InfoRoot,
+                uint32(depositCount),
+                lastBlockHash,
+                currentTimestmap
             );
         }
     }
