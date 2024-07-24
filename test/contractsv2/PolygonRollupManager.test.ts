@@ -57,7 +57,7 @@ describe("Polygon Rollup Manager", () => {
     const LEAF_TYPE_MESSAGE = 1;
 
     const globalExitRootL2Address = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa" as unknown as Address;
-
+  
     let firstDeployment = true;
 
     //roles
@@ -183,9 +183,6 @@ describe("Polygon Rollup Manager", () => {
         expect(await rollupManagerContract.pol()).to.be.equal(polTokenContract.target);
         expect(await rollupManagerContract.bridgeAddress()).to.be.equal(polygonZkEVMBridgeContract.target);
 
-        expect(await rollupManagerContract.pendingStateTimeout()).to.be.equal(pendingStateTimeoutDefault);
-        expect(await rollupManagerContract.trustedAggregatorTimeout()).to.be.equal(trustedAggregatorTimeout);
-
         expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther("0.1"));
         expect(await rollupManagerContract.getForcedBatchFee()).to.be.equal(ethers.parseEther("10"));
         expect(await rollupManagerContract.calculateRewardPerBatch()).to.be.equal(0);
@@ -252,8 +249,11 @@ describe("Polygon Rollup Manager", () => {
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
-        const rollupCompatibilityID = 0;
-        const descirption = "zkevm test";
+        const rollupVerifierType = 0;
+        const description = "zkevm test";
+        const programVKey = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const lastPessimisticRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
         // Native token will be ether
         const gasTokenAddress = ethers.ZeroAddress;
         const gasTokenNetwork = 0;
@@ -276,9 +276,10 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
@@ -291,9 +292,10 @@ describe("Polygon Rollup Manager", () => {
                     PolygonZKEVMV2Contract.target,
                     verifierContract.target,
                     forkID,
-                    rollupCompatibilityID,
+                    rollupVerifierType,
                     genesisRandom,
-                    descirption
+                    description,
+                    programVKey
                 )
         )
             .to.emit(rollupManagerContract, "AddNewRollupType")
@@ -302,9 +304,10 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             );
 
         // assert new rollup type
@@ -314,9 +317,10 @@ describe("Polygon Rollup Manager", () => {
             PolygonZKEVMV2Contract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             false,
             genesisRandom,
+            programVKey
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
@@ -336,9 +340,10 @@ describe("Polygon Rollup Manager", () => {
             PolygonZKEVMV2Contract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             true,
             genesisRandom,
+            programVKey
         ]).to.be.deep.equal(await rollupManagerContract.rollupTypeMap(newRollupTypeID));
         await snapshot.restore();
 
@@ -512,11 +517,12 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
         expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
         expect(rollupData.lastVerifiedBatch).to.be.equal(0);
-        expect(rollupData.lastPendingState).to.be.equal(0);
-        expect(rollupData.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupData._legacyPendingStateGap).to.be.equal(0);
         expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupData.rollupTypeID).to.be.equal(1);
-        expect(rollupData.rollupCompatibilityID).to.be.equal(0);
+        expect(rollupData.rollupVerifierType).to.be.equal(0);
+        expect(rollupData.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
+        expect(rollupData.programVKey).to.be.equal(programVKey);
 
         const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
             newCreatedRollupID,
@@ -1039,8 +1045,11 @@ describe("Polygon Rollup Manager", () => {
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
-        const rollupCompatibilityID = 0;
-        const descirption = "zkevm test";
+        const rollupVerifierType = 0;
+        const description = "zkevm test";
+        const programVKey = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const lastPessimisticRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
         // Native token will be ether
 
         // deploy pol
@@ -1083,9 +1092,10 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
@@ -1098,9 +1108,10 @@ describe("Polygon Rollup Manager", () => {
                     PolygonZKEVMV2Contract.target,
                     verifierContract.target,
                     forkID,
-                    rollupCompatibilityID,
+                    rollupVerifierType,
                     genesisRandom,
-                    descirption
+                    description,
+                    programVKey
                 )
         )
             .to.emit(rollupManagerContract, "AddNewRollupType")
@@ -1109,9 +1120,10 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             );
 
         // assert new rollup type
@@ -1121,9 +1133,10 @@ describe("Polygon Rollup Manager", () => {
             PolygonZKEVMV2Contract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             false,
             genesisRandom,
+            programVKey
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
@@ -1143,9 +1156,10 @@ describe("Polygon Rollup Manager", () => {
             PolygonZKEVMV2Contract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             true,
             genesisRandom,
+            programVKey
         ]).to.be.deep.equal(await rollupManagerContract.rollupTypeMap(newRollupTypeID));
         await snapshot.restore();
 
@@ -1319,11 +1333,12 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
         expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
         expect(rollupData.lastVerifiedBatch).to.be.equal(0);
-        expect(rollupData.lastPendingState).to.be.equal(0);
-        expect(rollupData.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupData._legacyPendingStateGap).to.be.equal(0);
         expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupData.rollupTypeID).to.be.equal(1);
-        expect(rollupData.rollupCompatibilityID).to.be.equal(0);
+        expect(rollupData.rollupVerifierType).to.be.equal(0);
+        expect(rollupData.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
+        expect(rollupData.programVKey).to.be.equal(programVKey);
 
         const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
             newCreatedRollupID,
@@ -1661,8 +1676,11 @@ describe("Polygon Rollup Manager", () => {
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
-        const rollupCompatibilityID = 0;
-        const descirption = "zkevm test";
+        const rollupVerifierType = 0;
+        const description = "zkevm test";
+        const programVKey = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const lastPessimisticRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
         // Native token will be ether
 
         // deploy pol
@@ -1705,9 +1723,10 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
@@ -1720,9 +1739,10 @@ describe("Polygon Rollup Manager", () => {
                     PolygonZKEVMV2Contract.target,
                     verifierContract.target,
                     forkID,
-                    rollupCompatibilityID,
+                    rollupVerifierType,
                     genesisRandom,
-                    descirption
+                    description,
+                    programVKey
                 )
         )
             .to.emit(rollupManagerContract, "AddNewRollupType")
@@ -1731,9 +1751,10 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             );
 
         // assert new rollup type
@@ -1743,9 +1764,10 @@ describe("Polygon Rollup Manager", () => {
             PolygonZKEVMV2Contract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             false,
             genesisRandom,
+            programVKey
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
@@ -1765,9 +1787,10 @@ describe("Polygon Rollup Manager", () => {
             PolygonZKEVMV2Contract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             true,
             genesisRandom,
+            programVKey
         ]).to.be.deep.equal(await rollupManagerContract.rollupTypeMap(newRollupTypeID));
         await snapshot.restore();
 
@@ -1942,11 +1965,12 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
         expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
         expect(rollupData.lastVerifiedBatch).to.be.equal(0);
-        expect(rollupData.lastPendingState).to.be.equal(0);
-        expect(rollupData.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupData._legacyPendingStateGap).to.be.equal(0);
         expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupData.rollupTypeID).to.be.equal(1);
-        expect(rollupData.rollupCompatibilityID).to.be.equal(0);
+        expect(rollupData.rollupVerifierType).to.be.equal(0);
+        expect(rollupData.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
+        expect(rollupData.programVKey).to.be.equal(programVKey);
 
         const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
             newCreatedRollupID,
@@ -2286,9 +2310,10 @@ describe("Polygon Rollup Manager", () => {
                     PolygonZKEVMEtrogContract.target,
                     verifierContract.target,
                     forkID,
-                    rollupCompatibilityID,
+                    rollupVerifierType,
                     genesisRandom,
-                    descirption
+                    description,
+                    programVKey
                 )
         )
             .to.emit(rollupManagerContract, "AddNewRollupType")
@@ -2297,13 +2322,15 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMEtrogContract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             );
 
-        // Add a new rollup type with timelock
-        const randomType = 3;
+        // Add a new rollup type (pessimistic) with timelock
+        const newRandomTypeID = 3;
+        const rollupVerifierTypeNew = 1;
         await expect(
             rollupManagerContract
                 .connect(timelock)
@@ -2311,32 +2338,35 @@ describe("Polygon Rollup Manager", () => {
                     PolygonZKEVMEtrogContract.target,
                     verifierContract.target,
                     forkID,
-                    randomType,
-                    genesisRandom,
-                    descirption
+                    rollupVerifierTypeNew,
+                    programVKey,
+                    description,
+                    genesisRandom
                 )
         )
             .to.emit(rollupManagerContract, "AddNewRollupType")
             .withArgs(
-                randomType,
+                newRandomTypeID,
                 PolygonZKEVMEtrogContract.target,
                 verifierContract.target,
                 forkID,
-                randomType,
-                genesisRandom,
-                descirption
+                rollupVerifierTypeNew,
+                programVKey,
+                description,
+                genesisRandom
             );
 
         // assert new rollup type
-        const createdEtrogRollupType = await rollupManagerContract.rollupTypeMap(etrogRollupType);
+        const createdEtrogRollupType = await rollupManagerContract.rollupTypeMap(newRandomTypeID);
 
         const expectedEtrogRollupType = [
             PolygonZKEVMEtrogContract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierTypeNew,
             false,
-            genesisRandom,
+            programVKey,
+            genesisRandom
         ];
         expect(createdEtrogRollupType).to.be.deep.equal(expectedEtrogRollupType);
 
@@ -2383,11 +2413,6 @@ describe("Polygon Rollup Manager", () => {
             rollupManagerContract.connect(timelock).updateRollup(newZKEVMAddress, 4, "0x")
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
 
-        // Try update to not comaptible type
-        await expect(
-            rollupManagerContract.connect(timelock).updateRollup(newZKEVMAddress, randomType, "0x")
-        ).to.be.revertedWithCustomError(rollupManagerContract, "UpdateNotCompatible");
-
         // obsoleteRollupType, take snapshot for it
         const snapshotUpdateRollup = await takeSnapshot();
 
@@ -2422,11 +2447,12 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupDataFinal.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
         expect(rollupDataFinal.lastBatchSequenced).to.be.equal(newVerifiedBatch);
         expect(rollupDataFinal.lastVerifiedBatch).to.be.equal(newVerifiedBatch);
-        expect(rollupDataFinal.lastPendingState).to.be.equal(0);
-        expect(rollupDataFinal.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupDataFinal._legacyPendingStateGap).to.be.equal(0);
         expect(rollupDataFinal.lastVerifiedBatchBeforeUpgrade).to.be.equal(newVerifiedBatch);
         expect(rollupDataFinal.rollupTypeID).to.be.equal(etrogRollupType);
-        expect(rollupDataFinal.rollupCompatibilityID).to.be.equal(0);
+        expect(rollupDataFinal.rollupVerifierType).to.be.equal(0);
+        expect(rollupDataFinal.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
+        expect(rollupDataFinal.programVKey).to.be.equal(programVKey);
 
         expect(await upgrades.erc1967.getImplementationAddress(newZKEVMAddress as string)).to.be.equal(
             PolygonZKEVMEtrogContract.target
@@ -2439,8 +2465,11 @@ describe("Polygon Rollup Manager", () => {
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
-        const rollupCompatibilityID = 0;
-        const descirption = "zkevm test";
+        const rollupVerifierType = 0;
+        const description = "zkevm test";
+        const programVKey = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const lastPessimisticRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
         // Native token will be ether
 
         // deploy pol
@@ -2486,9 +2515,10 @@ describe("Polygon Rollup Manager", () => {
                     PolygonZKEVMV2Contract.target,
                     verifierContract.target,
                     forkID,
-                    rollupCompatibilityID,
+                    rollupVerifierType,
                     genesisRandom,
-                    descirption
+                    description,
+                    programVKey
                 )
         )
             .to.emit(rollupManagerContract, "AddNewRollupType")
@@ -2497,9 +2527,10 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             );
 
         // assert new rollup type
@@ -2509,9 +2540,10 @@ describe("Polygon Rollup Manager", () => {
             PolygonZKEVMV2Contract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             false,
             genesisRandom,
+            programVKey
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
@@ -2608,12 +2640,12 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
         expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
         expect(rollupData.lastVerifiedBatch).to.be.equal(0);
-        expect(rollupData.lastPendingState).to.be.equal(0);
-        expect(rollupData.lastPendingStateConsolidated).to.be.equal(0);
+        expect(rollupData._legacyPendingStateGap).to.be.equal(0);
         expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupData.rollupTypeID).to.be.equal(1);
-        expect(rollupData.rollupCompatibilityID).to.be.equal(0);
-
+        expect(rollupData.rollupVerifierType).to.be.equal(0);
+        expect(rollupData.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
+        expect(rollupData.programVKey).to.be.equal(programVKey);
         const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
             newCreatedRollupID,
             newSequencedBatch
@@ -2760,8 +2792,11 @@ describe("Polygon Rollup Manager", () => {
         const networkName = "zkevm";
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
-        const rollupCompatibilityID = 0;
-        const descirption = "zkevm test";
+        const rollupVerifierType = 0;
+        const description = "zkevm test";
+        const programVKey = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const lastPessimisticRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
         // Native token will be ether
         const gasTokenAddress = ethers.ZeroAddress;
         const gasTokenNetwork = 0;
@@ -2819,7 +2854,8 @@ describe("Polygon Rollup Manager", () => {
                 forkID,
                 chainID,
                 genesisRandom,
-                rollupCompatibilityID
+                rollupVerifierType,
+                programVKey
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
 
@@ -2831,7 +2867,8 @@ describe("Polygon Rollup Manager", () => {
                 forkID,
                 4294967296, // 2**32
                 genesisRandom,
-                rollupCompatibilityID
+                rollupVerifierType,
+                programVKey
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDOutOfRange");
 
@@ -2844,11 +2881,12 @@ describe("Polygon Rollup Manager", () => {
                     forkID,
                     chainID,
                     genesisRandom,
-                    rollupCompatibilityID
+                    rollupVerifierType,
+                    programVKey
                 )
         )
             .to.emit(rollupManagerContract, "AddExistingRollup")
-            .withArgs(RollupID, forkID, PolygonZKEVMV2Contract.target, chainID, rollupCompatibilityID, 0);
+            .withArgs(RollupID, forkID, PolygonZKEVMV2Contract.target, chainID, rollupVerifierType, 0, programVKey);
 
         await expect(
             rollupManagerContract
@@ -2859,7 +2897,8 @@ describe("Polygon Rollup Manager", () => {
                     forkID,
                     chainID,
                     genesisRandom,
-                    rollupCompatibilityID
+                    rollupVerifierType,
+                    programVKey
                 )
         ).to.be.revertedWithCustomError(rollupManagerContract, "ChainIDAlreadyExist");
 
@@ -2872,7 +2911,8 @@ describe("Polygon Rollup Manager", () => {
                     forkID,
                     chainID + 1,
                     genesisRandom,
-                    rollupCompatibilityID
+                    rollupVerifierType,
+                    programVKey
                 )
         ).to.be.revertedWithCustomError(rollupManagerContract, "RollupAddressAlreadyExist");
 
@@ -3218,8 +3258,10 @@ describe("Polygon Rollup Manager", () => {
     it("Should test obsolete rollup", async () => {
         const forkID = 0;
         const genesisRandom = "0x0000000000000000000000000000000000000000000000000000000000000001";
-        const rollupCompatibilityID = 0;
-        const descirption = "zkevm test";
+        const rollupVerifierType = 0;
+        const description = "zkevm test";
+        const programVKey = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        const lastPessimisticRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
         // In order to create a new rollup type, create an implementation of the contract
 
@@ -3242,9 +3284,10 @@ describe("Polygon Rollup Manager", () => {
                     PolygonZKEVMV2Contract.target,
                     verifierContract.target,
                     forkID,
-                    rollupCompatibilityID,
+                    rollupVerifierType,
                     genesisRandom,
-                    descirption
+                    description,
+                    programVKey
                 )
         )
             .to.emit(rollupManagerContract, "AddNewRollupType")
@@ -3253,9 +3296,10 @@ describe("Polygon Rollup Manager", () => {
                 PolygonZKEVMV2Contract.target,
                 verifierContract.target,
                 forkID,
-                rollupCompatibilityID,
+                rollupVerifierType,
                 genesisRandom,
-                descirption
+                description,
+                programVKey
             );
 
         // assert new rollup type
@@ -3265,9 +3309,10 @@ describe("Polygon Rollup Manager", () => {
             PolygonZKEVMV2Contract.target,
             verifierContract.target,
             forkID,
-            rollupCompatibilityID,
+            rollupVerifierType,
             false,
             genesisRandom,
+            programVKey
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
