@@ -2,7 +2,7 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/governance/TimelockController.sol";
-import "./PolygonZkEVM.sol";
+import "./outdated/PolygonZkEVM.sol";
 
 /**
  * @dev Contract module which acts as a timelocked controller.
