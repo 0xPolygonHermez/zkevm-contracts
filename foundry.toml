@@ -7,6 +7,7 @@ optimizer_runs = 999999
 #via_ir = true
 verbosity = 2
 ffi = true
+fs_permissions = [{ access = "read", path = "./script/"}]
 
 remappings = [
     "@ensdomains/=node_modules/@ensdomains/",

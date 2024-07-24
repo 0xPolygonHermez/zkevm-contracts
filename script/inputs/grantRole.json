@@ -1,0 +1,7 @@
+{
+    "roleName": "TRUSTED_AGGREGATOR_ROLE",
+    "accountToGrantRole": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "polygonRollupManagerAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "timelockDelay": 0,
+    "polygonZkEVMTimelockAddress": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+}
