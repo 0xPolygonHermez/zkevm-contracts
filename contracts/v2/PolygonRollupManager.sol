@@ -550,6 +550,7 @@ contract PolygonRollupManager is
         } else {
             rollup.batchNumToStateRoot[0] = initRoot;
         }
+
         // rollup type is 0, since it does not follow any rollup type
         emit AddExistingRollup(
             rollupID,
