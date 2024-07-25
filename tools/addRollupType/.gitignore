@@ -1,2 +1,3 @@
-add_rollup_type_output.json
+add_rollup_type_output-*.json
+add_rollup_type.json
 genesis.json
