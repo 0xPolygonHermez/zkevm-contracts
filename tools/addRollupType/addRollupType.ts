@@ -31,7 +31,7 @@ async function main() {
         "polygonRollupManagerAddress",
         "verifierAddress",
         "rollupCompatibilityID",
-        "genesisRoot"
+        "genesisRoot",
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -47,7 +47,7 @@ async function main() {
         consensusContract,
         polygonRollupManagerAddress,
         verifierAddress,
-        genesisRoot
+        genesisRoot,
     } = addRollupParameters;
 
     const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
@@ -117,21 +117,19 @@ async function main() {
 
     // Sanity checks genesisRoot
     if (genesisRoot !== genesis.root) {
-        throw new Error(
-            `Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`
-        );
+        throw new Error(`Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`);
     }
 
     // get bridge address in genesis file
-    let genesisBridgeAddress = ethers.constants.AddresZero;
-    for (let i = 0; i < genesis.genesis.lenght; i++) {
-        if (genesis.genesis[i].contractName === 'PolygonZkEVMBridge proxy') {
+    let genesisBridgeAddress = ethers.ZeroAddress;
+    for (let i = 0; i < genesis.genesis.length; i++) {
+        if (genesis.genesis[i].contractName === "PolygonZkEVMBridge proxy") {
             genesisBridgeAddress = genesis.genesis[i].address;
             break;
         }
     }
 
-    if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress ) {
+    if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress.toLowerCase()) {
         throw new Error(
             `'PolygonZkEVMBridge proxy' root in the 'genesis.json' does not match 'bridgeAddress' in the 'PolygonRollupManager'`
         );
@@ -155,7 +153,10 @@ async function main() {
     // Create consensus implementation if needed
     let polygonConsensusContractAddress;
 
-    if (typeof addRollupParameters.polygonconsensusContract !== 'undefined' && ethers.isAddress(addRollupParameters.polygonconsensusContract)) {
+    if (
+        typeof addRollupParameters.polygonconsensusContract !== "undefined" &&
+        ethers.isAddress(addRollupParameters.polygonconsensusContract)
+    ) {
         polygonConsensusContractAddress = addRollupParameters.polygonconsensusContract;
     } else {
         const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
