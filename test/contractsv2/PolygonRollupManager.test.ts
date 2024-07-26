@@ -57,7 +57,7 @@ describe("Polygon Rollup Manager", () => {
     const LEAF_TYPE_MESSAGE = 1;
 
     const globalExitRootL2Address = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa" as unknown as Address;
-  
+
     let firstDeployment = true;
 
     //roles
@@ -252,7 +252,6 @@ describe("Polygon Rollup Manager", () => {
         const rollupVerifierType = 0;
         const description = "zkevm test";
         const programVKey = "0x0000000000000000000000000000000000000000000000000000000000000000";
-        const lastPessimisticRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
         // Native token will be ether
         const gasTokenAddress = ethers.ZeroAddress;
@@ -320,7 +319,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierType,
             false,
             genesisRandom,
-            programVKey
+            programVKey,
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
@@ -343,7 +342,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierType,
             true,
             genesisRandom,
-            programVKey
+            programVKey,
         ]).to.be.deep.equal(await rollupManagerContract.rollupTypeMap(newRollupTypeID));
         await snapshot.restore();
 
@@ -517,12 +516,11 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
         expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
         expect(rollupData.lastVerifiedBatch).to.be.equal(0);
-        expect(rollupData._legacyPendingStateGap).to.be.equal(0);
+        expect(rollupData._legacyLastPendingState).to.be.equal(0);
+        expect(rollupData._legacyLastPendingStateConsolidated).to.be.equal(0);
         expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupData.rollupTypeID).to.be.equal(1);
         expect(rollupData.rollupVerifierType).to.be.equal(0);
-        expect(rollupData.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
-        expect(rollupData.programVKey).to.be.equal(programVKey);
 
         const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
             newCreatedRollupID,
@@ -1136,7 +1134,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierType,
             false,
             genesisRandom,
-            programVKey
+            programVKey,
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
@@ -1159,7 +1157,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierType,
             true,
             genesisRandom,
-            programVKey
+            programVKey,
         ]).to.be.deep.equal(await rollupManagerContract.rollupTypeMap(newRollupTypeID));
         await snapshot.restore();
 
@@ -1333,12 +1331,11 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
         expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
         expect(rollupData.lastVerifiedBatch).to.be.equal(0);
-        expect(rollupData._legacyPendingStateGap).to.be.equal(0);
+        expect(rollupData._legacyLastPendingState).to.be.equal(0);
+        expect(rollupData._legacyLastPendingStateConsolidated).to.be.equal(0);
         expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupData.rollupTypeID).to.be.equal(1);
         expect(rollupData.rollupVerifierType).to.be.equal(0);
-        expect(rollupData.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
-        expect(rollupData.programVKey).to.be.equal(programVKey);
 
         const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
             newCreatedRollupID,
@@ -1767,7 +1764,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierType,
             false,
             genesisRandom,
-            programVKey
+            programVKey,
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
@@ -1790,7 +1787,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierType,
             true,
             genesisRandom,
-            programVKey
+            programVKey,
         ]).to.be.deep.equal(await rollupManagerContract.rollupTypeMap(newRollupTypeID));
         await snapshot.restore();
 
@@ -1965,12 +1962,11 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
         expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
         expect(rollupData.lastVerifiedBatch).to.be.equal(0);
-        expect(rollupData._legacyPendingStateGap).to.be.equal(0);
+        expect(rollupData._legacyLastPendingState).to.be.equal(0);
+        expect(rollupData._legacyLastPendingStateConsolidated).to.be.equal(0);
         expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupData.rollupTypeID).to.be.equal(1);
         expect(rollupData.rollupVerifierType).to.be.equal(0);
-        expect(rollupData.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
-        expect(rollupData.programVKey).to.be.equal(programVKey);
 
         const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
             newCreatedRollupID,
@@ -2366,7 +2362,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierTypeNew,
             false,
             programVKey,
-            genesisRandom
+            genesisRandom,
         ];
         expect(createdEtrogRollupType).to.be.deep.equal(expectedEtrogRollupType);
 
@@ -2447,12 +2443,11 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupDataFinal.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
         expect(rollupDataFinal.lastBatchSequenced).to.be.equal(newVerifiedBatch);
         expect(rollupDataFinal.lastVerifiedBatch).to.be.equal(newVerifiedBatch);
-        expect(rollupDataFinal._legacyPendingStateGap).to.be.equal(0);
+        expect(rollupData._legacyLastPendingState).to.be.equal(0);
+        expect(rollupData._legacyLastPendingStateConsolidated).to.be.equal(0);
         expect(rollupDataFinal.lastVerifiedBatchBeforeUpgrade).to.be.equal(newVerifiedBatch);
         expect(rollupDataFinal.rollupTypeID).to.be.equal(etrogRollupType);
         expect(rollupDataFinal.rollupVerifierType).to.be.equal(0);
-        expect(rollupDataFinal.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
-        expect(rollupDataFinal.programVKey).to.be.equal(programVKey);
 
         expect(await upgrades.erc1967.getImplementationAddress(newZKEVMAddress as string)).to.be.equal(
             PolygonZKEVMEtrogContract.target
@@ -2543,7 +2538,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierType,
             false,
             genesisRandom,
-            programVKey
+            programVKey,
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
@@ -2640,12 +2635,12 @@ describe("Polygon Rollup Manager", () => {
         expect(rollupData.lastLocalExitRoot).to.be.equal(ethers.ZeroHash);
         expect(rollupData.lastBatchSequenced).to.be.equal(newSequencedBatch);
         expect(rollupData.lastVerifiedBatch).to.be.equal(0);
-        expect(rollupData._legacyPendingStateGap).to.be.equal(0);
+        expect(rollupData._legacyLastPendingState).to.be.equal(0);
+        expect(rollupData._legacyLastPendingStateConsolidated).to.be.equal(0);
         expect(rollupData.lastVerifiedBatchBeforeUpgrade).to.be.equal(0);
         expect(rollupData.rollupTypeID).to.be.equal(1);
         expect(rollupData.rollupVerifierType).to.be.equal(0);
-        expect(rollupData.lastPessimisticRoot).to.be.equal(lastPessimisticRoot);
-        expect(rollupData.programVKey).to.be.equal(programVKey);
+
         const sequencedBatchData = await rollupManagerContract.getRollupSequencedBatches(
             newCreatedRollupID,
             newSequencedBatch
@@ -3312,7 +3307,7 @@ describe("Polygon Rollup Manager", () => {
             rollupVerifierType,
             false,
             genesisRandom,
-            programVKey
+            programVKey,
         ];
         expect(createdRollupType).to.be.deep.equal(expectedRollupType);
 
