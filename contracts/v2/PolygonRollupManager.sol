@@ -550,6 +550,7 @@ contract PolygonRollupManager is
         } else {
             rollup.batchNumToStateRoot[0] = initRoot;
         }
+
         // rollup type is 0, since it does not follow any rollup type
         emit AddExistingRollup(
             rollupID,
@@ -590,13 +591,6 @@ contract PolygonRollupManager is
         // review sanity check
         if (rollup.rollupTypeID >= newRollupTypeID) {
             revert UpdateToOldRollupTypeID();
-        }
-
-        if (
-            rollup.rollupVerifierType !=
-            rollupTypeMap[newRollupTypeID].rollupVerifierType
-        ) {
-            revert UpdateNotCompatible();
         }
 
         _updateRollup(rollupContract, newRollupTypeID, new bytes(0));
@@ -654,13 +648,7 @@ contract PolygonRollupManager is
 
         // Check rollup types
         if (rollup.rollupVerifierType != newRollupType.rollupVerifierType) {
-            // Currently the transition from pessimistic to state transition is not allowed
-            if (rollup.rollupVerifierType == VerifierType.Pessimistic) {
-                revert RollupTypeObsolete();
-            }
-
-            // Update rollup verifier type
-            rollup.rollupVerifierType = newRollupType.rollupVerifierType;
+            revert UpdateNotCompatible();
         }
 
         // Update rollup parameters
