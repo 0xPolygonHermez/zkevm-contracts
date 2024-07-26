@@ -45,6 +45,7 @@ contract PolygonRollupManager is
         address consensusImplementation;
         address verifier;
         uint64 forkID;
+        /// @custom:oz-retyped-from uint8
         VerifierType rollupVerifierType;
         bool obsolete;
         bytes32 genesis;
@@ -79,14 +80,73 @@ contract PolygonRollupManager is
         uint64 forkID;
         mapping(uint64 batchNum => bytes32) batchNumToStateRoot;
         mapping(uint64 batchNum => SequencedBatchData) sequencedBatches;
+        /// @custom:oz-renamed-from pendingStateTransitions
         mapping(uint256 pendingStateNum => PendingState) _legacyPendingStateTransitions;
         bytes32 lastLocalExitRoot;
         uint64 lastBatchSequenced;
         uint64 lastVerifiedBatch;
-        uint128 _legacyPendingStateGap;
-        // uint64 _legacyLastPendingState;
-        // uint64 _legacyLastPendingStateConsolidated;
+        /// @custom:oz-renamed-from lastPendingState
+        uint64 _legacyLastPendingState;
+        /// @custom:oz-renamed-from lastPendingStateConsolidated
+        uint64 _legacyLastPendingStateConsolidated;
         uint64 lastVerifiedBatchBeforeUpgrade;
+        uint64 rollupTypeID;
+        /// @custom:oz-retyped-from uint8
+        VerifierType rollupVerifierType;
+        bytes32 lastPessimisticRoot;
+        bytes32 programVKey;
+    }
+
+    /**
+     * @notice Struct to return all the necessary rollup info: VerifierType StateTransition
+     * @param rollupContract Rollup consensus contract, which manages everything
+     * related to sequencing transactions
+     * @param chainID Chain ID of the rollup
+     * @param verifier Verifier contract
+     * @param forkID ForkID of the rollup
+     * @param lastLocalExitRoot Last exit root verified, used for compute the rollupExitRoot
+     * @param lastBatchSequenced Last batch sent by the consensus contract
+     * @param lastVerifiedBatch Last batch verified
+     * @param _legacyLastPendingState Last pending state (deprecated)
+     * @param _legacyLastPendingStateConsolidated Last pending state consolidated (deprecated)
+     * @param lastVerifiedBatchBeforeUpgrade Last batch verified before the last upgrade
+     * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
+     * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
+     */
+    struct RollupDataReturnStateTransistion {
+        IPolygonRollupBase rollupContract;
+        uint64 chainID;
+        address verifier;
+        uint64 forkID;
+        bytes32 lastLocalExitRoot;
+        uint64 lastBatchSequenced;
+        uint64 lastVerifiedBatch;
+        uint64 _legacyLastPendingState;
+        uint64 _legacyLastPendingStateConsolidated;
+        uint64 lastVerifiedBatchBeforeUpgrade;
+        uint64 rollupTypeID;
+        VerifierType rollupVerifierType;
+    }
+
+    /**
+     * @notice Struct to return all the necessary rollup info: VerifierType Pessimistic
+     * @param rollupContract Rollup consensus contract, which manages everything
+     * related to sequencing transactions
+     * @param chainID Chain ID of the rollup
+     * @param verifier Verifier contract
+     * @param forkID ForkID of the rollup
+     * @param lastLocalExitRoot Last exit root verified, used for compute the rollupExitRoot
+     * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
+     * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
+     * @param lastPessimisticRoot Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
+     * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
+     */
+    struct RollupDataReturnPessimistic {
+        IPolygonRollupBase rollupContract;
+        uint64 chainID;
+        address verifier;
+        uint64 forkID;
+        bytes32 lastLocalExitRoot;
         uint64 rollupTypeID;
         VerifierType rollupVerifierType;
         bytes32 lastPessimisticRoot;
@@ -175,13 +235,15 @@ contract PolygonRollupManager is
     uint32 public rollupTypeCount;
 
     // Rollup type mapping
+    // @custom:oz-retyped-from PolygonRollupManagerPrevious.RollupType
     mapping(uint32 rollupTypeID => RollupType) public rollupTypeMap;
 
     // Number of rollups added, every new rollup will be assigned sequencially a new ID
     uint32 public rollupCount;
 
     // Rollups ID mapping
-    mapping(uint32 rollupID => RollupData) public rollupIDToRollupData;
+    /// @custom:oz-renamed-from rollupIDToRollupData
+    mapping(uint32 rollupID => RollupData) internal legacyRollupIDToRollupData;
 
     // Rollups address mapping
     mapping(address rollupAddress => uint32 rollupID) public rollupAddressToID;
@@ -201,16 +263,20 @@ contract PolygonRollupManager is
 
     // Trusted aggregator timeout, if a sequence is not verified in this time frame,
     // everyone can verify that sequence
+    /// @custom:oz-renamed-from trustedAggregatorTimeout
     uint64 internal __legacyTrustedAggregatorTimeout;
 
     // Once a pending state exceeds this timeout it can be consolidated (deprecated)
+    /// @custom:oz-renamed-from pendingStateTimeout
     uint64 internal __legacyPendingStateTimeout;
 
     // Time target of the verification of a batch
     // Adaptively the batchFee will be updated to achieve this target
+    /// @custom:oz-renamed-from verifyBatchTimeTarget
     uint64 internal __legacyVerifyBatchTimeTarget;
 
     // Batch fee multiplier with 3 decimals that goes from 1000 - 1023
+    /// @custom:oz-renamed-from multiplierBatchFee
     uint16 internal __legacyMultiplierBatchFee;
 
     // Current POL fee per batch sequenced
@@ -461,7 +527,7 @@ contract PolygonRollupManager is
         // Store rollup data
         rollupAddressToID[rollupAddress] = rollupID;
 
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
 
         rollup.rollupContract = IPolygonRollupBase(rollupAddress);
         rollup.forkID = rollupType.forkID;
@@ -536,7 +602,7 @@ contract PolygonRollupManager is
         // Store rollup data
         rollupAddressToID[address(rollupAddress)] = rollupID;
 
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
         rollup.rollupContract = rollupAddress;
         rollup.forkID = forkID;
         rollup.verifier = verifier;
@@ -579,7 +645,7 @@ contract PolygonRollupManager is
         }
 
         // Check all sequences are verified before upgrading
-        RollupData storage rollup = rollupIDToRollupData[
+        RollupData storage rollup = legacyRollupIDToRollupData[
             rollupAddressToID[address(rollupContract)]
         ];
 
@@ -632,7 +698,7 @@ contract PolygonRollupManager is
             revert RollupMustExist();
         }
 
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
 
         // The update must be to a new rollup type
         if (rollup.rollupTypeID == newRollupTypeID) {
@@ -694,7 +760,7 @@ contract PolygonRollupManager is
         }
 
         // Load rollup
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
 
         if (rollup.rollupVerifierType != VerifierType.StateTransition) {
             revert OnlyStateTransitionChains();
@@ -774,7 +840,7 @@ contract PolygonRollupManager is
             revert MustSequenceSomeBatch();
         }
 
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
 
         // Update total sequence parameters
         totalSequencedBatches += newSequencedBatches;
@@ -823,7 +889,7 @@ contract PolygonRollupManager is
             revert PendingStateNumExist();
         }
 
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
 
         if (rollup.rollupVerifierType != VerifierType.StateTransition) {
             revert OnlyStateTransitionChains();
@@ -871,7 +937,7 @@ contract PolygonRollupManager is
         bytes32 newPessimisticRoot,
         bytes calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
 
         // Only for pessimistic verifiers
         if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
@@ -1168,7 +1234,8 @@ contract PolygonRollupManager is
         // In the first iteration the nodes will be the leafs which are the local exit roots of each network
         for (uint256 i = 0; i < currentNodes; i++) {
             // The first rollup ID starts on 1
-            tmpTree[i] = rollupIDToRollupData[uint32(i + 1)].lastLocalExitRoot;
+            tmpTree[i] = legacyRollupIDToRollupData[uint32(i + 1)]
+                .lastLocalExitRoot;
         }
 
         // This variable will keep track of the zero hashes
@@ -1223,7 +1290,7 @@ contract PolygonRollupManager is
     function getLastVerifiedBatch(
         uint32 rollupID
     ) public view returns (uint64) {
-        return _getLastVerifiedBatch(rollupIDToRollupData[rollupID]);
+        return _getLastVerifiedBatch(legacyRollupIDToRollupData[rollupID]);
     }
 
     /**
@@ -1280,7 +1347,7 @@ contract PolygonRollupManager is
     ) public view returns (bytes memory) {
         return
             _getInputPessimisticBytes(
-                rollupIDToRollupData[rollupID],
+                legacyRollupIDToRollupData[rollupID],
                 selectedGlobalExitRoot,
                 newLocalExitRoot,
                 newPessimisticRoot
@@ -1335,7 +1402,7 @@ contract PolygonRollupManager is
     ) public view returns (bytes memory) {
         return
             _getInputSnarkBytes(
-                rollupIDToRollupData[rollupID],
+                legacyRollupIDToRollupData[rollupID],
                 initNumBatch,
                 finalNewBatch,
                 newLocalExitRoot,
@@ -1428,7 +1495,8 @@ contract PolygonRollupManager is
         uint32 rollupID,
         uint64 batchNum
     ) public view returns (bytes32) {
-        return rollupIDToRollupData[rollupID].batchNumToStateRoot[batchNum];
+        return
+            legacyRollupIDToRollupData[rollupID].batchNumToStateRoot[batchNum];
     }
 
     /**
@@ -1440,6 +1508,59 @@ contract PolygonRollupManager is
         uint32 rollupID,
         uint64 batchNum
     ) public view returns (SequencedBatchData memory) {
-        return rollupIDToRollupData[rollupID].sequencedBatches[batchNum];
+        return legacyRollupIDToRollupData[rollupID].sequencedBatches[batchNum];
+    }
+
+    /**
+     * @notice Get rollup data: VerifierType StateTransition
+     * @param rollupID Rollup identifier
+     */
+    function rollupIDToRollupData(
+        uint32 rollupID
+    ) public view returns (RollupDataReturnStateTransistion memory rollupData) {
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+
+        if (rollup.rollupVerifierType != VerifierType.StateTransition) {
+            revert InvalidVerifierType();
+        }
+
+        rollupData.rollupContract = rollup.rollupContract;
+        rollupData.chainID = rollup.chainID;
+        rollupData.verifier = rollup.verifier;
+        rollupData.forkID = rollup.forkID;
+        rollupData.lastLocalExitRoot = rollup.lastLocalExitRoot;
+        rollupData.lastBatchSequenced = rollup.lastBatchSequenced;
+        rollupData.lastVerifiedBatch = rollup.lastVerifiedBatch;
+        rollupData._legacyLastPendingState = rollup._legacyLastPendingState;
+        rollupData._legacyLastPendingStateConsolidated = rollup
+            ._legacyLastPendingStateConsolidated;
+        rollupData.lastVerifiedBatchBeforeUpgrade = rollup
+            .lastVerifiedBatchBeforeUpgrade;
+        rollupData.rollupTypeID = rollup.rollupTypeID;
+        rollupData.rollupVerifierType = rollup.rollupVerifierType;
+    }
+
+    /**
+     * @notice Get rollup data: VerifierType Pessimistic
+     * @param rollupID Rollup identifier
+     */
+    function rollupIDToRollupDataPessimistic(
+        uint32 rollupID
+    ) public view returns (RollupDataReturnPessimistic memory rollupData) {
+        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+
+        if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
+            revert InvalidVerifierType();
+        }
+
+        rollupData.rollupContract = rollup.rollupContract;
+        rollupData.chainID = rollup.chainID;
+        rollupData.verifier = rollup.verifier;
+        rollupData.forkID = rollup.forkID;
+        rollupData.lastLocalExitRoot = rollup.lastLocalExitRoot;
+        rollupData.rollupTypeID = rollup.rollupTypeID;
+        rollupData.rollupVerifierType = rollup.rollupVerifierType;
+        rollupData.lastPessimisticRoot = rollup.lastPessimisticRoot;
+        rollupData.programVKey = rollup.programVKey;
     }
 }
