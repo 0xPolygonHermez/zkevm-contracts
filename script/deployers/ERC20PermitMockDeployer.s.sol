@@ -8,63 +8,8 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 
 import "contracts/mocks/ERC20PermitMock.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts5/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 abstract contract ERC20PermitMockDeployer is Script {
-    ERC20PermitMock internal eRC20PermitMock;
-    ProxyAdmin internal eRC20PermitMockProxyAdmin;
-    address internal eRC20PermitMockImplementation;
-
-    function deployERC20PermitMockTransparent(
-        address proxyAdminOwner,
-        string memory name,
-        string memory symbol,
-        address initialAccount,
-        uint256 initialBalance
-    )
-        internal
-        returns (address implementation, address proxyAdmin, address proxy)
-    {
-        bytes memory initData = "";
-
-        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-
-        eRC20PermitMockImplementation = address(
-            new ERC20PermitMock(name, symbol, initialAccount, initialBalance)
-        );
-        eRC20PermitMock = ERC20PermitMock(
-            address(
-                new TransparentUpgradeableProxy(
-                    eRC20PermitMockImplementation,
-                    proxyAdminOwner,
-                    initData
-                )
-            )
-        );
-
-        vm.stopBroadcast();
-
-        eRC20PermitMockProxyAdmin = ProxyAdmin(
-            address(
-                uint160(
-                    uint256(
-                        vm.load(
-                            address(eRC20PermitMock),
-                            hex"b53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
-                        )
-                    )
-                )
-            )
-        );
-
-        return (
-            eRC20PermitMockImplementation,
-            address(eRC20PermitMockProxyAdmin),
-            address(eRC20PermitMock)
-        );
-    }
-
     function deployERC20PermitMockImplementation(
         string memory name,
         string memory symbol,

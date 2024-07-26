@@ -6,19 +6,17 @@ import "script/deployers/ERC20PermitMockDeployer.s.sol";
 
 contract Deploy is Script, ERC20PermitMockDeployer {
     function run() public {
-        address proxyAdminOwner = makeAddr("proxyAdminOwner");
-
         string memory _name = "POL Token";
         string memory _symbol = "POL";
         address _initialAccount = makeAddr("initialAccount");
         uint256 _initialBalance = 20_000_000;
 
-        deployERC20PermitMockTransparent(
-            proxyAdminOwner,
+        address implementation = deployERC20PermitMockImplementation(
             _name,
             _symbol,
             _initialAccount,
             _initialBalance
         );
+        console.log("ERC20PermitMock deployed at: ", implementation);
     }
 }

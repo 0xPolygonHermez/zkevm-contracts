@@ -25,6 +25,8 @@ abstract contract Common is Test, TestHelpers {
     bytes32 internal creationCodeHash;
     bytes internal creationCode;
 
+    PolygonZkEVMDeployer internal polygonZkEVMDeployer;
+
     bytes transferCallData =
         abi.encodeWithSignature(
             "transfer(address,uint256)",

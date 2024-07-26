@@ -8,60 +8,8 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 
 import "contracts/deployment/PolygonZkEVMDeployer.sol";
-import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts5/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 abstract contract PolygonZkEVMDeployerDeployer is Script {
-    PolygonZkEVMDeployer internal polygonZkEVMDeployer;
-    ProxyAdmin internal polygonZkEVMDeployerProxyAdmin;
-    address internal polygonZkEVMDeployerImplementation;
-
-    function deployPolygonZkEVMDeployerTransparent(
-        address proxyAdminOwner,
-        address _owner
-    )
-        internal
-        returns (address implementation, address proxyAdmin, address proxy)
-    {
-        bytes memory initData = "";
-
-        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-
-        polygonZkEVMDeployerImplementation = address(
-            new PolygonZkEVMDeployer(_owner)
-        );
-        polygonZkEVMDeployer = PolygonZkEVMDeployer(
-            address(
-                new TransparentUpgradeableProxy(
-                    polygonZkEVMDeployerImplementation,
-                    proxyAdminOwner,
-                    initData
-                )
-            )
-        );
-
-        vm.stopBroadcast();
-
-        polygonZkEVMDeployerProxyAdmin = ProxyAdmin(
-            address(
-                uint160(
-                    uint256(
-                        vm.load(
-                            address(polygonZkEVMDeployer),
-                            hex"b53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
-                        )
-                    )
-                )
-            )
-        );
-
-        return (
-            polygonZkEVMDeployerImplementation,
-            address(polygonZkEVMDeployerProxyAdmin),
-            address(polygonZkEVMDeployer)
-        );
-    }
-
     function deployPolygonZkEVMDeployerImplementation(
         address _owner
     ) internal returns (address implementation) {

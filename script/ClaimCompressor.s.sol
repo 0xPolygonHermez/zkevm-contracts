@@ -6,15 +6,13 @@ import "script/deployers/ClaimCompressorDeployer.s.sol";
 
 contract Deploy is Script, ClaimCompressorDeployer {
     function run() public {
-        address proxyAdminOwner = makeAddr("proxyAdminOwner");
-
         address _bridgeAddress = makeAddr("bridgeAddress");
         uint32 _networkID = 1;
 
-        deployClaimCompressorTransparent(
-            proxyAdminOwner,
+        address implementation = deployClaimCompressorImplementation(
             _bridgeAddress,
             _networkID
         );
+        console.log("ClaimCompressor deployed at: ", implementation);
     }
 }

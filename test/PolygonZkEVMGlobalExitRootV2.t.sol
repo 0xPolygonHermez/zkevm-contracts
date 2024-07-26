@@ -28,19 +28,10 @@ contract PolygonZkEVMGlobalExitRootV2Test is
     );
 
     function setUp() public {
-        address polygonZkEVMGlobalExitRootV2Proxy;
-        (
-            ,
-            ,
-            polygonZkEVMGlobalExitRootV2Proxy
-        ) = deployPolygonZkEVMGlobalExitRootV2Transparent(
+        deployPolygonZkEVMGlobalExitRootV2Transparent(
             polygonZkEVMGlobalExitRootV2ProxyOwner,
             rollupManager,
             polygonZkEVMBridge
-        );
-
-        polygonZkEVMGlobalExitRootV2 = PolygonZkEVMGlobalExitRootV2(
-            polygonZkEVMGlobalExitRootV2Proxy
         );
     }
 
