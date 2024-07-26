@@ -302,6 +302,11 @@ interface IPolygonRollupManager {
      */
     error InvalidPessimisticProof();
 
+    /**
+     * @dev Invalid Verifier Type when getting rollup data
+     */
+    error InvalidVerifierType();
+
     enum VerifierType {
         StateTransition,
         Pessimistic

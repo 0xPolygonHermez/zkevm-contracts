@@ -401,7 +401,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         expect(await newZkEVMContract.networkName()).to.be.equal(networkName);
 
         // assert new rollup
-        const resRollupData = await rollupManagerContract.rollupIDToRollupData(newCreatedRollupID);
+        const resRollupData = await rollupManagerContract.rollupIDToRollupDataPessimistic(newCreatedRollupID);
 
         const expectedRollupData = [
             newZKEVMAddress,
@@ -409,10 +409,6 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             verifierContract.target,
             forkID,
             ethers.ZeroHash,
-            0,
-            0,
-            0,
-            0,
             newRollupTypeID,
             VerifierType.Pessimistic,
             ethers.ZeroHash,
@@ -562,7 +558,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             );
 
         // get rollup data
-        const rollupPessimistic = await rollupManagerContract.rollupIDToRollupData(pessimisticRollupID);
+        const rollupPessimistic = await rollupManagerContract.rollupIDToRollupDataPessimistic(pessimisticRollupID);
         const rollupStateTransition = await rollupManagerContract.rollupIDToRollupData(stateTransistionRollupID);
 
         // try to update rollup from Pessimistic to stateTransition
@@ -655,7 +651,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             );
 
         // get rollup data
-        const rollupPessimistic = await rollupManagerContract.rollupIDToRollupData(pessimisticRollupID);
+        const rollupPessimistic = await rollupManagerContract.rollupIDToRollupDataPessimistic(pessimisticRollupID);
 
         // try to update rollup from StateTransition to Pessimistic
         await rollupManagerContract
@@ -663,7 +659,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             .updateRollup(rollupPessimistic[0] as unknown as Address, newRollupTypeID, "0x");
 
         // assert new rollup
-        const resRollupData = await rollupManagerContract.rollupIDToRollupData(pessimisticRollupID);
+        const resRollupData = await rollupManagerContract.rollupIDToRollupDataPessimistic(pessimisticRollupID);
 
         const expectedRollupData = [
             newZKEVMAddress,
@@ -671,10 +667,6 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             newVerifier,
             newForkID,
             ethers.ZeroHash,
-            0,
-            0,
-            0,
-            0,
             newRollupTypeID,
             VerifierType.Pessimistic,
             ethers.ZeroHash,
@@ -780,7 +772,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             .withArgs(pessimisticRollupID, 0, ethers.ZeroHash, newLER, trustedAggregator.address);
 
         // assert rollup data
-        const resRollupData = await rollupManagerContract.rollupIDToRollupData(pessimisticRollupID);
+        const resRollupData = await rollupManagerContract.rollupIDToRollupDataPessimistic(pessimisticRollupID);
 
         const expectedRollupData = [
             newZKEVMAddress,
@@ -788,10 +780,6 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             verifierContract.target,
             forkID,
             newLER,
-            0,
-            0,
-            0,
-            0,
             rollupTypeID,
             VerifierType.Pessimistic,
             newPPRoot,
