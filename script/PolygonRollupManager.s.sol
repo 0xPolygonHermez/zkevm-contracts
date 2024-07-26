@@ -6,8 +6,6 @@ import "script/deployers/PolygonRollupManagerDeployer.s.sol";
 
 contract Deploy is Script, PolygonRollupManagerDeployer {
     function run() public {
-        address proxyAdminOwner = makeAddr("proxyAdminOwner");
-
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager = IPolygonZkEVMGlobalExitRootV2(
                 makeAddr("PolygonZkEVMGlobalExitRootV2")
             );
@@ -15,11 +13,11 @@ contract Deploy is Script, PolygonRollupManagerDeployer {
         IPolygonZkEVMBridge _bridgeAddress = IPolygonZkEVMBridge(
             makeAddr("PolygonZkEVMBridge")
         );
-        deployPolygonRollupManagerTransparent(
-            proxyAdminOwner,
+        address implementation = deployPolygonRollupManagerImplementation(
             _globalExitRootManager,
             _pol,
             _bridgeAddress
         );
+        console.log("PolygonRollupManager deployed at: ", implementation);
     }
 }

@@ -17,14 +17,24 @@ contract Deploy is Script, PolygonZkEVMBridgeV2Deployer {
         address _rollupManager = makeAddr("RollupManager");
         bytes memory _gasTokenMetadata = bytes("");
 
-        deployPolygonZkEVMBridgeV2Transparent(
-            proxyAdminOwner,
-            _networkID,
-            _gasTokenAddress,
-            _gasTokenNetwork,
-            _globalExitRootManager,
-            _rollupManager,
-            _gasTokenMetadata
+        (
+            address implementation,
+            address proxyAdmin,
+            address proxy
+        ) = deployPolygonZkEVMBridgeV2Transparent(
+                proxyAdminOwner,
+                _networkID,
+                _gasTokenAddress,
+                _gasTokenNetwork,
+                _globalExitRootManager,
+                _rollupManager,
+                _gasTokenMetadata
+            );
+        console.log("PolygonZkEVMBridgeV2 deployed at: ", proxy);
+        console.log(
+            "PolygonZkEVMBridgeV2 implementation deployed at: ",
+            implementation
         );
+        console.log("PolygonZkEVMBridgeV2 proxy admin: ", proxyAdmin);
     }
 }

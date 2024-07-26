@@ -94,19 +94,14 @@ contract PolygonZkEVMBridgeV2Test is
             _proxify(address(polygonZkEVMBridgeImplementation))
         );
 
-        address polygonZkEVMGlobalExitRootV2Proxy;
-        (
-            ,
-            ,
-            polygonZkEVMGlobalExitRootV2Proxy
-        ) = deployPolygonZkEVMGlobalExitRootV2Transparent(
+        deployPolygonZkEVMGlobalExitRootV2Transparent(
             polygonZkEVMGlobalExitRootV2ProxyOwner,
             rollupManager,
             address(polygonZkEVMBridge)
         );
 
         polygonZkEVMGlobalExitRootV2 = PolygonZkEVMGlobalExitRootV2(
-            polygonZkEVMGlobalExitRootV2Proxy
+            polygonZkEVMGlobalExitRootV2
         );
 
         pol = new ERC20PermitMock(

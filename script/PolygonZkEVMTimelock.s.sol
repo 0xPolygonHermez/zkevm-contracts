@@ -6,21 +6,19 @@ import "script/deployers/PolygonZkEVMTimelockDeployer.s.sol";
 
 contract Deploy is Script, PolygonZkEVMTimelockDeployer {
     function run() public {
-        address proxyAdminOwner = makeAddr("proxyAdminOwner");
-
         uint256 minDelay = 0;
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](0);
         address admin = makeAddr("admin");
         PolygonZkEVM _polygonZkEVM = PolygonZkEVM(makeAddr("polygonZkEVM"));
 
-        deployPolygonZkEVMTimelockTransparent(
-            proxyAdminOwner,
+        address implementation = deployPolygonZkEVMTimelockImplementation(
             minDelay,
             proposers,
             executors,
             admin,
             _polygonZkEVM
         );
+        console.log("PolygonZkEVMTimelock deployed at: ", implementation);
     }
 }

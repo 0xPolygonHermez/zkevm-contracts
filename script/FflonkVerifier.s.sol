@@ -8,6 +8,17 @@ contract Deploy is Script, FflonkVerifierDeployer {
     function run() public {
         address proxyAdminOwner = makeAddr("proxyAdminOwner");
 
-        deployFflonkVerifierTransparent(proxyAdminOwner);
+        (
+            address implementation,
+            address proxyAdmin,
+            address proxy
+        ) = deployFflonkVerifierTransparent(proxyAdminOwner);
+
+        console.log("FflonkVerifier deployed at: ", proxy);
+        console.log(
+            "FflonkVerifier implementation deployed at: ",
+            implementation
+        );
+        console.log("FflonkVerifier proxy admin: ", proxyAdmin);
     }
 }
