@@ -593,13 +593,6 @@ contract PolygonRollupManager is
             revert UpdateToOldRollupTypeID();
         }
 
-        if (
-            rollup.rollupVerifierType !=
-            rollupTypeMap[newRollupTypeID].rollupVerifierType
-        ) {
-            revert UpdateNotCompatible();
-        }
-
         _updateRollup(rollupContract, newRollupTypeID, new bytes(0));
     }
 
@@ -655,13 +648,7 @@ contract PolygonRollupManager is
 
         // Check rollup types
         if (rollup.rollupVerifierType != newRollupType.rollupVerifierType) {
-            // Currently the transition from pessimistic to state transition is not allowed
-            if (rollup.rollupVerifierType == VerifierType.Pessimistic) {
-                revert RollupTypeObsolete();
-            }
-
-            // Update rollup verifier type
-            rollup.rollupVerifierType = newRollupType.rollupVerifierType;
+            revert UpdateNotCompatible();
         }
 
         // Update rollup parameters
