@@ -11,7 +11,7 @@ import {IPolygonZkEVMBridgeV2} from "contracts/interfaces/IPolygonZkEVMBridgeV2.
 
 import {ERC20PermitMockDeployer} from "script/deployers/ERC20PermitMockDeployer.s.sol";
 import {PolygonRollupManagerEmptyMockDeployer} from "script/deployers/PolygonRollupManagerEmptyMockDeployer.s.sol";
-import {PolygonZkEVMEtrogDeployer, IPolygonZkEVMVEtrogErrors, TransparentUpgradeableProxy} from "script/deployers/PolygonZkEVMEtrogDeployer.s.sol";
+import {PolygonZkEVMEtrogDeployer, IPolygonZkEVMVEtrogErrors, TransparentUpgradeableProxy, PolygonZkEVMEtrog} from "script/deployers/PolygonZkEVMEtrogDeployer.s.sol";
 import {PolygonZkEVMGlobalExitRootV2Deployer} from "script/deployers/PolygonZkEVMGlobalExitRootV2Deployer.s.sol";
 
 contract PolygonZkEVMEtrogTest is
@@ -75,12 +75,12 @@ contract PolygonZkEVMEtrogTest is
         vm.prank(polTokenOwner);
         pol.transfer(trustedSequencer, 1_000 ether);
 
-        deployPolygonZkEVMEtrogImplementation(
+        polygonZkEVMEtrog = PolygonZkEVMEtrog(deployPolygonZkEVMEtrogImplementation(
             polygonZkEVMGlobalExitRootV2,
             pol,
             IPolygonZkEVMBridgeV2(address(polygonZkEVMBridge)),
             PolygonRollupManager(address(polygonRollupManagerEmptyMock))
-        );
+        ));
     }
 
     // TODO: find out why the initialization fails
