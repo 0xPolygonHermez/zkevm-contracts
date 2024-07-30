@@ -78,4 +78,10 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
                 .lastLocalExitRoot = localExitRoots[i];
         }
     }
+
+    function exposed_checkStateRootInsidePrime(
+        uint256 newStateRoot
+    ) public pure returns (bool) {
+        return _checkStateRootInsidePrime(newStateRoot);
+    }
 }
