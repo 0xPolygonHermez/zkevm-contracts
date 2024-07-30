@@ -99,6 +99,7 @@ describe("Polygon Global exit root v2", () => {
         const currentL1InfoRoot = await polygonZkEVMGlobalExitRootV2.getRoot();
         // Retrieve depositCount
         const depositCount = await polygonZkEVMGlobalExitRootV2.depositCount();
+
         // Retrieve parentHash and timestamp
         const blockInfo = await ethers.provider.getBlock(updateExitRoot?.blockHash as any);
 

@@ -243,7 +243,7 @@ contract PolygonRollupManager is
 
     // Rollups ID mapping
     /// @custom:oz-renamed-from rollupIDToRollupData
-    mapping(uint32 rollupID => RollupData) internal legacyRollupIDToRollupData;
+    mapping(uint32 rollupID => RollupData) internal _rollupIDToRollupData;
 
     // Rollups address mapping
     mapping(address rollupAddress => uint32 rollupID) public rollupAddressToID;
@@ -527,7 +527,7 @@ contract PolygonRollupManager is
         // Store rollup data
         rollupAddressToID[rollupAddress] = rollupID;
 
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         rollup.rollupContract = IPolygonRollupBase(rollupAddress);
         rollup.forkID = rollupType.forkID;
@@ -602,7 +602,7 @@ contract PolygonRollupManager is
         // Store rollup data
         rollupAddressToID[address(rollupAddress)] = rollupID;
 
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
         rollup.rollupContract = rollupAddress;
         rollup.forkID = forkID;
         rollup.verifier = verifier;
@@ -645,7 +645,7 @@ contract PolygonRollupManager is
         }
 
         // Check all sequences are verified before upgrading
-        RollupData storage rollup = legacyRollupIDToRollupData[
+        RollupData storage rollup = _rollupIDToRollupData[
             rollupAddressToID[address(rollupContract)]
         ];
 
@@ -698,7 +698,7 @@ contract PolygonRollupManager is
             revert RollupMustExist();
         }
 
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         // The update must be to a new rollup type
         if (rollup.rollupTypeID == newRollupTypeID) {
@@ -760,7 +760,7 @@ contract PolygonRollupManager is
         }
 
         // Load rollup
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         if (rollup.rollupVerifierType != VerifierType.StateTransition) {
             revert OnlyStateTransitionChains();
@@ -840,7 +840,7 @@ contract PolygonRollupManager is
             revert MustSequenceSomeBatch();
         }
 
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         // Update total sequence parameters
         totalSequencedBatches += newSequencedBatches;
@@ -889,7 +889,7 @@ contract PolygonRollupManager is
             revert PendingStateNumExist();
         }
 
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         if (rollup.rollupVerifierType != VerifierType.StateTransition) {
             revert OnlyStateTransitionChains();
@@ -937,7 +937,7 @@ contract PolygonRollupManager is
         bytes32 newPessimisticRoot,
         bytes calldata proof
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         // Only for pessimistic verifiers
         if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
@@ -1167,8 +1167,7 @@ contract PolygonRollupManager is
         // In the first iteration the nodes will be the leafs which are the local exit roots of each network
         for (uint256 i = 0; i < currentNodes; i++) {
             // The first rollup ID starts on 1
-            tmpTree[i] = legacyRollupIDToRollupData[uint32(i + 1)]
-                .lastLocalExitRoot;
+            tmpTree[i] = _rollupIDToRollupData[uint32(i + 1)].lastLocalExitRoot;
         }
 
         // This variable will keep track of the zero hashes
@@ -1223,7 +1222,7 @@ contract PolygonRollupManager is
     function getLastVerifiedBatch(
         uint32 rollupID
     ) public view returns (uint64) {
-        return _getLastVerifiedBatch(legacyRollupIDToRollupData[rollupID]);
+        return _getLastVerifiedBatch(_rollupIDToRollupData[rollupID]);
     }
 
     /**
@@ -1280,7 +1279,7 @@ contract PolygonRollupManager is
     ) public view returns (bytes memory) {
         return
             _getInputPessimisticBytes(
-                legacyRollupIDToRollupData[rollupID],
+                _rollupIDToRollupData[rollupID],
                 selectedGlobalExitRoot,
                 newLocalExitRoot,
                 newPessimisticRoot
@@ -1335,7 +1334,7 @@ contract PolygonRollupManager is
     ) public view returns (bytes memory) {
         return
             _getInputSnarkBytes(
-                legacyRollupIDToRollupData[rollupID],
+                _rollupIDToRollupData[rollupID],
                 initNumBatch,
                 finalNewBatch,
                 newLocalExitRoot,
@@ -1428,8 +1427,7 @@ contract PolygonRollupManager is
         uint32 rollupID,
         uint64 batchNum
     ) public view returns (bytes32) {
-        return
-            legacyRollupIDToRollupData[rollupID].batchNumToStateRoot[batchNum];
+        return _rollupIDToRollupData[rollupID].batchNumToStateRoot[batchNum];
     }
 
     /**
@@ -1441,7 +1439,7 @@ contract PolygonRollupManager is
         uint32 rollupID,
         uint64 batchNum
     ) public view returns (SequencedBatchData memory) {
-        return legacyRollupIDToRollupData[rollupID].sequencedBatches[batchNum];
+        return _rollupIDToRollupData[rollupID].sequencedBatches[batchNum];
     }
 
     /**
@@ -1451,7 +1449,7 @@ contract PolygonRollupManager is
     function rollupIDToRollupData(
         uint32 rollupID
     ) public view returns (RollupDataReturnStateTransistion memory rollupData) {
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         if (rollup.rollupVerifierType != VerifierType.StateTransition) {
             revert InvalidVerifierType();
@@ -1480,7 +1478,7 @@ contract PolygonRollupManager is
     function rollupIDToRollupDataPessimistic(
         uint32 rollupID
     ) public view returns (RollupDataReturnPessimistic memory rollupData) {
-        RollupData storage rollup = legacyRollupIDToRollupData[rollupID];
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
             revert InvalidVerifierType();
