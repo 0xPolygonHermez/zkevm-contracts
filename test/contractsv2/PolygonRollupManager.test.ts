@@ -243,6 +243,39 @@ describe("Polygon Rollup Manager", () => {
         expect(await polygonZkEVMBridgeContract.isEmergencyState()).to.be.equal(false);
     });
 
+    it("should check _checkStateRootInsidePrime", async () => {
+        let stateRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        expect(await rollupManagerContract.exposed_checkStateRootInsidePrime(stateRoot)).to.be.equal(true);
+
+        // goldilocks - 1
+        stateRoot = "0x000000000000000000000000000000000000000000000000ffffffff00000000";
+        expect(await rollupManagerContract.exposed_checkStateRootInsidePrime(stateRoot)).to.be.equal(true);
+
+        // goldilocks
+        stateRoot = "0x000000000000000000000000000000000000000000000000ffffffff00000001";
+        expect(await rollupManagerContract.exposed_checkStateRootInsidePrime(stateRoot)).to.be.equal(false);
+
+        // goldilocks + 1
+        stateRoot = "0x000000000000000000000000000000000000000000000000ffffffff00000002";
+        expect(await rollupManagerContract.exposed_checkStateRootInsidePrime(stateRoot)).to.be.equal(false);
+
+        // goldilocks 2nd element
+        stateRoot = "0x00000000000000000000000000000000ffffffff00000001ffffffff00000000";
+        expect(await rollupManagerContract.exposed_checkStateRootInsidePrime(stateRoot)).to.be.equal(false);
+
+        // goldilocks 3rd element
+        stateRoot = "0x0000000000000000ffffffff00000001ffffffff00000000ffffffff00000000";
+        expect(await rollupManagerContract.exposed_checkStateRootInsidePrime(stateRoot)).to.be.equal(false);
+
+        // goldilocks 4rt element
+        stateRoot = "0xffffffff00000001ffffffff00000000ffffffff00000000ffffffff00000000";
+        expect(await rollupManagerContract.exposed_checkStateRootInsidePrime(stateRoot)).to.be.equal(false);
+
+        // all goldilocks - 1
+        stateRoot = "0xffffffff00000000ffffffff00000000ffffffff00000000ffffffff00000000";
+        expect(await rollupManagerContract.exposed_checkStateRootInsidePrime(stateRoot)).to.be.equal(true);
+    });
+
     it("should check full flow etrog", async () => {
         const urlSequencer = "http://zkevm-json-rpc:8123";
         const chainID = 1000;
@@ -447,6 +480,10 @@ describe("Polygon Rollup Manager", () => {
         expect(await newZkEVMContract.trustedSequencerURL()).to.be.equal(urlSequencer);
         expect(await newZkEVMContract.networkName()).to.be.equal(networkName);
         expect(await newZkEVMContract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
+
+        // Retrieve rollup batch info
+        const genesisStateRoot = await rollupManagerContract.getRollupBatchNumToStateRoot(newCreatedRollupID, 0);
+        expect(genesisStateRoot).to.be.equal(genesisRandom);
 
         // Cannot create 2 chains with the same chainID
         await expect(
@@ -707,6 +744,8 @@ describe("Polygon Rollup Manager", () => {
                 zkProofFFlonk
             );
 
+        // Retrieve rollup batch info
+        // const rollupStateRoot = await rollupManagerContract.getRollupBatchNumToStateRoot();
         // Retrieve l1InfoRoot
         const currentL1InfoRoot = await polygonZkEVMGlobalExitRoot.getRoot();
         // Retrieve depositCount
@@ -721,6 +760,13 @@ describe("Polygon Rollup Manager", () => {
             .withArgs(ethers.ZeroHash, rootRollups)
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeV2")
             .withArgs(currentL1InfoRoot, depositCount, blockInfo?.parentHash, blockInfo?.timestamp);
+
+        // Retrieve rollup batch info
+        const batchStateRoot = await rollupManagerContract.getRollupBatchNumToStateRoot(
+            newCreatedRollupID,
+            newVerifiedBatch
+        );
+        expect(batchStateRoot).to.be.equal(newStateRoot);
 
         const finalAggregatorMatic = await polTokenContract.balanceOf(beneficiary.address);
         expect(finalAggregatorMatic).to.equal(initialAggregatorMatic + maticAmount);
@@ -1003,6 +1049,11 @@ describe("Polygon Rollup Manager", () => {
             "NotAllowedAddress"
         );
 
+        await expect(
+            rollupManagerContract.connect(timelock).rollbackBatches(admin.address, 0)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "RollupMustExist");
+
+        // doe snot implement admin() method
         await expect(rollupManagerContract.connect(admin).rollbackBatches(admin.address, 0)).to.be.reverted;
 
         await expect(
@@ -2876,6 +2927,10 @@ describe("Polygon Rollup Manager", () => {
         )
             .to.emit(rollupManagerContract, "AddExistingRollup")
             .withArgs(RollupID, forkID, PolygonZKEVMV2Contract.target, chainID, rollupVerifierType, 0, programVKey);
+
+        // Retrieve rollup batch info
+        const genesisStateRoot = await rollupManagerContract.getRollupBatchNumToStateRoot(RollupID, 0);
+        expect(genesisStateRoot).to.be.equal(genesisRandom);
 
         await expect(
             rollupManagerContract
