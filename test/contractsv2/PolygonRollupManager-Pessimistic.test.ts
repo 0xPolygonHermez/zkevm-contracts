@@ -357,6 +357,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         const urlSequencer = "https://pessimistic:8545";
         const networkName = "testPessimistic";
         const newCreatedRollupID = 1;
+        const nonExistentRollupID = 4;
 
         // Only admin can create new zkEVMs
         await expect(
@@ -370,6 +371,21 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
                 networkName
             )
         ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
+
+        // rollupTypeID does not exist
+        await expect(
+            rollupManagerContract
+                .connect(admin)
+                .createNewRollup(
+                    nonExistentRollupID,
+                    chainID,
+                    admin.address,
+                    trustedSequencer.address,
+                    gasTokenAddress,
+                    urlSequencer,
+                    networkName
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
 
         // create new pessimistic
         const newZKEVMAddress = ethers.getCreateAddress({
@@ -572,6 +588,20 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
                 .connect(timelock)
                 .updateRollup(rollupStateTransition[0] as unknown as Address, 1, "0x")
         ).to.be.revertedWithCustomError(rollupManagerContract, "UpdateNotCompatible");
+
+        // try to update rollup with rollupType = 0
+        await expect(
+            rollupManagerContract
+                .connect(timelock)
+                .updateRollup(rollupStateTransition[0] as unknown as Address, 0, "0x")
+        ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
+
+        // try to update rollup with a greater rollupType that the last created
+        await expect(
+            rollupManagerContract
+                .connect(timelock)
+                .updateRollup(rollupStateTransition[0] as unknown as Address, 4, "0x")
+        ).to.be.revertedWithCustomError(rollupManagerContract, "RollupTypeDoesNotExist");
     });
 
     it("should update rollup: pessismsitic type", async () => {
@@ -676,7 +706,68 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         expect(expectedRollupData).to.be.deep.equal(resRollupData);
     });
 
-    it("should verify pessimistic proof: pessismsitic type", async () => {
+    it("should not allow rollback sequences: pessismsitic type", async () => {
+        // deploy consensus
+        // create polygonPessimisticConsensus implementation
+        const ppConsensusFactory = await ethers.getContractFactory("PolygonPessimisticConsensus");
+        PolygonPPConsensusContract = await ppConsensusFactory.deploy(
+            polygonZkEVMGlobalExitRoot.target,
+            polTokenContract.target,
+            polygonZkEVMBridgeContract.target,
+            rollupManagerContract.target
+        );
+        await PolygonPPConsensusContract.waitForDeployment();
+
+        // Try to add a new rollup type
+        const forkID = 11; // just metadata for pessimistic consensus
+        const genesis = ethers.ZeroHash;
+        const description = "new pessimistic consensus";
+        const programVKey = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        const rollupTypeID = 1;
+
+        // correct add new rollup via timelock
+        await rollupManagerContract
+            .connect(timelock)
+            .addNewRollupType(
+                PolygonPPConsensusContract.target,
+                verifierContract.target,
+                forkID,
+                VerifierType.Pessimistic,
+                genesis,
+                description,
+                programVKey
+            );
+
+        // create new pessimsitic: only admin
+        const chainID = 1;
+        const gasTokenAddress = ethers.ZeroAddress;
+        const urlSequencer = "https://pessimistic:8545";
+        const networkName = "testPessimistic";
+        const pessimisticRollupID = 1;
+
+        // create new pessimistic
+        await rollupManagerContract
+            .connect(admin)
+            .createNewRollup(
+                rollupTypeID,
+                chainID,
+                admin.address,
+                trustedSequencer.address,
+                gasTokenAddress,
+                urlSequencer,
+                networkName
+            );
+
+        // get rollup data
+        const rollupPessimistic = await rollupManagerContract.rollupIDToRollupDataPessimistic(pessimisticRollupID);
+
+        // try to rollback sequences
+        await expect(
+            rollupManagerContract.connect(admin).rollbackBatches(rollupPessimistic[0] as unknown as Address, 2)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OnlyStateTransitionChains");
+    });
+
+    it("should verify pessimistic proof: pessimistic type", async () => {
         // deploy consensus
         // create polygonPessimisticConsensus implementation
         const ppConsensusFactory = await ethers.getContractFactory("PolygonPessimisticConsensus");
@@ -739,6 +830,18 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         const newPPRoot = "0x0000000000000000000000000000000000000000000000000000000000000002";
         const proofPP = "0x00";
 
+        // not trusted aggregator
+        await expect(
+            rollupManagerContract.verifyPessimisticTrustedAggregator(
+                pessimisticRollupID,
+                unexistentGER,
+                newLER,
+                newPPRoot,
+                proofPP
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "AddressDoNotHaveRequiredRole");
+
+        // global exit root does not exist
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
@@ -772,6 +875,12 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             .withArgs(pessimisticRollupID, 0, ethers.ZeroHash, newLER, trustedAggregator.address);
 
         // assert rollup data
+        // try to get stateTransistion data from pessimsitic rollup
+        await expect(rollupManagerContract.rollupIDToRollupData(pessimisticRollupID)).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "InvalidVerifierType"
+        );
+
         const resRollupData = await rollupManagerContract.rollupIDToRollupDataPessimistic(pessimisticRollupID);
 
         const expectedRollupData = [
@@ -787,6 +896,38 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         ];
 
         expect(expectedRollupData).to.be.deep.equal(resRollupData);
+
+        // not allow verifyBatchesTrustedAggregator from a Pessimistic chain
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    pessimisticRollupID,
+                    0,
+                    0,
+                    0,
+                    newLER,
+                    newPPRoot,
+                    beneficiary.address,
+                    new Array(24).fill(ethers.ZeroHash)
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OnlyStateTransitionChains");
+
+        // pendingstate != 0
+        await expect(
+            rollupManagerContract
+                .connect(trustedAggregator)
+                .verifyBatchesTrustedAggregator(
+                    pessimisticRollupID,
+                    42,
+                    0,
+                    0,
+                    newLER,
+                    newPPRoot,
+                    beneficiary.address,
+                    new Array(24).fill(ethers.ZeroHash)
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "PendingStateNumExist");
     });
 
     it("should not verify pessimistic proof from stateTransistion chain", async () => {
@@ -849,5 +990,10 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
                 .connect(trustedAggregator)
                 .verifyPessimisticTrustedAggregator(stateTransistionRollupID, unexistentGER, newLER, newPPRoot, proofPP)
         ).to.be.revertedWithCustomError(rollupManagerContract, "OnlyChainsWithPessimisticProofs");
+
+        // tro get pessimistic info from stateTransistion chain
+        await expect(
+            rollupManagerContract.rollupIDToRollupDataPessimistic(stateTransistionRollupID)
+        ).to.be.revertedWithCustomError(rollupManagerContract, "InvalidVerifierType");
     });
 });
