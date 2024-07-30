@@ -257,6 +257,7 @@ describe("Polygon Rollup manager upgraded", () => {
                 unsafeAllow: ["constructor", "state-variable-immutable", "enum-definition", "struct-definition"],
                 unsafeAllowRenames: true,
                 unsafeAllowCustomTypes: true,
+                unsafeSkipStorageCheck: true,
             }
         );
     });
@@ -301,10 +302,15 @@ describe("Polygon Rollup manager upgraded", () => {
             rollupManagerContract,
             "AddressDoNotHaveRequiredRole"
         );
+
         await expect(rollupManagerContract.connect(admin).setBatchFee(0)).to.be.revertedWithCustomError(
             rollupManagerContract,
             "BatchFeeOutOfRange"
         );
+
+        await expect(
+            rollupManagerContract.connect(admin).setBatchFee(ethers.parseEther("1001"))
+        ).to.be.revertedWithCustomError(rollupManagerContract, "BatchFeeOutOfRange");
 
         await expect(rollupManagerContract.connect(admin).setBatchFee(ethers.parseEther("10")))
             .to.emit(rollupManagerContract, "SetBatchFee")
