@@ -254,9 +254,9 @@ describe("Polygon Rollup manager upgraded", () => {
                     polTokenContract.target,
                     polygonZkEVMBridgeContract.target,
                 ],
-                unsafeAllow: ["constructor", "state-variable-immutable"],
+                unsafeAllow: ["constructor", "state-variable-immutable", "enum-definition", "struct-definition"],
                 unsafeAllowRenames: true,
-                unsafeSkipStorageCheck: true,
+                unsafeAllowCustomTypes: true,
             }
         );
     });
