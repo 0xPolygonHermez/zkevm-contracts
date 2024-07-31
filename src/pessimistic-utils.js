@@ -1,11 +1,13 @@
+const ethers = require('ethers');
+
 const VerifierType = {
     StateTransition: 0,
-    Pessimistic: 1
-}
+    Pessimistic: 1,
+};
 
 const ConsensusTypes = {
-    Ecdsa: 0
-}
+    Ecdsa: 0,
+};
 
 /**
  * Compute input for SNARK circuit: sha256(
@@ -26,10 +28,10 @@ function computeInputPessimisticBytes(
     selectedGlobalExitRoot,
     consensusHash,
     newLocalExitRoot,
-    newPessimisticRoot
+    newPessimisticRoot,
 ) {
     return ethers.solidityPacked(
-        ["bytes32", "bytes32", "bytes32", "bytes32", "bytes32", "bytes32"],
+        ['bytes32', 'bytes32', 'bytes32', 'bytes32', 'bytes32', 'bytes32'],
         [
             lastLocalExitRoot,
             lastPessimisticRoot,
@@ -37,7 +39,7 @@ function computeInputPessimisticBytes(
             consensusHash,
             newLocalExitRoot,
             newPessimisticRoot,
-        ]
+        ],
     );
 }
 
@@ -47,7 +49,7 @@ function computeInputPessimisticBytes(
  * @returns consensus hash
  */
 function computeConsensusHashEcdsa(address) {
-    return ethers.solidityPackedKeccak256(["uint32", "address"], [ConsensusTypes.Ecdsa, address]);
+    return ethers.solidityPackedKeccak256(['uint32', 'address'], [ConsensusTypes.Ecdsa, address]);
 }
 
 module.exports = {
