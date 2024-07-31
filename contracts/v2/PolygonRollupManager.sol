@@ -40,6 +40,7 @@ contract PolygonRollupManager is
      * @param rollupVerifierType Rollup compatibility ID, to check upgradability between rollup types
      * @param obsolete Indicates if the rollup type is obsolete
      * @param genesis Genesis block of the rollup, note that will only be used on creating new rollups, not upgrade them
+     * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
      */
     struct RollupType {
         address consensusImplementation;
