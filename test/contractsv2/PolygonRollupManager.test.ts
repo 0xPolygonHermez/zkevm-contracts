@@ -14,7 +14,7 @@ import {
     PolygonDataCommittee,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
-import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
+import {processorUtils, contractUtils, MTBridge, mtBridgeUtils, utils} from "@0xpolygonhermez/zkevm-commonjs";
 const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
 
 type BatchDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
@@ -48,6 +48,7 @@ describe("Polygon Rollup Manager", () => {
     const pendingStateTimeoutDefault = 100;
     const trustedAggregatorTimeout = 100;
     const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
+    const HALT_AGGREGATION_TIMEOUT = 60 * 60 * 24 * 7; // 7 days
 
     // BRidge constants
     const networkIDMainnet = 0;
@@ -616,6 +617,25 @@ describe("Polygon Rollup Manager", () => {
             ethers.ZeroHash
         );
 
+        // try to sequence in an emergency state
+        // snapshot emergency
+        const snapshotEmergencyStateSequence = await takeSnapshot();
+        await rollupManagerContract.connect(emergencyCouncil).activateEmergencyState();
+
+        await expect(
+            newZkEVMContract
+                .connect(trustedSequencer)
+                .sequenceBatches(
+                    [sequence],
+                    indexL1infoRoot,
+                    currentTime,
+                    expectedAccInputHash2,
+                    trustedSequencer.address
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "OnlyNotEmergencyState");
+
+        await snapshotEmergencyStateSequence.restore();
+
         await expect(
             newZkEVMContract
                 .connect(trustedSequencer)
@@ -745,6 +765,55 @@ describe("Polygon Rollup Manager", () => {
         merkleTreeRollups.add(newLocalExitRoot);
         const rootRollups = merkleTreeRollups.getRoot();
 
+        // get input snark bytes
+        const oldSeqData = await rollupManagerContract.getRollupSequencedBatches(
+            newCreatedRollupID,
+            currentVerifiedBatch
+        );
+        const oldStateRoot = await rollupManagerContract.getRollupBatchNumToStateRoot(
+            newCreatedRollupID,
+            currentVerifiedBatch
+        );
+        const newSeqData = await rollupManagerContract.getRollupSequencedBatches(newCreatedRollupID, newVerifiedBatch);
+
+        const expectedHashInputSnarkBytes = await contractUtils.calculateSnarkInput(
+            oldStateRoot,
+            newStateRoot,
+            newLocalExitRoot,
+            oldSeqData[0],
+            newSeqData[0],
+            currentVerifiedBatch,
+            newVerifiedBatch,
+            chainID,
+            deployer.address,
+            forkID
+        );
+
+        // check newStateroot inside golilocks
+        const failNewSR = "0x000000000000000000000000000000000000000000000000ffffffff00000001";
+        await expect(
+            rollupManagerContract.getInputSnarkBytes(
+                newCreatedRollupID,
+                currentVerifiedBatch,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                oldStateRoot,
+                failNewSR
+            )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "NewStateRootNotInsidePrime");
+
+        const inputSnark = await rollupManagerContract.getInputSnarkBytes(
+            newCreatedRollupID,
+            currentVerifiedBatch,
+            newVerifiedBatch,
+            newLocalExitRoot,
+            oldStateRoot,
+            newStateRoot
+        );
+
+        const hashInputSnark = utils.sha256Snark(inputSnark.substring(2));
+        expect(hashInputSnark).to.be.equal(expectedHashInputSnarkBytes);
+
         // Verify batch
         const verifyBatchesTrustedAggregator = await rollupManagerContract
             .connect(trustedAggregator)
@@ -759,8 +828,6 @@ describe("Polygon Rollup Manager", () => {
                 zkProofFFlonk
             );
 
-        // Retrieve rollup batch info
-        // const rollupStateRoot = await rollupManagerContract.getRollupBatchNumToStateRoot();
         // Retrieve l1InfoRoot
         const currentL1InfoRoot = await polygonZkEVMGlobalExitRoot.getRoot();
         // Retrieve depositCount
@@ -775,6 +842,42 @@ describe("Polygon Rollup Manager", () => {
             .withArgs(ethers.ZeroHash, rootRollups)
             .to.emit(polygonZkEVMGlobalExitRoot, "UpdateL1InfoTreeV2")
             .withArgs(currentL1InfoRoot, depositCount, blockInfo?.parentHash, blockInfo?.timestamp);
+
+        // try to set emergency state
+        await expect(rollupManagerContract.activateEmergencyState()).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "HaltTimeoutNotExpired"
+        );
+
+        // enter emergency state when timeout has passed
+        const enterEmergencyState = await takeSnapshot();
+        // Increment timestamp
+        const blockTime = (await ethers.provider.getBlock("latest"))?.timestamp as any;
+        await ethers.provider.send("evm_setNextBlockTimestamp", [blockTime + HALT_AGGREGATION_TIMEOUT + 1]);
+        // activate
+        await rollupManagerContract.connect(trustedAggregator).activateEmergencyState();
+        await enterEmergencyState.restore();
+
+        // try to enter emergency state when: timeout has passed but it has been an deactivated emergency state
+        const snapshotEmergencyTimeout = await takeSnapshot();
+        // Increment timestamp
+        const currentTimestamp = (await ethers.provider.getBlock("latest"))?.timestamp as any;
+        await ethers.provider.send("evm_setNextBlockTimestamp", [currentTimestamp + HALT_AGGREGATION_TIMEOUT / 2 - 1]);
+        // activate
+        await rollupManagerContract.connect(emergencyCouncil).activateEmergencyState();
+        // deactivate
+        await rollupManagerContract.connect(admin).deactivateEmergencyState();
+        // Increment timestamp
+        const currentTimestampA = (await ethers.provider.getBlock("latest"))?.timestamp as any;
+        await ethers.provider.send("evm_setNextBlockTimestamp", [currentTimestampA + HALT_AGGREGATION_TIMEOUT / 2 + 2]);
+
+        // try to set emergency state
+        await expect(rollupManagerContract.activateEmergencyState()).to.be.revertedWithCustomError(
+            rollupManagerContract,
+            "HaltTimeoutNotExpired"
+        );
+
+        await snapshotEmergencyTimeout.restore();
 
         // Retrieve rollup batch info
         const batchStateRoot = await rollupManagerContract.getRollupBatchNumToStateRoot(
@@ -922,9 +1025,10 @@ describe("Polygon Rollup Manager", () => {
             newZkEVMContract.connect(admin).setForceBatchAddress(deployer.address)
         ).to.be.revertedWithCustomError(newZkEVMContract, "ForceBatchesDecentralized");
 
-        //snapshot emergency
+        // snapshot emergency
         const snapshotEmergencyState = await takeSnapshot();
         await rollupManagerContract.connect(emergencyCouncil).activateEmergencyState();
+
         await expect(newZkEVMContract.forceBatch("0x", 0)).to.be.revertedWithCustomError(
             newZkEVMContract,
             "ForceBatchesNotAllowedOnEmergencyState"
