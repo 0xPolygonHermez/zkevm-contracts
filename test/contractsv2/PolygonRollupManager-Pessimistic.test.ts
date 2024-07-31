@@ -15,11 +15,7 @@ import {
     PolygonPessimisticConsensus,
 } from "../../typechain-types";
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
-
-enum VerifierType {
-    StateTransition = 0,
-    Pessimistic = 1,
-}
+const {VerifierType, computeInputPessimisticBytes, computeConsensusHashEcdsa} = require("../../src/pessimistic-utils");
 
 describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
     let deployer: any;
@@ -848,8 +844,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
                 .verifyPessimisticTrustedAggregator(pessimisticRollupID, unexistentGER, newLER, newPPRoot, proofPP)
         ).to.be.revertedWithCustomError(rollupManagerContract, "GlobalExitRootNotExist");
 
-        // create a bridge to genenew rate a GER
-        // Just to have the metric of a low cost bridge Asset
+        // create a bridge to generate a new GER
         const tokenAddress = ethers.ZeroAddress;
         const amount = ethers.parseEther("1");
         await polygonZkEVMBridgeContract.bridgeAsset(
@@ -866,6 +861,30 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
 
         const existingGER = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
 
+        // check JS function computeInputPessimisticBytes
+        const inputPessimisticBytes = await rollupManagerContract.getInputPessimisticBytes(
+            pessimisticRollupID,
+            existingGER,
+            newLER,
+            newPPRoot
+        );
+
+        const infoRollup = await rollupManagerContract.rollupIDToRollupDataPessimistic(pessimisticRollupID);
+
+        const consensusHash = computeConsensusHashEcdsa(trustedSequencer.address);
+
+        const expectedInputPessimsiticBytes = computeInputPessimisticBytes(
+            infoRollup[4],
+            infoRollup[7],
+            existingGER,
+            consensusHash,
+            newLER,
+            newPPRoot
+        );
+
+        expect(inputPessimisticBytes).to.be.equal(expectedInputPessimsiticBytes);
+
+        // verify pessimistic
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
