@@ -877,6 +877,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             infoRollup[4],
             infoRollup[7],
             existingGER,
+            pessimisticRollupID,
             consensusHash,
             newLER,
             newPPRoot

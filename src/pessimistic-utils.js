@@ -18,24 +18,27 @@ const ConsensusTypes = {
  * @param {String} lastLocalExitRoot - old LER
  * @param {String} lastPessimisticRoot - old pessimistic root. pessRoor = Poseidon(LBR # nullifierRoot)
  * @param {String} selectedGlobalExitRoot - selected GER
- * @param {Number} consensusHash - consensus hash. consensusHash = Sha(consensusType # consensusPayload)
- * @param {Number} newLocalExitRoot - new LER
- * @param {Number} newPessimisticRoot - new pessimistic root
+ * @param {Number} rollupID - rollup identifier (networkID = rollupID - 1)
+ * @param {String} consensusHash - consensus hash. consensusHash = Sha(consensusType # consensusPayload)
+ * @param {String} newLocalExitRoot - new LER
+ * @param {String} newPessimisticRoot - new pessimistic root
  */
 function computeInputPessimisticBytes(
     lastLocalExitRoot,
     lastPessimisticRoot,
     selectedGlobalExitRoot,
+    rollupID,
     consensusHash,
     newLocalExitRoot,
     newPessimisticRoot,
 ) {
     return ethers.solidityPacked(
-        ['bytes32', 'bytes32', 'bytes32', 'bytes32', 'bytes32', 'bytes32'],
+        ['bytes32', 'bytes32', 'bytes32', 'uint32', 'bytes32', 'bytes32', 'bytes32'],
         [
             lastLocalExitRoot,
             lastPessimisticRoot,
             selectedGlobalExitRoot,
+            rollupID,
             consensusHash,
             newLocalExitRoot,
             newPessimisticRoot,
