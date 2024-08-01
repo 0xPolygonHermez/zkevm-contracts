@@ -953,6 +953,7 @@ contract PolygonRollupManager is
         }
 
         bytes memory inputPessimisticBytes = _getInputPessimisticBytes(
+            rollupID,
             rollup,
             selectedGlobalExitRoot,
             newLocalExitRoot,
@@ -1347,6 +1348,7 @@ contract PolygonRollupManager is
     ) public view returns (bytes memory) {
         return
             _getInputPessimisticBytes(
+                rollupID,
                 _rollupIDToRollupData[rollupID],
                 selectedGlobalExitRoot,
                 newLocalExitRoot,
@@ -1356,12 +1358,14 @@ contract PolygonRollupManager is
 
     /**
      * @notice Function to calculate the input snark bytes
+     * @param rollupID Rollup identifier
      * @param rollup Rollup data storage pointer
      * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
      * @param newLocalExitRoot New local exit root
      * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
      */
     function _getInputPessimisticBytes(
+        uint32 rollupID,
         RollupData storage rollup,
         bytes32 selectedGlobalExitRoot,
         bytes32 newLocalExitRoot,
@@ -1377,6 +1381,7 @@ contract PolygonRollupManager is
                 rollup.lastLocalExitRoot,
                 rollup.lastPessimisticRoot,
                 selectedGlobalExitRoot,
+                rollupID, // networkID = rollupID - 1
                 consensusHash,
                 newLocalExitRoot,
                 newPessimisticRoot
