@@ -1381,7 +1381,7 @@ contract PolygonRollupManager is
                 rollup.lastLocalExitRoot,
                 rollup.lastPessimisticRoot,
                 selectedGlobalExitRoot,
-                rollupID, // networkID = rollupID - 1
+                rollupID,
                 consensusHash,
                 newLocalExitRoot,
                 newPessimisticRoot
