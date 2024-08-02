@@ -114,7 +114,7 @@ contract PolygonRollupManager is
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
      */
-    struct RollupDataReturnStateTransistion {
+    struct RollupDataReturn {
         IPolygonRollupBase rollupContract;
         uint64 chainID;
         address verifier;
@@ -130,24 +130,30 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Struct to return all the necessary rollup info: VerifierType Pessimistic
+     * @notice Struct which to store the rollup data of each chain
      * @param rollupContract Rollup consensus contract, which manages everything
      * related to sequencing transactions
      * @param chainID Chain ID of the rollup
      * @param verifier Verifier contract
      * @param forkID ForkID of the rollup
      * @param lastLocalExitRoot Last exit root verified, used for compute the rollupExitRoot
+     * @param lastBatchSequenced Last batch sent by the consensus contract
+     * @param lastVerifiedBatch Last batch verified
+     * @param lastVerifiedBatchBeforeUpgrade Last batch verified before the last upgrade
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
      * @param lastPessimisticRoot Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
      * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
      */
-    struct RollupDataReturnPessimistic {
+    struct RollupDataReturnV2 {
         IPolygonRollupBase rollupContract;
         uint64 chainID;
         address verifier;
         uint64 forkID;
         bytes32 lastLocalExitRoot;
+        uint64 lastBatchSequenced;
+        uint64 lastVerifiedBatch;
+        uint64 lastVerifiedBatchBeforeUpgrade;
         uint64 rollupTypeID;
         VerifierType rollupVerifierType;
         bytes32 lastPessimisticRoot;
@@ -1454,12 +1460,8 @@ contract PolygonRollupManager is
      */
     function rollupIDToRollupData(
         uint32 rollupID
-    ) public view returns (RollupDataReturnStateTransistion memory rollupData) {
+    ) public view returns (RollupDataReturn memory rollupData) {
         RollupData storage rollup = _rollupIDToRollupData[rollupID];
-
-        if (rollup.rollupVerifierType != VerifierType.StateTransition) {
-            revert InvalidVerifierType();
-        }
 
         rollupData.rollupContract = rollup.rollupContract;
         rollupData.chainID = rollup.chainID;
@@ -1481,20 +1483,20 @@ contract PolygonRollupManager is
      * @notice Get rollup data: VerifierType Pessimistic
      * @param rollupID Rollup identifier
      */
-    function rollupIDToRollupDataPessimistic(
+    function rollupIDToRollupDataV2(
         uint32 rollupID
-    ) public view returns (RollupDataReturnPessimistic memory rollupData) {
+    ) public view returns (RollupDataReturnV2 memory rollupData) {
         RollupData storage rollup = _rollupIDToRollupData[rollupID];
-
-        if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
-            revert InvalidVerifierType();
-        }
 
         rollupData.rollupContract = rollup.rollupContract;
         rollupData.chainID = rollup.chainID;
         rollupData.verifier = rollup.verifier;
         rollupData.forkID = rollup.forkID;
         rollupData.lastLocalExitRoot = rollup.lastLocalExitRoot;
+        rollupData.lastBatchSequenced = rollup.lastBatchSequenced;
+        rollupData.lastVerifiedBatch = rollup.lastVerifiedBatch;
+        rollupData.lastVerifiedBatchBeforeUpgrade = rollup
+            .lastVerifiedBatchBeforeUpgrade;
         rollupData.rollupTypeID = rollup.rollupTypeID;
         rollupData.rollupVerifierType = rollup.rollupVerifierType;
         rollupData.lastPessimisticRoot = rollup.lastPessimisticRoot;
