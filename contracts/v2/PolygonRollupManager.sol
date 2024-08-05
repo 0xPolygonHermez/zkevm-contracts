@@ -932,141 +932,6 @@ contract PolygonRollupManager is
     }
 
     /**
-     * @notice Allows a trusted aggregator to verify pessimistic proof
-     * @param rollupID Rollup identifier
-     * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
-     * @param newLocalExitRoot New local exit root
-     * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
-     * @param proof SP1 proof (Plonk)
-     */
-    function verifyPessimisticTrustedAggregator(
-        uint32 rollupID,
-        bytes32 selectedGlobalExitRoot,
-        bytes32 newLocalExitRoot,
-        bytes32 newPessimisticRoot,
-        bytes calldata proof
-    ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
-        RollupData storage rollup = _rollupIDToRollupData[rollupID];
-
-        // Only for pessimistic verifiers
-        if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
-            revert OnlyChainsWithPessimisticProofs();
-        }
-
-        // Check selected global exit root exist
-        if (
-            globalExitRootManager.globalExitRootMap(selectedGlobalExitRoot) == 0
-        ) {
-            revert GlobalExitRootNotExist();
-        }
-
-        bytes memory inputPessimisticBytes = _getInputPessimisticBytes(
-            rollupID,
-            rollup,
-            selectedGlobalExitRoot,
-            newLocalExitRoot,
-            newPessimisticRoot
-        );
-
-        // Verify proof
-        ISP1Verifier(rollup.verifier).verifyProof(
-            rollup.programVKey,
-            inputPessimisticBytes,
-            proof
-        );
-
-        // TODO: Since there are no batches we could have either:
-        // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
-        // dependency with the trusted aggregator ( or pessimistic aggregator)
-
-        // Update aggregation parameters
-        lastAggregationTimestamp = uint64(block.timestamp);
-
-        // Consolidate state
-        rollup.lastLocalExitRoot = newLocalExitRoot;
-        rollup.lastPessimisticRoot = newPessimisticRoot;
-
-        // Interact with globalExitRootManager
-        globalExitRootManager.updateExitRoot(getRollupExitRoot());
-
-        // Same event as verifyBatches to support current bridge service to synchronize everything
-        emit VerifyBatchesTrustedAggregator(
-            rollupID,
-            0, // final batch: does not apply in pessimistic
-            bytes32(0), // new state root: does not apply in pessimistic
-            newLocalExitRoot,
-            msg.sender
-        );
-    }
-
-    /**
-     * @notice Allows a trusted aggregator to verify pessimistic proof
-     * @param rollupID Rollup identifier
-     * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
-     * @param newLocalExitRoot New local exit root
-     * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
-     * @param proof SP1 proof (Plonk)
-     */
-    function verifyPessimisticTrustedAggregator(
-        uint32 rollupID,
-        bytes32 selectedGlobalExitRoot,
-        bytes32 newLocalExitRoot,
-        bytes32 newPessimisticRoot,
-        bytes calldata proof
-    ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
-        RollupData storage rollup = rollupIDToRollupData[rollupID];
-
-        // Only for pessimistic verifiers
-        if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
-            revert OnlyChainsWithPessimisticProofs();
-        }
-
-        // Check selected global exit root exist
-        if (
-            globalExitRootManager.globalExitRootMap(selectedGlobalExitRoot) == 0
-        ) {
-            revert GlobalExitRootNotExist();
-        }
-
-        bytes memory inputPessimisticBytes = _getInputPessimisticBytes(
-            rollup,
-            selectedGlobalExitRoot,
-            newLocalExitRoot,
-            newPessimisticRoot
-        );
-
-        // Verify proof
-        ISP1Verifier(rollup.verifier).verifyProof(
-            rollup.programVKey,
-            inputPessimisticBytes,
-            proof
-        );
-
-        // TODO: Since there are no batches we could have either:
-        // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
-        // dependency with the trusted aggregator ( or pessimistic aggregator)
-
-        // Update aggregation parameters
-        lastAggregationTimestamp = uint64(block.timestamp);
-
-        // Consolidate state
-        rollup.lastLocalExitRoot = newLocalExitRoot;
-        rollup.lastPessimisticRoot = newPessimisticRoot;
-
-        // Interact with globalExitRootManager
-        globalExitRootManager.updateExitRoot(getRollupExitRoot());
-
-        // Same event as verifyBatches to support current bridge service to synchronize everything
-        emit VerifyBatchesTrustedAggregator(
-            rollupID,
-            0, // final batch: does not apply in pessimistic
-            bytes32(0), // new state root: does not apply in pessimistic
-            newLocalExitRoot,
-            msg.sender
-        );
-    }
-
-    /**
      * @notice Verify and reward batches internal function
      * @param rollup Rollup Data storage pointer that will be used to the verification
      * @param initNumBatch Batch which the aggregator starts the verification
@@ -1146,6 +1011,74 @@ contract PolygonRollupManager is
         rollup.rollupContract.onVerifyBatches(
             finalNewBatch,
             newStateRoot,
+            msg.sender
+        );
+    }
+
+    /**
+     * @notice Allows a trusted aggregator to verify pessimistic proof
+     * @param rollupID Rollup identifier
+     * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
+     * @param newLocalExitRoot New local exit root
+     * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
+     * @param proof SP1 proof (Plonk)
+     */
+    function verifyPessimisticTrustedAggregator(
+        uint32 rollupID,
+        bytes32 selectedGlobalExitRoot,
+        bytes32 newLocalExitRoot,
+        bytes32 newPessimisticRoot,
+        bytes calldata proof
+    ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) {
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
+
+        // Only for pessimistic verifiers
+        if (rollup.rollupVerifierType != VerifierType.Pessimistic) {
+            revert OnlyChainsWithPessimisticProofs();
+        }
+
+        // Check selected global exit root exist
+        if (
+            globalExitRootManager.globalExitRootMap(selectedGlobalExitRoot) == 0
+        ) {
+            revert GlobalExitRootNotExist();
+        }
+
+        bytes memory inputPessimisticBytes = _getInputPessimisticBytes(
+            rollupID,
+            rollup,
+            selectedGlobalExitRoot,
+            newLocalExitRoot,
+            newPessimisticRoot
+        );
+
+        // Verify proof
+        ISP1Verifier(rollup.verifier).verifyProof(
+            rollup.programVKey,
+            inputPessimisticBytes,
+            proof
+        );
+
+        // TODO: Since there are no batches we could have either:
+        // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
+        // dependency with the trusted aggregator ( or pessimistic aggregator)
+
+        // Update aggregation parameters
+        lastAggregationTimestamp = uint64(block.timestamp);
+
+        // Consolidate state
+        rollup.lastLocalExitRoot = newLocalExitRoot;
+        rollup.lastPessimisticRoot = newPessimisticRoot;
+
+        // Interact with globalExitRootManager
+        globalExitRootManager.updateExitRoot(getRollupExitRoot());
+
+        // Same event as verifyBatches to support current bridge service to synchronize everything
+        emit VerifyBatchesTrustedAggregator(
+            rollupID,
+            0, // final batch: does not apply in pessimistic
+            bytes32(0), // new state root: does not apply in pessimistic
+            newLocalExitRoot,
             msg.sender
         );
     }
