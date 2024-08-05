@@ -46,6 +46,7 @@ contract PolygonRollupManager is
         address consensusImplementation;
         address verifier;
         uint64 forkID;
+        /// @custom:oz-renamed-from rollupCompatibilityID
         /// @custom:oz-retyped-from uint8
         VerifierType rollupVerifierType;
         bool obsolete;
@@ -92,6 +93,7 @@ contract PolygonRollupManager is
         uint64 _legacyLastPendingStateConsolidated;
         uint64 lastVerifiedBatchBeforeUpgrade;
         uint64 rollupTypeID;
+        /// @custom:oz-renamed-from rollupCompatibilityID
         /// @custom:oz-retyped-from uint8
         VerifierType rollupVerifierType;
         bytes32 lastPessimisticRoot;
@@ -242,14 +244,14 @@ contract PolygonRollupManager is
     uint32 public rollupTypeCount;
 
     // Rollup type mapping
-    // @custom:oz-retyped-from PolygonRollupManagerPrevious.RollupType
+    /// @custom:oz-retyped-from PolygonRollupManagerPrevious.RollupType
     mapping(uint32 rollupTypeID => RollupType) public rollupTypeMap;
 
     // Number of rollups added, every new rollup will be assigned sequencially a new ID
     uint32 public rollupCount;
 
     // Rollups ID mapping
-    /// @custom:oz-renamed-from rollupIDToRollupData
+    /// @custom:oz-retyped-from PolygonRollupManagerPrevious.RollupData
     mapping(uint32 rollupID => RollupData) internal _rollupIDToRollupData;
 
     // Rollups address mapping
