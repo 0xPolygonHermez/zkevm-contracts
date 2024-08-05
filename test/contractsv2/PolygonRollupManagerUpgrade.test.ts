@@ -227,7 +227,6 @@ describe("Polygon Rollup manager upgraded", () => {
             ],
             unsafeAllow: ["constructor", "state-variable-immutable"],
             unsafeAllowRenames: true,
-            unsafeSkipStorageCheck: true,
             call: {
                 fn: "initialize",
                 args: [
