@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
+import "test/util/TestHelpers.sol";
 
 import "contracts/mocks/PolygonRollupManagerMock.sol";
 import "contracts/PolygonZkEVMGlobalExitRootV2.sol";
@@ -19,6 +20,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 // note extends PolygonRollupManager.tests.ts
 contract PolygonRollupManagerTest is
     Test,
+    TestHelpers,
     IPolygonRollupManager,
     PolygonZkEVMBridgeV2Deployer
 {

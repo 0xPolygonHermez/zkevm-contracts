@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
+import "test/util/TestHelpers.sol";
 
 import {PolygonRollupManager} from "contracts/PolygonRollupManager.sol";
 
@@ -20,6 +21,7 @@ import "script/deployers/PolygonValidiumEtrogDeployer.s.sol";
 
 contract PolygonValidiumEtrogTest is
     Test,
+    TestHelpers,
     ERC20PermitMockDeployer,
     PolygonDataCommitteeDeployer,
     PolygonRollupManagerEmptyMockDeployer,
