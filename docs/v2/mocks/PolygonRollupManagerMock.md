@@ -37,3 +37,12 @@ PolygonRollupManager mock
 
 
 
+### exposed_checkStateRootInsidePrime
+```solidity
+  function exposed_checkStateRootInsidePrime(
+  ) public returns (bool)
+```
+
+
+
+
