@@ -192,15 +192,17 @@ async function main() {
     // Add a new rollup type with timelock
     let rollupVerifierType;
     let genesisFinal;
+    let programVKey;
+
     if (consensusContract == "PolygonPessimisticConsensus") {
         rollupVerifierType = 1;
         genesisFinal = ethers.ZeroHash;
+        programVKey = createRollupParameters.programVKey || ethers.ZeroHash;
     } else {
         rollupVerifierType = 0;
         genesisFinal = genesis.root;
+        programVKey = ethers.ZeroHash;
     }
-
-    const programVKey = createRollupParameters.programVKey || ethers.ZeroHash;
 
     await (
         await rollupManagerContract.addNewRollupType(
