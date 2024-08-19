@@ -1,0 +1,15 @@
+{
+    "admin": "0x9Ab254be10F6Df45E5c58Ba2cE6CB3c9a1aff954",
+    "deployerPvtKey": "0x282a9256c1f3f4effa750d85d4c5cadabc9cb1005ae6ca01e8312be683099d9a",
+    "emergencyCouncilAddress": "0x9Ab254be10F6Df45E5c58Ba2cE6CB3c9a1aff954",
+    "gasTokenAddress": "0x0000000000000000000000000000000000000000",
+    "gasTokenNetwork": 0,
+    "minDelayTimelock": 3600,
+    "pendingStateTimeout": 604799,
+    "polTokenAddress": "0x0000000000000000000000000000000000000000",
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "timelockAdminAddress": "0x9Ab254be10F6Df45E5c58Ba2cE6CB3c9a1aff954",
+    "trustedAggregator": "0x0000000000000000000000000000000000000000",
+    "trustedAggregatorTimeout": 604799,
+    "zkEVMDeployerAddress": "0x68dA8647cD6e61f87e868e55b6Db96507b904019"
+}
