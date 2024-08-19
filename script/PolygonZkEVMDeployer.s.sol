@@ -6,7 +6,7 @@ import "script/deployers/PolygonZkEVMDeployerDeployer.s.sol";
 
 contract Deploy is Script, PolygonZkEVMDeployerDeployer {
     function run() public {
-        address _owner = makeAddr("Owner");
+        address _owner = vm.addr(vm.envUint("PRIVATE_KEY"));
 
         address implementation = deployPolygonZkEVMDeployerImplementation(
             _owner
