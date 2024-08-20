@@ -77,7 +77,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param l1InfoRootLeafcount Count of the L1InfoRoot leaf that will be used in this sequence
+     * @param l1InfoTreeLeafCount Count of the L1InfoTree leaf that will be used in this sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
      * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
@@ -90,7 +90,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
      */
     function sequenceBatchesValidium(
         ValidiumBatchData[] calldata batches,
-        uint32 l1InfoRootLeafcount,
+        uint32 l1InfoTreeLeafCount,
         uint64 maxSequenceTimestamp,
         bytes32 expectedFinalAccInputHash,
         address l2Coinbase,
@@ -117,7 +117,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
 
         // Get global batch variables
         bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
-            l1InfoRootLeafcount
+            l1InfoTreeLeafCount
         );
 
         if (l1InfoRoot == bytes32(0)) {
@@ -247,7 +247,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param l1InfoRootLeafcount Count of the L1InfoRoot leaf that will be used in this sequence
+     * @param l1InfoTreeLeafCount Count of the L1InfoTree leaf that will be used in this sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
      * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
@@ -257,7 +257,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
      */
     function sequenceBatches(
         BatchData[] calldata batches,
-        uint32 l1InfoRootLeafcount,
+        uint32 l1InfoTreeLeafCount,
         uint64 maxSequenceTimestamp,
         bytes32 expectedFinalAccInputHash,
         address l2Coinbase
@@ -267,7 +267,7 @@ contract PolygonValidiumEtrog is PolygonRollupBaseEtrog, IPolygonValidium {
         }
         super.sequenceBatches(
             batches,
-            l1InfoRootLeafcount,
+            l1InfoTreeLeafCount,
             maxSequenceTimestamp,
             expectedFinalAccInputHash,
             l2Coinbase
