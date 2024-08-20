@@ -314,7 +314,7 @@ abstract contract PolygonRollupBaseEtrog is
     /**
      * @notice Allows a sequencer to send multiple batches
      * @param batches Struct array which holds the necessary data to append new batches to the sequence
-     * @param l1InfoTreeLeafCount Index of the L1InfoRoot that will be used in this sequence
+     * @param l1InfoTreeLeafCount Count of the L1InfoTree leaf that will be used in this sequence
      * @param maxSequenceTimestamp Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
      * This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
      * @param expectedFinalAccInputHash This parameter must match the acc input hash after hash all the batch data
