@@ -21,6 +21,26 @@ import {IPolygonZkEVMGlobalExitRootV2} from "contracts/interfaces/IPolygonZkEVMG
 contract DeployContracts is Script {
     using stdJson for string;
 
+    bytes32 constant DEFAULT_ADMIN_ROLE = bytes32(0);
+    bytes32 constant ADD_ROLLUP_TYPE_ROLE = keccak256("ADD_ROLLUP_TYPE_ROLE");
+    bytes32 constant OBSOLETE_ROLLUP_TYPE_ROLE =
+        keccak256("OBSOLETE_ROLLUP_TYPE_ROLE");
+    bytes32 constant CREATE_ROLLUP_ROLE = keccak256("CREATE_ROLLUP_ROLE");
+    bytes32 constant ADD_EXISTING_ROLLUP_ROLE =
+        keccak256("ADD_EXISTING_ROLLUP_ROLE");
+    bytes32 constant UPDATE_ROLLUP_ROLE = keccak256("UPDATE_ROLLUP_ROLE");
+    bytes32 constant TRUSTED_AGGREGATOR_ROLE =
+        keccak256("TRUSTED_AGGREGATOR_ROLE");
+    bytes32 constant TRUSTED_AGGREGATOR_ROLE_ADMIN =
+        keccak256("TRUSTED_AGGREGATOR_ROLE_ADMIN");
+    bytes32 constant TWEAK_PARAMETERS_ROLE = keccak256("TWEAK_PARAMETERS_ROLE");
+    bytes32 constant SET_FEE_ROLE = keccak256("SET_FEE_ROLE");
+    bytes32 constant STOP_EMERGENCY_ROLE = keccak256("STOP_EMERGENCY_ROLE");
+    bytes32 constant EMERGENCY_COUNCIL_ROLE =
+        keccak256("EMERGENCY_COUNCIL_ROLE");
+    bytes32 constant EMERGENCY_COUNCIL_ADMIN =
+        keccak256("EMERGENCY_COUNCIL_ADMIN");
+
     address constant GAS_TOKEN_ADDR_MAINNET = address(0);
     uint256 constant NETWORK_ID_MAINNET = 0;
     uint256 constant GAS_TOKEN_NETWORK_MAINNET = 0;
@@ -65,7 +85,11 @@ contract DeployContracts is Script {
             computedRollupManagerAddress,
             bridgeProxy
         );
-        _deployRollupManager(globalExitRootManager, bridgeProxy);
+        address rolluplManagerAddr = _deployRollupManager(
+            globalExitRootManager,
+            bridgeProxy
+        );
+        _verifyRollupManager(rolluplManagerAddr, bridgeProxy);
     }
 
     function loadConfig() public {
@@ -114,8 +138,7 @@ contract DeployContracts is Script {
         console.log("Min Delay Timelock: %s", minDelayTimelock);
         console.log("Pending State Timeout: %s", pendingStateTimeout);
         console.log("Trusted Aggregator Timeout: %s", trustedAggregatorTimeout);
-        console.log("Salt:");
-        console.logBytes32(salt);
+        console.log("salt: %s", vm.toString(salt));
     }
 
     function _deployProxyAdmin() internal returns (address) {
@@ -259,17 +282,22 @@ contract DeployContracts is Script {
         address bridgeAddr
     ) internal returns (address) {
         vm.startBroadcast(deployerPvtKey);
-        PolygonZkEVMGlobalExitRootV2 globalExitRootManagerImpl = new PolygonZkEVMGlobalExitRootV2(
+        PolygonZkEVMGlobalExitRootV2 globalExitRootManager = new PolygonZkEVMGlobalExitRootV2(
                 rollupManagerAddr,
                 bridgeAddr
             );
         address globalExitRootManagerProxy = _proxify(
-            address(globalExitRootManagerImpl)
+            address(globalExitRootManager),
+            ""
         );
         vm.stopBroadcast();
 
         console.log("\n----------------------\n");
         console.log("Global Exit Root Manager deployed!");
+        console.log(
+            "Global Exit Root Manager implementation address: %s",
+            address(globalExitRootManager)
+        );
         console.log(
             "Global Exit Root Manager Address: %s",
             globalExitRootManagerProxy
@@ -282,18 +310,85 @@ contract DeployContracts is Script {
         address bridgeAddr
     ) internal returns (address) {
         vm.startBroadcast(deployerPvtKey);
-        PolygonRollupManagerNotUpgraded rollupManagerImpl = new PolygonRollupManagerNotUpgraded(
+        PolygonRollupManagerNotUpgraded rollupManager = new PolygonRollupManagerNotUpgraded(
                 IPolygonZkEVMGlobalExitRootV2(globalExitRootManagerAddr),
                 IERC20Upgradeable(polTokenAddress),
                 IPolygonZkEVMBridge(bridgeAddr)
             );
-        address rollupManagerProxy = _proxify(address(rollupManagerImpl));
+        address rollupManagerProxy = _proxify(
+            address(rollupManager),
+            abi.encodeWithSelector(
+                rollupManager.initialize.selector,
+                trustedAggregator,
+                pendingStateTimeout,
+                trustedAggregatorTimeout,
+                admin,
+                timelockAdminAddress,
+                emergencyCouncilAddress,
+                bytes32(0),
+                bytes32(0),
+                0,
+                0
+            )
+        );
         vm.stopBroadcast();
 
         console.log("\n----------------------\n");
         console.log("Rollup Manager deployed!");
+        console.log(
+            "Rollup Manager implementation address: %s",
+            address(rollupManager)
+        );
         console.log("Rollup Manager Address: %s", rollupManagerProxy);
         return rollupManagerProxy;
+    }
+
+    function _verifyRollupManager(
+        address rolluplManagerAddr,
+        address bridgeProxyAddr
+    ) internal view {
+        PolygonRollupManagerNotUpgraded rollupManager = PolygonRollupManagerNotUpgraded(
+                rolluplManagerAddr
+            );
+        assert(
+            address(rollupManager.globalExitRootManager()) ==
+                computedGlobalExitRootManagerAddress
+        );
+        assert(address(rollupManager.bridgeAddress()) == bridgeProxyAddr);
+        assert(address(rollupManager.pol()) == polTokenAddress);
+
+        assert(rollupManager.hasRole(DEFAULT_ADMIN_ROLE, timelockAdminAddress));
+        assert(
+            rollupManager.hasRole(ADD_ROLLUP_TYPE_ROLE, timelockAdminAddress)
+        );
+        assert(
+            rollupManager.hasRole(
+                ADD_EXISTING_ROLLUP_ROLE,
+                timelockAdminAddress
+            )
+        );
+        assert(rollupManager.hasRole(UPDATE_ROLLUP_ROLE, timelockAdminAddress));
+        assert(rollupManager.hasRole(OBSOLETE_ROLLUP_TYPE_ROLE, admin));
+        assert(rollupManager.hasRole(CREATE_ROLLUP_ROLE, admin));
+        assert(rollupManager.hasRole(STOP_EMERGENCY_ROLE, admin));
+        assert(rollupManager.hasRole(TWEAK_PARAMETERS_ROLE, admin));
+        assert(
+            rollupManager.hasRole(TRUSTED_AGGREGATOR_ROLE, trustedAggregator)
+        );
+        assert(rollupManager.hasRole(TRUSTED_AGGREGATOR_ROLE_ADMIN, admin));
+        assert(rollupManager.hasRole(SET_FEE_ROLE, admin));
+        assert(
+            rollupManager.hasRole(
+                EMERGENCY_COUNCIL_ROLE,
+                emergencyCouncilAddress
+            )
+        );
+        assert(
+            rollupManager.hasRole(
+                EMERGENCY_COUNCIL_ADMIN,
+                emergencyCouncilAddress
+            )
+        );
     }
 
     function _computeDeployAddresses() internal {
@@ -313,11 +408,14 @@ contract DeployContracts is Script {
         );
     }
 
-    function _proxify(address logic) internal returns (address proxy) {
+    function _proxify(
+        address logic,
+        bytes memory data
+    ) internal returns (address proxy) {
         TransparentUpgradeableProxy proxy_ = new TransparentUpgradeableProxy(
             logic,
             msg.sender,
-            ""
+            data
         );
         return (address(proxy_));
     }
