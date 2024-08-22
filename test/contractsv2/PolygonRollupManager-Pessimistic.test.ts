@@ -166,6 +166,8 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             emergencyCouncil.address
         );
 
+        await expect(rollupManagerContract.initialize()).to.emit(rollupManagerContract, "UpdateRollupManagerVersion")
+
         // fund sequencer address with Matic tokens
         await polTokenContract.transfer(trustedSequencer.address, ethers.parseEther("1000"));
     });

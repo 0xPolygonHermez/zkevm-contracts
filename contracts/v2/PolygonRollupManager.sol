@@ -383,6 +383,11 @@ contract PolygonRollupManager is
     event SetBatchFee(uint256 newBatchFee);
 
     /**
+     * @dev Emitted when rollup manager is upgraded
+     */
+    event UpdateRollupManagerVersion(string rollupManagerVersion);
+
+    /**
      * @param _globalExitRootManager Global exit root manager address
      * @param _pol POL token address
      * @param _bridgeAddress Bridge address
@@ -398,6 +403,13 @@ contract PolygonRollupManager is
 
         // Disable initalizers on the implementation following the best practices
         _disableInitializers();
+    }
+
+    /**
+     * Initializer function to set new rollup manager version
+     */
+    function initialize() external virtual reinitializer(3) {
+        emit UpdateRollupManagerVersion("banana");
     }
 
     ///////////////////////////////////////
