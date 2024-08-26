@@ -110,5 +110,8 @@
     "upgradev2:timelock:mainnet": "npx hardhat run upgrade/upgradeToV2/upgradeToV2.ts --network mainnet && npm run saveUpgradeV2:mainnet",
     "verify:upgradeV2:mainnet": "npx hardhat run upgrade/upgradeToV2/verifyContracts.ts --network mainnet",
     "saveUpgradeV2:mainnet": "mkdir -p upgrade/upgradeToV2/mainnet_$(date +%s) && cp -r upgrade/upgradeToV2/upgrade_*.json upgrade/upgradeToV2/mainnet_$(date +%s) && cp -r upgrade/upgradeToV2/deploy_*.json upgrade/upgradeToV2/mainnet_$(date +%s) && cp .openzeppelin/mainnet.json upgrade/upgradeToV2/mainnet_$(date +%s)"
+  },
+  "dependencies": {
+    "nuport-contracts": "^1.0.1"
   }
 }
