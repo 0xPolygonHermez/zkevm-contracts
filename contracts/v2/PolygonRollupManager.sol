@@ -231,6 +231,8 @@ contract PolygonRollupManager is
     bytes32 internal constant _EMERGENCY_COUNCIL_ADMIN =
         keccak256("EMERGENCY_COUNCIL_ADMIN");
 
+    string internal constant _ROLLUP_MANAGER_VERSION_PESSIMISTIC = "pessimistic";
+
     // Global Exit Root address
     IPolygonZkEVMGlobalExitRootV2 public immutable globalExitRootManager;
 
@@ -409,7 +411,7 @@ contract PolygonRollupManager is
      * Initializer function to set new rollup manager version
      */
     function initialize() external virtual reinitializer(3) {
-        emit UpdateRollupManagerVersion("banana");
+        emit UpdateRollupManagerVersion(_ROLLUP_MANAGER_VERSION_PESSIMISTIC);
     }
 
     ///////////////////////////////////////
