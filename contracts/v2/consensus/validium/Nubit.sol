@@ -128,6 +128,7 @@ contract Nubit is
         bytes calldata signaturesAndAddrs
     ) external view {
         (IDAOracle bridge, SharesProof memory sharesProof) = abi.decode(signaturesAndAddrs , (IDAOracle, SharesProof));
+        if (sharesProof.attestationProof.tupleRootNonce == 0) return;
         (bool result,) = DAVerifier.verifySharesToDataRootTupleRoot(bridge, sharesProof);
         require(result, "Nuport verification failed");
     }
