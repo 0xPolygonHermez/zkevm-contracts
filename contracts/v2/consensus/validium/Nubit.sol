@@ -118,16 +118,12 @@ contract Nubit is
 
     /**
      * @notice Verifies that the given signedHash has been signed by requiredAmountOfSignatures committee members
-     * @param signedHash Hash that must have been signed by requiredAmountOfSignatures of committee members
-     * @param signaturesAndAddrs Byte array containing the signatures and all the addresses of the committee in ascending order
-     * [signature 0, ..., signature requiredAmountOfSignatures -1, address 0, ... address N]
-     * note that each ECDSA signatures are used, therefore each one must be 65 bytes
+     * @param proofData Byte array containing the encoded IDAOracle & SharesProof
      */
     function verifyMessage(
-        bytes32 signedHash,
-        bytes calldata signaturesAndAddrs
+        bytes32, bytes calldata proofData
     ) external view {
-        (IDAOracle bridge, SharesProof memory sharesProof) = abi.decode(signaturesAndAddrs , (IDAOracle, SharesProof));
+        (IDAOracle bridge, SharesProof memory sharesProof) = abi.decode(proofData , (IDAOracle, SharesProof));
         if (sharesProof.attestationProof.tupleRootNonce == 0) return;
         (bool result,) = DAVerifier.verifySharesToDataRootTupleRoot(bridge, sharesProof);
         require(result, "Nuport verification failed");
