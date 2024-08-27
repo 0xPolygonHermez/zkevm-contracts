@@ -43,7 +43,7 @@ const config: HardhatUserConfig = {
                         enabled: true,
                         runs: 999999,
                     },
-                    evmVersion: "shanghai",
+                    evmVersion: "paris",
                 },
             },
             {
@@ -80,9 +80,9 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 99,
                     },
-                    evmVersion: "shanghai",
+                    evmVersion: "paris",
                 }, // try yul optimizer
             },
             "contracts/v2/PolygonZkEVMBridgeV2.sol": {
@@ -90,20 +90,20 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 999,
+                        runs: 99,
                     },
-                    evmVersion: "shanghai",
+                    evmVersion: "paris",
                 },
             },
-            "contracts/v2/newDeployments/PolygonRollupManagerNotUpgraded.sol": {
+            "contracts/lib/TokenWrapped.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 9999, // must be the same as bridge, for testing porpuses
                     },
-                    evmVersion: "shanghai",
-                }, // try yul optimizer
+                    evmVersion: "paris",
+                },
             },
             "contracts/v2/mocks/PolygonRollupManagerMock.sol": {
                 version: "0.8.20",
@@ -112,7 +112,7 @@ const config: HardhatUserConfig = {
                         enabled: true,
                         runs: 10,
                     },
-                    evmVersion: "shanghai",
+                    evmVersion: "paris",
                 }, // try yul optimizer
             },
             // Should have the same optimizations than the RollupManager to verify
@@ -121,21 +121,20 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 10,
                     },
-                    evmVersion: "shanghai",
+                    evmVersion: "paris",
                 }, // try yul optimizer
             },
-            "contracts/v2/utils/ClaimCompressor.sol": {
+            "contracts/v2/newDeployments/PolygonRollupManagerNotUpgraded.sol": {
                 version: "0.8.20",
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 999999,
+                        runs: 10,
                     },
-                    evmVersion: "shanghai",
-                    //viaIR: true,
-                },
+                    evmVersion: "paris",
+                }, // try yul optimizer
             },
         },
     },
@@ -184,17 +183,6 @@ const config: HardhatUserConfig = {
                 count: 20,
             },
         },
-        sepolia: {
-            url: process.env.SEPOLIA_PROVIDER
-                ? process.env.SEPOLIA_PROVIDER
-                : `https://sepolia.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
-            accounts: {
-                mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
-                path: "m/44'/60'/0'/0",
-                initialIndex: 0,
-                count: 20,
-            },
-        },
         localhost: {
             url: "http://127.0.0.1:8545",
             accounts: {
@@ -206,7 +194,7 @@ const config: HardhatUserConfig = {
         },
         hardhat: {
             initialDate: "0",
-            allowUnlimitedContractSize: true,
+            //allowUnlimitedContractSize: true,
             initialBaseFeePerGas: 0,
             accounts: {
                 mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
@@ -216,7 +204,7 @@ const config: HardhatUserConfig = {
             },
         },
         polygonZKEVMTestnet: {
-            url: "https://rpc.cardona.zkevm-rpc.com",
+            url: "https://rpc.public.zkevm-test.net",
             accounts: {
                 mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
                 path: "m/44'/60'/0'/0",
@@ -226,15 +214,6 @@ const config: HardhatUserConfig = {
         },
         polygonZKEVMMainnet: {
             url: "https://zkevm-rpc.com",
-            accounts: {
-                mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
-                path: "m/44'/60'/0'/0",
-                initialIndex: 0,
-                count: 20,
-            },
-        },
-        zkevmDevnet: {
-            url: "http://123:123:123:123:123",
             accounts: {
                 mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
                 path: "m/44'/60'/0'/0",
@@ -253,9 +232,7 @@ const config: HardhatUserConfig = {
             polygonZKEVMTestnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
             polygonZKEVMMainnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
             goerli: `${process.env.ETHERSCAN_API_KEY}`,
-            sepolia: `${process.env.ETHERSCAN_API_KEY}`,
             mainnet: `${process.env.ETHERSCAN_API_KEY}`,
-            zkevmDevnet: `${process.env.ETHERSCAN_API_KEY}`,
         },
         customChains: [
             {
@@ -268,18 +245,10 @@ const config: HardhatUserConfig = {
             },
             {
                 network: "polygonZKEVMTestnet",
-                chainId: 2442,
+                chainId: 1442,
                 urls: {
-                    apiURL: "https://explorer-ui.cardona.zkevm-rpc.com/api",
-                    browserURL: "https://explorer-ui.cardona.zkevm-rpc.com",
-                },
-            },
-            {
-                network: "zkevmDevnet",
-                chainId: 123,
-                urls: {
-                    apiURL: "http://123:123:123:123:123/api",
-                    browserURL: "http://123:123:123:123:123",
+                    apiURL: "https://api-testnet-zkevm.polygonscan.com/api",
+                    browserURL: "https://testnet-zkevm.polygonscan.com/",
                 },
             },
         ],
