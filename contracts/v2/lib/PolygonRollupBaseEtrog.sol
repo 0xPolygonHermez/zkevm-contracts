@@ -354,7 +354,7 @@ abstract contract PolygonRollupBaseEtrog is
         );
 
         if (l1InfoRoot == bytes32(0)) {
-            revert L1InfoRootIndexInvalid();
+            revert L1InfoTreeLeafCountInvalid();
         }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times

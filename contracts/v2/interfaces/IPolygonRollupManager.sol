@@ -278,9 +278,9 @@ interface IPolygonRollupManager {
     error InvalidRollup();
 
     /**
-     * @dev Global exit root does not exists
+     * @dev Not valid L1 info tree leaf count
      */
-    error GlobalExitRootNotExist();
+    error L1InfoTreeLeafCountInvalid();
 
     /**
      * @dev Only State Transition Chains
@@ -378,7 +378,7 @@ interface IPolygonRollupManager {
 
     function verifyPessimisticTrustedAggregator(
         uint32 rollupID,
-        bytes32 selectedGlobalExitRoot,
+        uint32 l1InfoTreeLeafCount,
         bytes32 newLocalExitRoot,
         bytes32 newPessimisticRoot,
         bytes calldata proof

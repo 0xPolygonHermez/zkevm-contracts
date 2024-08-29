@@ -827,7 +827,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             );
 
         // select unexistent global exit root
-        const unexistentGER = "0xddff00000000000000000000000000000000000000000000000000000000ddff";
+        const unexistentL1InfoTreeCount = 2;
         const newLER = "0x0000000000000000000000000000000000000000000000000000000000000001";
         const newPPRoot = "0x0000000000000000000000000000000000000000000000000000000000000002";
         const proofPP = "0x00";
@@ -836,7 +836,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         await expect(
             rollupManagerContract.verifyPessimisticTrustedAggregator(
                 pessimisticRollupID,
-                unexistentGER,
+                unexistentL1InfoTreeCount,
                 newLER,
                 newPPRoot,
                 proofPP
@@ -847,10 +847,16 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyPessimisticTrustedAggregator(pessimisticRollupID, unexistentGER, newLER, newPPRoot, proofPP)
-        ).to.be.revertedWithCustomError(rollupManagerContract, "GlobalExitRootNotExist");
+                .verifyPessimisticTrustedAggregator(
+                    pessimisticRollupID,
+                    unexistentL1InfoTreeCount,
+                    newLER,
+                    newPPRoot,
+                    proofPP
+                )
+        ).to.be.revertedWithCustomError(rollupManagerContract, "L1InfoTreeLeafCountInvalid");
 
-        // create a bridge to generate a new GER
+        // create a bridge to generate a new GER and add another value in the l1IfoRootMap
         const tokenAddress = ethers.ZeroAddress;
         const amount = ethers.parseEther("1");
         await polygonZkEVMBridgeContract.bridgeAsset(
@@ -865,12 +871,14 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             }
         );
 
-        const existingGER = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
+        // get last L1InfoTreeLeafCount
+        const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
+        const lastL1InfoTreeRoot = await polygonZkEVMGlobalExitRoot.l1InfoRootMap(0);
 
         // check JS function computeInputPessimisticBytes
         const inputPessimisticBytes = await rollupManagerContract.getInputPessimisticBytes(
             pessimisticRollupID,
-            existingGER,
+            lastL1InfoTreeRoot,
             newLER,
             newPPRoot
         );
@@ -882,7 +890,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         const expectedInputPessimsiticBytes = computeInputPessimisticBytes(
             infoRollup[4],
             infoRollup[10],
-            existingGER,
+            lastL1InfoTreeRoot,
             pessimisticRollupID,
             consensusHash,
             newLER,
@@ -895,7 +903,13 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyPessimisticTrustedAggregator(pessimisticRollupID, existingGER, newLER, newPPRoot, proofPP)
+                .verifyPessimisticTrustedAggregator(
+                    pessimisticRollupID,
+                    lastL1InfoTreeLeafCount,
+                    newLER,
+                    newPPRoot,
+                    proofPP
+                )
         )
             .to.emit(rollupManagerContract, "VerifyBatchesTrustedAggregator")
             .withArgs(pessimisticRollupID, 0, ethers.ZeroHash, newLER, trustedAggregator.address);
@@ -1003,7 +1017,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
             );
 
         // try to verify
-        const unexistentGER = "0xddff00000000000000000000000000000000000000000000000000000000ddff";
+        const unexistentL1InfoTreeLeafcount = 2;
         const newLER = "0x0000000000000000000000000000000000000000000000000000000000000001";
         const newPPRoot = "0x0000000000000000000000000000000000000000000000000000000000000002";
         const proofPP = "0x00";
@@ -1011,7 +1025,13 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyPessimisticTrustedAggregator(stateTransistionRollupID, unexistentGER, newLER, newPPRoot, proofPP)
+                .verifyPessimisticTrustedAggregator(
+                    stateTransistionRollupID,
+                    unexistentL1InfoTreeLeafcount,
+                    newLER,
+                    newPPRoot,
+                    proofPP
+                )
         ).to.be.revertedWithCustomError(rollupManagerContract, "OnlyChainsWithPessimisticProofs");
     });
 });
