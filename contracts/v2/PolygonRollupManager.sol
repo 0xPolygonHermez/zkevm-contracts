@@ -231,6 +231,9 @@ contract PolygonRollupManager is
     bytes32 internal constant _EMERGENCY_COUNCIL_ADMIN =
         keccak256("EMERGENCY_COUNCIL_ADMIN");
 
+    // Current rollup manager version
+    string public constant ROLLUP_MANAGER_VERSION = "pessimistic";
+
     // Global Exit Root address
     IPolygonZkEVMGlobalExitRootV2 public immutable globalExitRootManager;
 
@@ -269,9 +272,6 @@ contract PolygonRollupManager is
 
     // Last timestamp when an aggregation happen
     uint64 public lastAggregationTimestamp;
-
-    // Current rollup manager version
-    string public constant ROLLUP_MANAGER_VERSION = "pessimistic";
 
     // Trusted aggregator timeout, if a sequence is not verified in this time frame,
     // everyone can verify that sequence
