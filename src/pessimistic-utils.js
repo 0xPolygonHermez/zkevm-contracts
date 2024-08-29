@@ -17,7 +17,7 @@ const ConsensusTypes = {
  * ) % FrSNARK
  * @param {String} lastLocalExitRoot - old LER
  * @param {String} lastPessimisticRoot - old pessimistic root. pessRoor = Poseidon(LBR # nullifierRoot)
- * @param {String} selectedGlobalExitRoot - selected GER
+ * @param {String} l1InfoTreeRoot - L1 info tree root
  * @param {Number} rollupID - rollup identifier (networkID = rollupID - 1)
  * @param {String} consensusHash - consensus hash. consensusHash = Sha(consensusType # consensusPayload)
  * @param {String} newLocalExitRoot - new LER
@@ -26,7 +26,7 @@ const ConsensusTypes = {
 function computeInputPessimisticBytes(
     lastLocalExitRoot,
     lastPessimisticRoot,
-    selectedGlobalExitRoot,
+    l1InfoTreeRoot,
     rollupID,
     consensusHash,
     newLocalExitRoot,
@@ -37,7 +37,7 @@ function computeInputPessimisticBytes(
         [
             lastLocalExitRoot,
             lastPessimisticRoot,
-            selectedGlobalExitRoot,
+            l1InfoTreeRoot,
             rollupID,
             consensusHash,
             newLocalExitRoot,
