@@ -112,6 +112,6 @@
     "saveUpgradeV2:mainnet": "mkdir -p upgrade/upgradeToV2/mainnet_$(date +%s) && cp -r upgrade/upgradeToV2/upgrade_*.json upgrade/upgradeToV2/mainnet_$(date +%s) && cp -r upgrade/upgradeToV2/deploy_*.json upgrade/upgradeToV2/mainnet_$(date +%s) && cp .openzeppelin/mainnet.json upgrade/upgradeToV2/mainnet_$(date +%s)"
   },
   "dependencies": {
-    "nuport-contracts": "^1.0.3"
+    "nuport-contracts": "^1.0.4"
   }
 }
