@@ -3044,12 +3044,17 @@ describe("Polygon Rollup Manager", () => {
 
         // Create zkEVM implementation
         const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMExistentEtrog");
-        const PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
-            polygonZkEVMGlobalExitRoot.target,
-            polTokenContract.target,
-            polygonZkEVMBridgeContract.target,
-            rollupManagerContract.target
-        );
+        const PolygonZKEVMV2Contract = await upgrades.deployProxy(PolygonZKEVMV2Factory, [], {
+            initializer: false,
+            constructorArgs: [
+                polygonZkEVMGlobalExitRoot.target,
+                polTokenContract.target,
+                polygonZkEVMBridgeContract.target,
+                rollupManagerContract.target,
+            ],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        });
+
         await PolygonZKEVMV2Contract.waitForDeployment();
 
         // Add a new rollup type with timelock
