@@ -55,7 +55,7 @@ interface IPolygonZkEVMEtrogErrors is IPolygonZkEVMErrors {
     error MaxTimestampSequenceInvalid();
 
     /**
-     * @dev Thrown when l1 info root does not exist
+     * @dev Thrown when l1 info tree leafCount does not exist
      */
     error L1InfoTreeLeafCountInvalid();
 
