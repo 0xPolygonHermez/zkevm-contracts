@@ -29,7 +29,7 @@ function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
     return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [mainnetExitRoot, rollupExitRoot]);
 }
 
-describe("PolygonZkEVMEtrog", () => {
+describe("PolygonValidiumEtrog", () => {
     let deployer: any;
     let timelock: any;
     let emergencyCouncil: any;
@@ -166,12 +166,17 @@ describe("PolygonZkEVMEtrog", () => {
         // deploy consensus
         // Create zkEVM implementation
         const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonValidiumEtrog");
-        PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
-            polygonZkEVMGlobalExitRoot.target,
-            polTokenContract.target,
-            polygonZkEVMBridgeContract.target,
-            rollupManagerContract.target
-        );
+        PolygonZKEVMV2Contract = await upgrades.deployProxy(PolygonZKEVMV2Factory, [], {
+            initializer: false,
+            constructorArgs: [
+                polygonZkEVMGlobalExitRoot.target,
+                polTokenContract.target,
+                polygonZkEVMBridgeContract.target,
+                rollupManagerContract.target,
+            ],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        });
+
         await PolygonZKEVMV2Contract.waitForDeployment();
 
         // Create CdkCommitee
