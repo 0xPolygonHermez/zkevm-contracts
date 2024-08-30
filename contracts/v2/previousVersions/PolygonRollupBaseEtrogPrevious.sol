@@ -283,6 +283,9 @@ abstract contract PolygonRollupBaseEtrogPrevious is
         pol = _pol;
         bridgeAddress = _bridgeAddress;
         rollupManager = _rollupManager;
+
+        // Disable initalizers on the implementation following the best practices
+        _disableInitializers();
     }
 
     /**
