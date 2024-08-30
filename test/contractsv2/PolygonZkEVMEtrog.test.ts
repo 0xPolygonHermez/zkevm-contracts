@@ -163,12 +163,17 @@ describe("PolygonZkEVMEtrog", () => {
         // deploy consensus
         // Create zkEVM implementation
         const PolygonZKEVMV2Factory = await ethers.getContractFactory("PolygonZkEVMEtrog");
-        PolygonZKEVMV2Contract = await PolygonZKEVMV2Factory.deploy(
-            polygonZkEVMGlobalExitRoot.target,
-            polTokenContract.target,
-            polygonZkEVMBridgeContract.target,
-            rollupManagerContract.target
-        );
+        PolygonZKEVMV2Contract = await upgrades.deployProxy(PolygonZKEVMV2Factory, [], {
+            initializer: false,
+            constructorArgs: [
+                polygonZkEVMGlobalExitRoot.target,
+                polTokenContract.target,
+                polygonZkEVMBridgeContract.target,
+                rollupManagerContract.target,
+            ],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        });
+
         await PolygonZKEVMV2Contract.waitForDeployment();
     });
 
@@ -490,7 +495,7 @@ describe("PolygonZkEVMEtrog", () => {
                 expectedAccInputHash,
                 trustedSequencer.address
             )
-        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "L1InfoRootIndexInvalid");
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "L1InfoTreeLeafCountInvalid");
 
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(

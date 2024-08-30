@@ -31,12 +31,12 @@ describe("PolygonPessimisticConsensus", () => {
         // deploy consensus
         // create polygonPessimisticConsensus implementation
         const ppConsensusFactory = await ethers.getContractFactory("PolygonPessimisticConsensus");
-        PolygonPPConsensusContract = await ppConsensusFactory.deploy(
-            gerManagerAddress,
-            polTokenAddress,
-            bridgeAddress,
-            rollupManagerAddress
-        );
+        PolygonPPConsensusContract = await upgrades.deployProxy(ppConsensusFactory, [], {
+            initializer: false,
+            constructorArgs: [gerManagerAddress, polTokenAddress, bridgeAddress, rollupManagerAddress],
+            unsafeAllow: ["constructor", "state-variable-immutable"],
+        });
+
         await PolygonPPConsensusContract.waitForDeployment();
     });
 

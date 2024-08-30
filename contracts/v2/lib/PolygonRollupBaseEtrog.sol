@@ -3,9 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../../interfaces/IPolygonZkEVMErrors.sol";
-import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
+import "../interfaces/IPolygonZkEVMEtrogErrors.sol";
 import "../PolygonRollupManager.sol";
 import "../interfaces/IPolygonRollupBase.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
@@ -354,7 +353,7 @@ abstract contract PolygonRollupBaseEtrog is
         );
 
         if (l1InfoRoot == bytes32(0)) {
-            revert L1InfoRootIndexInvalid();
+            revert L1InfoTreeLeafCountInvalid();
         }
 
         // Store storage variables in memory, to save gas, because will be overrided multiple times

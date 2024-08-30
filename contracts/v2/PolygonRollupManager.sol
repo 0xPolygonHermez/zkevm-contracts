@@ -866,6 +866,10 @@ contract PolygonRollupManager is
 
         RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
+        if (rollup.rollupVerifierType != VerifierType.StateTransition) {
+            revert OnlyStateTransitionChains();
+        }
+
         // Update total sequence parameters
         totalSequencedBatches += newSequencedBatches;
 
@@ -1033,14 +1037,14 @@ contract PolygonRollupManager is
     /**
      * @notice Allows a trusted aggregator to verify pessimistic proof
      * @param rollupID Rollup identifier
-     * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
+     * @param l1InfoTreeLeafCount Count of the L1InfoTree leaf that will be used to verify imported bridge exits
      * @param newLocalExitRoot New local exit root
      * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
      * @param proof SP1 proof (Plonk)
      */
     function verifyPessimisticTrustedAggregator(
         uint32 rollupID,
-        bytes32 selectedGlobalExitRoot,
+        uint32 l1InfoTreeLeafCount,
         bytes32 newLocalExitRoot,
         bytes32 newPessimisticRoot,
         bytes calldata proof
@@ -1052,17 +1056,19 @@ contract PolygonRollupManager is
             revert OnlyChainsWithPessimisticProofs();
         }
 
-        // Check selected global exit root exist
-        if (
-            globalExitRootManager.globalExitRootMap(selectedGlobalExitRoot) == 0
-        ) {
-            revert GlobalExitRootNotExist();
+        // Check l1InfoTreeLeafCount has a valid l1InfoTreeRoot
+        bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
+            l1InfoTreeLeafCount
+        );
+
+        if (l1InfoRoot == bytes32(0)) {
+            revert L1InfoTreeLeafCountInvalid();
         }
 
         bytes memory inputPessimisticBytes = _getInputPessimisticBytes(
             rollupID,
             rollup,
-            selectedGlobalExitRoot,
+            l1InfoRoot,
             newLocalExitRoot,
             newPessimisticRoot
         );
@@ -1292,13 +1298,13 @@ contract PolygonRollupManager is
     /**
      * @notice Function to calculate the pessimistic input bytes
      * @param rollupID Rollup id used to calculate the input snark bytes
-     * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
+     * @param l1InfoTreeRoot L1 Info tree root to proof imported bridges
      * @param newLocalExitRoot New local exit root
      * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
      */
     function getInputPessimisticBytes(
         uint32 rollupID,
-        bytes32 selectedGlobalExitRoot,
+        bytes32 l1InfoTreeRoot,
         bytes32 newLocalExitRoot,
         bytes32 newPessimisticRoot
     ) public view returns (bytes memory) {
@@ -1306,7 +1312,7 @@ contract PolygonRollupManager is
             _getInputPessimisticBytes(
                 rollupID,
                 _rollupIDToRollupData[rollupID],
-                selectedGlobalExitRoot,
+                l1InfoTreeRoot,
                 newLocalExitRoot,
                 newPessimisticRoot
             );
@@ -1316,14 +1322,14 @@ contract PolygonRollupManager is
      * @notice Function to calculate the input snark bytes
      * @param rollupID Rollup identifier
      * @param rollup Rollup data storage pointer
-     * @param selectedGlobalExitRoot Selected global exit root to proof imported bridges
+     * @param l1InfoTreeRoot L1 Info tree root to proof imported bridges
      * @param newLocalExitRoot New local exit root
      * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
      */
     function _getInputPessimisticBytes(
         uint32 rollupID,
         RollupData storage rollup,
-        bytes32 selectedGlobalExitRoot,
+        bytes32 l1InfoTreeRoot,
         bytes32 newLocalExitRoot,
         bytes32 newPessimisticRoot
     ) internal view returns (bytes memory) {
@@ -1336,7 +1342,7 @@ contract PolygonRollupManager is
             abi.encodePacked(
                 rollup.lastLocalExitRoot,
                 rollup.lastPessimisticRoot,
-                selectedGlobalExitRoot,
+                l1InfoTreeRoot,
                 rollupID,
                 consensusHash,
                 newLocalExitRoot,
