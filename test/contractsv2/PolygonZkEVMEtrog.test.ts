@@ -490,7 +490,7 @@ describe("PolygonZkEVMEtrog", () => {
                 expectedAccInputHash,
                 trustedSequencer.address
             )
-        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "L1InfoRootIndexInvalid");
+        ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "L1InfoTreeLeafCountInvalid");
 
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
