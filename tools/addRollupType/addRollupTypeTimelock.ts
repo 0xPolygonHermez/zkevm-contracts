@@ -27,7 +27,6 @@ async function main() {
         "description",
         "forkID",
         "consensusContract",
-        "polTokenAddress",
         "verifierAddress",
         "rollupCompatibilityID",
         "timelockDelay",
