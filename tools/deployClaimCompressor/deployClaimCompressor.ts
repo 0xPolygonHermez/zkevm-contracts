@@ -69,7 +69,7 @@ async function main() {
     await ClaimCompressorContract.waitForDeployment();
 
     console.log("#######################\n");
-    console.log("Verifier deployed to:", ClaimCompressorContract.target);
+    console.log("Claim Compressor deployed to:", ClaimCompressorContract.target);
     console.log("#######################\n");
 
     console.log("you can verify the contract address with:");
