@@ -1079,7 +1079,6 @@ contract PolygonRollupManager is
             inputPessimisticBytes,
             proof
         );
-
         // TODO: Since there are no batches we could have either:
         // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
         // dependency with the trusted aggregator ( or pessimistic aggregator)
