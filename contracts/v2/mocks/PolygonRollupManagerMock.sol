@@ -84,4 +84,14 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
     ) public pure returns (bool) {
         return _checkStateRootInsidePrime(newStateRoot);
     }
+
+    function setRollupData(
+        uint32 rollupID,
+        bytes32 lastLocalExitRoot,
+        bytes32 lastPessimisticRoot
+    ) external {
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
+        rollup.lastLocalExitRoot = lastLocalExitRoot;
+        rollup.lastPessimisticRoot = lastPessimisticRoot;
+    }
 }
