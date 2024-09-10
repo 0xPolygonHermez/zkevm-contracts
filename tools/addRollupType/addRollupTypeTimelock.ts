@@ -134,8 +134,6 @@ async function main() {
     }
 
     if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress.toLowerCase()) {
-        console.log(polygonZkEVMBridgeAddress, genesisBridgeAddress);
-
         throw new Error(
             `'PolygonZkEVMBridge proxy' root in the 'genesis.json' does not match 'bridgeAddress' in the 'PolygonRollupManager'`
         );
