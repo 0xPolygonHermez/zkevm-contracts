@@ -61,7 +61,7 @@ async function main() {
     /*
      * Deployment Verifier
      */
-    const verifierName = `FflonkVerifier`;
+    const verifierName = `FflonkVerifier_${deployParameters.forkID}`;
     let verifierContract;
     if (deployParameters.realVerifier === true) {
         const VerifierRollup = await ethers.getContractFactory(verifierName, deployer);
