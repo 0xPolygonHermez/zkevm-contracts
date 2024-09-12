@@ -1,5 +1,8 @@
+/* eslint-disable no-undef */
 /* eslint-disable no-console */
-const { MTBridge, mtBridgeUtils } = require('@0xpolygonhermez/zkevm-commonjs');
+const {
+    MemDB, ZkEVMDB, getPoseidon, smtUtils, MTBridge, mtBridgeUtils,
+} = require('@0xpolygonhermez/zkevm-commonjs');
 
 const { verifyMerkleProof } = mtBridgeUtils;
 
@@ -43,6 +46,54 @@ function makeTreeAndVerifyProof(height, encodedLeaves, index, root) {
     return verifyMerkleProof(leaves[index], proof, index, root);
 }
 
+async function calculateRoot(genesisJson) {
+    const parsedGenesis = JSON.parse(genesisJson);
+
+    const genesis = [];
+    // eslint-disable-next-line no-restricted-syntax
+    for (entry of parsedGenesis.genesis) {
+        if (entry.contractName !== null) {
+            genesis.push({
+                contractName: entry.contractName,
+                balance: BigInt(entry.balance),
+                nonce: BigInt(entry.nonce),
+                address: entry.address,
+                bytecode: entry.bytecode,
+                storage: entry.storage,
+            });
+        } else if (entry.accountName !== null) {
+            genesis.push({
+                accountName: entry.accountName,
+                balance: BigInt(entry.balance),
+                nonce: BigInt(entry.nonce),
+                address: entry.address,
+            });
+        }
+    }
+
+    const poseidon = await getPoseidon();
+    const { F } = poseidon;
+    const db = new MemDB(F);
+    const genesisRoot = [F.zero, F.zero, F.zero, F.zero];
+    const accHashInput = [F.zero, F.zero, F.zero, F.zero];
+    const defaultChainId = 1000;
+
+    const zkEVMDB = await ZkEVMDB.newZkEVM(
+        db,
+        poseidon,
+        genesisRoot,
+        accHashInput,
+        genesis,
+        null,
+        null,
+        defaultChainId,
+    );
+
+    const root = smtUtils.h4toString(zkEVMDB.stateRoot);
+    console.log(root);
+    return root;
+}
+
 function main(args) {
     const [command, ...rest] = args;
     switch (command) {
@@ -52,6 +103,8 @@ function main(args) {
         return makeTreeAndGetProofByIndex(...rest);
     case 'makeTreeAndVerifyProof':
         return makeTreeAndVerifyProof(...rest);
+    case 'calculateRoot':
+        return calculateRoot(...rest);
     default:
         throw new Error('Usage: zkevm-commonjs-wrapper.js <command> <args>');
     }

@@ -1,0 +1,12 @@
+{
+    "PolygonZkEVMDeployer": "0x68276c6b151e998ed7997035601c0b56a9629743",
+    "ProxyAdmin": "0x32E260DFae00383Ef927F2e56372F38F441DE3E4",
+    "PolygonZkEVMBridgeImplementation": "0x851a6a502CF89a03beEAE8B352457b69eaB0216e",
+    "PolygonZkEVMBridgeProxy": "0x50d3F98bbaCC7d1AcB9266e679B4005524Be0746",
+    "PolygonZkEVMGlobalExitRootL2Implementation": "0xE73A9D8EAc49a8B20B920122e9230fC81FB1d4b2",
+    "PolygonZkEVMGlobalExitRootL2Proxy": "0x6738ae51fd2124651c7eb4446ea9141E45A32F00",
+    "PolygonZkEVMTimelock": "0xe0b4438C77e8E71C142703B088A57d369AeEA136",
+    "Deployer": "0x9Ab254be10F6Df45E5c58Ba2cE6CB3c9a1aff954",
+    "timelockAdminAddress": "0x9Ab254be10F6Df45E5c58Ba2cE6CB3c9a1aff954",
+    "isTest": true
+}
