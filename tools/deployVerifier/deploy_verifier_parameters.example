@@ -1,5 +1,6 @@
 {
     "realVerifier": true,
+    "forkID": 12,
     "deployerPvtKey": "",
     "maxFeePerGas":"",
     "maxPriorityFeePerGas":"",

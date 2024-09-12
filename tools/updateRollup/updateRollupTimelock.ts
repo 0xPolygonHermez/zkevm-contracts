@@ -6,14 +6,12 @@ import fs = require("fs");
 
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../.env")});
-import {ethers, upgrades} from "hardhat";
+import {ethers, network} from "hardhat";
 
-const addRollupParameters = require("./add_rollup_type.json");
-const genesis = require("./genesis.json");
+const addRollupParameters = require("./updateRollup.json");
 
 const dateStr = new Date().toISOString();
-const pathOutputJson = path.join(__dirname, `./add_rollup_type_output-${dateStr}.json`);
-import {PolygonRollupManager} from "../../typechain-types";
+const pathOutputJson = path.join(__dirname, `./updateRollupOutput-${dateStr}.json`);
 import "../../deployment/helpers/utils";
 
 async function main() {
@@ -24,14 +22,11 @@ async function main() {
      * Check that every necessary parameter is fullfilled
      */
     const mandatoryDeploymentParameters = [
-        "description",
-        "forkID",
-        "consensusContract",
-        "polTokenAddress",
-        "verifierAddress",
-        "rollupCompatibilityID",
+        "rollupAddress",
+        "newRollupTypeID",
+        "upgradeData",
+        "polygonRollupManagerAddress",
         "timelockDelay",
-        "genesisRoot",
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -40,25 +35,10 @@ async function main() {
         }
     }
 
-    const {
-        description,
-        rollupCompatibilityID,
-        forkID,
-        consensusContract,
-        polygonRollupManagerAddress,
-        verifierAddress,
-        timelockDelay,
-        genesisRoot,
-    } = addRollupParameters;
+    const {rollupAddress, newRollupTypeID, upgradeData, polygonRollupManagerAddress, timelockDelay} =
+        addRollupParameters;
 
     const salt = addRollupParameters.timelockSalt || ethers.ZeroHash;
-    const predecessor = addRollupParameters.predecessor || ethers.ZeroHash;
-
-    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog", "PolygonValidiumStorageMigration"];
-
-    if (!supportedConensus.includes(consensusContract)) {
-        throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
-    }
 
     // Load provider
     let currentProvider = ethers.provider;
@@ -108,88 +88,21 @@ async function main() {
 
     console.log("Using with: ", deployer.address);
 
-    // Load Rollup manager
-    const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager", deployer);
-    const rollupManagerContract = PolgonRollupManagerFactory.attach(
-        polygonRollupManagerAddress
-    ) as PolygonRollupManager;
-
-    // get data from rollupManagerContract
-    const polygonZkEVMBridgeAddress = await rollupManagerContract.bridgeAddress();
-    const polygonZkEVMGlobalExitRootAddress = await rollupManagerContract.globalExitRootManager();
-    const polTokenAddress = await rollupManagerContract.pol();
-
-    // Sanity checks genesisRoot
-    if (genesisRoot !== genesis.root) {
-        throw new Error(`Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`);
-    }
-
-    // get bridge address in genesis file
-    let genesisBridgeAddress = ethers.ZeroAddress;
-    for (let i = 0; i < genesis.genesis.length; i++) {
-        if (genesis.genesis[i].contractName === "PolygonZkEVMBridge proxy") {
-            genesisBridgeAddress = genesis.genesis[i].address;
-            break;
-        }
-    }
-
-    if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress.toLowerCase()) {
-        throw new Error(
-            `'PolygonZkEVMBridge proxy' root in the 'genesis.json' does not match 'bridgeAddress' in the 'PolygonRollupManager'`
-        );
-    }
-
-    // Create consensus implementation
-    const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
-    let PolygonconsensusContract;
-    let PolygonconsensusContractAddress;
-
-    if (
-        addRollupParameters.polygonconsensusContract === undefined ||
-        addRollupParameters.polygonconsensusContract === ""
-    ) {
-        PolygonconsensusContract = await PolygonconsensusFactory.deploy(
-            polygonZkEVMGlobalExitRootAddress,
-            polTokenAddress,
-            polygonZkEVMBridgeAddress,
-            polygonRollupManagerAddress
-        );
-        await PolygonconsensusContract.waitForDeployment();
-
-        PolygonconsensusContractAddress = PolygonconsensusContract.target;
-
-        console.log("#######################\n");
-        console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContractAddress}`);
-
-        console.log("you can verify the new impl address with:");
-        console.log(
-            `npx hardhat verify --constructor-args upgrade/arguments.js ${PolygonconsensusContractAddress} --network ${process.env.HARDHAT_NETWORK}\n`
-        );
-        console.log("Copy the following constructor arguments on: upgrade/arguments.js \n", [
-            polygonZkEVMGlobalExitRootAddress,
-            polTokenAddress,
-            polygonZkEVMBridgeAddress,
-            polygonRollupManagerAddress,
-        ]);
-    } else {
-        PolygonconsensusContractAddress = addRollupParameters.polygonconsensusContract;
-    }
-
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
+
+    // Load Rollup manager
+    const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager", deployer);
 
     const operation = genOperation(
         polygonRollupManagerAddress,
         0, // value
-        PolgonRollupManagerFactory.interface.encodeFunctionData("addNewRollupType", [
-            PolygonconsensusContractAddress,
-            verifierAddress,
-            forkID,
-            rollupCompatibilityID,
-            genesis.root,
-            description,
+        PolgonRollupManagerFactory.interface.encodeFunctionData("updateRollup", [
+            rollupAddress,
+            newRollupTypeID,
+            upgradeData,
         ]),
-        predecessor, // predecessor
+        ethers.ZeroHash, // predecesoor
         salt // salt
     );
 
@@ -214,12 +127,9 @@ async function main() {
     console.log({scheduleData});
     console.log({executeData});
 
-    outputJson.genesis = genesis.root;
-    outputJson.verifierAddress = verifierAddress;
-    outputJson.consensusContract = consensusContract;
+    outputJson.networkName = network.name;
     outputJson.scheduleData = scheduleData;
     outputJson.executeData = executeData;
-    outputJson.id = operation.id;
 
     // Decode the scheduleData for better readibility
     const timelockTx = timelockContractFactory.interface.parseTransaction({data: scheduleData});
@@ -247,8 +157,6 @@ async function main() {
     }
 
     outputJson.decodedScheduleData = objectDecoded;
-
-    // Decode the schedule data to better readibiltiy:
 
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
