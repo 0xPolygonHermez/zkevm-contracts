@@ -14,11 +14,11 @@ const IGNORED_CONTRACTS = [
 task("compile", "Compiles the entire project, building all artifacts and build ignored contracts.").setAction(
     async (args, hre, runSuper) => {
         // Rename the ignored contracts to the original file name to allow compilation
-        var renamedFiles: string[] = [];
+        const renamedFiles: string[] = [];
         IGNORED_CONTRACTS.forEach((contract) => {
-            var sourceFilePath = path.join(contract);
-            var renamedContract = contract.replace(".ignored", "");
-            var destinationFilePath = path.join(renamedContract);
+            const sourceFilePath = path.join(contract);
+            const renamedContract = contract.replace(".ignored", "");
+            const destinationFilePath = path.join(renamedContract);
             renamedFiles.push(destinationFilePath);
             renameFile(sourceFilePath, destinationFilePath);
         });
@@ -31,7 +31,7 @@ task("compile", "Compiles the entire project, building all artifacts and build i
         // Revert the renaming of the ignored contracts
         // Note: Check the artifacts folder to see if the ignored contracts are compiled
         renamedFiles.forEach((file) => {
-            var originalFilePath = file + ".ignored";
+            const originalFilePath = file + ".ignored";
             renameFile(file, originalFilePath);
         });
     }
