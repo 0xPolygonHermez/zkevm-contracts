@@ -83,11 +83,13 @@ contract DeployContracts is Script {
 
         address globalExitRootManager = _deployGlobalExitRootManager(
             computedRollupManagerAddress,
-            bridgeProxy
+            bridgeProxy,
+            proxyAdminAddr
         );
         address rolluplManagerAddr = _deployRollupManager(
             globalExitRootManager,
-            bridgeProxy
+            bridgeProxy,
+            proxyAdminAddr
         );
         _verifyRollupManager(rolluplManagerAddr, bridgeProxy);
     }
@@ -279,7 +281,8 @@ contract DeployContracts is Script {
 
     function _deployGlobalExitRootManager(
         address rollupManagerAddr,
-        address bridgeAddr
+        address bridgeAddr,
+        address proxyAdminAddr
     ) internal returns (address) {
         vm.startBroadcast(deployerPvtKey);
         PolygonZkEVMGlobalExitRootV2 globalExitRootManager = new PolygonZkEVMGlobalExitRootV2(
@@ -288,6 +291,7 @@ contract DeployContracts is Script {
             );
         address globalExitRootManagerProxy = _proxify(
             address(globalExitRootManager),
+            proxyAdminAddr,
             ""
         );
         vm.stopBroadcast();
@@ -307,7 +311,8 @@ contract DeployContracts is Script {
 
     function _deployRollupManager(
         address globalExitRootManagerAddr,
-        address bridgeAddr
+        address bridgeAddr,
+        address proxyAdminAddr
     ) internal returns (address) {
         vm.startBroadcast(deployerPvtKey);
         PolygonRollupManagerNotUpgraded rollupManager = new PolygonRollupManagerNotUpgraded(
@@ -317,6 +322,7 @@ contract DeployContracts is Script {
             );
         address rollupManagerProxy = _proxify(
             address(rollupManager),
+            proxyAdminAddr,
             abi.encodeWithSelector(
                 rollupManager.initialize.selector,
                 trustedAggregator,
@@ -410,11 +416,12 @@ contract DeployContracts is Script {
 
     function _proxify(
         address logic,
+        address admin,
         bytes memory data
     ) internal returns (address proxy) {
         TransparentUpgradeableProxy proxy_ = new TransparentUpgradeableProxy(
             logic,
-            msg.sender,
+            admin,
             data
         );
         return (address(proxy_));
