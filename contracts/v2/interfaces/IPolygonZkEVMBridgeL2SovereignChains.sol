@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 
-interface IPolygonZkEVMBridgeV2 {
+interface IPolygonZkEVMBridgeL2SovereignChains {
     /**
      * @dev Thrown when the destination network is invalid
      */
@@ -168,7 +168,8 @@ interface IPolygonZkEVMBridgeV2 {
         uint32 _gasTokenNetwork,
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager,
-        bytes memory _gasTokenMetadata
+        bytes memory _gasTokenMetadata,
+        address _bridgeManager
     ) external;
 
     function getTokenMetadata(

@@ -8,6 +8,11 @@ interface IBasePolygonZkEVMGlobalExitRoot {
      */
     error OnlyAllowedContracts();
 
+    /**
+     * @dev Thrown when the caller is not the trusted sequencer
+     */
+    error OnlyTrustedSequencer();
+
     function updateExitRoot(bytes32 newRollupExitRoot) external;
 
     function globalExitRootMap(
