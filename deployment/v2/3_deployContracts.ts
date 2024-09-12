@@ -429,7 +429,7 @@ async function main() {
                         0, // unused parameter
                     ],
                     {
-                        initializer: "initialize",
+                        initializer: "initialize(address,uint64,uint64,address,address,address,address,address,uint64,uint64)",
                         constructorArgs: [
                             polygonZkEVMGlobalExitRoot?.target,
                             polTokenAddress,
