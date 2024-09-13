@@ -416,12 +416,12 @@ contract DeployContracts is Script {
 
     function _proxify(
         address logic,
-        address admin,
+        address adminAddr,
         bytes memory data
     ) internal returns (address proxy) {
         TransparentUpgradeableProxy proxy_ = new TransparentUpgradeableProxy(
             logic,
-            admin,
+            adminAddr,
             data
         );
         return (address(proxy_));
