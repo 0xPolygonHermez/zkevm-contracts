@@ -15,7 +15,7 @@ jobs:
       fail-fast: true
 
     name: Foundry project
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,10 +26,13 @@ jobs:
         with:
           version: nightly
 
+      - name: Install NPM dependencies
+        run: npm ci
+
       - name: Run Forge build
         run: |
           forge --version
-          forge build --sizes
+          forge build
         id: build
 
       - name: Run Forge tests
