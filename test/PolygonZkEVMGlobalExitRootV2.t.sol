@@ -23,8 +23,14 @@ contract PolygonZkEVMGlobalExitRootV2Test is
 
     event UpdateL1InfoTree(
         bytes32 indexed mainnetExitRoot,
-        bytes32 indexed rollupExitRoot,
-        bytes32 currentL1InfoRoot
+        bytes32 indexed rollupExitRoot
+    );
+
+    event UpdateL1InfoTreeV2(
+        bytes32 currentL1InfoRoot,
+        uint32 indexed leafCount,
+        uint256 blockhash,
+        uint64 minTimestamp
     );
 
     function setUp() public {
@@ -67,14 +73,28 @@ contract PolygonZkEVMGlobalExitRootV2Test is
         vm.prank(polygonZkEVMBridge);
         polygonZkEVMGlobalExitRootV2.updateExitRoot(newRootBridge);
         bytes32 currentL1InfoRoot = polygonZkEVMGlobalExitRootV2.getRoot();
+        uint256 leafCount = polygonZkEVMGlobalExitRootV2.depositCount();
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        assertEq(entries.length, 1);
+        assertEq(entries.length, 2);
+
         assertEq(entries[0].topics.length, 3);
         assertEq(entries[0].topics[0], UpdateL1InfoTree.selector);
         assertEq(entries[0].topics[1], newRootBridge);
         assertEq(entries[0].topics[2], bytes32(0));
-        assertEq(abi.decode(entries[0].data, (bytes32)), currentL1InfoRoot);
+
+        assertEq(entries[1].topics.length, 2);
+        assertEq(entries[1].topics[0], UpdateL1InfoTreeV2.selector);
+        assertEq(entries[1].topics[1], bytes32(leafCount));
+        (
+            bytes32 eventCurrentL1InfoRoot,
+            uint256 eventBlockhash,
+            uint64 eventminTimestamp
+        ) = abi.decode(entries[1].data, (bytes32, uint256, uint64));
+        assertEq(eventCurrentL1InfoRoot, currentL1InfoRoot);
+        assertEq(eventBlockhash, uint256(blockhash(block.number - 1)));
+        assertEq(eventminTimestamp, uint64(block.timestamp));
+
         assertEq(
             polygonZkEVMGlobalExitRootV2.lastMainnetExitRoot(),
             newRootBridge
@@ -99,14 +119,27 @@ contract PolygonZkEVMGlobalExitRootV2Test is
         vm.prank(rollupManager);
         polygonZkEVMGlobalExitRootV2.updateExitRoot(newRootRollup);
         bytes32 currentL1InfoRoot = polygonZkEVMGlobalExitRootV2.getRoot();
+        uint256 leafCount = polygonZkEVMGlobalExitRootV2.depositCount();
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        assertEq(entries.length, 1);
+        assertEq(entries.length, 2);
         assertEq(entries[0].topics.length, 3);
         assertEq(entries[0].topics[0], UpdateL1InfoTree.selector);
         assertEq(entries[0].topics[1], bytes32(0));
         assertEq(entries[0].topics[2], newRootRollup);
-        assertEq(abi.decode(entries[0].data, (bytes32)), currentL1InfoRoot);
+
+        assertEq(entries[1].topics.length, 2);
+        assertEq(entries[1].topics[0], UpdateL1InfoTreeV2.selector);
+        assertEq(entries[1].topics[1], bytes32(leafCount));
+        (
+            bytes32 eventCurrentL1InfoRoot,
+            uint256 eventBlockhash,
+            uint64 eventminTimestamp
+        ) = abi.decode(entries[1].data, (bytes32, uint256, uint64));
+        assertEq(eventCurrentL1InfoRoot, currentL1InfoRoot);
+        assertEq(eventBlockhash, uint256(blockhash(block.number - 1)));
+        assertEq(eventminTimestamp, uint64(block.timestamp));
+        
         assertEq(
             polygonZkEVMGlobalExitRootV2.lastMainnetExitRoot(),
             bytes32(0)

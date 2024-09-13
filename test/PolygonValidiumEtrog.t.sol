@@ -493,7 +493,7 @@ contract PolygonValidiumEtrogTest is
 
         vm.prank(trustedSequencer);
         vm.expectRevert(
-            IPolygonZkEVMVEtrogErrors.L1InfoRootIndexInvalid.selector
+            IPolygonZkEVMVEtrogErrors.L1InfoTreeLeafCountInvalid.selector
         );
         polygonValidiumEtrog.sequenceBatches(
             batchData,
@@ -1057,7 +1057,7 @@ contract PolygonValidiumEtrogTest is
 
         vm.prank(trustedSequencer);
         vm.expectRevert(
-            IPolygonZkEVMVEtrogErrors.L1InfoRootIndexInvalid.selector
+            IPolygonZkEVMVEtrogErrors.L1InfoTreeLeafCountInvalid.selector
         );
         polygonValidiumEtrog.sequenceBatchesValidium(
             batchData,

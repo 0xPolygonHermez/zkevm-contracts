@@ -417,7 +417,7 @@ contract PolygonZkEVMEtrogTest is
 
         vm.prank(trustedSequencer);
         vm.expectRevert(
-            IPolygonZkEVMVEtrogErrors.L1InfoRootIndexInvalid.selector
+            IPolygonZkEVMVEtrogErrors.L1InfoTreeLeafCountInvalid.selector
         );
         polygonZkEVMEtrog.sequenceBatches(
             batchData,
