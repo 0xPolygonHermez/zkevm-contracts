@@ -633,7 +633,7 @@ describe("Polygon Rollup manager upgraded", () => {
         // Sequence Batches
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
         let currentLastBatchSequenced = 1;
-        const indexL1infoRoot = 0;
+        const l1InfoTreeLeafCount = 0;
 
         const height = 32;
         const merkleTreeGLobalExitRoot = new MerkleTreeBridge(height);
@@ -658,7 +658,7 @@ describe("Polygon Rollup manager upgraded", () => {
                 .connect(trustedSequencer)
                 .sequenceBatches(
                     [sequence],
-                    indexL1infoRoot,
+                    l1InfoTreeLeafCount,
                     currentTime,
                     expectedAccInputHash2,
                     trustedSequencer.address
@@ -994,7 +994,7 @@ describe("Polygon Rollup manager upgraded", () => {
                 .connect(trustedSequencer)
                 .sequenceBatches(
                     [sequenceForced],
-                    indexL1infoRoot,
+                    l1InfoTreeLeafCount,
                     currentTime,
                     expectedAccInputHash3,
                     trustedSequencer.address
@@ -1360,7 +1360,7 @@ describe("Polygon Rollup manager upgraded", () => {
 
         const rootSC = await polygonZkEVMGlobalExitRoot.getRoot();
         const rootJS = merkleTreeGLobalExitRoot.getRoot();
-        const indexL1infoRoot = 0;
+        const l1InfoTreeLeafCount = 0;
 
         expect(rootSC).to.be.equal(rootJS);
 
@@ -1378,7 +1378,7 @@ describe("Polygon Rollup manager upgraded", () => {
                 .connect(trustedSequencer)
                 .sequenceBatches(
                     [sequence],
-                    indexL1infoRoot,
+                    l1InfoTreeLeafCount,
                     currentTime,
                     expectedAccInputHash2,
                     trustedSequencer.address
