@@ -555,7 +555,7 @@ describe("Polygon Rollup Manager", () => {
         // Sequence Batches
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
         let currentLastBatchSequenced = 1;
-        const indexL1infoRoot = 0;
+        const l1InfoTreeLeafCount = 0;
 
         const height = 32;
         const merkleTreeGLobalExitRoot = new MerkleTreeBridge(height);
@@ -580,7 +580,7 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedSequencer)
                 .sequenceBatches(
                     [sequence],
-                    indexL1infoRoot,
+                    l1InfoTreeLeafCount,
                     currentTime,
                     expectedAccInputHash2,
                     trustedSequencer.address
@@ -921,7 +921,7 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedSequencer)
                 .sequenceBatches(
                     [sequenceForced],
-                    indexL1infoRoot,
+                    l1InfoTreeLeafCount,
                     currentTime,
                     expectedAccInputHash3,
                     trustedSequencer.address
@@ -1360,11 +1360,11 @@ describe("Polygon Rollup Manager", () => {
         );
 
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const indexL1InfoRoot = 0;
+        const l1InfoTreeLeafCount = 0;
         const expectedAccInputHash1 = calculateAccInputHashetrog(
             await newZkEVMContract.lastAccInputHash(),
             ethers.keccak256(l2txData),
-            await polygonZkEVMGlobalExitRoot.l1InfoRootMap(indexL1InfoRoot),
+            await polygonZkEVMGlobalExitRoot.l1InfoRootMap(l1InfoTreeLeafCount),
             currentTime,
             trustedSequencer.address,
             ethers.ZeroHash
@@ -1372,7 +1372,13 @@ describe("Polygon Rollup Manager", () => {
         // Sequence Batches
         const txSequenceBatches = await newZkEVMContract
             .connect(trustedSequencer)
-            .sequenceBatches([sequence], indexL1InfoRoot, currentTime, expectedAccInputHash1, trustedSequencer.address);
+            .sequenceBatches(
+                [sequence],
+                l1InfoTreeLeafCount,
+                currentTime,
+                expectedAccInputHash1,
+                trustedSequencer.address
+            );
 
         const receipt = await txSequenceBatches.wait();
         const logs = receipt.logs;
@@ -1971,7 +1977,7 @@ describe("Polygon Rollup Manager", () => {
 
         // Sequence Batches
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const indexL1InfoRoot = 0;
+        const l1InfoTreeLeafCount = 0;
 
         const lastBlock = await ethers.provider.getBlock("latest");
 
@@ -1991,7 +1997,7 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedSequencer)
                 .sequenceBatches(
                     [sequence],
-                    indexL1InfoRoot,
+                    l1InfoTreeLeafCount,
                     currentTime,
                     expectedAccInputHash2,
                     trustedSequencer.address
@@ -2650,7 +2656,7 @@ describe("Polygon Rollup Manager", () => {
 
         expect(await newZkEVMContract.dataAvailabilityProtocol()).to.be.equal(PolygonDataCommitee.target);
         await PolygonDataCommitee.setupCommittee(0, [], "0x");
-        const indexL1InfoRoot = 0;
+        const l1InfoTreeLeafCount = 0;
         const lastBlock = await ethers.provider.getBlock("latest");
 
         const rootSC = await polygonZkEVMGlobalExitRoot.getRoot();
@@ -2667,7 +2673,7 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedSequencer)
                 .sequenceBatchesValidium(
                     [sequence],
-                    indexL1InfoRoot,
+                    l1InfoTreeLeafCount,
                     currentTime,
                     expectedAccInputHash2,
                     trustedSequencer.address,
@@ -2922,7 +2928,7 @@ describe("Polygon Rollup Manager", () => {
 
         // Sequence Batches
         const currentTime = Number((await ethers.provider.getBlock("latest"))?.timestamp);
-        const indexL1InfoRoot = 0;
+        const l1InfoTreeLeafCount = 0;
         const expectedAccInputHash = calculateAccInputHashetrog(
             await PolygonZKEVMV2Contract.lastAccInputHash(),
             ethers.keccak256(l2txData),
@@ -2934,7 +2940,7 @@ describe("Polygon Rollup Manager", () => {
         await expect(
             PolygonZKEVMV2Contract.connect(trustedSequencer).sequenceBatches(
                 [sequence],
-                indexL1InfoRoot,
+                l1InfoTreeLeafCount,
                 currentTime,
                 expectedAccInputHash,
                 trustedSequencer.address
