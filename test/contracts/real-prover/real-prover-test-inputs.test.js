@@ -14,14 +14,14 @@ describe('Real prover inputs test', () => {
     beforeEach('Deploy contract', async () => {
         // deploy mock verifier
         const VerifierFactory = await ethers.getContractFactory(
-            'FflonkVerifier',
+            'FflonkVerifier_12',
         );
         verifierContract = await VerifierFactory.deploy();
     });
 
     it('Test real prover', async () => {
         const proof = generateSolidityInputs(proofJson);
-
+        console.log(proof);
         expect(await verifierContract.verifyProof(
             proof,
             input,
