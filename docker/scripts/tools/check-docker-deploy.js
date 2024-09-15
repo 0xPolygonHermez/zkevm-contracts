@@ -3,7 +3,7 @@
 const ethers = require('ethers');
 require('dotenv').config();
 
-const rollupManagerAbi = require('../../../artifacts/contracts/v2/PolygonRollupManager.sol/PolygonRollupManager.json').abi;
+const rollupManagerAbi = require('../../../compiled-contracts/PolygonRollupManager.json').abi;
 
 async function main() {
     const currentProvider = ethers.getDefaultProvider('http://localhost:8545');
