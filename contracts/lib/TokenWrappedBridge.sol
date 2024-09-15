@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract TokenWrapped is ERC20 {
+contract TokenWrappedBridge is ERC20 {
     // Domain typehash
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256(
