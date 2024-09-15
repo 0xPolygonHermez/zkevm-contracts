@@ -627,7 +627,7 @@ describe("Polygon Rollup Manager", () => {
                 .connect(trustedSequencer)
                 .sequenceBatches(
                     [sequence],
-                    indexL1infoRoot,
+                    l1InfoTreeLeafCount,
                     currentTime,
                     expectedAccInputHash2,
                     trustedSequencer.address
