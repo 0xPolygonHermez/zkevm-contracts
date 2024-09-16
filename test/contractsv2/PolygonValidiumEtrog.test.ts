@@ -16,7 +16,7 @@ import {
 import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
 import {array} from "yargs";
-import {PolygonDataCommittee} from "../../typechain-types/contracts/v2/consensus/dataComittee";
+import {PolygonDataCommittee} from "../../typechain-types/contracts/consensus/validium";
 const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
 
 type BatchDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
