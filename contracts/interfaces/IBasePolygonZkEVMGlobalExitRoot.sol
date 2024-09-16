@@ -11,7 +11,7 @@ interface IBasePolygonZkEVMGlobalExitRoot {
     /**
      * @dev Thrown when the caller is not the trusted sequencer
      */
-    error OnlyTrustedSequencer();
+    error OnlyCoinbase();
 
     function updateExitRoot(bytes32 newRollupExitRoot) external;
 

@@ -26,6 +26,12 @@ contract PolygonZkEVMGlobalExitRootV2 is
     mapping(uint32 leafCount => bytes32 l1InfoRoot) public l1InfoRootMap;
 
     /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
+    uint256[50] private _gap;
+
+    /**
      * @dev Emitted when the global exit root is updated
      */
     event UpdateL1InfoTree(
@@ -77,7 +83,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
      * @notice Update the exit root of one of the networks and the global exit root
      * @param newRoot new exit tree root
      */
-    function updateExitRoot(bytes32 newRoot) external {
+    function updateExitRoot(bytes32 newRoot) external virtual {
         // Store storage variables into temporal variables since will be used multiple times
         bytes32 cacheLastRollupExitRoot;
         bytes32 cacheLastMainnetExitRoot;
