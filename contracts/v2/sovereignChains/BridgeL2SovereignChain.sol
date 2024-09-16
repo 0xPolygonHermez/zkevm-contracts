@@ -8,18 +8,18 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20Metadat
 import "../../lib/TokenWrapped.sol";
 import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import "../../interfaces/IBridgeMessageReceiver.sol";
-import "../interfaces/IPolygonZkEVMBridgeL2SovereignChains.sol";
+import "../interfaces/IBridgeL2SovereignChains.sol";
 import "../../lib/EmergencyManager.sol";
 import "../../lib/GlobalExitRootLib.sol";
 
 /**
- * PolygonZkEVMBridge that will be deployed on Ethereum and all Polygon rollups
+ * Sovereign chains bridge that will be deployed on Ethereum and all Sovereign chains
  * Contract responsible to manage the token interactions with other networks
  */
 contract BridgeL2SovereignChain is
     DepositContractV2,
     EmergencyManager,
-    IPolygonZkEVMBridgeL2SovereignChains
+    IBridgeL2SovereignChains
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -150,7 +150,7 @@ contract BridgeL2SovereignChain is
      * @param _gasTokenAddress gas token address
      * @param _gasTokenNetwork gas token network
      * @param _globalExitRootManager global exit root manager address
-     * @param _polygonRollupManager polygonZkEVM address
+     * @param _polygonRollupManager Rollup manager address
      * @notice The value of `_polygonRollupManager` on the L2 deployment of the contract will be address(0), so
      * emergency state is not possible for the L2 deployment of the bridge, intentionally
      * @param _gasTokenMetadata Abi encoded gas token metadata
@@ -224,10 +224,10 @@ contract BridgeL2SovereignChain is
      * @param permitData Raw data of the call `permit` of the token
      */
     function bridgeAsset(
-        uint32 destinationNetwork, // 1
-        address destinationAddress, // whatever
-        uint256 amount, // 1
-        address token, // ETH
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        address token,
         bool forceUpdateGlobalExitRoot,
         bytes calldata permitData
     ) public payable virtual ifNotEmergencyState nonReentrant {
@@ -235,7 +235,7 @@ contract BridgeL2SovereignChain is
             revert DestinationNetworkInvalid();
         }
 
-        address originTokenAddress; // Address of the token at the origin network
+        address originTokenAddress;
         uint32 originNetwork;
         bytes memory metadata;
         uint256 leafAmount = amount;
@@ -819,6 +819,7 @@ contract BridgeL2SovereignChain is
      *      origin token.
      * @notice If this function is called multiple times for the same existingTokenAddress,
      * this will override the previous calls and only keep the last sovereignTokenAddress.
+     * @notice The tokenInfoToWrappedToken mapping  value is replaced by the new sovereign address but it's not the case for the wrappedTokenToTokenInfo map where the value is added, this way user will always be able to withdraw their tokens
      * @param originNetwork Origin network
      * @param originTokenAddress Origin token address, 0 address is reserved for ether
      * @param sovereignTokenAddress Address of the sovereign wrapped token
@@ -830,15 +831,21 @@ contract BridgeL2SovereignChain is
         address sovereignTokenAddress,
         bool isNotMintable
     ) external onlyBridgeManager {
-        // TODO: Add checks
-        // - origin and sovereign token address are not 0
-        // - originnetwork != current network, wrapped always other networks
-        // Handle claimAsset on target chain
+        // origin and sovereign token address are not 0
+        if(originTokenAddress == address(0) || sovereignTokenAddress == address(0)) {
+            revert InvalidZeroAddress();
+        }
+        // originnetwork != current network, wrapped tokens are always from other networks
+        if (originNetwork == networkID) {
+            revert OriginNetworkInvalid();
+        }
+        // Compute token info hash
         bytes32 tokenInfoHash = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
+        // Set the address of the wrapper
         tokenInfoToWrappedToken[tokenInfoHash] = sovereignTokenAddress;
-        // todo: comment: you will always can withdraw (explain)
+        // Set the token info mapping
         wrappedTokenToTokenInfo[sovereignTokenAddress] = TokenInformation(
             originNetwork,
             originTokenAddress

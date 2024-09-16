@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 
-interface IPolygonZkEVMBridgeL2SovereignChains {
+interface IBridgeL2SovereignChains {
     /**
      * @dev Thrown when the destination network is invalid
      */
@@ -99,6 +99,16 @@ interface IPolygonZkEVMBridgeL2SovereignChains {
      * @dev Thrown when bridge manager address is invalid
      */
     error NotValidBridgeManager();
+
+    /**
+     * @dev Thrown when try to set a zero address to a non valid zero address field
+     */
+    error InvalidZeroAddress();
+
+    /**
+     * @dev Thrown when the origin network is invalid
+     */
+    error OriginNetworkInvalid();
 
     function wrappedTokenToTokenInfo(
         address destinationAddress

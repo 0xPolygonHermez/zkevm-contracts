@@ -14,21 +14,19 @@ contract GlobalExitRootManagerL2SovereignChain is
     // Store every global exit root: Root --> timestamp
     mapping(bytes32 => uint256) public globalExitRootMap;
 
-    // Rollup exit root will be updated for every PolygonZkEVMBridge call
+    // Rollup exit root will be updated for every Sovereign chain call
     bytes32 public lastRollupExitRoot;
 
-    // PolygonZkEVM Bridge address
+    // Sovereign chain Bridge address
     address public immutable bridgeAddress;
 
     /**
      * @dev Emitted when a new global exit root is inserted
      */
-    event InsertGlobalExitRoot(
-        bytes32 indexed newGlobalExitRoot
-    );
+    event InsertGlobalExitRoot(bytes32 indexed newGlobalExitRoot);
 
     /**
-     * @param _bridgeAddress PolygonZkEVMBridge contract address
+     * @param _bridgeAddress BridgeL2SovereignChain contract address
      */
     constructor(address _bridgeAddress) {
         bridgeAddress = _bridgeAddress;
@@ -46,10 +44,20 @@ contract GlobalExitRootManagerL2SovereignChain is
     }
 
     /**
+     * @notice Only allows a function to be callable by the bride contract
+     */
+    modifier onlyBridgeAddress() {
+        if (msg.sender != bridgeAddress) {
+            revert OnlyAllowedContracts();
+        }
+        _;
+    }
+
+    /**
      * @notice Update the exit root of one of the networks and the global exit root
      * @param newRoot new exit tree root
      */
-    function updateExitRoot(bytes32 newRoot) external onlyTrustedSequencer {
+    function updateExitRoot(bytes32 newRoot) external onlyBridgeAddress() {
         lastRollupExitRoot = newRoot;
     }
 
@@ -59,9 +67,7 @@ contract GlobalExitRootManagerL2SovereignChain is
         // do not update timestamp if already set
         if (globalExitRootMap[_newRoot] == 0) {
             globalExitRootMap[_newRoot] = block.timestamp;
-            emit InsertGlobalExitRoot(
-                _newRoot
-            );
+            emit InsertGlobalExitRoot(_newRoot);
         }
     }
 }
