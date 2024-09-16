@@ -70,12 +70,6 @@ interface IPolygonZkEVMBridgeV2 {
     error OnlyRollupManager();
 
     /**
-     * @dev Thrown when sender is not the bridge manager
-     * @notice Bridge manager can set custom mapping for any token
-     */
-    error OnlyBridgeManager();
-
-    /**
      * @dev Thrown when the permit data contains an invalid signature
      */
     error NativeTokenIsEther();
@@ -94,11 +88,6 @@ interface IPolygonZkEVMBridgeV2 {
      * @dev Thrown when the wrapped token deployment fails
      */
     error FailedTokenWrappedDeployment();
-
-    /**
-     * @dev Thrown when bridge manager address is invalid
-     */
-    error NotValidBridgeManager();
 
     function wrappedTokenToTokenInfo(
         address destinationAddress
