@@ -16,7 +16,7 @@ npm i
   - `maxPriorityFeePerGas`: set custom gas
   - `multiplierGas`: set custom gas
 - A network should be selected when running the script
-  - examples: `-- sepolia` or `--mainnet`
+  - examples: `--network sepolia` or `--network mainnet`
   - This uses variables set in `hardhat.config.ts`
   - Which uses some environment variables that should be set in `.env`
 > All paths are from root repository
@@ -32,5 +32,5 @@ cp ./tools/deployVerifier/deploy_verifier_parameters.example ./tools/deployVerif
 - Set your parameters
 - Run tool:
 ```
-npx hardhat run ./tools/deployVerifier/deployVerififer.ts --network sepolia
+npx hardhat run ./tools/deployVerifier/deployVerifier.ts --network sepolia
 ```
