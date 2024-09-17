@@ -67,7 +67,6 @@ describe("BridgeL2SovereignChain Contract", () => {
             "GlobalExitRootManagerL2SovereignChain"
         );
         sovereignChainGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
-            rollupManager.address,
             sovereignChainBridgeContract.target
         );
 

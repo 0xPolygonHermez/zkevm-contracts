@@ -9,7 +9,7 @@ interface IBasePolygonZkEVMGlobalExitRoot {
     error OnlyAllowedContracts();
 
     /**
-     * @dev Thrown when the caller is not the trusted sequencer
+     * @dev Thrown when the caller is not the coinbase
      */
     error OnlyCoinbase();
 

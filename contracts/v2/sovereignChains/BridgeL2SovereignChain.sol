@@ -2,15 +2,10 @@
 
 pragma solidity 0.8.20;
 
-import "../lib/DepositContractV2.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 import "../../lib/TokenWrapped.sol";
 import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
-import "../../interfaces/IBridgeMessageReceiver.sol";
 import "../interfaces/IBridgeL2SovereignChains.sol";
-import "../../lib/EmergencyManager.sol";
-import "../../lib/GlobalExitRootLib.sol";
 import "../PolygonZkEVMBridgeV2.sol";
 
 /**
@@ -21,6 +16,9 @@ contract BridgeL2SovereignChain is
     PolygonZkEVMBridgeV2,
     IBridgeL2SovereignChains
 {
+
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+
     // Map to store wrappedAddresses that are not mintable
     mapping(address wrappedAddress => bool isNotMintable)
         public wrappedAddressIsNotMintable;
@@ -92,7 +90,7 @@ contract BridgeL2SovereignChain is
         // or (2) wrapped with custom contract from origin network
         if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
             // Don't use burn but transfer to bridge
-            tokenWrapped.transferFrom(msg.sender, address(this), amount);
+            IERC20Upgradeable(address(tokenWrapped)).safeTransferFrom(msg.sender, address(this), amount);
         } else {
             // Burn tokens
             tokenWrapped.burn(msg.sender, amount);
@@ -114,8 +112,7 @@ contract BridgeL2SovereignChain is
         // If is not mintable transfer instead of mint
         if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
             // Transfer wETH
-            // q: safe transfer?
-            tokenWrapped.transfer(destinationAddress, amount);
+            IERC20Upgradeable(address(tokenWrapped)).safeTransfer(destinationAddress, amount);
         } else {
             // Claim wETH
             tokenWrapped.mint(destinationAddress, amount);
@@ -180,11 +177,21 @@ contract BridgeL2SovereignChain is
     /**
      * @notice Remove the address of a remapped token from the mapping
      * @notice It also removes the token from the isNotMintable mapping
+     * @notice Altough the token is removed from the mapping, the user will still be able to withdraw their tokens using tokenInfoToWrappedToken mapping
      * @param sovereignTokenAddress Address of the sovereign wrapped token
      */
     function removeSovereignTokenAddress(
         address sovereignTokenAddress
     ) external onlyBridgeManager {
+        // Only allow to remove already mapped tokens
+        TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[sovereignTokenAddress];
+        bytes32 tokenInfoHash = keccak256(
+                        abi.encodePacked(tokenInfo.originNetwork, tokenInfo.originTokenAddress)
+                    );
+
+        if(tokenInfoToWrappedToken[tokenInfoHash] == address(0)) {
+            revert TokenNotMapped();
+        }
         delete wrappedTokenToTokenInfo[sovereignTokenAddress];
         delete wrappedAddressIsNotMintable[sovereignTokenAddress];
     }

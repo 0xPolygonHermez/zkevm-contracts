@@ -76,7 +76,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
             "GlobalExitRootManagerL2SovereignChain"
         );
         sovereignChainGlobalExitRoot = await SovereignChainGlobalExitRootFactory.deploy(
-            rollupManager.address,
             sovereignChainBridgeContract.target
         );
 
@@ -274,8 +273,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
             await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet)
         ).to.be.equal(true);
 
-        const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rootJSSovereignRollup);
-        expect(computedGlobalExitRoot).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
     });
 
     it("should PolygonZkEVMBridge message and verify merkle proof", async () => {
@@ -380,9 +377,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
             await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCSovereignChain)
         ).to.be.equal(true);
 
-        const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rootJSSovereignChain);
-        expect(computedGlobalExitRoot).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
-
         // bridge message without value is fine
         await expect(
             sovereignChainBridgeContract.bridgeMessage(destinationNetwork, destinationAddress, true, metadata, {})
@@ -463,7 +457,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
             balanceBridge + amount
         );
         expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.be.equal(0);
-        expect(await sovereignChainGlobalExitRoot.lastMainnetExitRoot()).to.be.equal(ethers.ZeroHash);
+        expect(mainnetExitRoot).to.be.equal(ethers.ZeroHash);
 
         // check merkle root with SC
         const rootSCSovereignChain = await sovereignChainBridgeContract.getRoot();
@@ -475,10 +469,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         // no state changes since there are not any deposit pending to be updated
         await sovereignChainBridgeContract.updateGlobalExitRoot();
         expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.be.equal(1);
-        expect(await sovereignChainGlobalExitRoot.lastMainnetExitRoot()).to.be.equal(mainnetExitRoot);
-
-        const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rootJSSovereignChain);
-        expect(computedGlobalExitRoot).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
+        expect(mainnetExitRoot).to.be.equal(mainnetExitRoot);
 
         // bridge message
         await expect(
@@ -513,13 +504,13 @@ describe("SovereignChainBridge Gas tokens tests", () => {
                 1
             );
         expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.be.equal(1);
-        expect(await sovereignChainGlobalExitRoot.lastMainnetExitRoot()).to.be.equal(mainnetExitRoot);
+        expect(mainnetExitRoot).to.be.equal(mainnetExitRoot);
 
         // Update global exit root
         await sovereignChainBridgeContract.updateGlobalExitRoot();
 
         expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.be.equal(2);
-        expect(await sovereignChainGlobalExitRoot.lastMainnetExitRoot()).to.not.be.equal(rootJSSovereignChain);
+        expect(mainnetExitRoot).to.not.be.equal(rootJSSovereignChain);
 
         // Just to have the metric of a low cost bridge Asset
         const tokenAddress2 = WETHToken.target; // Ether
@@ -604,11 +595,10 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         // check roots
         const sovereignChainExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
         expect(sovereignChainExitRootSC).to.be.equal(rootRollup);
-        const mainnetExitRootSC = await sovereignChainGlobalExitRoot.lastMainnetExitRoot();
+        const mainnetExitRootSC = ethers.ZeroHash;
         expect(mainnetExitRootSC).to.be.equal(mainnetExitRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rootRollup);
-        expect(computedGlobalExitRoot).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
 
         // Insert global exit root
         expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
@@ -708,7 +698,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const metadata = metadataToken;
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
 
-        const mainnetExitRoot = await sovereignChainGlobalExitRoot.lastMainnetExitRoot();
+        const mainnetExitRoot = ethers.ZeroHash;
 
         // compute root merkle tree in Js
         const height = 32;
@@ -751,7 +741,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         expect(rollupExitRootSC).to.be.equal(rootRollup);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
-        expect(computedGlobalExitRoot).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
 
         // Insert global exit root
         expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
@@ -982,10 +971,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
                 rootSCSovereignChain
             )
         ).to.be.equal(true);
-
-        const rollupExitRoot2 = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
-        const computedGlobalExitRoot2 = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot2);
-        expect(computedGlobalExitRoot2).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
     });
 
     it("should PolygonZkEVMBridge and sync the current root with events", async () => {
@@ -995,8 +980,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const amount = ethers.parseEther("10");
         const destinationNetwork = networkIDRollup;
         const destinationAddress = deployer.address;
-
-        const metadata = "0x"; // since is ether does not have metadata
 
         // create 3 new deposit
         await expect(
@@ -1116,7 +1099,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const metadata = metadataToken;
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
 
-        const mainnetExitRoot = await sovereignChainGlobalExitRoot.lastMainnetExitRoot();
+        const mainnetExitRoot = ethers.ZeroHash;
 
         // compute root merkle tree in Js
         const height = 32;
@@ -1150,7 +1133,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
-        expect(computedGlobalExitRoot).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
         // Insert global exit root
         expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
             .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
@@ -1268,7 +1250,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const metadata = "0x"; // since is ether does not have metadata
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
 
-        const mainnetExitRoot = await sovereignChainGlobalExitRoot.lastMainnetExitRoot();
+        const mainnetExitRoot = ethers.ZeroHash;
 
         // compute root merkle tree in Js
         const height = 32;
@@ -1300,7 +1282,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
-        expect(computedGlobalExitRoot).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
         // Insert global exit root
         expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
             .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
@@ -1372,7 +1353,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const metadata = "0x176923791298713271763697869132"; // since is ether does not have metadata
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
 
-        const mainnetExitRoot = await sovereignChainGlobalExitRoot.lastMainnetExitRoot();
+        const mainnetExitRoot = ethers.ZeroHash;
 
         // compute root merkle tree in Js
         const height = 32;
@@ -1404,7 +1385,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
-        expect(computedGlobalExitRoot).to.be.equal(await sovereignChainGlobalExitRoot.getLastGlobalExitRoot());
+
         // Insert global exit root
         expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
             .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")

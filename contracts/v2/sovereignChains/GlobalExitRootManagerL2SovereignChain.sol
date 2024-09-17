@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity 0.8.20;
-import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import {PolygonAccessControlUpgradeable} from "../lib/PolygonAccessControlUpgradeable.sol";
-import "../PolygonZkEVMGlobalExitRootV2.sol";
+import "../../PolygonZkEVMGlobalExitRootL2.sol";
 
 /**
  * Contract responsible for managing the exit roots for the Sovereign chains and global exit roots
  */
-contract GlobalExitRootManagerL2SovereignChain is PolygonZkEVMGlobalExitRootV2 {
+contract GlobalExitRootManagerL2SovereignChain is PolygonZkEVMGlobalExitRootL2 {
     /**
      * @dev Emitted when a new global exit root is inserted
      */
@@ -25,32 +24,11 @@ contract GlobalExitRootManagerL2SovereignChain is PolygonZkEVMGlobalExitRootV2 {
     }
 
     /**
-     * @notice Only allows a function to be callable by the bride contract
-     */
-    modifier onlyBridgeAddress() {
-        if (msg.sender != bridgeAddress) {
-            revert OnlyAllowedContracts();
-        }
-        _;
-    }
-
-    /**
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
     constructor(
-        address _rollupManager,
         address _bridgeAddress
-    ) PolygonZkEVMGlobalExitRootV2(_rollupManager, _bridgeAddress) {}
-
-    /**
-     * @notice Update the exit root of one of the networks and the global exit root
-     * @param newRoot new exit tree root
-     */
-    function updateExitRoot(
-        bytes32 newRoot
-    ) external override onlyBridgeAddress {
-        lastRollupExitRoot = newRoot;
-    }
+    ) PolygonZkEVMGlobalExitRootL2( _bridgeAddress) {}
 
     /**
      * @notice Insert a new global exit root
