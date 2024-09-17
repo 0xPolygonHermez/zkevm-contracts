@@ -1,16 +1,12 @@
 import {expect} from "chai";
 import {ethers, upgrades} from "hardhat";
 import {
-    VerifierRollupHelperMock,
     ERC20PermitMock,
-    PolygonRollupManagerMock,
     GlobalExitRootManagerL2SovereignChain,
     BridgeL2SovereignChain,
     TokenWrapped,
 } from "../../typechain-types";
-import {takeSnapshot, time} from "@nomicfoundation/hardhat-network-helpers";
 import {processorUtils, contractUtils, MTBridge, mtBridgeUtils} from "@0xpolygonhermez/zkevm-commonjs";
-const {calculateSnarkInput, calculateAccInputHash, calculateBatchHashData} = contractUtils;
 const MerkleTreeBridge = MTBridge;
 const {verifyMerkleProof, getLeafValue} = mtBridgeUtils;
 
@@ -715,7 +711,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         const indexLocal = 0;
         const proofLocal = merkleTreeLocal.getProofTreeByIndex(indexLocal);
 
-        // Merkle proof local
+        // Merkle proof rollup
         const proofRollup = merkleTreeRollup.getProofTreeByIndex(indexRollup);
 
         // verify merkle proof
