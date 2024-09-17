@@ -320,36 +320,6 @@ contract PolygonZkEVMBridgeV2 is
     }
 
     /**
-     * @notice Burn tokens from wrapped token to execute the bridge
-     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
-     * @param tokenWrapped Wrapped token to burnt
-     * @param amount Amount of tokens
-     */
-    function _bridgeWrappedAsset(
-        TokenWrapped tokenWrapped,
-        uint256 amount
-    ) internal virtual {
-        // Burn tokens
-        tokenWrapped.burn(msg.sender, amount);
-    }
-
-    /**
-     * @notice Mints tokens from wrapped token to proceed with the claim
-     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
-     * @param tokenWrapped Wrapped token to mint
-     * @param destinationAddress Minted token receiver
-     * @param amount Amount of tokens
-     */
-    function _claimWrappedAsset(
-        TokenWrapped tokenWrapped,
-        address destinationAddress,
-        uint256 amount
-    ) internal virtual {
-        // Burn tokens
-        tokenWrapped.mint(destinationAddress, amount);
-    }
-
-    /**
      * @notice Bridge message and send ETH value
      * note User/UI must be aware of the existing/available networks when choosing the destination network
      * @param destinationNetwork Network destination
@@ -571,7 +541,11 @@ contract PolygonZkEVMBridgeV2 is
                         );
 
                         // Mint tokens for the destination address
-                        _claimWrappedAsset(newWrappedToken, destinationAddress, amount);
+                        _claimWrappedAsset(
+                            newWrappedToken,
+                            destinationAddress,
+                            amount
+                        );
 
                         // Create mappings
                         tokenInfoToWrappedToken[tokenInfoHash] = address(
@@ -590,7 +564,11 @@ contract PolygonZkEVMBridgeV2 is
                         );
                     } else {
                         // Use the existing wrapped erc20
-                        _claimWrappedAsset(TokenWrapped(wrappedToken), destinationAddress, amount);
+                        _claimWrappedAsset(
+                            TokenWrapped(wrappedToken),
+                            destinationAddress,
+                            amount
+                        );
                     }
                 }
             }
@@ -925,6 +903,36 @@ contract PolygonZkEVMBridgeV2 is
     function _updateGlobalExitRoot() internal {
         lastUpdatedDepositCount = uint32(depositCount);
         globalExitRootManager.updateExitRoot(getRoot());
+    }
+
+    /**
+     * @notice Burn tokens from wrapped token to execute the bridge
+     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
+     * @param tokenWrapped Wrapped token to burnt
+     * @param amount Amount of tokens
+     */
+    function _bridgeWrappedAsset(
+        TokenWrapped tokenWrapped,
+        uint256 amount
+    ) internal virtual {
+        // Burn tokens
+        tokenWrapped.burn(msg.sender, amount);
+    }
+
+    /**
+     * @notice Mints tokens from wrapped token to proceed with the claim
+     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
+     * @param tokenWrapped Wrapped token to mint
+     * @param destinationAddress Minted token receiver
+     * @param amount Amount of tokens
+     */
+    function _claimWrappedAsset(
+        TokenWrapped tokenWrapped,
+        address destinationAddress,
+        uint256 amount
+    ) internal virtual {
+        // Burn tokens
+        tokenWrapped.mint(destinationAddress, amount);
     }
 
     /**

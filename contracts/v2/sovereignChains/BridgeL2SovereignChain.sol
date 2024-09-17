@@ -77,49 +77,6 @@ contract BridgeL2SovereignChain is
     }
 
     /**
-     * @notice Burn tokens from wrapped token to execute the bridge
-     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
-     * @param tokenWrapped Wrapped token to burnt
-     * @param amount Amount of tokens
-     */
-    function _bridgeWrappedAsset(
-        TokenWrapped tokenWrapped,
-        uint256 amount
-    ) internal override {
-        // The token is either (1) a correctly wrapped token from another network
-        // or (2) wrapped with custom contract from origin network
-        if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
-            // Don't use burn but transfer to bridge
-            IERC20Upgradeable(address(tokenWrapped)).safeTransferFrom(msg.sender, address(this), amount);
-        } else {
-            // Burn tokens
-            tokenWrapped.burn(msg.sender, amount);
-        }
-    }
-
-    /**
-     * @notice Mints tokens from wrapped token to proceed with the claim
-     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
-     * @param tokenWrapped Wrapped token to mint
-     * @param destinationAddress Minted token receiver
-     * @param amount Amount of tokens
-     */
-    function _claimWrappedAsset(
-        TokenWrapped tokenWrapped,
-        address destinationAddress,
-        uint256 amount
-    ) internal override {
-        // If is not mintable transfer instead of mint
-        if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
-            // Transfer wETH
-            IERC20Upgradeable(address(tokenWrapped)).safeTransfer(destinationAddress, amount);
-        } else {
-            // Claim wETH
-            tokenWrapped.mint(destinationAddress, amount);
-        }
-    }
-
-    /**
      * @notice Updated bridge manager address
      * @param _bridgeManager Bridge manager address
      */
@@ -208,5 +165,49 @@ contract BridgeL2SovereignChain is
     ) external onlyBridgeManager {
         WETHToken = TokenWrapped(sovereignWETHTokenAddress);
         wrappedAddressIsNotMintable[sovereignWETHTokenAddress] = isNotMintable;
+    }
+
+
+    /**
+     * @notice Burn tokens from wrapped token to execute the bridge
+     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
+     * @param tokenWrapped Wrapped token to burnt
+     * @param amount Amount of tokens
+     */
+    function _bridgeWrappedAsset(
+        TokenWrapped tokenWrapped,
+        uint256 amount
+    ) internal override {
+        // The token is either (1) a correctly wrapped token from another network
+        // or (2) wrapped with custom contract from origin network
+        if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
+            // Don't use burn but transfer to bridge
+            IERC20Upgradeable(address(tokenWrapped)).safeTransferFrom(msg.sender, address(this), amount);
+        } else {
+            // Burn tokens
+            tokenWrapped.burn(msg.sender, amount);
+        }
+    }
+
+    /**
+     * @notice Mints tokens from wrapped token to proceed with the claim
+     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
+     * @param tokenWrapped Wrapped token to mint
+     * @param destinationAddress Minted token receiver
+     * @param amount Amount of tokens
+     */
+    function _claimWrappedAsset(
+        TokenWrapped tokenWrapped,
+        address destinationAddress,
+        uint256 amount
+    ) internal override {
+        // If is not mintable transfer instead of mint
+        if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
+            // Transfer wETH
+            IERC20Upgradeable(address(tokenWrapped)).safeTransfer(destinationAddress, amount);
+        } else {
+            // Claim wETH
+            tokenWrapped.mint(destinationAddress, amount);
+        }
     }
 }
