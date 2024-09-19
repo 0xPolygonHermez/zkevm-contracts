@@ -201,6 +201,10 @@ describe("BridgeL2SovereignChain Contract", () => {
         // Check GER has value in mapping
         expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
 
+        // Remove unmapped sovereign token address, should revert
+        await expect(
+            sovereignChainBridgeContract.connect(bridgeManager).removeSovereignTokenAddress(tokenAddress)
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "TokenNotMapped");
         // Remove sovereign token address
         await expect(
             sovereignChainBridgeContract.connect(bridgeManager).removeSovereignTokenAddress(sovereignToken.target)
@@ -246,21 +250,26 @@ describe("BridgeL2SovereignChain Contract", () => {
                 .connect(rollupManager)
                 .setSovereignTokenAddress(networkIDMainnet, tokenAddress, sovereignToken.target, false)
         ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyBridgeManager");
+        // Set rollupManager as bridge manager
+        await expect(sovereignChainBridgeContract.connect(bridgeManager).setBridgeManager(rollupManager.address))
+            .to.emit(sovereignChainBridgeContract, "BridgeManagerUpdated")
+            .withArgs(rollupManager.address);
+
         // invalid token address
         await expect(
             sovereignChainBridgeContract
-                .connect(bridgeManager)
+                .connect(rollupManager)
                 .setSovereignTokenAddress(networkIDMainnet, ethers.ZeroAddress, sovereignToken.target, false)
         ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "InvalidZeroAddress");
         // Invalid origin network
         await expect(
             sovereignChainBridgeContract
-                .connect(bridgeManager)
+                .connect(rollupManager)
                 .setSovereignTokenAddress(networkIDRollup2, tokenAddress, sovereignToken.target, false)
         ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OriginNetworkInvalid");
         await expect(
             sovereignChainBridgeContract
-                .connect(bridgeManager)
+                .connect(rollupManager)
                 .setSovereignTokenAddress(networkIDRollup, tokenAddress, sovereignToken.target, false)
         )
             .to.emit(sovereignChainBridgeContract, "SetSovereignTokenAddress")
@@ -1095,12 +1104,17 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         const computedGlobalExitRoot2 = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
+        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot2))
             .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot2)).to.not.be.eq(0);
+
+        // Insert an already inserted GER
+        await expect(
+            sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot2)
+        ).to.revertedWithCustomError(sovereignChainGlobalExitRoot, "GlobalExitRootAlreadySet");
     });
     it("should claim tokens from Rollup to Mainnet, failing deploy wrapped", async () => {
         const originNetwork = networkIDRollup;

@@ -117,12 +117,149 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const hashInitCode = ethers.solidityPackedKeccak256(["bytes", "bytes"], [minimalBytecodeProxy, metadataWETH]);
         const precalculatedWeth = await ethers.getCreate2Address(
             sovereignChainBridgeContract.target as string,
-            ethers.ZeroHash, // zero only for weth
+            ethers.ZeroHash, // salt is zero
             hashInitCode
         );
         WETHToken = tokenWrappedFactory.attach(precalculatedWeth) as TokenWrapped;
 
         expect(await sovereignChainBridgeContract.WETHToken()).to.be.equal(WETHToken.target);
+    });
+
+    it("should claim message from not mintable remapped gas (WETH) token", async () => {
+        // Add a claim leaf to rollup exit tree
+        const originNetwork = networkIDRollup;
+        const tokenAddress = polTokenContract.target;
+        const amount = ethers.parseEther("10");
+        const destinationNetwork = networkIDRollup2;
+        const destinationAddress = deployer.address;
+
+        const metadata = "0x176923791298713271763697869132"; // since is ether does not have metadata
+        const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
+
+        // deploy sovereign
+        const maticTokenFactory = await ethers.getContractFactory("ERC20PermitMock");
+        const sovereignToken = await maticTokenFactory.deploy(
+            tokenName,
+            tokenSymbol,
+            deployer.address,
+            tokenInitialBalance
+        );
+
+        const mainnetExitRoot = ethers.ZeroHash;
+
+        // compute root merkle tree in Js
+        const height = 32;
+        const merkleTree = new MerkleTreeBridge(height);
+        const leafValue = getLeafValue(
+            LEAF_TYPE_MESSAGE,
+            originNetwork,
+            sovereignToken.target,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadataHash
+        );
+        merkleTree.add(leafValue);
+
+        // check merkle root with SC
+        const rootJSRollup = merkleTree.getRoot();
+        const merkleTreeRollup = new MerkleTreeBridge(height);
+        merkleTreeRollup.add(rootJSRollup);
+        const rollupRoot = merkleTreeRollup.getRoot();
+
+        // add rollup Merkle root
+        await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
+        const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
+        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
+
+        // check roots
+        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        expect(rollupExitRootSC).to.be.equal(rollupRoot);
+
+        const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
+        // Insert global exit root
+        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+            .withArgs(computedGlobalExitRoot);
+
+        // Check GER has value in mapping
+        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        // check merkle proof
+        const index = 0;
+        const proofLocal = merkleTree.getProofTreeByIndex(0);
+        const proofRollup = merkleTreeRollup.getProofTreeByIndex(0);
+        const globalIndex = computeGlobalIndex(index, index, false);
+
+        // verify merkle proof
+        expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
+        expect(
+            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)
+        ).to.be.equal(true);
+        // Remap weth token
+        await expect(sovereignChainBridgeContract.connect(bridgeManager).setSovereignWETHAddress(sovereignToken.target, true))
+            .to.emit(sovereignChainBridgeContract, "SetSovereignWETHAddress")
+            .withArgs(sovereignToken.target, true);
+        // try claim without balance to transfer (from bridge)
+        await expect(
+            sovereignChainBridgeContract.claimMessage(
+                proofLocal,
+                proofRollup,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                sovereignToken.target,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        )
+            .to.revertedWith("ERC20: transfer amount exceeds balance");
+        // Transfer tokens to bridge
+        await sovereignToken.transfer(sovereignChainBridgeContract.target, amount);
+        const balanceBridge = await sovereignToken.balanceOf(sovereignChainBridgeContract.target);
+
+        // Check balances before claim
+        expect(balanceBridge).to.be.equal(amount);
+        // Claim message
+        await expect(
+            sovereignChainBridgeContract.claimMessage(
+                proofLocal,
+                proofRollup,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                sovereignToken.target,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        )
+            .to.emit(sovereignChainBridgeContract, "ClaimEvent")
+            .withArgs(index, originNetwork, sovereignToken.target, destinationAddress, amount);
+
+        // Check balances after claim
+        expect(await sovereignToken.balanceOf(sovereignChainBridgeContract.target)).to.be.equal(ethers.parseEther("0"));
+
+        // Can't claim because nullifier
+        await expect(
+            sovereignChainBridgeContract.claimMessage(
+                proofLocal,
+                proofRollup,
+                globalIndex,
+                mainnetExitRoot,
+                rollupExitRootSC,
+                originNetwork,
+                sovereignToken.target,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata
+            )
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "AlreadyClaimed");
     });
 
     it("should check the constructor parameters", async () => {
@@ -272,7 +409,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         expect(
             await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet)
         ).to.be.equal(true);
-
     });
 
     it("should PolygonZkEVMBridge message and verify merkle proof", async () => {

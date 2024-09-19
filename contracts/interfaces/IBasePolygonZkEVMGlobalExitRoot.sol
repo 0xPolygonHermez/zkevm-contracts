@@ -13,6 +13,11 @@ interface IBasePolygonZkEVMGlobalExitRoot {
      */
     error OnlyCoinbase();
 
+    /**
+     * @dev Thrown when trying to insert a global exit root that is already set
+     */
+    error GlobalExitRootAlreadySet();
+
     function updateExitRoot(bytes32 newRollupExitRoot) external;
 
     function globalExitRootMap(

@@ -34,6 +34,8 @@ contract GlobalExitRootManagerL2SovereignChain is PolygonZkEVMGlobalExitRootL2 {
         if (globalExitRootMap[_newRoot] == 0) {
             globalExitRootMap[_newRoot] = block.timestamp;
             emit InsertGlobalExitRoot(_newRoot);
+        } else {
+            revert GlobalExitRootAlreadySet();
         }
     }
 }
