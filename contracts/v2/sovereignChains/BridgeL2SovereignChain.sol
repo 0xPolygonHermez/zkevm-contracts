@@ -16,7 +16,6 @@ contract BridgeL2SovereignChain is
     PolygonZkEVMBridgeV2,
     IBridgeL2SovereignChains
 {
-
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // Map to store wrappedAddresses that are not mintable
@@ -30,6 +29,29 @@ contract BridgeL2SovereignChain is
      * @dev Emitted when a bridge manager is updated
      */
     event BridgeManagerUpdated(address bridgeManager);
+
+    /**
+     * @dev Emitted when a token address is remapped by a sovereign token address
+     */
+    event SetSovereignTokenAddress(
+        uint32 originNetwork,
+        address originTokenAddress,
+        address sovereignTokenAddress,
+        bool isNotMintable
+    );
+
+    /**
+     * @dev Emitted when a remapped token is removed from mapping
+     */
+    event RemoveSovereignTokenAddress(address sovereignTokenAddress);
+
+    /**
+     * @dev Emitted when a WETH address is remapped by a sovereign WETH address
+     */
+    event SetSovereignWETHAddress(
+        address sovereignWETHTokenAddress,
+        bool isNotMintable
+    );
 
     /**
      * Disable initalizers on the implementation following the best practices
@@ -129,6 +151,12 @@ contract BridgeL2SovereignChain is
             originTokenAddress
         );
         wrappedAddressIsNotMintable[sovereignTokenAddress] = isNotMintable;
+        emit SetSovereignTokenAddress(
+            originNetwork,
+            originTokenAddress,
+            sovereignTokenAddress,
+            isNotMintable
+        );
     }
 
     /**
@@ -141,16 +169,22 @@ contract BridgeL2SovereignChain is
         address sovereignTokenAddress
     ) external onlyBridgeManager {
         // Only allow to remove already mapped tokens
-        TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[sovereignTokenAddress];
+        TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
+            sovereignTokenAddress
+        ];
         bytes32 tokenInfoHash = keccak256(
-                        abi.encodePacked(tokenInfo.originNetwork, tokenInfo.originTokenAddress)
-                    );
+            abi.encodePacked(
+                tokenInfo.originNetwork,
+                tokenInfo.originTokenAddress
+            )
+        );
 
-        if(tokenInfoToWrappedToken[tokenInfoHash] == address(0)) {
+        if (tokenInfoToWrappedToken[tokenInfoHash] == address(0)) {
             revert TokenNotMapped();
         }
         delete wrappedTokenToTokenInfo[sovereignTokenAddress];
         delete wrappedAddressIsNotMintable[sovereignTokenAddress];
+        emit RemoveSovereignTokenAddress(sovereignTokenAddress);
     }
 
     /**
@@ -165,8 +199,8 @@ contract BridgeL2SovereignChain is
     ) external onlyBridgeManager {
         WETHToken = TokenWrapped(sovereignWETHTokenAddress);
         wrappedAddressIsNotMintable[sovereignWETHTokenAddress] = isNotMintable;
+        emit SetSovereignWETHAddress(sovereignWETHTokenAddress, isNotMintable);
     }
-
 
     /**
      * @notice Burn tokens from wrapped token to execute the bridge
@@ -182,7 +216,11 @@ contract BridgeL2SovereignChain is
         // or (2) wrapped with custom contract from origin network
         if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
             // Don't use burn but transfer to bridge
-            IERC20Upgradeable(address(tokenWrapped)).safeTransferFrom(msg.sender, address(this), amount);
+            IERC20Upgradeable(address(tokenWrapped)).safeTransferFrom(
+                msg.sender,
+                address(this),
+                amount
+            );
         } else {
             // Burn tokens
             tokenWrapped.burn(msg.sender, amount);
@@ -204,7 +242,10 @@ contract BridgeL2SovereignChain is
         // If is not mintable transfer instead of mint
         if (wrappedAddressIsNotMintable[address(tokenWrapped)]) {
             // Transfer wETH
-            IERC20Upgradeable(address(tokenWrapped)).safeTransfer(destinationAddress, amount);
+            IERC20Upgradeable(address(tokenWrapped)).safeTransfer(
+                destinationAddress,
+                amount
+            );
         } else {
             // Claim wETH
             tokenWrapped.mint(destinationAddress, amount);

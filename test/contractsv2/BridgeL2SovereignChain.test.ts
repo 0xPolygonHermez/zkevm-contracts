@@ -114,9 +114,13 @@ describe("BridgeL2SovereignChain Contract", () => {
         const balanceBridge = await sovereignToken.balanceOf(sovereignChainBridgeContract.target);
         // Remap asset
         // Remap not mintable token
-        await sovereignChainBridgeContract
-            .connect(bridgeManager)
-            .setSovereignTokenAddress(networkIDRollup, tokenAddress, sovereignToken.target, true);
+        await expect(
+            sovereignChainBridgeContract
+                .connect(bridgeManager)
+                .setSovereignTokenAddress(networkIDRollup, tokenAddress, sovereignToken.target, true)
+        )
+            .to.emit(sovereignChainBridgeContract, "SetSovereignTokenAddress")
+            .withArgs(networkIDRollup, tokenAddress, sovereignToken.target, true);
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);
@@ -198,7 +202,11 @@ describe("BridgeL2SovereignChain Contract", () => {
         expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
 
         // Remove sovereign token address
-        await sovereignChainBridgeContract.connect(bridgeManager).removeSovereignTokenAddress(sovereignToken.target);
+        await expect(
+            sovereignChainBridgeContract.connect(bridgeManager).removeSovereignTokenAddress(sovereignToken.target)
+        )
+            .to.emit(sovereignChainBridgeContract, "RemoveSovereignTokenAddress")
+            .withArgs(sovereignToken.target);
     });
 
     it("should Sovereign Chain bridge a remapped asset mintable and verify merkle proof", async () => {
@@ -250,9 +258,13 @@ describe("BridgeL2SovereignChain Contract", () => {
                 .connect(bridgeManager)
                 .setSovereignTokenAddress(networkIDRollup2, tokenAddress, sovereignToken.target, false)
         ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OriginNetworkInvalid");
-        await sovereignChainBridgeContract
-            .connect(bridgeManager)
-            .setSovereignTokenAddress(networkIDRollup, tokenAddress, sovereignToken.target, false);
+        await expect(
+            sovereignChainBridgeContract
+                .connect(bridgeManager)
+                .setSovereignTokenAddress(networkIDRollup, tokenAddress, sovereignToken.target, false)
+        )
+            .to.emit(sovereignChainBridgeContract, "SetSovereignTokenAddress")
+            .withArgs(networkIDRollup, tokenAddress, sovereignToken.target, false);
         // pre compute root merkle tree in Js
         const height = 32;
         const merkleTree = new MerkleTreeBridge(height);

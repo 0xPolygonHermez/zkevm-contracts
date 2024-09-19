@@ -13,16 +13,6 @@ contract GlobalExitRootManagerL2SovereignChain is PolygonZkEVMGlobalExitRootL2 {
     event InsertGlobalExitRoot(bytes32 indexed newGlobalExitRoot);
 
     /**
-     * @notice Only allows a function to be callable if its called by coinbase (trusted sequencer in sovereign chains)
-     */
-    modifier onlyCoinbase() {
-        if (block.coinbase != msg.sender) {
-            revert OnlyCoinbase();
-        }
-        _;
-    }
-
-    /**
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
     constructor(
@@ -35,7 +25,11 @@ contract GlobalExitRootManagerL2SovereignChain is PolygonZkEVMGlobalExitRootL2 {
      */
     function insertGlobalExitRoot(
         bytes32 _newRoot
-    ) external onlyCoinbase {
+    ) external {
+        // Only allowed to be called by coinbase
+         if (block.coinbase != msg.sender) {
+            revert OnlyCoinbase();
+        }
         // do not update timestamp if already set
         if (globalExitRootMap[_newRoot] == 0) {
             globalExitRootMap[_newRoot] = block.timestamp;
