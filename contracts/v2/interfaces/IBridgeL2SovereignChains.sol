@@ -31,6 +31,21 @@ interface IBridgeL2SovereignChains is IPolygonZkEVMBridgeV2 {
      */
     error TokenNotMapped();
 
+    /**
+     * @dev Thrown when trying to migrate a token and both legacy and updated addresses are the same
+     */
+    error MigrationAddressesAreTheSame();
+
+    /**
+     * @dev Thrown when trying to migrate a token and legacy and updated token info are different
+     */
+    error MigrationTokenInfoAreDifferent();
+
+    /**
+     * @dev Thrown when trying to migrate a token proposed updated token address is not the current mapped token address
+     */
+    error InvalidUpdatedAddress();
+
     function initialize(
         uint32 _networkID,
         address _gasTokenAddress,
@@ -38,6 +53,8 @@ interface IBridgeL2SovereignChains is IPolygonZkEVMBridgeV2 {
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager,
         bytes memory _gasTokenMetadata,
-        address _bridgeManager
+        address _bridgeManager,
+        address sovereignWETHAddress,
+        bool __sovereignWETHAddressIsNotMintable
     ) external;
 }

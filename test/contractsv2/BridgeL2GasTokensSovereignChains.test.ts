@@ -99,7 +99,9 @@ describe("SovereignChainBridge Gas tokens tests", () => {
             sovereignChainGlobalExitRoot.target,
             rollupManager.address,
             metadataToken,
-            ethers.Typed.address(bridgeManager.address)
+            ethers.Typed.address(bridgeManager.address),
+            ethers.ZeroAddress,
+            false
         );
 
         // calculate the weth address:

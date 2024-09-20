@@ -18,6 +18,14 @@ contract BridgeL2SovereignChain is
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
+    // Wrapped Token information struct
+    struct SovereignTokenAddress {
+        uint32 originNetwork;
+        address originTokenAddress;
+        address sovereignTokenAddress;
+        bool isNotMintable;
+    }
+
     // Map to store wrappedAddresses that are not mintable
     mapping(address wrappedAddress => bool isNotMintable)
         public wrappedAddressIsNotMintable;
@@ -41,6 +49,16 @@ contract BridgeL2SovereignChain is
     );
 
     /**
+     * @dev Emitted when a legacy token is migrated to a new token
+     */
+    event MigrateLegacyToken(
+        address sender,
+        address legacyTokenAddress,
+        address updatedTokenAddress,
+        uint256 amount
+    );
+
+    /**
      * @dev Emitted when a remapped token is removed from mapping
      */
     event RemoveSovereignTokenAddress(address sovereignTokenAddress);
@@ -54,7 +72,7 @@ contract BridgeL2SovereignChain is
     );
 
     /**
-     * Disable initalizers on the implementation following the best practices
+     * Disable initializers on the implementation following the best practices
      */
     constructor() {
         _disableInitializers();
@@ -70,6 +88,8 @@ contract BridgeL2SovereignChain is
      * emergency state is not possible for the L2 deployment of the bridge, intentionally
      * @param _gasTokenMetadata Abi encoded gas token metadata
      * @param _bridgeManager bridge manager address
+     * @param _sovereignWETHAddress sovereign WETH address
+     * @param __sovereignWETHAddressIsNotMintable Flag to indicate if the wrapped ETH is not mintable
      */
     function initialize(
         uint32 _networkID,
@@ -78,17 +98,45 @@ contract BridgeL2SovereignChain is
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager,
         bytes memory _gasTokenMetadata,
-        address _bridgeManager
-    ) public virtual {
-        super.initialize(
-            _networkID,
-            _gasTokenAddress,
-            _gasTokenNetwork,
-            _globalExitRootManager,
-            _polygonRollupManager,
-            _gasTokenMetadata
-        );
+        address _bridgeManager,
+        address _sovereignWETHAddress,
+        bool __sovereignWETHAddressIsNotMintable
+    ) public virtual initializer {
+        networkID = _networkID;
+        globalExitRootManager = _globalExitRootManager;
+        polygonRollupManager = _polygonRollupManager;
         bridgeManager = _bridgeManager;
+
+        // Set gas token
+        if (_gasTokenAddress == address(0)) {
+            // Gas token will be ether
+            if (_gasTokenNetwork != 0) {
+                revert GasTokenNetworkMustBeZeroOnEther();
+            }
+            // WETHToken, gasTokenAddress and gasTokenNetwork will be 0
+            // gasTokenMetadata will be empty
+        } else {
+            // Gas token will be an erc20
+            gasTokenAddress = _gasTokenAddress;
+            gasTokenNetwork = _gasTokenNetwork;
+            gasTokenMetadata = _gasTokenMetadata;
+            // Set sovereign weth token or create new if not provided
+            if (_sovereignWETHAddress == address(0)) {
+                // Create a wrapped token for WETH, with salt == 0
+                WETHToken = _deployWrappedToken(
+                    0, // salt
+                    abi.encode("Wrapped Ether", "WETH", 18)
+                );
+            } else {
+                WETHToken = TokenWrapped(_sovereignWETHAddress);
+                wrappedAddressIsNotMintable[
+                    _sovereignWETHAddress
+                ] = __sovereignWETHAddressIsNotMintable;
+            }
+        }
+
+        // Initialize OZ contracts
+        __ReentrancyGuard_init();
     }
 
     modifier onlyBridgeManager() {
@@ -111,7 +159,26 @@ contract BridgeL2SovereignChain is
     }
 
     /**
-     * @notice Set the address of a wrapper using the token information if already exist
+     * @notice Remap multiple wrapped tokens to a new sovereign token address
+     * @dev This function is a "multi/batch call" to `setSovereignTokenAddress`
+     * @param sovereignTokenAddresses Array of SovereignTokenAddress to remap
+     */
+    function setMultipleSovereignTokenAddress(
+        SovereignTokenAddress[] calldata sovereignTokenAddresses
+    ) external onlyBridgeManager {
+        // Make multiple calls to setSovereignTokenAddress
+        for (uint256 i = 0; i < sovereignTokenAddresses.length; i++) {
+            setSovereignTokenAddress(
+                sovereignTokenAddresses[i].originNetwork,
+                sovereignTokenAddresses[i].originTokenAddress,
+                sovereignTokenAddresses[i].sovereignTokenAddress,
+                sovereignTokenAddresses[i].isNotMintable
+            );
+        }
+    }
+
+    /**
+     * @notice Remap a wrapped token to a new sovereign token address
      * @dev This function is used to allow any existing token to be mapped with
      *      origin token.
      * @notice If this function is called multiple times for the same existingTokenAddress,
@@ -127,7 +194,7 @@ contract BridgeL2SovereignChain is
         address originTokenAddress,
         address sovereignTokenAddress,
         bool isNotMintable
-    ) external onlyBridgeManager {
+    ) public onlyBridgeManager {
         // origin and sovereign token address are not 0
         if (
             originTokenAddress == address(0) ||
@@ -135,7 +202,7 @@ contract BridgeL2SovereignChain is
         ) {
             revert InvalidZeroAddress();
         }
-        // originnetwork != current network, wrapped tokens are always from other networks
+        // originNetwork != current network, wrapped tokens are always from other networks
         if (originNetwork == networkID) {
             revert OriginNetworkInvalid();
         }
@@ -162,7 +229,7 @@ contract BridgeL2SovereignChain is
     /**
      * @notice Remove the address of a remapped token from the mapping
      * @notice It also removes the token from the isNotMintable mapping
-     * @notice Altough the token is removed from the mapping, the user will still be able to withdraw their tokens using tokenInfoToWrappedToken mapping
+     * @notice Although the token is removed from the mapping, the user will still be able to withdraw their tokens using tokenInfoToWrappedToken mapping
      * @param sovereignTokenAddress Address of the sovereign wrapped token
      */
     function removeSovereignTokenAddress(
@@ -203,8 +270,79 @@ contract BridgeL2SovereignChain is
     }
 
     /**
+     * @notice Moves old native or remapped token (legacy) to the new mapped token. If the token is mintable, it will be burnt and minted, otherwise it will be transferred
+     * @param legacyTokenAddress Address of legacy token to migrate
+     * @param updatedTokenAddress Address of updated token
+     */
+    function migrateLegacyToken(
+        address legacyTokenAddress,
+        address updatedTokenAddress
+    ) external {
+        // Origin and destination token addresses must be different
+        if(legacyTokenAddress == updatedTokenAddress) {
+            revert MigrationAddressesAreTheSame();
+        }
+        // Get current wrapped token address
+        TokenInformation memory legacyTokenInfo = wrappedTokenToTokenInfo[legacyTokenAddress];
+        TokenInformation memory updatedTokenInfo = wrappedTokenToTokenInfo[updatedTokenAddress];
+
+        // Check token info is the same for both tokens
+        if(legacyTokenInfo.originNetwork != updatedTokenInfo.originNetwork || legacyTokenInfo.originTokenAddress != updatedTokenInfo.originTokenAddress) {
+            revert MigrationTokenInfoAreDifferent();
+        }
+
+        // Check token address is not zero
+        if(legacyTokenAddress == address(0)) {
+            revert InvalidZeroAddress();
+        }
+
+        // Check current token mapped is proposed updatedTokenAddress
+        address currentMappedAddress = tokenInfoToWrappedToken[keccak256(abi.encodePacked(legacyTokenInfo.originNetwork, legacyTokenInfo.originTokenAddress))];
+
+        if(currentMappedAddress != updatedTokenAddress) {
+            revert InvalidUpdatedAddress();
+        }
+
+        // Proceed to migrate the token
+        uint256 legacyTokenBalance = IERC20Upgradeable(legacyTokenAddress)
+            .balanceOf(msg.sender);
+        if (wrappedAddressIsNotMintable[updatedTokenAddress]) {
+            // Transfer legacy tokens from user to bridge
+            IERC20Upgradeable(legacyTokenAddress).safeTransferFrom(
+                msg.sender,
+                address(this),
+                legacyTokenBalance
+            );
+            // Transfer migrated tokens from bridge to user
+            IERC20Upgradeable(updatedTokenAddress).safeTransfer(
+                msg.sender,
+                legacyTokenBalance
+            );
+        } else {
+            // Burn old tokens
+            TokenWrapped(legacyTokenAddress).burn(
+                msg.sender,
+                legacyTokenBalance
+            );
+            // Mint new tokens
+            TokenWrapped(updatedTokenAddress).mint(
+                msg.sender,
+                legacyTokenBalance
+            );
+        }
+
+        // Trigger event
+        emit MigrateLegacyToken(
+            msg.sender,
+            legacyTokenAddress,
+            updatedTokenAddress,
+            legacyTokenBalance
+        );
+    }
+
+    /**
      * @notice Burn tokens from wrapped token to execute the bridge
-     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
+     * note This function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
      * @param tokenWrapped Wrapped token to burnt
      * @param amount Amount of tokens
      */
@@ -229,7 +367,7 @@ contract BridgeL2SovereignChain is
 
     /**
      * @notice Mints tokens from wrapped token to proceed with the claim
-     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
+     * note This function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
      * @param tokenWrapped Wrapped token to mint
      * @param destinationAddress Minted token receiver
      * @param amount Amount of tokens

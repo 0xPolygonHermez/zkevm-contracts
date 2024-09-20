@@ -77,7 +77,9 @@ describe("BridgeL2SovereignChain Contract", () => {
             sovereignChainGlobalExitRoot.target,
             rollupManager.address,
             "0x",
-            ethers.Typed.address(bridgeManager)
+            ethers.Typed.address(bridgeManager),
+            ethers.ZeroAddress,
+            false
         );
 
         // deploy token
@@ -358,7 +360,9 @@ describe("BridgeL2SovereignChain Contract", () => {
                 sovereignChainGlobalExitRoot.target,
                 rollupManager.address,
                 "0x",
-                ethers.Typed.address(bridgeManager)
+                ethers.Typed.address(bridgeManager),
+                ethers.ZeroAddress,
+                false
             )
         ).to.be.revertedWith("Initializable: contract is already initialized");
     });
