@@ -9,7 +9,6 @@ verbosity = 2
 ffi = true
 fs_permissions = [{ access = "read-write", path = "./script/"}]
 evm_version = "shanghai"
-metadata_hash = "none"
 
 remappings = [
     "@ensdomains/=node_modules/@ensdomains/",
