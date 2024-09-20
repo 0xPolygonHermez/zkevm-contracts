@@ -1,0 +1,16 @@
+{
+    "consensusContract": "PolygonZkEVMEtrog",
+    "polygonconsensusContract": "0x2650a9a4fC64f63F573EF0F405064EF54BC46f71",
+    "polygonRollupManagerAddress": "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2",
+    "verifierAddress": "0xc521580cd8586Cc688A7430F9DcE0f6A803F2883",
+    "description": "Type: zkEVM, Version: eggfruit N=25 , genesis: /ipfs/QmUXnRoPbUmZuEZCGyiHjEsoNcFVu3hLtSvhpnfBS2mAYU",
+    "forkID": 11,
+    "rollupCompatibilityID": 0,
+    "timelockDelay": 864000,
+    "timelockSalt": "",
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": "",
+    "genesisRoot": "0xe3a7d8bae497945ba8ddc51c69564f60ad4c1a990b9c7bdbd27f7929bfa8f272"
+}
