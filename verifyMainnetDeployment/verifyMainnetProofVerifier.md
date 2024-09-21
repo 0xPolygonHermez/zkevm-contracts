@@ -1,8 +1,8 @@
-# Verify deployment on Mainnet the proof verifier smart contract (elderberry2-fork.9)
+# Verify deployment on Mainnet the proof verifier smart contract (fork.11)
 
-In order to verify the smart contract, you will need a machine with at least 256GB of RAM and 16 cores.
+In order to verify the smart contract, you will need a machine with at least 512GB of RAM and 32 cores.
 
-In this tutorial we will give instructions for a r6a.8xlarge aws instance. This instance has 16 cores 32 threads, 512GB of SSD. The instance will use Ubuntu 22.04 LTS and the cost of the instance is about 1.82 $/h. This process is quite long, it takes approximately 5-6 hours.
+In this tutorial we will give instructions for a r6a.16xlarge aws instance. This instance has 32 cores 64 threads. The instance will use Ubuntu 22.04 LTS and the cost of the instance is about 3.62$/h. This process is quite long, it takes approximately 4-5 hours.
 
 So lets start by launching and instance.
 
@@ -61,17 +61,17 @@ circom --version
 
 The version of circom should be: 2.1.8
 
-## Prepare fast build constant tree tool
+## Prepare fast build constant tree tool and fflonk setup
 
 ```bash
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-prover.git
 cd zkevm-prover
-git checkout 40cde45deacede2b10a91ce2dd926abd2ba67541
+git checkout 4a237f1c5d770373c9ff19d75fe87890c4599878
 git submodule init
 git submodule update
 sudo apt install -y build-essential libomp-dev libgmp-dev nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev grpc-proto libsodium-dev uuid-dev libsecp256k1-dev
-make -j bctree
+make -j bctree fflonkSetup
 ```
 
 this step takes less than 1 minute.
@@ -81,10 +81,10 @@ this step takes less than 1 minute.
 ```bash
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-proverjs.git
-cd zkevm-proverjs
-git checkout c4a2ce7617cb34b2c119742c2adbcd11ac435ec4
+cd zkevm-proverjs   
+git checkout cec76cc411838b78d3649543fb0fca712317c713
 npm install
-tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree"
+tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree --fflonksetup=../zkevm-prover/build/fflonkSetup --mode=25"
 ```
 
 This step is quite long, it takes approximately 4.5 hours. 2 out of 4.5 hours are for the powersOfTau28_hez_final.ptau download, a file of 288GB that it's loaded only once.
@@ -144,14 +144,15 @@ Once the project structure is created, we proceed to copy the smart contract gen
 
 ```bash
 cd ~/contract
-cp ~/zkevm-proverjs/build/proof/final.fflonk.verifier.sol contracts/verifiers/FflonkVerifier.sol
-sha256sum contracts/verifiers/FflonkVerifier.sol
+cp ~/zkevm-proverjs/build/proof/build/final.fflonk.verifier.sol contracts/verifiers/FflonkVerifier_11.sol
+sed -i "s/FflonkVerifier {/FflonkVerifier_11 {/" contracts/verifiers/FflonkVerifier_11.sol
+sha256sum contracts/verifiers/FflonkVerifier_11.sol
 ```
 
 The result should be:
 
 ```
-ad7faf985475359b115d73ba216e7f6feb9cb3181889e65f62e23904da40b33a
+367fab7b80c452378ba888be84ec08aea3fcf5099cdc4d61c140c61f99982f31
 ```
 
 To compile smartcontract execute following command:
@@ -164,7 +165,7 @@ npx hardhat compile
 > Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
 > --> contracts/verifiers/FflonkVerifier.sol:162:26:
 
-Bytecode of smartcontract was on bytecode property of json file _FflonkVerifier_ generated on path _artifacts/contracts/verifiers/FflonkVerifier.sol/_
+Bytecode of smartcontract was on bytecode property of json file _FflonkVerifier_ generated on path _    _
 
 ```
 608060405234801561000f575f80fd5b506159c7
@@ -186,23 +187,22 @@ Bytecode of smartcontract was on bytecode property of json file _FflonkVerifier_
 808486031215615963575f80fd5b610300840185
 811115615974575f80fd5b849350858286011115
 615985575f80fd5b8092505050925092905056fe
-a2646970667358221220f9204a6729ab3cfd7d00
-8e42e9e609c5982c2ce36f4db2fdd5da2d7ad03d
-505064736f6c63430008140033
-
+a2646970667358221220491c0c93723bfb955947
+5a1591c0c81ce115186e98fc632a12509d669f9c
+89d964736f6c63430008140033
 ```
 
 Verify bytecode compiled:
 
 ```
 cd ~/contract
-cat ./artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json | jq .bytecode -r | tee FflonkVerifier.sol.compiled.bytecode | sha256sum
+cat ./artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier_11.json | jq .bytecode -r | tee FflonkVerifier.sol.compiled.bytecode | sha256sum
 ```
 
 The result should be:
 
 ```
-a830254dd0e50c7fb306d028c0fed5927027814c3151822d16f26e802615ecff
+ab331dc7cc63216e55a3058e51773cdfda280aa37382f444471373706d112a57
 ```
 
 ## Download bytecode of deployed smartcontract
@@ -213,18 +213,18 @@ To download bytecode of deployed smartcontract, need the address of smart contra
 
 Go to Etherscan or Beaconcha to get transaction bytecode.
 
-Associated with address _0x0775e11309d75aA6b0967917fB0213C5673eDf81_ found the transacction _0x99c654b2338dc6e9f438b82acd5eb8af2fa2d2fe69a387714f2b2fa935ee8dbe_.
+Associated with address _0x082cCe3072A26a3871D3e5D40afB425fF5038Cf6_ found the transacction _0xeef8a49cc2469c11043eeb4a1a90c9c184ea1908651326b1b81f2761218f3397_.
 
 -   ### Etherscan (https://etherscan.io)
-    https://etherscan.io/address/0x0775e11309d75aA6b0967917fB0213C5673eDf81
-    https://etherscan.io/tx/0x99c654b2338dc6e9f438b82acd5eb8af2fa2d2fe69a387714f2b2fa935ee8dbe
+    https://etherscan.io/address/0xc521580cd8586cc688a7430f9dce0f6a803f2883
+    https://etherscan.io/tx/0xeef8a49cc2469c11043eeb4a1a90c9c184ea1908651326b1b81f2761218f3397
 
 
     Click to show more > Input Data > Select all data and copy to clipboard.
 
 -   ### Beacocha (https://beaconcha.in)
-    https://beaconcha.in/address/0x0775e11309d75aA6b0967917fB0213C5673eDf81
-    https://beaconcha.in/tx/0x99c654b2338dc6e9f438b82acd5eb8af2fa2d2fe69a387714f2b2fa935ee8dbe
+    https://beaconcha.in/address/c521580cd8586Cc688A7430F9DcE0f6A803F2883
+    https://beaconcha.in/tx/0xeef8a49cc2469c11043eeb4a1a90c9c184ea1908651326b1b81f2761218f3397
 
     Advanced Info > Call Data > Select all data and copy to clipboard.
 
@@ -238,16 +238,6 @@ nano FflonkVerifier.sol.explorer.bytecode
 ```
 
 In nano, to paste the clipboard to the file use CTRL+P, save content using CTRL+X, and finally press Y.
-
-### Download through L1 endpoint call
-
-Alternatively, to the previous step, you could download the bytecode through L1 endpoint call
-
-```bash
-cd ~/contract
-L1_ENDPOINT=<YOUR_L1_ENDPOINT_HERE>
- curl -s -X POST -H "Content-Type: application/json" --data '{"method":"eth_getTransactionByHash","params":["0x6cc2cbf18cefe30ec2b4776b525e187f06f88bb52fe94c1b0dd2629b199fd9c9"], "id":1,"jsonrpc":"2.0"}' $L1_ENDPOINT | jq .result.input -r > FflonkVerifier.sol.explorer.bytecode
-```
 
 ## Compare bytecodes
 
@@ -268,8 +258,8 @@ sha256sum FflonkVerifier.sol.*.bytecode
 The result should be:
 
 ```
-a830254dd0e50c7fb306d028c0fed5927027814c3151822d16f26e802615ecff  FflonkVerifier.sol.compiled.bytecode
-a830254dd0e50c7fb306d028c0fed5927027814c3151822d16f26e802615ecff  FflonkVerifier.sol.explorer.bytecode
+ab331dc7cc63216e55a3058e51773cdfda280aa37382f444471373706d112a57  FflonkVerifier.sol.compiled.bytecode
+ab331dc7cc63216e55a3058e51773cdfda280aa37382f444471373706d112a57  FflonkVerifier.sol.explorer.bytecode
 ```
 
 ## Generated files hash
@@ -280,96 +270,96 @@ a830254dd0e50c7fb306d028c0fed5927027814c3151822d16f26e802615ecff  FflonkVerifier
 <tr><td colspan=2><b>buildrom</b></td></tr>
 <tr><td>rom.json</td><td>676c3f58263fc284bc53ef949dd1acedcfb090f3287ee080b2a277ed2157894a</td></tr>
 <tr><td colspan=2><b>buildpil</b></td></tr>
-<tr><td>main.pil.json</td><td>e6220953585202f5ecfaa8d7bb2fe3d06bf85fb0af22c2fe46a97abd39ae9aa7</td></tr>
+<tr><td>main.pil.json</td><td>8b3894aeb17bd1cd375063105c200c3f85148fd783c42f22903ba85c8ff85efe</td></tr>
 <tr><td colspan=2><b>buildstoragerom</b></td></tr>
 <tr><td>storage_sm_rom.json</td><td>676c3f58263fc284bc53ef949dd1acedcfb090f3287ee080b2a277ed2157894a</td></tr>
 <tr><td colspan=2><b>buildconstants</b></td></tr>
-<tr><td>zkevm.const</td><td>ca154acee3bf9b31bc5a66d919af95536397cb49c5785c8c77cc4e814097a1d7</td></tr>
+<tr><td>zkevm.const</td><td>77c18ef9c1445beea1e0bc05ebb50b2ab67fcc59fd579ee422b00572ce4ab582</td></tr>
 <tr><td colspan=2><b>buildstarkinfo</b></td></tr>
-<tr><td>zkevm.starkstruct.json</td><td>284b6ce275c637af4a0b4b10cd83a881c6f1b21e21ad7ea2276379ed8393b099</td></tr>
-<tr><td>zkevm.starkinfo.json</td><td>cd4615be096817d14b3b19780897ad39f5cd26f83e5d17518dae7688563fcb54</td></tr>
+<tr><td>zkevm.starkstruct.json</td><td>9e2d94d76396a430d95d305340e5cf62e03fcaf18d6d3d2058bef6a4f8c50e8e</td></tr>
+<tr><td>zkevm.starkinfo.json</td><td>5d777c79b68570e51979e1c50aaa11d54375a028dd4221f468dd31b944748dce</td></tr>
 <tr><td colspan=2><b>buildconstanttree</b></td></tr>
-<tr><td>zkevm.verkey.json</td><td>5092fbb5581804e283ee328723f106ba3076c0df26feb1937759731e23870475</td></tr>
-<tr><td>zkevm.consttree</td><td>ca154acee3bf9b31bc5a66d919af95536397cb49c5785c8c77cc4e814097a1d7</td></tr>
+<tr><td>zkevm.verkey.json</td><td>32604064219ca291fc778b1e0c62cb887a4f0b625d350df86e0c99beb6e6bac4</td></tr>
+<tr><td>zkevm.consttree</td><td></td></tr>
 <tr><td colspan=2><b>gencircom</b></td></tr>
-<tr><td>zkevm.verifier.circom</td><td>8475ff87bc8ad6361123045d034a481a2c57935fb4a8990957458f4ace6109a2</td></tr>
+<tr><td>zkevm.verifier.circom</td><td>f3bbb6effee41eb8884c63681350f8c0d2410e8418ccb6127a1e617277144425</td></tr>
 <tr><td colspan=2><b>compilecircom</b></td></tr>
-<tr><td>zkevm.verifier.r1cs</td><td>653122109db0086d44b339f7ddadfc64aabe851c9c29af9fc4d4e2dc8bb00b61</td></tr>
-<tr><td>zkevm.verifier.sym</td><td>a84d5a34944a745428c4ed8708b7c654169a2ffd00e1eccd7044a25bd2194edf</td></tr>
+<tr><td>zkevm.verifier.r1cs</td><td>3c1483234fc00a655dda4d362c64f642d7013f6c165763fa8da575af2a972765</td></tr>
+<tr><td>zkevm.verifier.sym</td><td>5f2ba8617894d4b88e68e37e5333e7a654f0838028a5ce44bed7097ed5288f02</td></tr>
 <tr><td colspan=2><b>c12a_setup</b></td></tr>
 <tr><td>c12a.pil</td><td>13b74f6e33dcbfcb9aa1a5eb7a93691635f51f33aa91e7c867dec11509c93f4d</td></tr>
-<tr><td>c12a.const</td><td>eda18ab4398133691e0daecd1525d51435e8907dc0cde5777ec96def34b2781f</td></tr>
-<tr><td>c12a.exec</td><td>6fe8e529645f1b72de3851ecd50dde6b830846c4cd3af0b83267151b11ec45e1</td></tr>
+<tr><td>c12a.const</td><td>eb2e71cdc818a4dfe34741ab6faa1b46adc72b2dba8ec4249dfb7d18f360c18a</td></tr>
+<tr><td>c12a.exec</td><td>63485493e7f028bfd90063d6c53d7f82a2bd4711f05c0f398af758b04b9489e6</td></tr>
 <tr><td colspan=2><b>c12a_buildstarkinfo</b></td></tr>
 <tr><td>c12a.starkstruct.json</td><td>c8ceea75f0aa05fdbdb20ac41b224355fde07a0dbeecd6649ff8c2636b9a759c</td></tr>
-<tr><td>c12a.starkinfo.json</td><td>c05b27f4538e8071a0e8045faeb8a6de8771053587ad657b07c9401b9597a663</td></tr>
+<tr><td>c12a.starkinfo.json</td><td>7322ea8530b020ff269d3f7805357a387f94d41b38a5e174d5ecfa3c6af0148b</td></tr>
 <tr><td colspan=2><b>c12a_buildconstanttree</b></td></tr>
-<tr><td>c12a.verkey.json</td><td>c11451e126f7a5f1602a5b6721aee1cef819a2760db2aec20711235404fbcbcc</td></tr>
-<tr><td>c12a.consttree</td><td>eda18ab4398133691e0daecd1525d51435e8907dc0cde5777ec96def34b2781f</td></tr>
+<tr><td>c12a.verkey.json</td><td>bc3c0f2e138e87dd57f1ebb4e148c12c6f08d2a45bcb64ea8c91d992c545787c</td></tr>
+<tr><td>c12a.consttree</td><td></td></tr>
 <tr><td colspan=2><b>c12a_gencircom</b></td></tr>
-<tr><td>c12a.verifier.circom</td><td>ff7afa36dd7dcbe6bf882309397294b1ca092890231591bd9d9439cbc60b178e</td></tr>
+<tr><td>c12a.verifier.circom</td><td>78b8dbc8f5f8afd4a77aa01f05e51b3d8ed6d6b8af3cc2d37e7fb5c189691aad</td></tr>
 <tr><td colspan=2><b>recursive1_gencircom</b></td></tr>
 <tr><td>recursive1.circom</td><td>83543e99e0a1f660761fa8a06310dfd9b69d0c0a358a73b6baec55d9587234e5</td></tr>
 <tr><td colspan=2><b>recursive1_compile</b></td></tr>
-<tr><td>recursive1.r1cs</td><td>f44f949f14ca5fa15bcf916d68b5ba3933c869a816bf3d646adebec42a3f3b97</td></tr>
-<tr><td>recursive1.sym</td><td>646bc2e3ca5da30c1221039c1e37af2ed46a2f8f7023d65a41cb80c7de5882a9</td></tr>
+<tr><td>recursive1.r1cs</td><td>0583c70590b5abb8ca9cbacfcd7f33ace109537e24be9b947e122dfabdf95d66</td></tr>
+<tr><td>recursive1.sym</td><td>1b46b7592fe98fe598d486925ec2e6e2dfa944635bc52b57da7678f2d67f84a0</td></tr>
 <tr><td colspan=2><b>recursive1_setup</b></td></tr>
 <tr><td>recursive1.pil</td><td>94ea2856942dd0745e2d6443c6988a4fdc65ac2c3173633e897e02b6d7eaad8b</td></tr>
-<tr><td>recursive1.const</td><td>5365a7fd04c220a042364dadea615876512b016dfb305a1a04cd3e5c85b87a65</td></tr>
-<tr><td>recursive1.exec</td><td>359e6e221cefd35827960ff5cf9cd506ba5e2a5ec92c33312a5903ce087aa155</td></tr>
+<tr><td>recursive1.const</td><td>b2448b85aa048d885cb691cc66ce26deadac77d465bd2e01142d22cd26e147b9</td></tr>
+<tr><td>recursive1.exec</td><td>9c9e3f44b4740a4a694509b24441ebbefdb1a08713d783b3aad7b4ca52eaa0be</td></tr>
 <tr><td colspan=2><b>recursive1_buildstarkinfo</b></td></tr>
 <tr><td>recursive.starkstruct.json</td><td>8bc8b44a7e493e447af7c04d1a362c2198f3e9b29e425248b7646c36b67fd02c</td></tr>
-<tr><td>recursive1.starkinfo.json</td><td>ab63b4008c2b2e769519ff3df4ba6130d66b8d6778c0ba0fb7724d5a4a9e2841</td></tr>
+<tr><td>recursive1.starkinfo.json</td><td>d7e92de911ae2ba54565f044a8566f712c539f1c95f18ef575a6a152a9fded63</td></tr>
 <tr><td colspan=2><b>recursive1_buildconstanttree</b></td></tr>
-<tr><td>recursive1.verkey.json</td><td>2a89c0b3c99b53adc9ced07fbe1c548c4bb78148d0fef03b150f6babc5e7024c</td></tr>
-<tr><td>recursive1.consttree</td><td>5365a7fd04c220a042364dadea615876512b016dfb305a1a04cd3e5c85b87a65</td></tr>
+<tr><td>recursive1.verkey.json</td><td>5980a534f46d0d7d132773719d0a8a0c09957ed62162bf80de82878bfb96692f</td></tr>
+<tr><td>recursive1.consttree</td><td></td></tr>
 <tr><td colspan=2><b>recursive1_verifier_gencircom</b></td></tr>
-<tr><td>recursive1.verifier.circom</td><td>835cf0a8c4706ced7395957a8bef1e00b70d1007586c9fccf107f12b4936dea5</td></tr>
+<tr><td>recursive1.verifier.circom</td><td>4efe368b5ef6ff5444a912870d481ed2ee82a2305a8954baee28ffe830f11cd2</td></tr>
 <tr><td colspan=2><b>recursive2_gencircom</b></td></tr>
-<tr><td>recursive2.circom</td><td>41faac208dc92e088fe3277e2c19449db9ebb591de79213168f2ee4e26497bd8</td></tr>
+<tr><td>recursive2.circom</td><td>2403af9f05532ec723887cf437eff099d4d9c11dffd4edca3cfe203394c92bc6</td></tr>
 <tr><td colspan=2><b>recursive2_compile</b></td></tr>
-<tr><td>recursive2.r1cs</td><td>47c79fa4c0a239c7d5066bc16c32aa5490fec00b0c4890b7f6318aca12713b47</td></tr>
-<tr><td>recursive2.sym</td><td>a47d475bcb09309b2100bfc19ce4c4baa9cee2699373290569617d71fcf51a64</td></tr>
+<tr><td>recursive2.r1cs</td><td>bd1f3b6ff423ebc1ec0960b7595c4ee6d8bbe77a5146f3ef1904b2d7f0418a7c</td></tr>
+<tr><td>recursive2.sym</td><td>02d222e72be5ff927f759382c4950ba4af9ba36a6535e5a85fd23284d33ed54c</td></tr>
 <tr><td colspan=2><b>recursive2_setup</b></td></tr>
 <tr><td>recursive2.pil</td><td>94ea2856942dd0745e2d6443c6988a4fdc65ac2c3173633e897e02b6d7eaad8b</td></tr>
-<tr><td>recursive2.const</td><td>a41baa8a704ee3b2671527cc40b577f8379d5aa3e4b0ef15639af94a8a5fc424</td></tr>
-<tr><td>recursive2.exec</td><td>f32201da15042d9167dc8dd6707c2920d7d2e772d411566739ac874bdbf269fb</td></tr>
+<tr><td>recursive2.const</td><td>5d33198f77bb6e66b377114b64e2a0698219b75fab06dcbf6916a200d6bb9a5f</td></tr>
+<tr><td>recursive2.exec</td><td>8e54e6994f95dddf12f0fbe53c9f59cc37d6a3759be9c9533d00c1e35792e1e4</td></tr>
 <tr><td colspan=2><b>recursive2_buildstarkinfo</b></td></tr>
-<tr><td>recursive2.starkinfo.json</td><td>ab63b4008c2b2e769519ff3df4ba6130d66b8d6778c0ba0fb7724d5a4a9e2841</td></tr>
+<tr><td>recursive2.starkinfo.json</td><td>d7e92de911ae2ba54565f044a8566f712c539f1c95f18ef575a6a152a9fded63</td></tr>
 <tr><td colspan=2><b>recursive2_buildconstanttree</b></td></tr>
-<tr><td>recursive2.verkey.json</td><td>efba78426040b2b2b11fa96bf6aa27068d47abe0b38a8239454a62e707efdf69</td></tr>
-<tr><td>recursive2.consttree</td><td>a41baa8a704ee3b2671527cc40b577f8379d5aa3e4b0ef15639af94a8a5fc424</td></tr>
+<tr><td>recursive2.verkey.json</td><td>181a09dbed53d260a00d89309e4bca2b5e6fea6324dcd3c85e7721fd5e5de11f</td></tr>
+<tr><td>recursive2.consttree</td><td></td></tr>
 <tr><td colspan=2><b>recursive2_verifier_gencircom</b></td></tr>
-<tr><td>recursive2.verifier.circom</td><td>835cf0a8c4706ced7395957a8bef1e00b70d1007586c9fccf107f12b4936dea5</td></tr>
+<tr><td>recursive2.verifier.circom</td><td>4efe368b5ef6ff5444a912870d481ed2ee82a2305a8954baee28ffe830f11cd2</td></tr>
 <tr><td colspan=2><b>recursivef_gencircom</b></td></tr>
-<tr><td>recursivef.circom</td><td>3f1ce1916c04a44dea912c7ea3f9597d7d75c0a3f301efe6ca54ba7ef41f115f</td></tr>
+<tr><td>recursivef.circom</td><td>1645f01cbe10cfeb0d9f97c75e4bffbd59c5397456ae5bc00c56b2223db7dda6</td></tr>
 <tr><td colspan=2><b>recursivef_compile</b></td></tr>
-<tr><td>recursivef.r1cs</td><td>e05cb8080a6b439701f06ea11884ef3bfdefebd74bb714434315adf5ee1514f6</td></tr>
-<tr><td>recursivef.sym</td><td>fcbe9cd852065f1224a82f8b595d2c7aaa9fdbc616ef9048714105d69d988cd7</td></tr>
+<tr><td>recursivef.r1cs</td><td>890f9478ae714050dfde490593cdb049fbe4b556b75fd3509e8e712a97b9100c</td></tr>
+<tr><td>recursivef.sym</td><td>dc222486289156d8a0a60611afd7988252e6eb450111ab95041e923a8f68cce4</td></tr>
 <tr><td colspan=2><b>recursivef_setup</b></td></tr>
 <tr><td>recursivef.pil</td><td>62527bfc12f535e8fa3a6dd7055bc595b27fc491f7203987108ee3d13283dbfe</td></tr>
-<tr><td>recursivef.const</td><td>fe0ca03b16fb7d284f6b03b88f0e99a666f5006db69b8e51ea723d07bb9b554b</td></tr>
-<tr><td>recursivef.exec</td><td>1751c8a070d68cc64aa7d932a1785330da24139e547805e583f5407c5600715e</td></tr>
+<tr><td>recursivef.const</td><td>d4cca4ae37f7cbb23117b613d6e2ca360ac45221593d381ffe01d028c0be7767</td></tr>
+<tr><td>recursivef.exec</td><td>9f4e5c4b20a55a28d7c9753ca41226b7116eea28d24e65e47fd7d1331a13d721</td></tr>
 <tr><td colspan=2><b>recursivef_buildstarkinfo</b></td></tr>
 <tr><td>recursivef.starkstruct.json</td><td>ba99ad986178db98b1a867bb9d8592fa6ba5c29d9233fd939d01424425ce6cba</td></tr>
-<tr><td>recursivef.starkinfo.json</td><td>8d6e9503550ad8bdde303af5b37ad0320171d4f180fc11323b58fbf8d82bb1a6</td></tr>
+<tr><td>recursivef.starkinfo.json</td><td>5d2a3e02a0e5ea64f04d6ad8a8fc3f29edb4c959acde2460de11e21fb17c02c7</td></tr>
 <tr><td colspan=2><b>recursivef_buildconstanttree</b></td></tr>
-<tr><td>recursivef.verkey.json</td><td>e391e7f55efac7d781bf03a2666e4cf3c5336e548a1acfa89fa295a1d9b408fe</td></tr>
-<tr><td>recursivef.consttree</td><td>fe0ca03b16fb7d284f6b03b88f0e99a666f5006db69b8e51ea723d07bb9b554b</td></tr>
+<tr><td>recursivef.verkey.json</td><td>0e661f73837ee435818355bd03473519e181553e93826d0488ce37ad7de54946</td></tr>
+<tr><td>recursivef.consttree</td><td></td></tr>
 <tr><td colspan=2><b>recursivef_verifier_gencircom</b></td></tr>
-<tr><td>recursivef.verifier.circom</td><td>64dd7df291518a73d0c71a1ca329e1f05bf3f25a97f2b9b905a8cdd495cb9ed6</td></tr>
+<tr><td>recursivef.verifier.circom</td><td>49e7ffac443928992740f6adde19955d9b2ec7470f19060ee61d5a0fcb937635</td></tr>
 <tr><td colspan=2><b>final_gencircom</b></td></tr>
 <tr><td>final.circom</td><td>74a06304ce73b282a520c358baead152dad790b0aa6b7031f6ba8c00166be459</td></tr>
 <tr><td colspan=2><b>final_compile</b></td></tr>
-<tr><td>final.r1cs</td><td>014d04d4dc123f9f0e625ac6819b41a5ed2baf83d712d00bad326b5763d0b77a</td></tr>
-<tr><td>final.sym</td><td>e9cae6fc94d002475857b90b4cea238e60c4ea4492e435ebb9aa91e5e055775b</td></tr>
+<tr><td>final.r1cs</td><td>34453e1dc378df36b6608bb6d079504dcec8073558b9a1dcdfcb0feaeac13b6c</td></tr>
+<tr><td>final.sym</td><td>66d090bedc8a30f43e6127522bd06fc357e0b5180e7f52149f215c9056aa5803</td></tr>
 <tr><td colspan=2><b>fflonk_setup</b></td></tr>
-<tr><td>final.fflonk.zkey</td><td>fdc2c9e25735144653663f29806e711e811b4c7135785d01c5e10f13e3c4cbcc</td></tr>
+<tr><td>final.fflonk.zkey</td><td>db8ce4d6da6f20e494568b3150e3c17db1aa987c9baf5e91d126d8d1bceba549</td></tr>
 <tr><td colspan=2><b>fflonk_evk</b></td></tr>
-<tr><td>final.fflonk.verkey.json</td><td>23f1f4593ab0bb77a7aeb5ad30c5bddbc4b29a696e2e4b961500d9260e4d04b5</td></tr>
-<tr><td>dependencies.txt</td><td>d2ecb931d898a37e596b2b4716ca22f875fae3de913d03bf0106ef2ea10eecd8</td></tr>
+<tr><td>final.fflonk.verkey.json</td><td>fe3d4c74ff681a881ea00bdbf449cf303240560c0908f91f383e161bd71ff927</td></tr>
+<tr><td>dependencies.txt</td><td>9f9c3c76fe1832250aa8e332d1bba55bbdf963fd06b830aeb743548963722153</td></tr>
 <tr><td colspan=2><b>fflonk_solidity</b></td></tr>
-<tr><td>final.fflonk.verifier.sol</td><td>ad7faf985475359b115d73ba216e7f6feb9cb3181889e65f62e23904da40b33a</td></tr>
+<tr><td>final.fflonk.verifier.sol</td><td>3e0aec706be943e508990b5fc5c7fa7146710f47bf71d6b668dbb2d8bcd27ea1</td></tr>
 </table>
 
 
