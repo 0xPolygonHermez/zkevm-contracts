@@ -76,6 +76,7 @@
         "compile": "npx hardhat compile",
         "docker:contracts": "./docker/scripts/v2/deploy-docker.sh",
         "dockerv2:contracts": "./docker/scripts/v2/deploy-dockerv2.sh",
+        "docker:tests": "npx hardhat test docker/DockerTests.test.ts --network localhost",
         "push:docker:contracts": "docker push hermeznetwork/geth-zkevm-contracts",
         "update:genesis": "node deployment/1_createGenesis.js && node deployment/1_createGenesis.js --test --input ../docker/scripts/deploy_parameters_docker.json --out ../docker/scripts/genesis_docker.json",
         "coverage": "npx hardhat coverage --testfiles \"test/contractsv2/*.ts\"",
