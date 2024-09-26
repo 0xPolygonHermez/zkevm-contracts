@@ -16,11 +16,5 @@ sudo DEV_PERIOD=1 docker compose -f docker/docker-compose.yml down
 sudo docker build -t hermeznetwork/geth-zkevm-contracts -f docker/Dockerfile .
 # Let it readable for the multiplatform build coming later!
 sudo chmod -R go+rxw docker/gethData
-# Run container
-sudo docker run -p 8545:8545 -d --name docker_test hermeznetwork/geth-zkevm-contracts
 # Run docker tests
-npm run docker:tests
-# stop container
-sudo docker stop docker_test
-# remove container
-sudo docker container rm docker_test
+sh "$(dirname "$0")/tests-docker.sh"

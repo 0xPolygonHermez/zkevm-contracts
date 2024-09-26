@@ -1,5 +1,5 @@
 import {expect} from "chai";
-import {ethers, upgrades} from "hardhat";
+import {ethers} from "hardhat";
 import fs from "fs";
 import path from "path";
 const deployOutput = JSON.parse(fs.readFileSync(path.join(__dirname, "./deploymentOutput/deploy_output.json"), "utf8"));
@@ -25,11 +25,14 @@ describe("Docker build tests Contract", () => {
         expect(await PolygonZkEVMEtrogContract.pol()).to.equal(polTokenAddress);
         expect(await PolygonZkEVMEtrogContract.bridgeAddress()).to.equal(polygonZkEVMBridgeAddress);
         expect(await PolygonZkEVMEtrogContract.rollupManager()).to.equal(polygonRollupManagerAddress);
+        const admin = await PolygonZkEVMEtrogContract.admin();
+        // If admin is not zero address, means the contract is already initialized
+        expect(admin).to.not.equal(ethers.ZeroAddress);
     });
 
     it("should check RollupManager", async () => {
-        const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager");
-        const rollupManagerContract = PolgonRollupManagerFactory.attach(
+        const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager");
+        const rollupManagerContract = PolygonRollupManagerFactory.attach(
             polygonRollupManagerAddress
         ) as PolygonRollupManager;
         expect(rollupManagerContract.target).to.equal(polygonRollupManagerAddress);
@@ -46,6 +49,10 @@ describe("Docker build tests Contract", () => {
         expect(PolygonZkEVMGlobalExitRootV2Contract.target).to.equal(polygonZkEVMGlobalExitRootAddress);
         expect(await PolygonZkEVMGlobalExitRootV2Contract.bridgeAddress()).to.equal(polygonZkEVMBridgeAddress);
         expect(await PolygonZkEVMGlobalExitRootV2Contract.rollupManager()).to.equal(polygonRollupManagerAddress);
+        // Check already initialized
+        await expect(
+            PolygonZkEVMGlobalExitRootV2Contract.initialize()
+        ).to.be.revertedWith("Initializable: contract is already initialized");
     });
 
     it("should check PolygonZkEVMBridgeV2", async () => {
@@ -56,5 +63,16 @@ describe("Docker build tests Contract", () => {
         expect(PolygonZkEVMBridgeV2Contract.target).to.equal(polygonZkEVMBridgeAddress);
         expect(await PolygonZkEVMBridgeV2Contract.globalExitRootManager()).to.equal(polygonZkEVMGlobalExitRootAddress);
         expect(await PolygonZkEVMBridgeV2Contract.polygonRollupManager()).to.equal(polygonRollupManagerAddress);
+        // Check already initialized
+        await expect(
+            PolygonZkEVMBridgeV2Contract.initialize(
+                0,
+                ethers.ZeroAddress, // zero for ether
+                ethers.ZeroAddress, // zero for ether
+                polygonZkEVMGlobalExitRootAddress,
+                polygonRollupManagerAddress,
+                "0x"
+            )
+        ).to.be.revertedWith("Initializable: contract is already initialized");
     });
 });
