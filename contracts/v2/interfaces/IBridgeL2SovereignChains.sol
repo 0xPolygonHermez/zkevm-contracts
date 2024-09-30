@@ -27,7 +27,7 @@ interface IBridgeL2SovereignChains is IPolygonZkEVMBridgeV2 {
     error NotValidBridgeManager();
 
     /**
-     * @dev Thrown when trying to remove a token mapping that has not been mapped before
+     * @dev Thrown when trying to remove a token mapping that has not been updated by a new one
      */
     error TokenNotMapped();
 

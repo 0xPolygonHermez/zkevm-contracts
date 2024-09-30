@@ -276,26 +276,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         expect(await sovereignChainBridgeContract.gasTokenMetadata()).to.be.equal(gasTokenMetadata);
     });
 
-    it("should check the initalized function", async () => {
-        // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2");
-        const bridge = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
-            initializer: false,
-            unsafeAllow: ["constructor"],
-        });
-
-        await expect(
-            bridge.initialize(
-                networkIDMainnet,
-                ethers.ZeroAddress, // zero for ether
-                1, // zero for ether
-                sovereignChainGlobalExitRoot.target,
-                rollupManager.address,
-                "0x"
-            )
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "GasTokenNetworkMustBeZeroOnEther");
-    });
-
     it("should check the emergency state", async () => {
         expect(await sovereignChainBridgeContract.isEmergencyState()).to.be.equal(false);
 

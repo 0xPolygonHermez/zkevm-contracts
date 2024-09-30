@@ -59,7 +59,7 @@ const zkevmAddressL2 = ethers.ZeroAddress;
 async function main() {
     // Constant variables
     const attemptsDeployProxy = 20;
-    const balanceBrige = BigInt("0xffffffffffffffffffffffffffffffff"); // 128 bits
+    const balanceBridge = BigInt("0xffffffffffffffffffffffffffffffff"); // 128 bits
 
     let timelockAdminAddress;
     let initialZkEVMDeployerOwner;
@@ -75,9 +75,9 @@ async function main() {
     let proxyAdminAddress;
     let finalProxyAdminAddress;
 
-    let finalTimelockContractAdress;
+    let finalTimelockContractAddress;
 
-    let finalzkEVMDeployerAdress;
+    let finalZkEVMDeployerAddress;
 
     const finalGlobalExitRootL2ProxyAddress = globalExitRootL2Address;
 
@@ -90,15 +90,18 @@ async function main() {
 
     // Check if it's mainnet deployment
     const isMainnet = deployParameters["isMainnet"] === true ? true : false;
+    let isSovereignChain = deployParameters["isSovereignChain"] === true ? true : false;
 
     if (isMainnet === true) {
+        // If is mainnet, can't be sovereign
+        isSovereignChain = false;
         timelockAdminAddress = mainnetMultisig;
         minDelayTimelock = mainnetMinDelayTimelock;
         salt = "0x0000000000000000000000000000000000000000000000000000000000000000"; // salt mock
         initialZkEVMDeployerOwner = mainnetInitialZkEVMDeployerOwner;
 
-        finalzkEVMDeployerAdress = mainnetZkEVMDeployerAddress;
-        finalTimelockContractAdress = mainnetZkEVMTimelockAddress;
+        finalZkEVMDeployerAddress = mainnetZkEVMDeployerAddress;
+        finalTimelockContractAddress = mainnetZkEVMTimelockAddress;
         finalProxyAdminAddress = mainnetProxyAdminAddress;
         finalBridgeImplAddress = mainnetZkEVMBridgeImplementationAddress;
         finalBridgeProxyAddress = mainnetZkEVMBridgeProxyAddress;
@@ -135,7 +138,7 @@ async function main() {
     if (isMainnet === false) {
         finalDeployer = deployer.address;
         finalKeylessDeployer = keylessDeployer;
-        finalzkEVMDeployerAdress = zkEVMDeployerContract.target;
+        finalZkEVMDeployerAddress = zkEVMDeployerContract.target;
     }
     /*
      * Deploy Bridge
@@ -163,7 +166,8 @@ async function main() {
     }
 
     // Deploy implementation PolygonZkEVMBridge
-    const polygonZkEVMBridgeFactory = await ethers.getContractFactory("PolygonZkEVMBridgeV2", deployer);
+    const bridgeContractName = isSovereignChain ? "BridgeL2SovereignChain": "PolygonZkEVMBridgeV2";
+    const polygonZkEVMBridgeFactory = await ethers.getContractFactory(bridgeContractName, deployer);
     const deployTransactionBridge = (await polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = BigInt(5500000);
@@ -211,14 +215,15 @@ async function main() {
         finalBridgeProxyAddress = proxyBridgeAddress;
     }
 
-    // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically ( admin/impl)
+    // Import OZ manifest the deployed contracts, its enough to import just the proxy, the rest are imported automatically ( admin/impl)
     await upgrades.forceImport(proxyBridgeAddress as string, polygonZkEVMBridgeFactory, "transparent" as any);
 
     /*
      *Deployment Global exit root manager
      */
+    const globalExitRootContractName = isSovereignChain ? "GlobalExitRootManagerL2SovereignChain": "PolygonZkEVMGlobalExitRootL2";
     const PolygonZkEVMGlobalExitRootL2Factory = await ethers.getContractFactory(
-        "PolygonZkEVMGlobalExitRootL2",
+        globalExitRootContractName,
         deployer
     );
     let polygonZkEVMGlobalExitRootL2;
@@ -257,12 +262,12 @@ async function main() {
     );
     await timelockContract.waitForDeployment();
     if (isMainnet === false) {
-        finalTimelockContractAdress = timelockContract.target;
+        finalTimelockContractAddress = timelockContract.target;
     }
 
     // Transfer ownership of the proxyAdmin to timelock
     const proxyAdminInstance = proxyAdminFactory.attach(proxyAdminAddress as string) as ProxyAdmin;
-    await (await proxyAdminInstance.connect(deployer).transferOwnership(finalTimelockContractAdress as string)).wait();
+    await (await proxyAdminInstance.connect(deployer).transferOwnership(finalTimelockContractAddress as string)).wait();
 
     // Recreate genesis with the current information:
 
@@ -272,7 +277,7 @@ async function main() {
         contractName: "PolygonZkEVMDeployer",
         balance: "0",
         nonce: zkEVMDeployerInfo.nonce.toString(),
-        address: finalzkEVMDeployerAdress,
+        address: finalZkEVMDeployerAddress,
         bytecode: zkEVMDeployerInfo.bytecode,
         storage: zkEVMDeployerInfo.storage,
     });
@@ -291,7 +296,7 @@ async function main() {
     // Bridge implementation
     const bridgeImplementationInfo = await getAddressInfo(bridgeImplementationAddress as string);
     genesis.push({
-        contractName: "PolygonZkEVMBridge implementation",
+        contractName: `${bridgeContractName} implementation`,
         balance: "0",
         nonce: bridgeImplementationInfo.nonce.toString(),
         address: finalBridgeImplAddress,
@@ -306,9 +311,9 @@ async function main() {
     bridgeProxyInfo.storage[_IMPLEMENTATION_SLOT] = ethers.zeroPadValue(finalBridgeImplAddress as string, 32);
 
     genesis.push({
-        contractName: "PolygonZkEVMBridge proxy",
-        balance: balanceBrige,
-        nonce: bridgeProxyInfo.nonce.toString(),
+        contractName: `${bridgeContractName} proxy`,
+        balance: balanceBridge,
+    nonce: bridgeProxyInfo.nonce.toString(),
         address: finalBridgeProxyAddress,
         bytecode: bridgeProxyInfo.bytecode,
         storage: bridgeProxyInfo.storage,
@@ -325,7 +330,7 @@ async function main() {
     }
 
     genesis.push({
-        contractName: "PolygonZkEVMGlobalExitRootL2 implementation",
+        contractName: `${globalExitRootContractName} implementation`,
         balance: "0",
         nonce: implGlobalExitRootL2Info.nonce.toString(),
         address: finalGlobalExitRootL2ImplAddress,
@@ -343,7 +348,7 @@ async function main() {
     );
 
     genesis.push({
-        contractName: "PolygonZkEVMGlobalExitRootL2 proxy",
+        contractName: `${globalExitRootContractName} proxy`,
         balance: "0",
         nonce: proxyGlobalExitRootL2Info.nonce.toString(),
         address: finalGlobalExitRootL2ProxyAddress,
@@ -355,7 +360,7 @@ async function main() {
     const timelockInfo = await getAddressInfo(timelockContract.target);
 
     /*
-     * Since roles are used, most storage are writted in peusdoRandom storage slots
+     * Since roles are used, most storage is written in pseudoRandom storage slots
      * bytes32 public constant TIMELOCK_ADMIN_ROLE = keccak256("TIMELOCK_ADMIN_ROLE");
      * bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
      * bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
@@ -398,7 +403,7 @@ async function main() {
         contractName: "PolygonZkEVMTimelock",
         balance: "0",
         nonce: timelockInfo.nonce.toString(),
-        address: finalTimelockContractAdress,
+        address: finalTimelockContractAddress,
         bytecode: timelockInfo.bytecode,
         storage: timelockInfo.storage,
     });
@@ -483,9 +488,9 @@ async function getAddressInfo(address: string | Addressable) {
     if (valueAdminSlot !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
         storage[_ADMIN_SLOT] = valueAdminSlot;
     }
-    const valuImplementationSlot = await ethers.provider.getStorage(address, _IMPLEMENTATION_SLOT);
-    if (valuImplementationSlot !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-        storage[_IMPLEMENTATION_SLOT] = valuImplementationSlot;
+    const valueImplementationSlot = await ethers.provider.getStorage(address, _IMPLEMENTATION_SLOT);
+    if (valueImplementationSlot !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+        storage[_IMPLEMENTATION_SLOT] = valueImplementationSlot;
     }
 
     return {nonce, bytecode, storage};

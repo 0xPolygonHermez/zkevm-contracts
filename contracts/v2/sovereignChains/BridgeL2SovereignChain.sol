@@ -251,7 +251,7 @@ contract BridgeL2SovereignChain is
     }
 
     /**
-     * @notice Remove the address of a remapped token from the mapping
+     * @notice Remove the address of a remapped token from the mapping. Used to stop supporting legacy sovereign tokens
      * @notice It also removes the token from the isNotMintable mapping
      * @notice Although the token is removed from the mapping, the user will still be able to withdraw their tokens using tokenInfoToWrappedToken mapping
      * @param sovereignTokenAddress Address of the sovereign wrapped token
@@ -270,7 +270,7 @@ contract BridgeL2SovereignChain is
             )
         );
 
-        if (tokenInfoToWrappedToken[tokenInfoHash] == address(0)) {
+        if (tokenInfoToWrappedToken[tokenInfoHash] == address(0) || tokenInfoToWrappedToken[tokenInfoHash] == sovereignTokenAddress) {
             revert TokenNotMapped();
         }
         delete wrappedTokenToTokenInfo[sovereignTokenAddress];

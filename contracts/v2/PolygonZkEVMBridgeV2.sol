@@ -156,7 +156,7 @@ contract PolygonZkEVMBridgeV2 is
         IBasePolygonZkEVMGlobalExitRoot _globalExitRootManager,
         address _polygonRollupManager,
         bytes memory _gasTokenMetadata
-    ) public virtual initializer {
+    ) external virtual initializer {
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonRollupManager = _polygonRollupManager;
