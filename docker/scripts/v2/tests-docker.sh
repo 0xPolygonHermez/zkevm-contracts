@@ -1,8 +1,6 @@
 #!/bin/bash
 # Set the -e option to stop the script if any command fails
 set -e
-# Build docker
-npm run dockerv2:contracts
 # Run docker tests
 # Run container
 docker run -p 8545:8545 -d --name docker_test hermeznetwork/geth-zkevm-contracts
