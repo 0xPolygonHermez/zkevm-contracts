@@ -78,7 +78,7 @@ contract PolygonZkEVMGlobalExitRootV2 is
      * @param newRoot new exit tree root
      */
     function updateExitRoot(bytes32 newRoot) external {
-        // Store storage variables into temporal variables since will be used multiple times
+        // Store storage variables into temporary variables since will be used multiple times
         bytes32 cacheLastRollupExitRoot;
         bytes32 cacheLastMainnetExitRoot;
 
