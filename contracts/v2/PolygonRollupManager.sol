@@ -40,7 +40,7 @@ contract PolygonRollupManager is
      * @param rollupVerifierType Rollup compatibility ID, to check upgradability between rollup types
      * @param obsolete Indicates if the rollup type is obsolete
      * @param genesis Genesis block of the rollup, note that will only be used on creating new rollups, not upgrade them
-     * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
+     * @param programVKey Hashed program that will be executed in case of using a "general purpose ZK verifier" e.g SP1
      */
     struct RollupType {
         address consensusImplementation;
@@ -73,7 +73,7 @@ contract PolygonRollupManager is
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
      * @param lastPessimisticRoot Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
-     * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
+     * @param programVKey Hashed program that will be executed in case of using a "general purpose ZK verifier" e.g SP1
      */
     struct RollupData {
         IPolygonRollupBase rollupContract;
@@ -145,10 +145,10 @@ contract PolygonRollupManager is
      * @param rollupTypeID Rollup type ID, can be 0 if it was added as an existing rollup
      * @param rollupVerifierType Rollup ID used for compatibility checks when upgrading
      * @param lastPessimisticRoot Pessimistic info, currently contains the local balance tree and the local nullifier tree hashed
-     * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
+     * @param programVKey Hashed program that will be executed in case of using a "general purpose ZK verifier" e.g SP1
      */
     struct RollupDataReturnV2 {
-        IPolygonRollupBase rollupContract;
+        address rollupContract;
         uint64 chainID;
         address verifier;
         uint64 forkID;
@@ -424,9 +424,10 @@ contract PolygonRollupManager is
      * @param consensusImplementation Consensus implementation
      * @param verifier Verifier address
      * @param forkID ForkID of the verifier
+     * @param rollupVerifierType rollup verifier type
      * @param genesis Genesis block of the rollup
      * @param description Description of the rollup type
-     * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
+     * @param programVKey Hashed program that will be executed in case of using a "general purpose ZK verifier" e.g SP1
      */
     function addNewRollupType(
         address consensusImplementation,
@@ -440,7 +441,7 @@ contract PolygonRollupManager is
         uint32 rollupTypeID = ++rollupTypeCount;
 
         if (rollupVerifierType == VerifierType.Pessimistic) {
-            // No genesis on state transition rollups
+            // No genesis on pessimistic rollups
             if (genesis != bytes32(0)) revert InvalidRollupType();
         } else {
             // No programVKey on state transition rollups
@@ -483,7 +484,7 @@ contract PolygonRollupManager is
 
         // Check rollup type is not obsolete
         RollupType storage currentRollupType = rollupTypeMap[rollupTypeID];
-        if (currentRollupType.obsolete == true) {
+        if (currentRollupType.obsolete) {
             revert RollupTypeObsolete();
         }
 
@@ -519,7 +520,7 @@ contract PolygonRollupManager is
 
         // Check rollup type is not obsolete
         RollupType storage rollupType = rollupTypeMap[rollupTypeID];
-        if (rollupType.obsolete == true) {
+        if (rollupType.obsolete) {
             revert RollupTypeObsolete();
         }
 
@@ -590,7 +591,7 @@ contract PolygonRollupManager is
      * @param chainID Chain id of the added rollup
      * @param initRoot Genesis block for StateTransitionChains & localExitRoot for pessimistic chain
      * @param rollupVerifierType Compatibility ID for the added rollup
-     * @param programVKey Hashed program that will be executed in case of using a "general porpuse ZK verifier" e.g SP1
+     * @param programVKey Hashed program that will be executed in case of using a "general purpose ZK verifier" e.g SP1
      */
     function addExistingRollup(
         IPolygonRollupBase rollupAddress,
@@ -732,7 +733,7 @@ contract PolygonRollupManager is
         RollupType storage newRollupType = rollupTypeMap[newRollupTypeID];
 
         // Check rollup type is not obsolete
-        if (newRollupType.obsolete == true) {
+        if (newRollupType.obsolete) {
             revert RollupTypeObsolete();
         }
 
@@ -1306,7 +1307,7 @@ contract PolygonRollupManager is
         bytes32 l1InfoTreeRoot,
         bytes32 newLocalExitRoot,
         bytes32 newPessimisticRoot
-    ) public view returns (bytes memory) {
+    ) external view returns (bytes memory) {
         return
             _getInputPessimisticBytes(
                 rollupID,
@@ -1510,7 +1511,7 @@ contract PolygonRollupManager is
     ) public view returns (RollupDataReturnV2 memory rollupData) {
         RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
-        rollupData.rollupContract = rollup.rollupContract;
+        rollupData.rollupContract = address(rollup.rollupContract);
         rollupData.chainID = rollup.chainID;
         rollupData.verifier = rollup.verifier;
         rollupData.forkID = rollup.forkID;
