@@ -146,18 +146,28 @@ async function main() {
     }
 
     let verifierContract;
+    let verifierName;
     if (realVerifier === true) {
-        let verifierName = `FflonkVerifier_${forkID}`;
+        if (consensusContract != "PolygonPessimisticConsensus") {
+            verifierName = `FflonkVerifier_${forkID}`;
 
-        const VerifierRollup = await ethers.getContractFactory(verifierName, deployer);
-        verifierContract = await VerifierRollup.deploy();
-        await verifierContract.waitForDeployment();
+            const VerifierRollup = await ethers.getContractFactory(verifierName, deployer);
+            verifierContract = await VerifierRollup.deploy();
+            await verifierContract.waitForDeployment();
+        } else {
+            verifierName = "SP1Verifier";
+            const VerifierRollup = await ethers.getContractFactory(verifierName, deployer);
+            verifierContract = await VerifierRollup.deploy();
+            await verifierContract.waitForDeployment();
+        }
     } else {
-        const VerifierRollupHelperFactory = await ethers.getContractFactory("VerifierRollupHelperMock", deployer);
+        verifierName = "VerifierRollupHelperMock";
+        const VerifierRollupHelperFactory = await ethers.getContractFactory(verifierName, deployer);
         verifierContract = await VerifierRollupHelperFactory.deploy();
         await verifierContract.waitForDeployment();
     }
     console.log("#######################\n");
+    console.log("Verifier name:", verifierName);
     console.log("Verifier deployed to:", verifierContract.target);
 
     // Since it's a mock deployment deployer has all the rights
