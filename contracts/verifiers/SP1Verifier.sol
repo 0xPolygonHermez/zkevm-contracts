@@ -4,6 +4,9 @@ pragma solidity ^0.8.20;
 import {ISP1Verifier, ISP1VerifierWithHash} from "../v2/interfaces/ISP1Verifier.sol";
 import {PlonkVerifier} from "./PlonkVerifier.sol";
 
+// Current deployments: https://github.com/succinctlabs/sp1-contracts/tree/main/contracts/deployments
+// Local deployments should deploy this contract. Any existing chain should use already deployed contracts by SP1
+
 /// @title SP1 Verifier
 /// @author Succinct Labs
 /// @notice This contracts implements a solidity verifier for SP1.
@@ -23,7 +26,8 @@ contract SP1Verifier is PlonkVerifier, ISP1VerifierWithHash {
 
     /// @inheritdoc ISP1VerifierWithHash
     function VERIFIER_HASH() public pure returns (bytes32) {
-        return 0xc430ff7f31a22c5f7607f3ed2a2f5621af340bc45a44179319cba5761664e1f0;
+        return
+            0xc430ff7f31a22c5f7607f3ed2a2f5621af340bc45a44179319cba5761664e1f0;
     }
 
     /// @notice Hashes the public values to a field elements inside Bn254.
