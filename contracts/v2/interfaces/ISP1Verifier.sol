@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-// imported from: https://github.com/succinctlabs/sp1-contracts/blob/main/contracts/src/ISP1Verifier.sol
-
 /// @title SP1 Verifier Interface
 /// @author Succinct Labs
 /// @notice This contract is the interface for the SP1 Verifier.
