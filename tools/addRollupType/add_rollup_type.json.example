@@ -1,16 +1,16 @@
 {
     "consensusContract": "PolygonValidiumEtrog",
-    "polygonconsensusContract": "",
+    "consensusContractAddress": "",
     "polygonRollupManagerAddress": "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2",
     "verifierAddress": "0x1C3A3da552b8662CD69538356b1E7c2E9CC1EBD8",
     "description": "Type: Validium, Version: etrog, genesis: /ipfs/QmUXnRoPbUmZuEZCGyiHjEsoNcFVu3hLtSvhpnfBS2mAYU",
     "forkID": 7,
-    "rollupCompatibilityID": 0,
     "timelockDelay": 864000,
     "timelockSalt": "",
     "deployerPvtKey": "",
     "maxFeePerGas":"",
     "maxPriorityFeePerGas":"",
     "multiplierGas": "",
-    "genesisRoot": "0xe3a7d8bae497945ba8ddc51c69564f60ad4c1a990b9c7bdbd27f7929bfa8f272"
+    "genesisRoot": "0xe3a7d8bae497945ba8ddc51c69564f60ad4c1a990b9c7bdbd27f7929bfa8f272",
+    "programVKey": "0xaabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
 }

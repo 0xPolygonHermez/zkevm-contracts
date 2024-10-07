@@ -30,8 +30,8 @@ async function main() {
         "consensusContract",
         "polygonRollupManagerAddress",
         "verifierAddress",
-        "rollupCompatibilityID",
         "genesisRoot",
+        "programVKey",
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -42,15 +42,16 @@ async function main() {
 
     const {
         description,
-        rollupCompatibilityID,
         forkID,
         consensusContract,
         polygonRollupManagerAddress,
         verifierAddress,
         genesisRoot,
+        programVKey,
     } = addRollupParameters;
 
-    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog"];
+    const supportedConensus = ["PolygonZkEVMEtrog", "PolygonValidiumEtrog", "PolygonPessimisticConsensus"];
+    const isPessimistic = consensusContract === "PolygonPessimisticConsensus";
 
     if (!supportedConensus.includes(consensusContract)) {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConensus}`);
@@ -115,24 +116,27 @@ async function main() {
     const polygonZkEVMGlobalExitRootAddress = await rollupManagerContract.globalExitRootManager();
     const polTokenAddress = await rollupManagerContract.pol();
 
-    // Sanity checks genesisRoot
-    if (genesisRoot !== genesis.root) {
-        throw new Error(`Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`);
-    }
-
-    // get bridge address in genesis file
-    let genesisBridgeAddress = ethers.ZeroAddress;
-    for (let i = 0; i < genesis.genesis.length; i++) {
-        if (genesis.genesis[i].contractName === "PolygonZkEVMBridge proxy") {
-            genesisBridgeAddress = genesis.genesis[i].address;
-            break;
+    if (!isPessimistic) {
+        // checks for rollups
+        // Sanity checks genesisRoot
+        if (genesisRoot !== genesis.root) {
+            throw new Error(`Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`);
         }
-    }
 
-    if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress.toLowerCase()) {
-        throw new Error(
-            `'PolygonZkEVMBridge proxy' root in the 'genesis.json' does not match 'bridgeAddress' in the 'PolygonRollupManager'`
-        );
+        // get bridge address in genesis file
+        let genesisBridgeAddress = ethers.ZeroAddress;
+        for (let i = 0; i < genesis.genesis.length; i++) {
+            if (genesis.genesis[i].contractName === "PolygonZkEVMBridge proxy") {
+                genesisBridgeAddress = genesis.genesis[i].address;
+                break;
+            }
+        }
+
+        if (polygonZkEVMBridgeAddress.toLowerCase() !== genesisBridgeAddress.toLowerCase()) {
+            throw new Error(
+                `'PolygonZkEVMBridge proxy' root in the 'genesis.json' does not match 'bridgeAddress' in the 'PolygonRollupManager'`
+            );
+        }
     }
 
     // Check roles
@@ -151,13 +155,13 @@ async function main() {
         await rollupManagerContract.grantRole(ADD_ROLLUP_TYPE_ROLE, deployer.address);
 
     // Create consensus implementation if needed
-    let polygonConsensusContractAddress;
+    let consensusContractAddress;
 
     if (
-        typeof addRollupParameters.polygonconsensusContract !== "undefined" &&
-        ethers.isAddress(addRollupParameters.polygonconsensusContract)
+        typeof addRollupParameters.consensusContractAddress !== "undefined" &&
+        ethers.isAddress(addRollupParameters.consensusContractAddress)
     ) {
-        polygonConsensusContractAddress = addRollupParameters.polygonconsensusContract;
+        consensusContractAddress = addRollupParameters.consensusContractAddress;
     } else {
         const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
         let PolygonconsensusContract;
@@ -171,6 +175,7 @@ async function main() {
         await PolygonconsensusContract.waitForDeployment();
 
         console.log("#######################\n");
+        console.log(`new consensus name: ${consensusContract}`);
         console.log(`new PolygonconsensusContract impl: ${PolygonconsensusContract.target}`);
 
         console.log("you can verify the new impl address with:");
@@ -184,19 +189,34 @@ async function main() {
             polygonRollupManagerAddress,
         ]);
 
-        polygonConsensusContractAddress = PolygonconsensusContract.target;
+        consensusContractAddress = PolygonconsensusContract.target;
     }
 
-    // Add a new rollup type with timelock
+    // Add a new rollup type
+    let rollupVerifierType;
+    let genesisFinal;
+    let programVKeyFinal;
+
+    if (consensusContract == "PolygonPessimisticConsensus") {
+        rollupVerifierType = 1;
+        genesisFinal = ethers.ZeroHash;
+        programVKeyFinal = programVKey || ethers.ZeroHash;
+    } else {
+        rollupVerifierType = 0;
+        genesisFinal = genesis.root;
+        programVKeyFinal = ethers.ZeroHash;
+    }
+
     console.log(
         await (
             await rollupManagerContract.addNewRollupType(
-                polygonConsensusContractAddress,
+                consensusContractAddress,
                 verifierAddress,
                 forkID,
-                rollupCompatibilityID,
-                genesis.root,
-                description
+                rollupVerifierType,
+                genesisFinal,
+                description,
+                programVKeyFinal
             )
         ).wait()
     );

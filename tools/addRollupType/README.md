@@ -8,12 +8,14 @@ npm i
 
 ## Setup
 - Config file
-  - `consensusContract`: select between consensus contract. Supprted: `["PolygonZkEVMEtrog", "PolygonValidiumEtrog"]`
+  - `consensusContract`: select between consensus contract. Supported: `["PolygonZkEVMEtrog", "PolygonValidiumEtrog", "PolygonPessimisticConsensus"]`
+  - `consensusContractAddress`: gets this address instead of deployong a new consensus implementation
   - `polygonRollupManagerAddress`: polygonRollupManager smart contract address
   - `verifierAddress`: verifier to be used
   - `description`: string to describe rollup type added. Example: "Type: Validium, Version: etrog, genesis: /ipfs/QmUXnRoPbUmZuEZCGyiHjEsoNcFVu3hLtSvhpnfBS2mAYU"
   - `forkID`: forkID to be used
-  - `rollupCompatibilityID`: rollup compatibility ID
+  - `programVKey`: program key for pessimsitic consensus
+  - `genesisRoot`: initial genesis root. Must match the `genesis.json` generated.
   - `timelockDelay`: timelock delay
   - `timelockSalt(optional)`: timelock salt
   - `predecessor(optional)`: timelock predecessor
