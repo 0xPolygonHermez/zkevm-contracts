@@ -281,28 +281,11 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
                 .verifyPessimisticTrustedAggregator(pessimisticRollupID, l1InfoTreeLeafCount, newLER, newPPRoot, proofPP)
         ).to.be.revertedWithCustomError(rollupManagerContract, "L1InfoTreeLeafCountInvalid");
 
-        // Set lastGlobal exit root (mock)
-
-        // const tokenAddress = ethers.ZeroAddress;
-        // for(const bridge of inputProof.bridges) {
-        //     await polygonZkEVMBridgeContract.bridgeAsset(
-        //         bridge.destinationNetwork,
-        //         bridge.destinationAddress,
-        //         String(bridge.amount),
-        //         tokenAddress,
-        //         true,
-        //         "0x",
-        //         {
-        //             value: String(bridge.amount),
-        //         }
-        //     );
-        // }
-        //const existingGER = await polygonZkEVMGlobalExitRoot.getLastGlobalExitRoot();
-        const existingGER = inputProof["pp-inputs"]["selected-ger"];
+        const l1InfoRoot = inputProof["pp-inputs"]["l1-info-root"];
         // check JS function computeInputPessimisticBytes
         const inputPessimisticBytes = await rollupManagerContract.getInputPessimisticBytes(
             pessimisticRollupID,
-            existingGER,
+            l1InfoRoot,
             inputProof["pp-inputs"]["new-local-exit-root"],
             inputProof["pp-inputs"]["new-pessimistic-root"]
         );
@@ -314,7 +297,7 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
         const expectedInputPessimisticBytes = computeInputPessimisticBytes(
             infoRollup[4],
             infoRollup[10],
-            existingGER,
+            l1InfoRoot,
             pessimisticRollupID,
             consensusHash,
             newLER,
@@ -323,8 +306,8 @@ describe("Polygon Rollup Manager with Polygon Pessimistic Consensus", () => {
 
         expect(inputPessimisticBytes).to.be.equal(expectedInputPessimisticBytes);
         // Mock selected GER
-        await polygonZkEVMGlobalExitRoot.injectGER(existingGER, l1InfoTreeLeafCount);
-        // Mock las LER and last Pesimistic root
+        await polygonZkEVMGlobalExitRoot.injectGER(l1InfoRoot, l1InfoTreeLeafCount);
+        // Mock last LER and last Pessimistic root
         await rollupManagerContract.setRollupData(
             pessimisticRollupID,
             inputProof["pp-inputs"]["prev-local-exit-root"],
