@@ -25,13 +25,13 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
         address timelock,
         address emergencyCouncil
     ) external reinitializer(2) {
-        pendingStateTimeout = _pendingStateTimeout;
-        trustedAggregatorTimeout = _trustedAggregatorTimeout;
+        //pendingStateTimeout = _pendingStateTimeout;
+        //trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
         // Constant deployment variables
         _batchFee = 0.1 ether; // 0.1 Matic
-        verifyBatchTimeTarget = 30 minutes;
-        multiplierBatchFee = 1002;
+        //verifyBatchTimeTarget = 30 minutes;
+        //multiplierBatchFee = 1002;
 
         // Initialize OZ contracts
         __AccessControl_init();
@@ -74,8 +74,24 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
 
         // Add local Exit roots;
         for (uint256 i = 0; i < localExitRoots.length; i++) {
-            rollupIDToRollupData[uint32(i + 1)]
+            _rollupIDToRollupData[uint32(i + 1)]
                 .lastLocalExitRoot = localExitRoots[i];
         }
+    }
+
+    function exposed_checkStateRootInsidePrime(
+        uint256 newStateRoot
+    ) public pure returns (bool) {
+        return _checkStateRootInsidePrime(newStateRoot);
+    }
+
+    function setRollupData(
+        uint32 rollupID,
+        bytes32 lastLocalExitRoot,
+        bytes32 lastPessimisticRoot
+    ) external {
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
+        rollup.lastLocalExitRoot = lastLocalExitRoot;
+        rollup.lastPessimisticRoot = lastPessimisticRoot;
     }
 }

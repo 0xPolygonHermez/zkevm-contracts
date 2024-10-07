@@ -5,7 +5,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "../interfaces/IPolygonZkEVMGlobalExitRootV2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../../interfaces/IPolygonZkEVMErrors.sol";
-import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
+import "../interfaces/IPolygonZkEVMEtrogErrors.sol";
 import "../PolygonRollupManager.sol";
 import "./IPolygonRollupBasePrevious.sol";
 import "../interfaces/IPolygonZkEVMBridgeV2.sol";
@@ -23,7 +23,7 @@ import "../lib/PolygonConstantsBase.sol";
 abstract contract PolygonRollupBaseEtrogPrevious is
     Initializable,
     PolygonConstantsBase,
-    IPolygonZkEVMVEtrogErrors,
+    IPolygonZkEVMEtrogErrors,
     IPolygonRollupBasePrevious
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -283,6 +283,9 @@ abstract contract PolygonRollupBaseEtrogPrevious is
         pol = _pol;
         bridgeAddress = _bridgeAddress;
         rollupManager = _rollupManager;
+
+        // Disable initalizers on the implementation following the best practices
+        _disableInitializers();
     }
 
     /**

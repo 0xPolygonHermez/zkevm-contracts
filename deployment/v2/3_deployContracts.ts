@@ -429,7 +429,7 @@ async function main() {
                         0, // unused parameter
                     ],
                     {
-                        initializer: "initialize",
+                        initializer: "initialize(address,uint64,uint64,address,address,address,address,address,uint64,uint64)",
                         constructorArgs: [
                             polygonZkEVMGlobalExitRoot?.target,
                             polTokenAddress,
@@ -489,9 +489,6 @@ async function main() {
     console.log("PolygonZkEVMGlobalExitRootAddress:", await polygonRollupManagerContract.globalExitRootManager());
     console.log("polTokenAddress:", await polygonRollupManagerContract.pol());
     console.log("polygonZkEVMBridgeContract:", await polygonRollupManagerContract.bridgeAddress());
-
-    console.log("pendingStateTimeout:", await polygonRollupManagerContract.pendingStateTimeout());
-    console.log("trustedAggregatorTimeout:", await polygonRollupManagerContract.trustedAggregatorTimeout());
 
     // Check roles
     expect(await polygonRollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelockAddressRollupManager)).to.be.equal(
