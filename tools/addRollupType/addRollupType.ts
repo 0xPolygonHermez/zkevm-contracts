@@ -119,12 +119,9 @@ async function main() {
     if (!isPessimistic) {
         // checks for rollups
         // Sanity checks genesisRoot
-        if (consensusContract)
-            if (genesisRoot !== genesis.root) {
-                throw new Error(
-                    `Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`
-                );
-            }
+        if (genesisRoot !== genesis.root) {
+            throw new Error(`Genesis root in the 'add_rollup_type.json' does not match the root in the 'genesis.json'`);
+        }
 
         // get bridge address in genesis file
         let genesisBridgeAddress = ethers.ZeroAddress;
