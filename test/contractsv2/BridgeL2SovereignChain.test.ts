@@ -354,21 +354,19 @@ describe("BridgeL2SovereignChain Contract", () => {
             .to.emit(sovereignChainBridgeContract, "RemoveSovereignTokenAddress")
             .withArgs(sovereignToken.target);
         // Remap sovereign address with multiCall
+        const originNetworksArray = [networkIDRollup, networkIDRollup];
+        const originTokenAddressesArray = [tokenAddress, tokenAddress2.target];
+        const sovereignTokenAddressesArray = [sovereignToken3.target, sovereignToken4.target];
+        const isNotMintableArray = [true, false];
         await expect(
-            sovereignChainBridgeContract.connect(bridgeManager).setMultipleSovereignTokenAddress([
-                {
-                    originNetwork: networkIDRollup,
-                    originTokenAddress: tokenAddress,
-                    sovereignTokenAddress: sovereignToken3.target,
-                    isNotMintable: true,
-                },
-                {
-                    originNetwork: networkIDRollup,
-                    originTokenAddress: tokenAddress2,
-                    sovereignTokenAddress: sovereignToken4.target,
-                    isNotMintable: false,
-                },
-            ])
+            sovereignChainBridgeContract
+                .connect(bridgeManager)
+                .setMultipleSovereignTokenAddress(
+                    originNetworksArray,
+                    originTokenAddressesArray,
+                    sovereignTokenAddressesArray,
+                    isNotMintableArray
+                )
         )
             .to.emit(sovereignChainBridgeContract, "SetSovereignTokenAddress")
             .withArgs(networkIDRollup, tokenAddress, sovereignToken3.target, true)

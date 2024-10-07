@@ -93,8 +93,6 @@ async function main() {
     let isSovereignChain = deployParameters["isSovereignChain"] === true ? true : false;
 
     if (isMainnet === true) {
-        // If is mainnet, can't be sovereign
-        isSovereignChain = false;
         timelockAdminAddress = mainnetMultisig;
         minDelayTimelock = mainnetMinDelayTimelock;
         salt = "0x0000000000000000000000000000000000000000000000000000000000000000"; // salt mock

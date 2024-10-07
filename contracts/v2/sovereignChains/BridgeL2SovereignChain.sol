@@ -18,14 +18,6 @@ contract BridgeL2SovereignChain is
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    // Wrapped Token information struct
-    struct SovereignTokenAddress {
-        uint32 originNetwork;
-        address originTokenAddress;
-        address sovereignTokenAddress;
-        bool isNotMintable;
-    }
-
     // Map to store wrappedAddresses that are not mintable
     mapping(address wrappedAddress => bool isNotMintable)
         public wrappedAddressIsNotMintable;
@@ -171,15 +163,24 @@ contract BridgeL2SovereignChain is
      * @param sovereignTokenAddresses Array of SovereignTokenAddress to remap
      */
     function setMultipleSovereignTokenAddress(
-        SovereignTokenAddress[] calldata sovereignTokenAddresses
+        uint32[] memory originNetworks,
+        address[] memory originTokenAddresses,
+        address[] memory sovereignTokenAddresses,
+        bool[] memory isNotMintable
     ) external onlyBridgeManager {
+        require(
+            originNetworks.length == originTokenAddresses.length &&
+                originTokenAddresses.length == sovereignTokenAddresses.length &&
+                sovereignTokenAddresses.length == isNotMintable.length,
+            "Input array lengths mismatch"
+        );
         // Make multiple calls to setSovereignTokenAddress
         for (uint256 i = 0; i < sovereignTokenAddresses.length; i++) {
             _setSovereignTokenAddress(
-                sovereignTokenAddresses[i].originNetwork,
-                sovereignTokenAddresses[i].originTokenAddress,
-                sovereignTokenAddresses[i].sovereignTokenAddress,
-                sovereignTokenAddresses[i].isNotMintable
+                originNetworks[i],
+                originTokenAddresses[i],
+                sovereignTokenAddresses[i],
+                isNotMintable[i]
             );
         }
     }
@@ -270,7 +271,10 @@ contract BridgeL2SovereignChain is
             )
         );
 
-        if (tokenInfoToWrappedToken[tokenInfoHash] == address(0) || tokenInfoToWrappedToken[tokenInfoHash] == sovereignTokenAddress) {
+        if (
+            tokenInfoToWrappedToken[tokenInfoHash] == address(0) ||
+            tokenInfoToWrappedToken[tokenInfoHash] == sovereignTokenAddress
+        ) {
             revert TokenNotMapped();
         }
         delete wrappedTokenToTokenInfo[sovereignTokenAddress];

@@ -75,6 +75,16 @@ const config: HardhatUserConfig = {
             },
         ],
         overrides: {
+            "contracts/v2/sovereignChains/BridgeL2SovereignChain.sol": {
+                version: "0.8.20",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 100,
+                    },
+                    evmVersion: "shanghai",
+                }, // try yul optimizer
+            },
             "contracts/v2/PolygonRollupManager.sol": {
                 version: "0.8.20",
                 settings: {
