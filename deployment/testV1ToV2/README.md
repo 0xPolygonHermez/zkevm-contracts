@@ -33,7 +33,7 @@ deploy:testnet:v1ToV2:localhost
 -   `pendingStateTimeout`: uint64, Once a pending state exceeds this timeout it can be consolidated by everyone
 -   `emergencyCouncilAddress`:address, Emergency council addres
 -   `polTokenAddress`: address, Matic token address, only if deploy on testnet can be left blank and will fullfilled by the scripts.
--   `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:goerli` script.
+-   `zkEVMDeployerAddress`: address, Address of the `PolygonZkEVMDeployer`. Can be left blank, will be fullfilled automatically with the `deploy:deployer:ZkEVM:sepolia` script.
 
 -   `realVerifier`: bool, Indicates whether deploy a real verifier or not for the new created
 -   `trustedSequencerURL`: string, trustedSequencer URL
