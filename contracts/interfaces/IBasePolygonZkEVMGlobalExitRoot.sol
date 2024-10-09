@@ -18,6 +18,11 @@ interface IBasePolygonZkEVMGlobalExitRoot {
      */
     error GlobalExitRootAlreadySet();
 
+    /**
+     * @dev Thrown when trying to remove a global exit root that is not found
+     */
+    error GlobalExitRootNotFound();
+
     function updateExitRoot(bytes32 newRollupExitRoot) external;
 
     function globalExitRootMap(

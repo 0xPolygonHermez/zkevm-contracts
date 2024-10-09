@@ -13,29 +13,50 @@ contract GlobalExitRootManagerL2SovereignChain is PolygonZkEVMGlobalExitRootL2 {
     event InsertGlobalExitRoot(bytes32 indexed newGlobalExitRoot);
 
     /**
+     * @dev Emitted when a new global exit root is removed
+     */
+    event RemoveGlobalExitRoot(bytes32 indexed removedGlobalExitRoot);
+
+    modifier onlyCoinbase() {
+        // Only allowed to be called by coinbase
+        if (block.coinbase != msg.sender) {
+            revert OnlyCoinbase();
+        }
+        _;
+    }
+
+    /**
      * @param _bridgeAddress PolygonZkEVMBridge contract address
      */
     constructor(
         address _bridgeAddress
-    ) PolygonZkEVMGlobalExitRootL2( _bridgeAddress) {}
+    ) PolygonZkEVMGlobalExitRootL2(_bridgeAddress) {}
 
     /**
      * @notice Insert a new global exit root
-     * @param _newRoot new global exit root
+     * @param _newRoot new global exit root to insert
      */
-    function insertGlobalExitRoot(
-        bytes32 _newRoot
-    ) external {
-        // Only allowed to be called by coinbase
-         if (block.coinbase != msg.sender) {
-            revert OnlyCoinbase();
-        }
+    function insertGlobalExitRoot(bytes32 _newRoot) external onlyCoinbase {
         // do not update timestamp if already set
         if (globalExitRootMap[_newRoot] == 0) {
             globalExitRootMap[_newRoot] = block.timestamp;
             emit InsertGlobalExitRoot(_newRoot);
         } else {
             revert GlobalExitRootAlreadySet();
+        }
+    }
+
+    /**
+     * @notice Remove a global exit root
+     * @param _root global exit root to remove
+     */
+    function removeGlobalExitRoot(bytes32 _root) external onlyCoinbase {
+        // do not update timestamp if already set
+        if (globalExitRootMap[_root] == 0) {
+            revert GlobalExitRootNotFound();
+        } else {
+            globalExitRootMap[_root] = 0;
+            emit RemoveGlobalExitRoot(_root);
         }
     }
 }

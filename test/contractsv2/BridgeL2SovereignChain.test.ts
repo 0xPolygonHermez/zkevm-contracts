@@ -330,6 +330,22 @@ describe("BridgeL2SovereignChain Contract", () => {
         // Check GER has value in mapping
         expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
 
+        // Remove global exit root
+        expect(await sovereignChainGlobalExitRoot.removeGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRoot, "RemoveGlobalExitRoot")
+            .withArgs(computedGlobalExitRoot);
+
+        // Check GER has value in mapping
+        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.be.eq(0);
+
+        // Insert global exit root again
+        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+            .withArgs(computedGlobalExitRoot);
+
+        // Check GER has value in mapping
+        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+
         // Remove unmapped sovereign token address, should revert
         await expect(
             sovereignChainBridgeContract.connect(bridgeManager).removeSovereignTokenAddress(tokenAddress)
