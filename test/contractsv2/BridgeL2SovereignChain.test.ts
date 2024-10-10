@@ -28,7 +28,7 @@ describe("BridgeL2SovereignChain Contract", () => {
 
     let sovereignChainBridgeContract: BridgeL2SovereignChain;
     let polTokenContract: ERC20PermitMock;
-    let sovereignChainGlobalExitRoot: GlobalExitRootManagerL2SovereignChain;
+    let sovereignChainGlobalExitRootContract: GlobalExitRootManagerL2SovereignChain;
 
     let deployer: any;
     let rollupManager: any;
@@ -66,15 +66,33 @@ describe("BridgeL2SovereignChain Contract", () => {
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory(
             "GlobalExitRootManagerL2SovereignChain"
         );
-        sovereignChainGlobalExitRoot = await PolygonZkEVMGlobalExitRootFactory.deploy(
-            sovereignChainBridgeContract.target
-        );
+        sovereignChainGlobalExitRootContract = (await upgrades.deployProxy(
+            PolygonZkEVMGlobalExitRootFactory,
+            [deployer.address], // Initializer params
+            {
+                initializer: "initialize", // initializer function name
+                constructorArgs: [sovereignChainBridgeContract.target], // Constructor arguments
+                unsafeAllow: ["constructor", "state-variable-immutable"],
+            }
+        )) as unknown as GlobalExitRootManagerL2SovereignChain;
+
+        // cannot initialize bridgeV2 initializer from Sovereign bridge
+        await expect(
+            sovereignChainBridgeContract.initialize(
+                networkIDMainnet,
+                ethers.ZeroAddress, // zero for ether
+                ethers.ZeroAddress, // zero for ether
+                sovereignChainGlobalExitRootContract.target,
+                rollupManager.address,
+                "0x"
+            )
+        ).to.revertedWithCustomError(sovereignChainBridgeContract, "InvalidInitializeFunction");
 
         await sovereignChainBridgeContract.initialize(
             networkIDRollup2,
             ethers.ZeroAddress, // zero for ether
             ethers.ZeroAddress, // zero for ether
-            sovereignChainGlobalExitRoot.target,
+            sovereignChainGlobalExitRootContract.target,
             rollupManager.address,
             "0x",
             ethers.Typed.address(bridgeManager),
@@ -106,7 +124,7 @@ describe("BridgeL2SovereignChain Contract", () => {
                 networkIDRollup2,
                 ethers.ZeroAddress, // zero for ether
                 1, // not zero, revert
-                sovereignChainGlobalExitRoot.target,
+                sovereignChainGlobalExitRootContract.target,
                 rollupManager.address,
                 metadataToken,
                 ethers.Typed.address(bridgeManager.address),
@@ -121,7 +139,7 @@ describe("BridgeL2SovereignChain Contract", () => {
                 networkIDRollup2,
                 ethers.ZeroAddress, // zero for ether
                 0, // zero for ether
-                sovereignChainGlobalExitRoot.target,
+                sovereignChainGlobalExitRootContract.target,
                 rollupManager.address,
                 metadataToken,
                 ethers.Typed.address(bridgeManager.address),
@@ -129,12 +147,13 @@ describe("BridgeL2SovereignChain Contract", () => {
                 false
             )
         ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "InvalidSovereignWETHAddressParams");
+
         await expect(
             bridge.initialize(
                 networkIDRollup2,
                 ethers.ZeroAddress, // zero for ether
                 0, // zero for ether
-                sovereignChainGlobalExitRoot.target,
+                sovereignChainGlobalExitRootContract.target,
                 rollupManager.address,
                 metadataToken,
                 ethers.Typed.address(bridgeManager.address),
@@ -199,7 +218,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         const metadata = metadataToken;
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
 
-        const rollupExitRoot = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRoot = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
 
         // deploy sovereign
         const maticTokenFactory = await ethers.getContractFactory("ERC20PermitMock");
@@ -296,7 +315,7 @@ describe("BridgeL2SovereignChain Contract", () => {
                 depositCount
             );
         // Check updated exit root
-        expect(await sovereignChainGlobalExitRoot.lastRollupExitRoot()).to.be.equal(rootJSMainnet);
+        expect(await sovereignChainGlobalExitRootContract.lastRollupExitRoot()).to.be.equal(rootJSMainnet);
         expect(await sovereignToken.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await sovereignToken.balanceOf(sovereignChainBridgeContract.target)).to.be.equal(balanceBridge + amount);
         expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.be.equal(1);
@@ -319,32 +338,49 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         // Try to insert global exit root with non coinbase
         await expect(
-            sovereignChainGlobalExitRoot.connect(acc1).insertGlobalExitRoot(computedGlobalExitRoot)
-        ).to.be.revertedWithCustomError(sovereignChainGlobalExitRoot, "OnlyCoinbase");
+            sovereignChainGlobalExitRootContract.connect(acc1).insertGlobalExitRoot(computedGlobalExitRoot)
+        ).to.be.revertedWithCustomError(sovereignChainGlobalExitRootContract, "OnlyAggOracleOrCoinbase");
 
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.be.eq(1);
+
+        expect(await sovereignChainGlobalExitRootContract.insertedGERCount()).to.be.eq(1);
+
+        // Trigger NotEnoughGlobalExitRootsInserted
+        await expect(
+            sovereignChainGlobalExitRootContract.removeLastGlobalExitRoots([
+                computedGlobalExitRoot,
+                computedGlobalExitRoot,
+            ])
+        ).to.revertedWithCustomError(sovereignChainGlobalExitRootContract, "NotEnoughGlobalExitRootsInserted");
+
+        // Trigger NotLastInsertedGlobalExitRoot
+        await expect(
+            sovereignChainGlobalExitRootContract.removeLastGlobalExitRoots([metadataHash])
+        ).to.revertedWithCustomError(sovereignChainGlobalExitRootContract, "NotLastInsertedGlobalExitRoot");
 
         // Remove global exit root
-        expect(await sovereignChainGlobalExitRoot.removeGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "RemoveGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.removeLastGlobalExitRoots([computedGlobalExitRoot]))
+            .to.emit(sovereignChainGlobalExitRootContract, "RemoveGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.be.eq(0);
+
+        expect(await sovereignChainGlobalExitRootContract.insertedGERCount()).to.be.eq(0);
 
         // Insert global exit root again
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
 
         // Remove unmapped sovereign token address, should revert
         await expect(
@@ -403,7 +439,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         const balanceDeployer = await polTokenContract.balanceOf(deployer.address);
         const balanceBridge = await polTokenContract.balanceOf(sovereignChainBridgeContract.target);
 
-        const rollupExitRoot = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRoot = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
 
         // create a new deposit
         await expect(polTokenContract.approve(sovereignChainBridgeContract.target, amount))
@@ -488,7 +524,7 @@ describe("BridgeL2SovereignChain Contract", () => {
                 depositCount
             );
         // Check updated exit root
-        expect(await sovereignChainGlobalExitRoot.lastRollupExitRoot()).to.be.equal(rootJSMainnet);
+        expect(await sovereignChainGlobalExitRootContract.lastRollupExitRoot()).to.be.equal(rootJSMainnet);
         expect(await polTokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await polTokenContract.balanceOf(sovereignChainBridgeContract.target)).to.be.equal(
             balanceBridge + amount
@@ -511,17 +547,17 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
     });
 
     it("should check the initialize parameters", async () => {
         expect(await sovereignChainBridgeContract.globalExitRootManager()).to.be.equal(
-            sovereignChainGlobalExitRoot.target
+            sovereignChainGlobalExitRootContract.target
         );
         expect(await sovereignChainBridgeContract.networkID()).to.be.equal(networkIDRollup2);
         expect(await sovereignChainBridgeContract.polygonRollupManager()).to.be.equal(rollupManager.address);
@@ -532,7 +568,7 @@ describe("BridgeL2SovereignChain Contract", () => {
                 networkIDMainnet,
                 ethers.ZeroAddress, // zero for ether
                 ethers.ZeroAddress, // zero for ether
-                sovereignChainGlobalExitRoot.target,
+                sovereignChainGlobalExitRootContract.target,
                 rollupManager.address,
                 "0x",
                 ethers.Typed.address(bridgeManager),
@@ -540,6 +576,10 @@ describe("BridgeL2SovereignChain Contract", () => {
                 false
             )
         ).to.be.revertedWith("Initializable: contract is already initialized");
+
+        await expect(sovereignChainGlobalExitRootContract.initialize(ethers.ZeroAddress)).to.be.revertedWith(
+            "Initializable: contract is already initialized"
+        );
     });
 
     it("should check bridgeMessageWETH reverts", async () => {
@@ -561,7 +601,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         const balanceDeployer = await polTokenContract.balanceOf(deployer.address);
         const balanceBridge = await polTokenContract.balanceOf(sovereignChainBridgeContract.target);
 
-        const rollupExitRoot = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRoot = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
 
         // create a new deposit
         await expect(polTokenContract.approve(sovereignChainBridgeContract.target, amount))
@@ -617,7 +657,7 @@ describe("BridgeL2SovereignChain Contract", () => {
                 depositCount
             );
         // Check updated exit root
-        expect(await sovereignChainGlobalExitRoot.lastRollupExitRoot()).to.be.equal(rootJSMainnet);
+        expect(await sovereignChainGlobalExitRootContract.lastRollupExitRoot()).to.be.equal(rootJSMainnet);
         expect(await polTokenContract.balanceOf(deployer.address)).to.be.equal(balanceDeployer - amount);
         expect(await polTokenContract.balanceOf(sovereignChainBridgeContract.target)).to.be.equal(
             balanceBridge + amount
@@ -640,12 +680,12 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
     });
 
     it("should message at Sovereign chain and verify merkle proof", async () => {
@@ -658,7 +698,7 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         const metadata = metadataToken;
         const metadataHash = ethers.solidityPackedKeccak256(["bytes"], [metadata]);
-        const rollupExitRoot = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRoot = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
 
         // pre compute root merkle tree in Js
         const height = 32;
@@ -712,12 +752,12 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
     });
 
     it("should bridge asset and message to sovereign chain to check global exit root updates", async () => {
@@ -734,7 +774,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         const balanceDeployer = await polTokenContract.balanceOf(deployer.address);
         const balanceBridge = await polTokenContract.balanceOf(sovereignChainBridgeContract.target);
 
-        const rollupExitRoot = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRoot = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
 
         // create a new deposit
         await expect(polTokenContract.approve(sovereignChainBridgeContract.target, amount))
@@ -794,12 +834,12 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
 
         // bridge message
         await expect(
@@ -824,7 +864,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         await sovereignChainBridgeContract.updateGlobalExitRoot();
 
         expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.be.equal(2);
-        expect(await sovereignChainGlobalExitRoot.lastRollupExitRoot()).to.not.be.equal(rootJSMainnet);
+        expect(await sovereignChainGlobalExitRootContract.lastRollupExitRoot()).to.not.be.equal(rootJSMainnet);
 
         // Just to have the metric of a low cost bridge Asset
         const tokenAddress2 = ethers.ZeroAddress; // Ether
@@ -882,28 +922,28 @@ describe("BridgeL2SovereignChain Contract", () => {
         const rootRollup = merkleTreeRollup.getRoot();
 
         // check only rollup account with update rollup exit root
-        await expect(sovereignChainGlobalExitRoot.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
-            sovereignChainGlobalExitRoot,
+        await expect(sovereignChainGlobalExitRootContract.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
+            sovereignChainGlobalExitRootContract,
             "OnlyAllowedContracts"
         );
 
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rootRollup);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
 
         // check merkle proof
         // Merkle proof local
@@ -1023,28 +1063,28 @@ describe("BridgeL2SovereignChain Contract", () => {
         const rootRollup = merkleTreeRollup.getRoot();
 
         // check only rollup account with update rollup exit root
-        await expect(sovereignChainGlobalExitRoot.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
-            sovereignChainGlobalExitRoot,
+        await expect(sovereignChainGlobalExitRootContract.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
+            sovereignChainGlobalExitRootContract,
             "OnlyAllowedContracts"
         );
 
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rootRollup);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
         // check merkle proof
 
         // Merkle proof local
@@ -1191,7 +1231,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         const wrappedTokenAddress = newWrappedToken.target;
         const newDestinationNetwork = networkIDRollup;
 
-        const rollupExitRoot = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRoot = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
 
         // create a new deposit
         await expect(newWrappedToken.approve(sovereignChainBridgeContract.target, amount))
@@ -1283,17 +1323,17 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         const computedGlobalExitRoot2 = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot2))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot2))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot2)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot2)).to.not.be.eq(0);
 
         // Insert an already inserted GER
         await expect(
-            sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot2)
-        ).to.revertedWithCustomError(sovereignChainGlobalExitRoot, "GlobalExitRootAlreadySet");
+            sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot2)
+        ).to.revertedWithCustomError(sovereignChainGlobalExitRootContract, "GlobalExitRootAlreadySet");
     });
     it("should claim tokens from Rollup to Mainnet, failing deploy wrapped", async () => {
         const originNetwork = networkIDRollup;
@@ -1333,28 +1373,28 @@ describe("BridgeL2SovereignChain Contract", () => {
         const rootRollup = merkleTreeRollup.getRoot();
 
         // check only rollup account with update rollup exit root
-        await expect(sovereignChainGlobalExitRoot.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
-            sovereignChainGlobalExitRoot,
+        await expect(sovereignChainGlobalExitRootContract.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
+            sovereignChainGlobalExitRootContract,
             "OnlyAllowedContracts"
         );
 
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rootRollup);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
         // check merkle proof
         // Merkle proof local
         const indexLocal = 0;
@@ -1568,19 +1608,19 @@ describe("BridgeL2SovereignChain Contract", () => {
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
 
         // check merkle proof
         const index = 0;
@@ -1724,20 +1764,20 @@ describe("BridgeL2SovereignChain Contract", () => {
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
 
         // check merkle proof
         const index = 0;
@@ -1880,20 +1920,20 @@ describe("BridgeL2SovereignChain Contract", () => {
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
         // check merkle proof
         const index = 0;
         const proofLocal = merkleTree.getProofTreeByIndex(0);

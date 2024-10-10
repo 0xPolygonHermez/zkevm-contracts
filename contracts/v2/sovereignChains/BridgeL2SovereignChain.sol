@@ -5,6 +5,8 @@ pragma solidity 0.8.20;
 import "../interfaces/IBridgeL2SovereignChains.sol";
 import "../PolygonZkEVMBridgeV2.sol";
 
+// WARNING: not audited
+
 /**
  * Sovereign chains bridge that will be deployed on Ethereum and all Sovereign chains
  * Contract responsible to manage the token interactions with other networks
