@@ -189,10 +189,12 @@ async function main() {
     let genesisFinal;
     let programVKey;
 
+    let verifierContractAddress = verifierContract.target;
     if (consensusContract == "PolygonPessimisticConsensus") {
-        rollupVerifierType = 1;
-        genesisFinal = ethers.ZeroHash;
+        rollupVerifierType = 0;
+        genesisFinal = createRollupParameters["genesis"];
         programVKey = createRollupParameters.programVKey || ethers.ZeroHash;
+        verifierContractAddress = createRollupParameters["SP1Gateway"];
     } else {
         rollupVerifierType = 0;
         genesisFinal = genesis.root;
@@ -202,7 +204,7 @@ async function main() {
     await (
         await rollupManagerContract.addNewRollupType(
             PolygonconsensusContract.target,
-            verifierContract.target,
+            verifierContractAddress,
             forkID,
             rollupVerifierType,
             genesisFinal,

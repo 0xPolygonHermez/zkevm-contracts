@@ -442,9 +442,6 @@ contract PolygonRollupManager is
         if (rollupVerifierType == VerifierType.Pessimistic) {
             // No genesis on state transition rollups
             if (genesis != bytes32(0)) revert InvalidRollupType();
-        } else {
-            // No programVKey on state transition rollups
-            if (programVKey != bytes32(0)) revert InvalidRollupType();
         }
 
         rollupTypeMap[rollupTypeID] = RollupType({
@@ -1030,6 +1027,69 @@ contract PolygonRollupManager is
         rollup.rollupContract.onVerifyBatches(
             finalNewBatch,
             newStateRoot,
+            msg.sender
+        );
+    }
+
+    /**
+     * @notice Allows a trusted aggregator to verify pessimistic proof
+     * @param rollupID Rollup identifier
+     * @param l1BlockNum L1 block num to get the blockHash
+     * @param newL2BlockHash new L2 block hash
+     * @param newLocalExitRoot New local exit root
+     * @param globalExitRootL2 L2 Ger address, should be inside the rollupType or the vmKey
+     * @param proof SP1 proof (Plonk)
+     */
+    function verifyType1Proof_cheat(
+        uint32 rollupID,
+        uint64 l1BlockNum,
+        bytes32 previousL2BlockHash,
+        bytes32 newL2BlockHash,
+        bytes32 newLocalExitRoot,
+        address globalExitRootL2,
+        bytes calldata proof
+    ) external {
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
+        uint64 lastVerifiedBatch = rollup.lastVerifiedBatch;
+
+        bytes memory publicInputBytes = abi.encode(
+            previousL2BlockHash, //rollup.batchNumToStateRoot[lastVerifiedBatch], // previous L2 blockhash
+            newL2BlockHash, // new l2 blockhash
+            blockhash(l1BlockNum), // l1 blockNum
+            newLocalExitRoot,
+            address(globalExitRootManager), // GER L1
+            globalExitRootL2 // GER L2
+        );
+
+        // Verify proof
+        ISP1Verifier(rollup.verifier).verifyProof(
+            rollup.programVKey,
+            publicInputBytes,
+            proof
+        );
+
+        // TODO: Since there are no batches we could have either:
+        // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
+        // dependency with the trusted aggregator ( or pessimistic aggregator)
+
+        // Update aggregation parameters
+        lastAggregationTimestamp = uint64(block.timestamp);
+
+        // Consolidate state
+        lastVerifiedBatch++;
+        rollup.lastLocalExitRoot = newLocalExitRoot;
+        rollup.lastVerifiedBatch = lastVerifiedBatch;
+        rollup.batchNumToStateRoot[lastVerifiedBatch] = newL2BlockHash;
+
+        // Interact with globalExitRootManager
+        globalExitRootManager.updateExitRoot(getRollupExitRoot());
+
+        // Same event as verifyBatches to support current bridge service to synchronize everything
+        emit VerifyBatchesTrustedAggregator(
+            rollupID,
+            0, // final batch: does not apply in pessimistic
+            bytes32(0), // new state root: does not apply in pessimistic
+            newLocalExitRoot,
             msg.sender
         );
     }

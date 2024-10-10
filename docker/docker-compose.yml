@@ -19,3 +19,6 @@ services:
             - $DEV_PERIOD
             - --datadir
             - /geth_data
+            - --gcmode=archive
+            - --http.api
+            - admin,eth,debug,miner,net,txpool,personal,web3,db

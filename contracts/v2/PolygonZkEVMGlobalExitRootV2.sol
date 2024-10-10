@@ -170,4 +170,15 @@ contract PolygonZkEVMGlobalExitRootV2 is
                 abi.encodePacked(newGlobalExitRoot, lastBlockHash, timestamp)
             );
     }
+
+    function checkGERsExistance(
+        bytes32[] calldata globalExitRoots
+    ) public view returns (bool success) {
+        for (uint256 i = 0; i < globalExitRoots.length; i++) {
+            if (globalExitRootMap[globalExitRoots[i]] == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
