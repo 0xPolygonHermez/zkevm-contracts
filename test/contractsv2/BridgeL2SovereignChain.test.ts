@@ -429,7 +429,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyBridgeManager");
         // Set rollupManager as bridge manager
         await expect(sovereignChainBridgeContract.connect(bridgeManager).setBridgeManager(rollupManager.address))
-            .to.emit(sovereignChainBridgeContract, "BridgeManagerUpdated")
+            .to.emit(sovereignChainBridgeContract, "SetBridgeManager")
             .withArgs(rollupManager.address);
 
         // invalid token address

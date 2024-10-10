@@ -41,6 +41,11 @@ interface IBridgeL2SovereignChains is IPolygonZkEVMBridgeV2 {
      */
     error InvalidSovereignWETHAddressParams();
 
+    /**
+     * @dev Thrown when initializing sovereign bridge with invalid sovereign WETH token params
+     */
+    error InvalidInitializeFunction();
+
     function initialize(
         uint32 _networkID,
         address _gasTokenAddress,

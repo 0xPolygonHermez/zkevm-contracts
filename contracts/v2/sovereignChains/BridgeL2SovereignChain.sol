@@ -2,9 +2,6 @@
 
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../../lib/TokenWrapped.sol";
-import "../../interfaces/IBasePolygonZkEVMGlobalExitRoot.sol";
 import "../interfaces/IBridgeL2SovereignChains.sol";
 import "../PolygonZkEVMBridgeV2.sol";
 
@@ -28,7 +25,7 @@ contract BridgeL2SovereignChain is
     /**
      * @dev Emitted when a bridge manager is updated
      */
-    event BridgeManagerUpdated(address bridgeManager);
+    event SetBridgeManager(address bridgeManager);
 
     /**
      * @dev Emitted when a token address is remapped by a sovereign token address
@@ -138,6 +135,24 @@ contract BridgeL2SovereignChain is
         __ReentrancyGuard_init();
     }
 
+    /**
+     * @notice Override the function to prevent the contract from being initialized with this initializer
+     */
+    function initialize(
+        uint32, // _networkID
+        address, //_gasTokenAddress
+        uint32, //_gasTokenNetwork
+        IBasePolygonZkEVMGlobalExitRoot, //_globalExitRootManager
+        address, //_polygonRollupManager
+        bytes memory //_gasTokenMetadata
+    )
+        external
+        override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2)
+        initializer
+    {
+        revert InvalidInitializeFunction();
+    }
+
     modifier onlyBridgeManager() {
         if (bridgeManager != msg.sender) {
             revert OnlyBridgeManager();
@@ -154,7 +169,7 @@ contract BridgeL2SovereignChain is
     ) external onlyBridgeManager {
         if (_bridgeManager == address(0)) revert NotValidBridgeManager();
         bridgeManager = _bridgeManager;
-        emit BridgeManagerUpdated(bridgeManager);
+        emit SetBridgeManager(bridgeManager);
     }
 
     /**
