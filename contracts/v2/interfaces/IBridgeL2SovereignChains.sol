@@ -46,6 +46,27 @@ interface IBridgeL2SovereignChains is IPolygonZkEVMBridgeV2 {
      */
     error InvalidInitializeFunction();
 
+    /**
+     * @dev Thrown when initializing calling a function with invalid arrays length
+     */
+    error InputArraysLengthMismatch();
+
+    /**
+     * @dev Thrown when trying to map a token that is already mapped
+     */
+    error TokenAlreadyMapped();
+
+    /**
+     * @dev Thrown when trying to remove a legacy mapped token that has nor previously been remapped
+     */
+    error TokenNotRemapped();
+
+    /**
+     * @dev Thrown when trying to set a custom wrapper for weth on a gas token network
+     */
+    error WETHRemappingNotSupportedOnGasTokenNetworks();
+
+
     function initialize(
         uint32 _networkID,
         address _gasTokenAddress,

@@ -263,32 +263,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         expect(await sovereignChainBridgeContract.gasTokenMetadata()).to.be.equal(gasTokenMetadata);
     });
 
-    it("should check the emergency state", async () => {
-        expect(await sovereignChainBridgeContract.isEmergencyState()).to.be.equal(false);
-
-        await expect(sovereignChainBridgeContract.activateEmergencyState()).to.be.revertedWithCustomError(
-            sovereignChainBridgeContract,
-            "OnlyRollupManager"
-        );
-        await expect(sovereignChainBridgeContract.connect(rollupManager).activateEmergencyState()).to.emit(
-            sovereignChainBridgeContract,
-            "EmergencyStateActivated"
-        );
-
-        expect(await sovereignChainBridgeContract.isEmergencyState()).to.be.equal(true);
-
-        await expect(
-            sovereignChainBridgeContract.connect(deployer).deactivateEmergencyState()
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyRollupManager");
-
-        await expect(sovereignChainBridgeContract.connect(rollupManager).deactivateEmergencyState()).to.emit(
-            sovereignChainBridgeContract,
-            "EmergencyStateDeactivated"
-        );
-
-        expect(await sovereignChainBridgeContract.isEmergencyState()).to.be.equal(false);
-    });
-
     it("should SovereignChain bridge asset and verify merkle proof", async () => {
         const depositCount = await sovereignChainBridgeContract.depositCount();
         const originNetwork = networkIDRollup2;

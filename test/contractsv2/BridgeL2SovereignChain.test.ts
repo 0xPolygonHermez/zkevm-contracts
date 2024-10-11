@@ -63,12 +63,12 @@ describe("BridgeL2SovereignChain Contract", () => {
         })) as unknown as BridgeL2SovereignChain;
 
         // deploy global exit root manager
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory(
+        const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory(
             "GlobalExitRootManagerL2SovereignChain"
         );
         sovereignChainGlobalExitRootContract = (await upgrades.deployProxy(
-            PolygonZkEVMGlobalExitRootFactory,
-            [deployer.address], // Initializer params
+            GlobalExitRootManagerL2SovereignChainFactory,
+            [ethers.ZeroAddress], // Initializer params
             {
                 initializer: "initialize", // initializer function name
                 constructorArgs: [sovereignChainBridgeContract.target], // Constructor arguments
@@ -185,6 +185,11 @@ describe("BridgeL2SovereignChain Contract", () => {
         await sovereignChainBridgeContract
             .connect(bridgeManager)
             .setSovereignTokenAddress(networkIDRollup1, polTokenContract.target, legacyToken.target, true);
+        await expect(
+            sovereignChainBridgeContract
+                .connect(bridgeManager)
+                .setSovereignTokenAddress(networkIDRollup1, polTokenContract.target, legacyToken.target, true)
+        ).to.revertedWithCustomError(sovereignChainBridgeContract, "TokenAlreadyMapped");
         // Deploy token 2
         const updatedToken = await tokenFactory.deploy(tokenName, tokenSymbol, deployer.address, iBalance);
         // Send legacy tokens to bridge
@@ -339,7 +344,7 @@ describe("BridgeL2SovereignChain Contract", () => {
         // Try to insert global exit root with non coinbase
         await expect(
             sovereignChainGlobalExitRootContract.connect(acc1).insertGlobalExitRoot(computedGlobalExitRoot)
-        ).to.be.revertedWithCustomError(sovereignChainGlobalExitRootContract, "OnlyAggOracleOrCoinbase");
+        ).to.be.revertedWithCustomError(sovereignChainGlobalExitRootContract, "OnlyGlobalExitRootUpdater");
 
         // Insert global exit root
         expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
@@ -384,12 +389,12 @@ describe("BridgeL2SovereignChain Contract", () => {
 
         // Remove unmapped sovereign token address, should revert
         await expect(
-            sovereignChainBridgeContract.connect(bridgeManager).removeSovereignTokenAddress(tokenAddress)
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "TokenNotMapped");
+            sovereignChainBridgeContract.connect(bridgeManager).removeLegacySovereignTokenAddress(tokenAddress)
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "TokenNotRemapped");
         // Remove not updated sovereign token address, should revert
         await expect(
-            sovereignChainBridgeContract.connect(bridgeManager).removeSovereignTokenAddress(sovereignToken.target)
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "TokenNotMapped");
+            sovereignChainBridgeContract.connect(bridgeManager).removeLegacySovereignTokenAddress(sovereignToken.target)
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "TokenNotRemapped");
 
         // Remove updated sovereign token address
         // Remap token a second time to support removal function
@@ -401,9 +406,9 @@ describe("BridgeL2SovereignChain Contract", () => {
             .to.emit(sovereignChainBridgeContract, "SetSovereignTokenAddress")
             .withArgs(networkIDRollup, tokenAddress, sovereignToken2.target, true);
         await expect(
-            sovereignChainBridgeContract.connect(bridgeManager).removeSovereignTokenAddress(sovereignToken.target)
+            sovereignChainBridgeContract.connect(bridgeManager).removeLegacySovereignTokenAddress(sovereignToken.target)
         )
-            .to.emit(sovereignChainBridgeContract, "RemoveSovereignTokenAddress")
+            .to.emit(sovereignChainBridgeContract, "RemoveLegacySovereignTokenAddress")
             .withArgs(sovereignToken.target);
         // Remap sovereign address with multiCall
         const originNetworksArray = [networkIDRollup, networkIDRollup];
@@ -424,6 +429,15 @@ describe("BridgeL2SovereignChain Contract", () => {
             .withArgs(networkIDRollup, tokenAddress, sovereignToken3.target, true)
             .to.emit(sovereignChainBridgeContract, "SetSovereignTokenAddress")
             .withArgs(networkIDRollup, tokenAddress2.target, sovereignToken4.target, false);
+
+        await expect(
+            sovereignChainBridgeContract.connect(bridgeManager).setMultipleSovereignTokenAddress(
+                originNetworksArray,
+                [], // Different length
+                sovereignTokenAddressesArray,
+                isNotMintableArray
+            )
+        ).to.revertedWithCustomError(sovereignChainBridgeContract, "InputArraysLengthMismatch");
     });
 
     it("should Sovereign Chain bridge a remapped asset mintable and verify merkle proof", async () => {
@@ -586,6 +600,10 @@ describe("BridgeL2SovereignChain Contract", () => {
         await expect(
             sovereignChainBridgeContract.bridgeMessageWETH(networkIDMainnet, deployer.address, 0, true, "0x")
         ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "NativeTokenIsEther");
+
+        await expect(
+            sovereignChainBridgeContract.connect(bridgeManager).setSovereignWETHAddress(deployer.address, true)
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "WETHRemappingNotSupportedOnGasTokenNetworks");
     });
 
     it("should Sovereign Chain bridge asset and verify merkle proof", async () => {
@@ -2131,71 +2149,12 @@ describe("BridgeL2SovereignChain Contract", () => {
     it("should test emergency state", async () => {
         await expect(sovereignChainBridgeContract.activateEmergencyState()).to.be.revertedWithCustomError(
             sovereignChainBridgeContract,
-            "OnlyRollupManager"
+            "NotValidBridgeManager"
         );
 
-        await expect(sovereignChainBridgeContract.connect(rollupManager).activateEmergencyState()).to.emit(
+        await expect(sovereignChainBridgeContract.deactivateEmergencyState()).to.be.revertedWithCustomError(
             sovereignChainBridgeContract,
-            "EmergencyStateActivated"
+            "NotValidBridgeManager"
         );
-
-        const tokenAddress = polTokenContract.target;
-        const amount = ethers.parseEther("10");
-        const destinationNetwork = networkIDRollup;
-        const destinationAddress = deployer.address;
-
-        const metadata = metadataToken;
-
-        await expect(
-            sovereignChainBridgeContract.bridgeAsset(
-                destinationNetwork,
-                destinationAddress,
-                amount,
-                tokenAddress,
-                true,
-                "0x"
-            )
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyNotEmergencyState");
-
-        await expect(
-            sovereignChainBridgeContract.bridgeMessage(destinationNetwork, destinationAddress, true, "0x")
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyNotEmergencyState");
-
-        await expect(
-            sovereignChainBridgeContract.bridgeMessageWETH(destinationNetwork, destinationAddress, amount, true, "0x")
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyNotEmergencyState");
-
-        const mockMerkleProof = new Array(32).fill(ethers.ZeroHash) as any;
-        await expect(
-            sovereignChainBridgeContract.claimAsset(
-                mockMerkleProof,
-                mockMerkleProof,
-                ethers.ZeroHash,
-                ethers.ZeroHash,
-                ethers.ZeroHash,
-                0,
-                tokenAddress,
-                destinationNetwork,
-                destinationAddress,
-                amount,
-                metadata
-            )
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyNotEmergencyState");
-
-        await expect(
-            sovereignChainBridgeContract.claimMessage(
-                mockMerkleProof,
-                mockMerkleProof,
-                ethers.ZeroHash,
-                ethers.ZeroHash,
-                ethers.ZeroHash,
-                0,
-                tokenAddress,
-                destinationNetwork,
-                destinationAddress,
-                amount,
-                metadata
-            )
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyNotEmergencyState");
     });
 });
