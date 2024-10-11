@@ -30,7 +30,7 @@
     "homepage": "https://github.com/0xPolygonHermez/contracts-zkEVM#readme",
     "license": "pending",
     "devDependencies": {
-        "@0xpolygonhermez/zkevm-commonjs": "github:0xPolygonHermez/zkevm-commonjs#main",
+        "@0xpolygonhermez/zkevm-commonjs": "github:0xPolygonHermez/zkevm-commonjs#v8.0.0-fork.12",
         "@nomicfoundation/hardhat-toolbox": "^3.0.0",
         "@openzeppelin/contracts": "4.8.2",
         "@openzeppelin/contracts-upgradeable": "4.8.2",
