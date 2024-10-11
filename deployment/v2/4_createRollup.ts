@@ -11,7 +11,7 @@ import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 const {create2Deployment} = require("../helpers/deployment-helpers");
 
 const pathGenesis = path.join(__dirname, "./genesis.json");
-import {processorUtils} from "@0xpolygonhermez/zkevm-commonjs";
+import {processorUtils, Constants} from "@0xpolygonhermez/zkevm-commonjs";
 
 const createRollupParameters = require("./create_rollup_parameters.json");
 const genesis = require("./genesis.json");
@@ -25,6 +25,7 @@ import {
     PolygonZkEVMEtrog,
     PolygonZkEVMBridgeV2,
     PolygonValidiumEtrog,
+    PolygonPessimisticConsensus,
 } from "../../typechain-types";
 
 async function main() {
@@ -347,34 +348,55 @@ async function main() {
 
     let batchData;
     if (consensusContract === "PolygonPessimisticConsensus") {
+        // Add the first batch of the created rollup
+        const newZKEVMContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonPessimisticConsensus;
+
         // Get last GER
         const lastGER = await globalExitRootManagerContract.getLastGlobalExitRoot();
-        const lastBlock = await ethers.provider.getBlock("latest");
-        const timestamp = lastBlock?.timestamp;
-        const uTx = await polygonZkEVMBridgeContract.initialize.populateTransaction(
+
+        const dataInjectedTx = await polygonZkEVMBridgeContract.interface.encodeFunctionData("initialize", [
             rollupID,
             gasTokenAddress,
             gasTokenNetwork,
-            globalExitRootManagerContract.target,
-            rollupManagerContract.target,
-            gasTokenMetadata as any
-        );
-        uTx.gasPrice = BigInt(0);
-        uTx.gasLimit = BigInt(3000000); // 30M of gas
-        uTx.chainId = chainID;
-        uTx.type = 0;
-        //uTx.type = 1;
-        const signer = ethers.HDNodeWallet.fromMnemonic(
-            ethers.Mnemonic.fromPhrase("test test test test test test test test test test test junk"),
-            "m/44'/60'/0'/0/0"
-        ).connect(currentProvider);
-        const signedTx = await signer.signTransaction(uTx);
-        const customData = processorUtils.rawTxToCustomRawTx(signedTx);
+            Constants.ADDRESS_GLOBAL_EXIT_ROOT_MANAGER_L2, // Global exit root address on L2
+            ethers.ZeroAddress, // Rollup manager on L2 does not exist
+            gasTokenMetadata as any,
+        ]);
+
+        // check maximum length is 65535
+        if ((dataInjectedTx.length - 2) / 2 > 0xffff) {
+            // throw error
+            throw new Error(`HugeTokenMetadataNotSupported`);
+        }
+
+        const injectedTx = {
+            type: 0, // force ethers to parse it as a legacy transaction
+            chainId: 0, // force ethers to parse it as a pre-EIP155 transaction
+            to: await newZKEVMContract.bridgeAddress(),
+            value: 0,
+            gasPrice: 0,
+            gasLimit: 30000000,
+            nonce: 0,
+            data: dataInjectedTx,
+            signature: {
+                v: "0x1b",
+                r: "0x00000000000000000000000000000000000000000000000000000005ca1ab1e0",
+                s: "0x000000000000000000000000000000000000000000000000000000005ca1ab1e",
+            },
+        };
+
+        // serialize transactions
+        const txObject = ethers.Transaction.from(injectedTx);
+
+        const customData = processorUtils.rawTxToCustomRawTx(txObject.serialized);
         batchData = {
             batchL2Data: customData,
             globalExitRoot: lastGER,
-            timestamp: timestamp,
+            timestamp: blockDeploymentRollup.timestamp,
             sequencer: trustedSequencer,
+            l1BlockNumber: blockDeploymentRollup.number,
+            l1BlockHash: blockDeploymentRollup.hash,
+            l1ParentHash: blockDeploymentRollup.parentHash,
         };
     } else {
         // Add the first batch of the created rollup
@@ -405,4 +427,3 @@ main().catch((e) => {
     console.error(e);
     process.exit(1);
 });
-
