@@ -144,8 +144,7 @@ async function main() {
     const PolgonZKEVMDeployerFactory = await ethers.getContractFactory("PolygonZkEVMDeployer", deployer);
 
     //const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress) as PolygonZkEVMDeployer;
-    const zkEVMDeployerContract = await PolgonZKEVMDeployerFactory.deploy(ethers.ZeroAddress);
-    console.log(zkEVMDeployerContract.target);
+    const zkEVMDeployerContract = await PolgonZKEVMDeployerFactory.deploy(deployer.address);
     // check deployer is the owner of the deployer
     // if ((await deployer.provider?.getCode(zkEVMDeployerContract.target)) === "0x") {
     //     throw new Error("zkEVM deployer contract is not deployed");
@@ -154,7 +153,6 @@ async function main() {
     const sleep = (ms: any) => new Promise((resolve) => setTimeout(resolve, ms));
     //await sleep(3000);
 
-    console.log(await zkEVMDeployerContract.transferOwnership.estimateGas(deployer.address));
     expect(deployer.address).to.be.equal(await zkEVMDeployerContract.owner());
 
     /*
