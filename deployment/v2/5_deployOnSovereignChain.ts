@@ -51,10 +51,8 @@ async function main() {
     // Constant variables
 
     // Gas token variables are 0 in mainnet, since native token it's ether
-    const gasTokenAddressMainnet = ethers.ZeroAddress;
-    const gasTokenNetworkMainnet = 0n;
+
     const attemptsDeployProxy = 20;
-    const gasTokenMetadata = "0x";
 
     /*
      * Check deploy parameters
@@ -93,6 +91,10 @@ async function main() {
         polTokenAddress,
         sovereignNetworkID,
     } = deployParameters;
+
+    const gasTokenAddressMainnet = deployParameters.gasTokenAddress || ethers.ZeroAddress;
+    const gasTokenNetworkMainnet = deployParameters.gasTokenNetwork || 0n;
+    const gasTokenMetadata = deployParameters.gasTokenMetadata || "0x";
 
     // Load provider
     let currentProvider = ethers.provider;
