@@ -71,7 +71,7 @@ git checkout 4a237f1c5d770373c9ff19d75fe87890c4599878
 git submodule init
 git submodule update
 sudo apt install -y build-essential libomp-dev libgmp-dev nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev grpc-proto libsodium-dev uuid-dev libsecp256k1-dev
-make -j bctree fflonkSetup
+make -j bctree fflonk_setup
 ```
 
 this step takes less than 1 minute.
@@ -81,7 +81,7 @@ this step takes less than 1 minute.
 ```bash
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-proverjs.git
-cd zkevm-proverjs   
+cd zkevm-proverjs
 git checkout cec76cc411838b78d3649543fb0fca712317c713
 npm install
 tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree --fflonksetup=../zkevm-prover/build/fflonkSetup --mode=25"
