@@ -137,7 +137,7 @@ contract ClaimCompressor {
             // Compute Rollup Root compressed
             lastDifferentLevel = 0;
             if (
-                currentCompressClaimCalldata.smtProofRollupExitRoot[0] !=
+                currentCompressClaimCalldata.smtProofRollupExitRoot[31] !=
                 bytes32(0)
             ) {
                 if (i == 0 || !isRollupSmtSet) {

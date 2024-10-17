@@ -12,7 +12,6 @@ const addRollupParameters = require("./updateRollup.json");
 
 const dateStr = new Date().toISOString();
 const pathOutputJson = path.join(__dirname, `./updateRollupOutput-${dateStr}.json`);
-import {PolygonRollupManager} from "../../typechain-types";
 import "../../deployment/helpers/utils";
 
 async function main() {
@@ -27,6 +26,7 @@ async function main() {
         "newRollupTypeID",
         "upgradeData",
         "polygonRollupManagerAddress",
+        "timelockDelay",
     ];
 
     for (const parameterName of mandatoryDeploymentParameters) {
@@ -35,7 +35,10 @@ async function main() {
         }
     }
 
-    const {rollupAddress, newRollupTypeID, upgradeData, polygonRollupManagerAddress} = addRollupParameters;
+    const {rollupAddress, newRollupTypeID, upgradeData, polygonRollupManagerAddress, timelockDelay} =
+        addRollupParameters;
+
+    const salt = addRollupParameters.timelockSalt || ethers.ZeroHash;
 
     // Load provider
     let currentProvider = ethers.provider;
@@ -85,30 +88,76 @@ async function main() {
 
     console.log("Using with: ", deployer.address);
 
+    // load timelock
+    const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
+
     // Load Rollup manager
     const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager", deployer);
-    const rollupManagerContract = PolgonRollupManagerFactory.attach(
-        polygonRollupManagerAddress
-    ) as PolygonRollupManager;
 
-    // Check role
-    const UPDATE_ROLLUP_ROLE = ethers.id("UPDATE_ROLLUP_ROLE");
+    const operation = genOperation(
+        polygonRollupManagerAddress,
+        0, // value
+        PolgonRollupManagerFactory.interface.encodeFunctionData("updateRollup", [
+            rollupAddress,
+            newRollupTypeID,
+            upgradeData,
+        ]),
+        ethers.ZeroHash, // predecesoor
+        salt // salt
+    );
 
-    if ((await rollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, deployer.address)) == false) {
-        // log that address ha sno role
-        throw new Error(`Address ${deployer.address} does not have the UPDATE_ROLLUP_ROLE role`);
-    }
+    // Schedule operation
+    const scheduleData = timelockContractFactory.interface.encodeFunctionData("schedule", [
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+        timelockDelay,
+    ]);
+    // Execute operation
+    const executeData = timelockContractFactory.interface.encodeFunctionData("execute", [
+        operation.target,
+        operation.value,
+        operation.data,
+        operation.predecessor,
+        operation.salt,
+    ]);
 
-    // Add a new rollup type with timelock
-    console.log(await (await rollupManagerContract.updateRollup(rollupAddress, newRollupTypeID, upgradeData)).wait());
+    console.log({scheduleData});
+    console.log({executeData});
 
     outputJson.networkName = network.name;
-    outputJson.polygonRollupManagerAddress = polygonRollupManagerAddress;
-    outputJson.rollupAddress = rollupAddress;
-    outputJson.newRollupTypeID = newRollupTypeID;
-    outputJson.upgradeData = upgradeData;
+    outputJson.scheduleData = scheduleData;
+    outputJson.executeData = executeData;
 
-    // add time to output path
+    // Decode the scheduleData for better readibility
+    const timelockTx = timelockContractFactory.interface.parseTransaction({data: scheduleData});
+    const paramsArray = timelockTx?.fragment.inputs;
+    const objectDecoded = {};
+
+    for (let i = 0; i < paramsArray?.length; i++) {
+        const currentParam = paramsArray[i];
+
+        objectDecoded[currentParam.name] = timelockTx?.args[i];
+
+        if (currentParam.name == "data") {
+            const decodedRollupManagerData = PolgonRollupManagerFactory.interface.parseTransaction({
+                data: timelockTx?.args[i],
+            });
+            const objectDecodedData = {};
+            const paramsArrayData = decodedRollupManagerData?.fragment.inputs;
+
+            for (let j = 0; j < paramsArrayData?.length; j++) {
+                const currentParam = paramsArrayData[j];
+                objectDecodedData[currentParam.name] = decodedRollupManagerData?.args[j];
+            }
+            objectDecoded["decodedData"] = objectDecodedData;
+        }
+    }
+
+    outputJson.decodedScheduleData = objectDecoded;
+
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
 
@@ -116,3 +165,20 @@ main().catch((e) => {
     console.error(e);
     process.exit(1);
 });
+
+// OZ test functions
+function genOperation(target: any, value: any, data: any, predecessor: any, salt: any) {
+    const abiEncoded = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["address", "uint256", "bytes", "uint256", "bytes32"],
+        [target, value, data, predecessor, salt]
+    );
+    const id = ethers.keccak256(abiEncoded);
+    return {
+        id,
+        target,
+        value,
+        data,
+        predecessor,
+        salt,
+    };
+}

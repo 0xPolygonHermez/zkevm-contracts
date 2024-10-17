@@ -167,4 +167,99 @@ interface IPolygonRollupManager {
      * @dev When adding an existing rollup where the rollup address already was added
      */
     error RollupAddressAlreadyExist();
+
+    /**
+     * @dev When verifying proof for multiple roolups and they are not ordered by ID
+     */
+    error RollupIDNotAscendingOrder();
+
+    /**
+     * @dev When try to create a new rollup and set a chainID bigger than 32 bits
+     */
+    error ChainIDOutOfRange();
+
+    /**
+     * @dev When try to upgrade a rollup a sender that's not the admin of the rollup
+     */
+    error OnlyRollupAdmin();
+
+    /**
+     * @dev When try to update a rollup with sequences pending to verify
+     */
+    error AllSequencedMustBeVerified();
+
+    /**
+     * @dev Thrown when do not sequence any blob
+     */
+    error MustSequenceSomeBlob();
+
+    /**
+     * @dev Thrown when the final verification sequence is below or equal the last verification sequence
+     */
+    error FinalNumSequenceBelowLastVerifiedSequence();
+
+    /**
+     * @dev When the init sequence was verified in another forkID
+     */
+    error InitSequenceMustMatchCurrentForkID();
+
+    /**
+     * @dev Thrown when the init num sequence does not match with the one in the pending state
+     */
+    error InitSequenceNumDoesNotMatchPendingState();
+
+    /**
+     * @dev Thrown when the final num sequence does not match with the one in the pending state
+     */
+    error FinalNumSequenceDoesNotMatchPendingState();
+
+    /**
+     * @dev Thrown when attempting to set a new multiplier zkgas in a invalid range of values
+     */
+    error InvalidRangeMultiplierZkGasPrice();
+
+    /**
+     * @dev Thrown when attempting to set a seuqnece time target in an invalid range of values
+     */
+    error InvalidRangeSequenceTimeTarget();
+
+    /**
+     * @dev When a set a zkgasprice out of range
+     */
+    error zkGasPriceOfRange();
+
+    /**
+     * @dev Cannot update from network admin with unconsolidated pending state
+     */
+    error CannotUpdateWithUnconsolidatedPendingState();
+
+    /**
+     * @dev Try to verify batches without any sequence data
+     */
+    error EmptyVerifySequencesData();
+
+    /**
+     * @dev Update to old rollup ID
+     */
+    error UpdateToOldRollupTypeID();
+
+    /**
+     * @dev All batches must be verified before the upgrade
+     */
+    error AllBatchesMustBeVerified();
+
+    /**
+     * @dev Rollback batch is not sequenced
+     */
+    error RollbackBatchIsNotValid();
+
+    /**
+     * @dev Rollback batch is not the end of any sequence
+     */
+    error RollbackBatchIsNotEndOfSequence();
+
+    /**
+     * @dev rollbackBatches is called from a non authorized address
+     */
+    error NotAllowedAddress();
 }

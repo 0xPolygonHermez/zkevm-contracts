@@ -20,3 +20,12 @@
 
 
 
+### l1InfoRootMap
+```solidity
+  function l1InfoRootMap(
+  ) external returns (bytes32)
+```
+
+
+
+

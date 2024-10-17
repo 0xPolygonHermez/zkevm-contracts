@@ -53,4 +53,14 @@ interface IPolygonZkEVMVEtrogErrors is IPolygonZkEVMErrors {
      * @dev Thrown when the max timestamp is out of range
      */
     error MaxTimestampSequenceInvalid();
+
+    /**
+     * @dev Thrown when l1 info tree leafCount does not exist
+     */
+    error L1InfoTreeLeafCountInvalid();
+
+    /**
+     * @dev Thrown when the acc input hash does not match the predicted by the sequencer
+     */
+    error FinalAccInputHashDoesNotMatch();
 }

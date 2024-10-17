@@ -29,12 +29,3 @@
 
 
 
-### rollbackBatches
-```solidity
-  function rollbackBatches(
-  ) external
-```
-
-
-
-
