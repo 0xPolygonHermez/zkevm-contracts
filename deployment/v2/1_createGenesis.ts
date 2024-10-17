@@ -90,7 +90,6 @@ async function main() {
 
     // Check if it's mainnet deployment
     const isMainnet = deployParameters["isMainnet"] === true ? true : false;
-    let isSovereignChain = deployParameters["isSovereignChain"] === true ? true : false;
 
     if (isMainnet === true) {
         timelockAdminAddress = mainnetMultisig;
@@ -164,7 +163,7 @@ async function main() {
     }
 
     // Deploy implementation PolygonZkEVMBridge
-    const bridgeContractName = isSovereignChain ? "BridgeL2SovereignChain": "PolygonZkEVMBridgeV2";
+    const bridgeContractName = "PolygonZkEVMBridgeV2";
     const polygonZkEVMBridgeFactory = await ethers.getContractFactory(bridgeContractName, deployer);
     const deployTransactionBridge = (await polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
@@ -219,7 +218,7 @@ async function main() {
     /*
      *Deployment Global exit root manager
      */
-    const globalExitRootContractName = isSovereignChain ? "GlobalExitRootManagerL2SovereignChain": "PolygonZkEVMGlobalExitRootL2";
+    const globalExitRootContractName = "PolygonZkEVMGlobalExitRootL2";
     const PolygonZkEVMGlobalExitRootL2Factory = await ethers.getContractFactory(
         globalExitRootContractName,
         deployer

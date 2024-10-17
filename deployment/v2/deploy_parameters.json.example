@@ -14,6 +14,5 @@
     "deployerPvtKey": "",
     "maxFeePerGas":"",
     "maxPriorityFeePerGas":"",
-    "multiplierGas": "",
-    "isSovereignChain": false
+    "multiplierGas": ""
 }

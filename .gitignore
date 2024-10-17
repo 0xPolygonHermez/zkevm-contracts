@@ -22,3 +22,5 @@ typechain-types/
 create_rollup_parameters.json
 
 docker/deploymentOutput
+
+.DS_Store
