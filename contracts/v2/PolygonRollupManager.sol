@@ -162,6 +162,21 @@ contract PolygonRollupManager is
         bytes32 programVKey;
     }
 
+    // Struct to facilitate verification on SP1
+    struct ChainProofSolidity {
+        bytes32 prevL2BlockHash; // Hash of the previous L2 block
+        bytes32 newL2BlockHash; // Hash of the new L2 block
+        bytes32 l1BlockHash; // Hash of the corresponding L1 block
+        bytes32 newLER; // New LER (Layer Execution Result)
+        address l1GERAddress; // Address of the L1 GER (Global Execution Relay)
+        address l2GERAddress; // Address of the L2 GER (Global Execution Relay)
+        bytes32 consensusHash; // Consensus hash for the chain proof
+    }
+
+    // Struct unnecesary but easily to use for SP1 encoding
+    struct AggLayerProofSolidity {
+        ChainProofSolidity[] chainProofs;
+    }
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
@@ -297,6 +312,12 @@ contract PolygonRollupManager is
 
     // Timestamp when the last emergency state was deactivated
     uint64 public lastDeactivatedEmergencyStateTimestamp;
+
+    // vmKey to aggregate
+    bytes32 public VMKeyAggregation;
+
+    // gateway address SP1;
+    address public gatewaySP1;
 
     /**
      * @dev Emitted when a new rollup type is added
@@ -1096,6 +1117,60 @@ contract PolygonRollupManager is
 
     /**
      * @notice Allows a trusted aggregator to verify pessimistic proof
+     * @param rollupIDs Rollup identifiers
+     * @param aggLayerProofSolidity chainProofs
+     * @param proof SP1 proof (Plonk)
+     */
+    function verifyAggregation_cheat(
+        uint32[] calldata rollupIDs,
+        AggLayerProofSolidity calldata aggLayerProofSolidity,
+        bytes calldata proof
+    ) external {
+        bytes memory publicInputBytes = abi.encode(aggLayerProofSolidity);
+
+        // Verify proof
+        ISP1Verifier(gatewaySP1).verifyProof(
+            VMKeyAggregation,
+            publicInputBytes,
+            proof
+        );
+
+        // TODO: Since there are no batches we could have either:
+        // A pool of POL for pessimistic, or make the fee system offchain, since there are already a
+        // dependency with the trusted aggregator ( or pessimistic aggregator)
+
+        // Update aggregation parameters
+        lastAggregationTimestamp = uint64(block.timestamp);
+
+        // Consolidate state
+        for (uint256 i = 0; i < rollupIDs.length; i++) {
+            RollupData storage rollup = _rollupIDToRollupData[rollupIDs[i]];
+            uint64 lastVerifiedBatch = rollup.lastVerifiedBatch;
+            lastVerifiedBatch++;
+            rollup.lastLocalExitRoot = aggLayerProofSolidity
+                .chainProofs[i]
+                .newLER;
+            rollup.lastVerifiedBatch = lastVerifiedBatch;
+            rollup.batchNumToStateRoot[
+                lastVerifiedBatch
+            ] = aggLayerProofSolidity.chainProofs[i].newL2BlockHash;
+
+            // Same event as verifyBatches to support current bridge service to synchronize everything
+            emit VerifyBatchesTrustedAggregator(
+                rollupIDs[i],
+                0, // final batch: does not apply in pessimistic
+                bytes32(0), // new state root: does not apply in pessimistic
+                aggLayerProofSolidity.chainProofs[i].newLER,
+                msg.sender
+            );
+        }
+
+        // Interact with globalExitRootManager
+        globalExitRootManager.updateExitRoot(getRollupExitRoot());
+    }
+
+    /**
+     * @notice Allows a trusted aggregator to verify pessimistic proof
      * @param rollupID Rollup identifier
      * @param l1InfoTreeLeafCount Count of the L1InfoTree leaf that will be used to verify imported bridge exits
      * @param newLocalExitRoot New local exit root
@@ -1218,6 +1293,20 @@ contract PolygonRollupManager is
     //////////////////
     // Setter functions
     //////////////////
+
+    // Setter for VMKeyAggregation
+    function setVMKeyAggregation(
+        bytes32 _VMKeyAggregation
+    ) public onlyRole(_CREATE_ROLLUP_ROLE) {
+        VMKeyAggregation = _VMKeyAggregation;
+    }
+
+    // Setter for gatewaySP1
+    function setGatewaySP1(
+        address _gatewaySP1
+    ) public onlyRole(_CREATE_ROLLUP_ROLE) {
+        gatewaySP1 = _gatewaySP1;
+    }
 
     /**
      * @notice Set the current batch fee

@@ -1,0 +1,19 @@
+{
+    "realVerifier": false,
+    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
+    "networkName": "zkevm",
+    "description": "0.0.1",
+    "trustedSequencer": "0xeA24B1EEA7A72896Be9926325ce98D5d11a77046",
+    "chainID": 11155420,
+    "adminZkEVM": "0xeA24B1EEA7A72896Be9926325ce98D5d11a77046",
+    "forkID": 14,
+    "consensusContract": "PolygonPessimisticConsensus",
+    "gasTokenAddress": "",
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": "",
+    "genesis": "0x00c7dca51c03c7b4db25b4c342d4178b8e7e1107dbcbf246c372a91c2950a068",
+    "programVKey": "0x00c7dca51c03c7b4db25b4c342d4178b8e7e1107dbcbf246c372a91c2950a068",
+    "SP1Gateway": "0x3B6041173B80E77f038f3F2C0f9744f04837185e"
+}

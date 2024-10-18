@@ -64,6 +64,8 @@ async function main() {
     const attemptsDeployProxy = 20;
     const gasTokenMetadata = "0x";
 
+    const sp1Gateway = "0x3B6041173B80E77f038f3F2C0f9744f04837185e";
+    const vmKeyAggregation = ethers.ZeroHash;
     /*
      * Check deploy parameters
      * Check that every necessary parameter is fullfilled
@@ -430,7 +432,8 @@ async function main() {
                         0, // unused parameter
                     ],
                     {
-                        initializer: "initialize(address,uint64,uint64,address,address,address,address,address,uint64,uint64)",
+                        initializer:
+                            "initialize(address,uint64,uint64,address,address,address,address,address,uint64,uint64)",
                         constructorArgs: [
                             polygonZkEVMGlobalExitRoot?.target,
                             polTokenAddress,
@@ -524,6 +527,10 @@ async function main() {
     expect(await upgrades.erc1967.getAdminAddress(precalculateRollupManager)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(precalculateGlobalExitRootAddress)).to.be.equal(proxyAdminAddress);
     expect(await upgrades.erc1967.getAdminAddress(proxyBridgeAddress)).to.be.equal(proxyAdminAddress);
+
+    // set gateway and vmKey aggregation
+    await polygonRollupManagerContract.setVMKeyAggregation(vmKeyAggregation);
+    await polygonRollupManagerContract.setGatewaySP1(sp1Gateway);
 
     const outputJson = {
         polygonRollupManagerAddress: polygonRollupManagerContract.target,

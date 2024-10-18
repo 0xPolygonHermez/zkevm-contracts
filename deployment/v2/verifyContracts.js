@@ -204,6 +204,24 @@ async function main() {
         } catch (error) {
             // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
         }
+    } else {
+        try {
+            await hre.run(
+                'verify:verify',
+                {
+                    contract: 'contracts/v2/consensus/pessimistic/PolygonPessimisticConsensus.sol:PolygonPessimisticConsensus',
+                    address: createRollupOutputParameters.rollupAddress,
+                    constructorArguments: [
+                        deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
+                        deployOutputParameters.polTokenAddress,
+                        deployOutputParameters.polygonZkEVMBridgeAddress,
+                        deployOutputParameters.polygonRollupManagerAddress,
+                    ],
+                },
+            );
+        } catch (error) {
+            // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        }
     }
 }
 
