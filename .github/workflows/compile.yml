@@ -1,15 +1,16 @@
 # This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
 
-name: Build-Docker image
+name: Main CI
 
 on:
     push:
-        branches: [main, develop, feature/ongoingPP]
+        branches: [feature/ongoingPP]
     pull_request:
-        branches: [main, develop, feature/ongoingPP]
+        branches: [feature/ongoingPP]
+
 jobs:
-    build:
+    lint-and-test:
         runs-on: ubuntu-latest
 
         strategy:
@@ -23,12 +24,9 @@ jobs:
                   node-version: ${{ matrix.node-version }}
             - name: Checkout code
               uses: actions/checkout@v3
-            - name: Setup docker
-              run: |
-                  npm i
-                  sudo curl -L "https://github.com/docker/compose/releases/download/1.26.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                  sudo chmod +x /usr/local/bin/docker-compose
-            - name: Build docker
-              run: npm run dockerv2:contracts
-            - name: Test docker
-              run: npm run docker:tests
+            - name: setup
+              run: npm i
+            - name: linter
+              run: npm run lint
+            - name: compile
+              run: npm run compile

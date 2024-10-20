@@ -22,6 +22,37 @@ them will be done in this one. In this way, the proof aggregation of the rollups
 |`_pol` | contract IERC20Upgradeable | POL token address
 |`_bridgeAddress` | contract IPolygonZkEVMBridge | Bridge address
 
+### initialize
+```solidity
+  function initialize(
+    address trustedAggregator,
+    uint64 _pendingStateTimeout,
+    uint64 _trustedAggregatorTimeout,
+    address admin,
+    address timelock,
+    address emergencyCouncil,
+    contract PolygonZkEVMExistentEtrog polygonZkEVM,
+    contract IVerifierRollup zkEVMVerifier,
+    uint64 zkEVMForkID,
+    uint64 zkEVMChainID
+  ) external
+```
+
+
+#### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+|`trustedAggregator` | address | Trusted aggregator address
+|`_pendingStateTimeout` | uint64 | Pending state timeout
+|`_trustedAggregatorTimeout` | uint64 | Trusted aggregator timeout
+|`admin` | address | Admin of the rollup manager
+|`timelock` | address | Timelock address
+|`emergencyCouncil` | address | Emergency council address
+|`polygonZkEVM` | contract PolygonZkEVMExistentEtrog | New deployed Polygon zkEVM which will be initialized wiht previous values
+|`zkEVMVerifier` | contract IVerifierRollup | Verifier of the new zkEVM deployed
+|`zkEVMForkID` | uint64 | Fork id of the new zkEVM deployed
+|`zkEVMChainID` | uint64 | Chain id of the new zkEVM deployed
+
 ### addNewRollupType
 ```solidity
   function addNewRollupType(
@@ -77,7 +108,7 @@ Create a new rollup
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`rollupTypeID` | uint32 | Rollup type to deploy
-|`chainID` | uint64 | ChainID of the rollup, must be a new one, can not have more than 32 bits
+|`chainID` | uint64 | ChainID of the rollup, must be a new one
 |`admin` | address | Admin of the new created rollup
 |`sequencer` | address | Sequencer of the new created rollup
 |`gasTokenAddress` | address | Indicates the token address that will be used to pay gas fees in the new rollup
@@ -117,8 +148,9 @@ note that this rollup does not follow any rollupType
     contract IVerifierRollup verifier,
     uint64 forkID,
     uint64 chainID,
-    uint8 rollupCompatibilityID
-  ) internal returns (struct PolygonRollupManager.RollupData rollup)
+    uint8 rollupCompatibilityID,
+    uint64 lastVerifiedBatch
+  ) internal returns (struct PolygonRollupManagerPrevious.RollupData rollup)
 ```
 Add an already deployed rollup
 note that this rollup does not follow any rollupType
@@ -132,23 +164,7 @@ note that this rollup does not follow any rollupType
 |`forkID` | uint64 | Fork id of the added rollup
 |`chainID` | uint64 | Chain id of the added rollup
 |`rollupCompatibilityID` | uint8 | Compatibility ID for the added rollup
-
-### updateRollupByRollupAdmin
-```solidity
-  function updateRollupByRollupAdmin(
-    contract ITransparentUpgradeableProxy rollupContract,
-    uint32 newRollupTypeID
-  ) external
-```
-Upgrade an existing rollup from the rollup admin address
-This address is able to udpate the rollup with more restrictions that the _UPDATE_ROLLUP_ROLE
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`rollupContract` | contract ITransparentUpgradeableProxy | Rollup consensus proxy address
-|`newRollupTypeID` | uint32 | New rolluptypeID to upgrade to
+|`lastVerifiedBatch` | uint64 | Last verified batch before adding the rollup
 
 ### updateRollup
 ```solidity
@@ -167,40 +183,6 @@ Upgrade an existing rollup
 |`rollupContract` | contract ITransparentUpgradeableProxy | Rollup consensus proxy address
 |`newRollupTypeID` | uint32 | New rolluptypeID to upgrade to
 |`upgradeData` | bytes | Upgrade data
-
-### _updateRollup
-```solidity
-  function _updateRollup(
-    contract ITransparentUpgradeableProxy rollupContract,
-    uint32 newRollupTypeID,
-    bytes upgradeData
-  ) internal
-```
-Upgrade an existing rollup
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`rollupContract` | contract ITransparentUpgradeableProxy | Rollup consensus proxy address
-|`newRollupTypeID` | uint32 | New rolluptypeID to upgrade to
-|`upgradeData` | bytes | Upgrade data
-
-### rollbackBatches
-```solidity
-  function rollbackBatches(
-    contract IPolygonRollupBase rollupContract,
-    uint64 targetBatch
-  ) external
-```
-Rollback batches of the target rollup
-
-
-#### Parameters:
-| Name | Type | Description                                                          |
-| :--- | :--- | :------------------------------------------------------------------- |
-|`rollupContract` | contract IPolygonRollupBase | Rollup consensus proxy address
-|`targetBatch` | uint64 | Batch to rollback up to but not including this batch
 
 ### onSequenceBatches
 ```solidity
@@ -277,7 +259,7 @@ Allows a trusted aggregator to verify multiple batches
 ### _verifyAndRewardBatches
 ```solidity
   function _verifyAndRewardBatches(
-    struct PolygonRollupManager.RollupData rollup,
+    struct PolygonRollupManagerPrevious.RollupData rollup,
     uint64 pendingStateNum,
     uint64 initNumBatch,
     uint64 finalNewBatch,
@@ -293,7 +275,7 @@ Verify and reward batches internal function
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`rollup` | struct PolygonRollupManager.RollupData | Rollup Data storage pointer that will be used to the verification
+|`rollup` | struct PolygonRollupManagerPrevious.RollupData | Rollup Data storage pointer that will be used to the verification
 |`pendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
@@ -332,7 +314,7 @@ Can be called by the trusted aggregator, which can consolidate any state without
 ### _consolidatePendingState
 ```solidity
   function _consolidatePendingState(
-    struct PolygonRollupManager.RollupData rollup,
+    struct PolygonRollupManagerPrevious.RollupData rollup,
     uint64 pendingStateNum
   ) internal
 ```
@@ -342,7 +324,7 @@ Internal function to consolidate any pending state that has already exceed the p
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`rollup` | struct PolygonRollupManager.RollupData | Rollup data storage pointer
+|`rollup` | struct PolygonRollupManagerPrevious.RollupData | Rollup data storage pointer
 |`pendingStateNum` | uint64 | Pending state to consolidate
 
 ### overridePendingState
@@ -405,7 +387,7 @@ Allows activate the emergency state if its possible to prove a different state r
 ### _proveDistinctPendingState
 ```solidity
   function _proveDistinctPendingState(
-    struct PolygonRollupManager.RollupData rollup,
+    struct PolygonRollupManagerPrevious.RollupData rollup,
     uint64 initPendingStateNum,
     uint64 finalPendingStateNum,
     uint64 initNumBatch,
@@ -421,7 +403,7 @@ Internal function that proves a different state root given the same batches to v
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`rollup` | struct PolygonRollupManager.RollupData | Rollup Data struct that will be checked
+|`rollup` | struct PolygonRollupManagerPrevious.RollupData | Rollup Data struct that will be checked
 |`initPendingStateNum` | uint64 | Init pending state, 0 if consolidated state is used
 |`finalPendingStateNum` | uint64 | Final pending state, that will be used to compare with the newStateRoot
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
@@ -433,7 +415,7 @@ Internal function that proves a different state root given the same batches to v
 ### _updateBatchFee
 ```solidity
   function _updateBatchFee(
-    struct PolygonRollupManager.RollupData newLastVerifiedBatch
+    struct PolygonRollupManagerPrevious.RollupData newLastVerifiedBatch
   ) internal
 ```
 Function to update the batch fee based on the new verified batches
@@ -443,7 +425,7 @@ The batch fee will not be updated when the trusted aggregator verifies batches
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`newLastVerifiedBatch` | struct PolygonRollupManager.RollupData | New last verified batch
+|`newLastVerifiedBatch` | struct PolygonRollupManagerPrevious.RollupData | New last verified batch
 
 ### activateEmergencyState
 ```solidity
@@ -598,7 +580,7 @@ Note that his function does not check if the pending state currently exists, or 
 ### _isPendingStateConsolidable
 ```solidity
   function _isPendingStateConsolidable(
-    struct PolygonRollupManager.RollupData rollup,
+    struct PolygonRollupManagerPrevious.RollupData rollup,
     uint64 pendingStateNum
   ) internal returns (bool)
 ```
@@ -608,7 +590,7 @@ Returns a boolean that indicates if the pendingStateNum is or not consolidable
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`rollup` | struct PolygonRollupManager.RollupData | Rollup data storage pointer
+|`rollup` | struct PolygonRollupManagerPrevious.RollupData | Rollup data storage pointer
 |`pendingStateNum` | uint64 | Pending state number to check
 Note that his function does not check if the pending state currently exists, or if it's consolidated already
 
@@ -668,7 +650,7 @@ Function to calculate the input snark bytes
 ### _getInputSnarkBytes
 ```solidity
   function _getInputSnarkBytes(
-    struct PolygonRollupManager.RollupData rollup,
+    struct PolygonRollupManagerPrevious.RollupData rollup,
     uint64 initNumBatch,
     uint64 finalNewBatch,
     bytes32 newLocalExitRoot,
@@ -682,7 +664,7 @@ Function to calculate the input snark bytes
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`rollup` | struct PolygonRollupManager.RollupData | Rollup data storage pointer
+|`rollup` | struct PolygonRollupManagerPrevious.RollupData | Rollup data storage pointer
 |`initNumBatch` | uint64 | Batch which the aggregator starts the verification
 |`finalNewBatch` | uint64 | Last batch aggregator intends to verify
 |`newLocalExitRoot` | bytes32 | New local exit root once the batch is processed
@@ -839,14 +821,6 @@ Emitted when is proved a different state given the same batches
 ```
 
 Emitted when the trusted aggregator overrides pending state
-
-### RollbackBatches
-```solidity
-  event RollbackBatches(
-  )
-```
-
-Emitted when rollback batches
 
 ### SetTrustedAggregatorTimeout
 ```solidity

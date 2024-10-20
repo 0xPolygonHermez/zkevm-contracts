@@ -211,7 +211,6 @@ async function main() {
     outputJson.rollupTypeID = newRollupTypeID;
 
     // add time to output path
-    const dateStr = new Date().toISOString();
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
 

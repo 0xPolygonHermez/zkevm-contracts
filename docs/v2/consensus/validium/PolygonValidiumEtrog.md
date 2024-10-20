@@ -31,8 +31,9 @@ It is advised to use timelocks for the admin address in case of Validium since i
 ```solidity
   function sequenceBatchesValidium(
     struct PolygonValidiumEtrog.ValidiumBatchData[] batches,
+    uint32 l1InfoTreeLeafCount,
     uint64 maxSequenceTimestamp,
-    uint64 initSequencedBatch,
+    bytes32 expectedFinalAccInputHash,
     address l2Coinbase,
     bytes dataAvailabilityMessage
   ) external
@@ -44,9 +45,10 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonValidiumEtrog.ValidiumBatchData[] | Struct array which holds the necessary data to append new batches to the sequence
+|`l1InfoTreeLeafCount` | uint32 | leaf count of the L1InfoRoot that will be used in this sequence
 |`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
 This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-|`initSequencedBatch` | uint64 | This parameter must match the current last batch sequenced.
+|`expectedFinalAccInputHash` | bytes32 | This parameter must match the acc input hash after hash all the batch data
 This will be a protection for the sequencer to avoid sending undesired data
 |`l2Coinbase` | address | Address that will receive the fees from L2
 |`dataAvailabilityMessage` | bytes | Byte array containing the signatures and all the addresses of the committee in ascending order
@@ -58,8 +60,9 @@ note Pol is not a reentrant token
 ```solidity
   function sequenceBatches(
     struct PolygonRollupBaseEtrog.BatchData[] batches,
+    uint32 l1InfoTreeLeafCount,
     uint64 maxSequenceTimestamp,
-    uint64 initSequencedBatch,
+    bytes32 expectedFinalAccInputHash,
     address l2Coinbase
   ) public
 ```
@@ -70,9 +73,10 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
+|`l1InfoTreeLeafCount` | uint32 | Index of the L1InfoRoot that will be used in this sequence
 |`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
 This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
-|`initSequencedBatch` | uint64 | This parameter must match the current last batch sequenced.
+|`expectedFinalAccInputHash` | bytes32 | This parameter must match the acc input hash after hash all the batch data
 This will be a protection for the sequencer to avoid sending undesired data
 |`l2Coinbase` | address | Address that will receive the fees from L2
 note Pol is not a reentrant token
