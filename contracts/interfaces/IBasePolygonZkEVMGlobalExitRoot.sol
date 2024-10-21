@@ -9,9 +9,9 @@ interface IBasePolygonZkEVMGlobalExitRoot {
     error OnlyAllowedContracts();
 
     /**
-     * @dev Thrown when the caller is not the coinbase
+     * @dev Thrown when the caller is not the coinbase neither the globalExitRootUpdater
      */
-    error OnlyAggOracleOrCoinbase();
+    error OnlyGlobalExitRootUpdater();
 
     /**
      * @dev Thrown when trying to insert a global exit root that is already set

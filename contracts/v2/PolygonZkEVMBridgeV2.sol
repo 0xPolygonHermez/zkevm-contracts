@@ -740,7 +740,7 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Function to activate the emergency state
      " Only can be called by the Polygon ZK-EVM in extreme situations
      */
-    function activateEmergencyState() external onlyRollupManager {
+    function activateEmergencyState() external virtual onlyRollupManager {
         _activateEmergencyState();
     }
 
@@ -748,7 +748,7 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Function to deactivate the emergency state
      " Only can be called by the Polygon ZK-EVM
      */
-    function deactivateEmergencyState() external onlyRollupManager {
+    function deactivateEmergencyState() external virtual onlyRollupManager {
         _deactivateEmergencyState();
     }
 

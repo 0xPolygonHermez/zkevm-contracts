@@ -13,8 +13,8 @@ contract GlobalExitRootManagerL2SovereignChain is
     PolygonZkEVMGlobalExitRootL2,
     Initializable
 {
-    // aggOracleAddress address
-    address public aggOracleAddress;
+    // globalExitRootUpdater address
+    address public globalExitRootUpdater;
 
     // Inserted GER counter
     uint256 public insertedGERCount;
@@ -29,13 +29,16 @@ contract GlobalExitRootManagerL2SovereignChain is
      */
     event RemoveLastGlobalExitRoot(bytes32 indexed removedGlobalExitRoot);
 
-    modifier onlyAggOracleOrCoinbase() {
-        // Only allowed to be called by aggOracle or coinbase if aggOracle is zero
-        if (
-            (aggOracleAddress == address(0) && block.coinbase != msg.sender) ||
-            (aggOracleAddress != address(0) && aggOracleAddress != msg.sender)
-        ) {
-            revert OnlyAggOracleOrCoinbase();
+    modifier onlyGlobalExitRootUpdater() {
+        // Only allowed to be called by GlobalExitRootUpdater or coinbase if GlobalExitRootUpdater is zero
+        if (globalExitRootUpdater == address(0)) {
+            if (block.coinbase != msg.sender) {
+                revert OnlyGlobalExitRootUpdater();
+            }
+        } else {
+            if (globalExitRootUpdater != msg.sender) {
+                revert OnlyGlobalExitRootUpdater();
+            }
         }
         _;
     }
@@ -50,13 +53,13 @@ contract GlobalExitRootManagerL2SovereignChain is
     }
 
     /**
-     * @notice Initialize contract setting the aggOracleAddress
+     * @notice Initialize contract setting the globalExitRootUpdater
      */
     function initialize(
-        address _aggOracleAddress
+        address _globalExitRootUpdater
     ) external virtual initializer {
-        // set aggOracleAddress
-        aggOracleAddress = _aggOracleAddress;
+        // set globalExitRootUpdater
+        globalExitRootUpdater = _globalExitRootUpdater;
     }
 
     /**
@@ -65,7 +68,7 @@ contract GlobalExitRootManagerL2SovereignChain is
      */
     function insertGlobalExitRoot(
         bytes32 _newRoot
-    ) external onlyAggOracleOrCoinbase {
+    ) external onlyGlobalExitRootUpdater {
         // do not insert GER if already set
         if (globalExitRootMap[_newRoot] == 0) {
             globalExitRootMap[_newRoot] = ++insertedGERCount;
@@ -81,9 +84,10 @@ contract GlobalExitRootManagerL2SovereignChain is
      */
     function removeLastGlobalExitRoots(
         bytes32[] calldata gersToRemove
-    ) external onlyAggOracleOrCoinbase {
+    ) external onlyGlobalExitRootUpdater {
+        uint256 insertedGERCountCache = insertedGERCount;
         // Can't remove if not enough roots have been inserted
-        if (gersToRemove.length > insertedGERCount) {
+        if (gersToRemove.length > insertedGERCountCache) {
             revert NotEnoughGlobalExitRootsInserted();
         }
         // Iterate through the array of roots to remove them one by one
@@ -92,12 +96,12 @@ contract GlobalExitRootManagerL2SovereignChain is
 
             // Check that the root to remove is the last inserted
             uint256 lastInsertedIndex = globalExitRootMap[rootToRemove];
-            if (lastInsertedIndex != insertedGERCount) {
+            if (lastInsertedIndex != insertedGERCountCache) {
                 revert NotLastInsertedGlobalExitRoot();
             }
 
             // Remove from the mapping
-            delete globalExitRootMap[rootToRemove]; // Delete from the mapping
+            delete globalExitRootMap[rootToRemove];
             // Decrement the counter
             insertedGERCount--;
 
