@@ -31,7 +31,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
 
     let sovereignChainBridgeContract: BridgeL2SovereignChain;
     let polTokenContract: ERC20PermitMock;
-    let sovereignChainGlobalExitRoot: GlobalExitRootManagerL2SovereignChain;
+    let sovereignChainGlobalExitRootContract: GlobalExitRootManagerL2SovereignChain;
 
     let deployer: any;
     let rollupManager: any;
@@ -72,12 +72,18 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         })) as unknown as BridgeL2SovereignChain;
 
         // deploy global exit root manager
-        const SovereignChainGlobalExitRootFactory = await ethers.getContractFactory(
+        const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory(
             "GlobalExitRootManagerL2SovereignChain"
         );
-        sovereignChainGlobalExitRoot = await SovereignChainGlobalExitRootFactory.deploy(
-            sovereignChainBridgeContract.target
-        );
+        sovereignChainGlobalExitRootContract = (await upgrades.deployProxy(
+            GlobalExitRootManagerL2SovereignChainFactory,
+            [deployer.address], // Initializer params
+            {
+                initializer: "initialize", // initializer function name
+                constructorArgs: [sovereignChainBridgeContract.target], // Constructor arguments
+                unsafeAllow: ["constructor", "state-variable-immutable"],
+            }
+        )) as unknown as GlobalExitRootManagerL2SovereignChain;
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory("ERC20PermitMock");
@@ -96,7 +102,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
             networkIDRollup2,
             polTokenContract.target, // zero for ether
             0, // zero for ether
-            sovereignChainGlobalExitRoot.target,
+            sovereignChainGlobalExitRootContract.target,
             rollupManager.address,
             metadataToken,
             ethers.Typed.address(bridgeManager.address),
@@ -172,20 +178,26 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
+
+        // Try to insert global exit root with non coinbase
+        await expect(
+            sovereignChainGlobalExitRootContract.connect(acc1).insertGlobalExitRoot(computedGlobalExitRoot)
+        ).to.be.revertedWithCustomError(sovereignChainGlobalExitRootContract, "OnlyGlobalExitRootUpdater");
+
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // Check GER has value in mapping
-        expect(await sovereignChainGlobalExitRoot.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
+        expect(await sovereignChainGlobalExitRootContract.globalExitRootMap(computedGlobalExitRoot)).to.not.be.eq(0);
         // check merkle proof
         const index = 0;
         const proofLocal = merkleTree.getProofTreeByIndex(0);
@@ -266,7 +278,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
 
     it("should check the constructor parameters", async () => {
         expect(await sovereignChainBridgeContract.globalExitRootManager()).to.be.equal(
-            sovereignChainGlobalExitRoot.target
+            sovereignChainGlobalExitRootContract.target
         );
         expect(await sovereignChainBridgeContract.networkID()).to.be.equal(networkIDRollup2);
         expect(await sovereignChainBridgeContract.polygonRollupManager()).to.be.equal(rollupManager.address);
@@ -274,32 +286,6 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         expect(await sovereignChainBridgeContract.gasTokenAddress()).to.be.equal(gasTokenAddress);
         expect(await sovereignChainBridgeContract.gasTokenNetwork()).to.be.equal(gasTokenNetwork);
         expect(await sovereignChainBridgeContract.gasTokenMetadata()).to.be.equal(gasTokenMetadata);
-    });
-
-    it("should check the emergency state", async () => {
-        expect(await sovereignChainBridgeContract.isEmergencyState()).to.be.equal(false);
-
-        await expect(sovereignChainBridgeContract.activateEmergencyState()).to.be.revertedWithCustomError(
-            sovereignChainBridgeContract,
-            "OnlyRollupManager"
-        );
-        await expect(sovereignChainBridgeContract.connect(rollupManager).activateEmergencyState()).to.emit(
-            sovereignChainBridgeContract,
-            "EmergencyStateActivated"
-        );
-
-        expect(await sovereignChainBridgeContract.isEmergencyState()).to.be.equal(true);
-
-        await expect(
-            sovereignChainBridgeContract.connect(deployer).deactivateEmergencyState()
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, "OnlyRollupManager");
-
-        await expect(sovereignChainBridgeContract.connect(rollupManager).deactivateEmergencyState()).to.emit(
-            sovereignChainBridgeContract,
-            "EmergencyStateDeactivated"
-        );
-
-        expect(await sovereignChainBridgeContract.isEmergencyState()).to.be.equal(false);
     });
 
     it("should SovereignChain bridge asset and verify merkle proof", async () => {
@@ -699,8 +685,8 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         }
         const rootRollup = merkleTreeRollup.getRoot();
         // check only rollup account with update rollup exit root
-        await expect(sovereignChainGlobalExitRoot.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
-            sovereignChainGlobalExitRoot,
+        await expect(sovereignChainGlobalExitRootContract.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
+            sovereignChainGlobalExitRootContract,
             "OnlyAllowedContracts"
         );
 
@@ -708,10 +694,10 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
 
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
 
         // check roots
-        const sovereignChainExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const sovereignChainExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(sovereignChainExitRootSC).to.be.equal(rootRollup);
         const mainnetExitRootSC = ethers.ZeroHash;
         expect(mainnetExitRootSC).to.be.equal(mainnetExitRoot);
@@ -719,8 +705,8 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rootRollup);
 
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
         // check merkle proof
 
@@ -844,25 +830,25 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const rootRollup = merkleTreeRollup.getRoot();
 
         // check only rollup account with update rollup exit root
-        await expect(sovereignChainGlobalExitRoot.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
-            sovereignChainGlobalExitRoot,
+        await expect(sovereignChainGlobalExitRootContract.updateExitRoot(rootRollup)).to.be.revertedWithCustomError(
+            sovereignChainGlobalExitRootContract,
             "OnlyAllowedContracts"
         );
 
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rootRollup, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rootRollup);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
 
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
         // check merkle proof
 
@@ -1001,7 +987,7 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         const wrappedTokenAddress = newWrappedToken.target;
         const newDestinationNetwork = networkIDRollup;
 
-        const rollupExitRoot = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRoot = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
 
         // create a new deposit
         await expect(newWrappedToken.approve(sovereignChainBridgeContract.target, amount))
@@ -1244,16 +1230,16 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // check merkle proof
@@ -1393,16 +1379,16 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
 
         // check merkle proof
@@ -1496,17 +1482,17 @@ describe("SovereignChainBridge Gas tokens tests", () => {
         // add rollup Merkle root
         await ethers.provider.send("hardhat_impersonateAccount", [sovereignChainBridgeContract.target]);
         const bridgeMock = await ethers.getSigner(sovereignChainBridgeContract.target as any);
-        await sovereignChainGlobalExitRoot.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
+        await sovereignChainGlobalExitRootContract.connect(bridgeMock).updateExitRoot(rollupRoot, {gasPrice: 0});
 
         // check roots
-        const rollupExitRootSC = await sovereignChainGlobalExitRoot.lastRollupExitRoot();
+        const rollupExitRootSC = await sovereignChainGlobalExitRootContract.lastRollupExitRoot();
         expect(rollupExitRootSC).to.be.equal(rollupRoot);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(mainnetExitRoot, rollupExitRootSC);
 
         // Insert global exit root
-        expect(await sovereignChainGlobalExitRoot.insertGlobalExitRoot(computedGlobalExitRoot))
-            .to.emit(sovereignChainGlobalExitRoot, "InsertGlobalExitRoot")
+        expect(await sovereignChainGlobalExitRootContract.insertGlobalExitRoot(computedGlobalExitRoot))
+            .to.emit(sovereignChainGlobalExitRootContract, "InsertGlobalExitRoot")
             .withArgs(computedGlobalExitRoot);
         // check merkle proof
         const index = 0;

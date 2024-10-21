@@ -52,7 +52,7 @@ contract BridgeL2SovereignChain is
     /**
      * @dev Emitted when a remapped token is removed from mapping
      */
-    event RemoveSovereignTokenAddress(address sovereignTokenAddress);
+    event RemoveLegacySovereignTokenAddress(address sovereignTokenAddress);
 
     /**
      * @dev Emitted when a WETH address is remapped by a sovereign WETH address
@@ -118,6 +118,7 @@ contract BridgeL2SovereignChain is
             gasTokenAddress = _gasTokenAddress;
             gasTokenNetwork = _gasTokenNetwork;
             gasTokenMetadata = _gasTokenMetadata;
+
             // Set sovereign weth token or create new if not provided
             if (_sovereignWETHAddress == address(0)) {
                 // Create a wrapped token for WETH, with salt == 0
@@ -185,12 +186,14 @@ contract BridgeL2SovereignChain is
         address[] memory sovereignTokenAddresses,
         bool[] memory isNotMintable
     ) external onlyBridgeManager {
-        require(
-            originNetworks.length == originTokenAddresses.length &&
-                originTokenAddresses.length == sovereignTokenAddresses.length &&
-                sovereignTokenAddresses.length == isNotMintable.length,
-            "Input array lengths mismatch"
-        );
+        if (
+            originNetworks.length != originTokenAddresses.length ||
+            originNetworks.length != sovereignTokenAddresses.length ||
+            originNetworks.length != isNotMintable.length
+        ) {
+            revert InputArraysLengthMismatch();
+        }
+
         // Make multiple calls to setSovereignTokenAddress
         for (uint256 i = 0; i < sovereignTokenAddresses.length; i++) {
             _setSovereignTokenAddress(
@@ -229,7 +232,16 @@ contract BridgeL2SovereignChain is
     }
 
     /**
-     * @notice Function to remap sovereign address
+     * @notice Remap a wrapped token to a new sovereign token address
+     * @dev This function is used to allow any existing token to be mapped with
+     *      origin token.
+     * @notice If this function is called multiple times for the same existingTokenAddress,
+     * this will override the previous calls and only keep the last sovereignTokenAddress.
+     * @notice The tokenInfoToWrappedToken mapping  value is replaced by the new sovereign address but it's not the case for the wrappedTokenToTokenInfo map where the value is added, this way user will always be able to withdraw their tokens
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param sovereignTokenAddress Address of the sovereign wrapped token
+     * @param isNotMintable Flag to indicate if the wrapped token is not mintable
      */
     function _setSovereignTokenAddress(
         uint32 originNetwork,
@@ -248,6 +260,14 @@ contract BridgeL2SovereignChain is
         if (originNetwork == networkID) {
             revert OriginNetworkInvalid();
         }
+        // Check if the token is already mapped
+        if (
+            wrappedTokenToTokenInfo[sovereignTokenAddress].originTokenAddress !=
+            address(0)
+        ) {
+            revert TokenAlreadyMapped();
+        }
+
         // Compute token info hash
         bytes32 tokenInfoHash = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
@@ -255,6 +275,7 @@ contract BridgeL2SovereignChain is
         // Set the address of the wrapper
         tokenInfoToWrappedToken[tokenInfoHash] = sovereignTokenAddress;
         // Set the token info mapping
+        // @note wrappedTokenToTokenInfo mapping is not overwritten while tokenInfoToWrappedToken it is
         wrappedTokenToTokenInfo[sovereignTokenAddress] = TokenInformation(
             originNetwork,
             originTokenAddress
@@ -274,10 +295,10 @@ contract BridgeL2SovereignChain is
      * @notice Although the token is removed from the mapping, the user will still be able to withdraw their tokens using tokenInfoToWrappedToken mapping
      * @param sovereignTokenAddress Address of the sovereign wrapped token
      */
-    function removeSovereignTokenAddress(
+    function removeLegacySovereignTokenAddress(
         address sovereignTokenAddress
     ) external onlyBridgeManager {
-        // Only allow to remove already mapped tokens
+        // Only allow to remove already remapped tokens
         TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
             sovereignTokenAddress
         ];
@@ -292,11 +313,11 @@ contract BridgeL2SovereignChain is
             tokenInfoToWrappedToken[tokenInfoHash] == address(0) ||
             tokenInfoToWrappedToken[tokenInfoHash] == sovereignTokenAddress
         ) {
-            revert TokenNotMapped();
+            revert TokenNotRemapped();
         }
         delete wrappedTokenToTokenInfo[sovereignTokenAddress];
         delete wrappedAddressIsNotMintable[sovereignTokenAddress];
-        emit RemoveSovereignTokenAddress(sovereignTokenAddress);
+        emit RemoveLegacySovereignTokenAddress(sovereignTokenAddress);
     }
 
     /**
@@ -309,6 +330,9 @@ contract BridgeL2SovereignChain is
         address sovereignWETHTokenAddress,
         bool isNotMintable
     ) external onlyBridgeManager {
+        if (gasTokenAddress == address(0)) {
+            revert WETHRemappingNotSupportedOnGasTokenNetworks();
+        }
         WETHToken = TokenWrapped(sovereignWETHTokenAddress);
         wrappedAddressIsNotMintable[sovereignWETHTokenAddress] = isNotMintable;
         emit SetSovereignWETHAddress(sovereignWETHTokenAddress, isNotMintable);
@@ -410,5 +434,20 @@ contract BridgeL2SovereignChain is
             // Claim wETH
             tokenWrapped.mint(destinationAddress, amount);
         }
+    }
+
+    // @note This function is not used in the current implementation. We overwrite it to improve deployed bytecode size
+    function activateEmergencyState()
+        external
+        override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2)
+    {
+        revert NotValidBridgeManager();
+    }
+
+    function deactivateEmergencyState()
+        external
+        override(IPolygonZkEVMBridgeV2, PolygonZkEVMBridgeV2)
+    {
+        revert NotValidBridgeManager();
     }
 }
