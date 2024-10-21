@@ -20,7 +20,7 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-contract FflonkVerifier {
+contract FflonkVerifier_13 {
     uint32 constant n     = 16777216; // Domain size
 
     // Verification Key data
