@@ -8,9 +8,17 @@
     "adminZkEVM":"0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
     "forkID": 12,
     "consensusContract": "PolygonZkEVMEtrog",
+    "programVKey": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "gasTokenAddress":"",
     "deployerPvtKey": "",
     "maxFeePerGas":"",
     "maxPriorityFeePerGas":"",
-    "multiplierGas": ""
+    "multiplierGas": "",
+    "isVanillaClient": false,
+    "sovereignParams": {
+        "bridgeManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "sovereignWETHAddress": "0x0000000000000000000000000000000000000000",
+        "sovereignWETHAddressIsNotMintable": false,
+        "globalExitRootUpdater": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    }
 }

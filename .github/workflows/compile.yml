@@ -5,9 +5,9 @@ name: Main CI
 
 on:
     push:
-        branches: [feature/ongoingPP]
+        branches: [main, develop, feature/ongoingPP]
     pull_request:
-        branches: [feature/ongoingPP]
+        branches: [main, develop, feature/ongoingPP]
 
 jobs:
     lint-and-test:
