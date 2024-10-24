@@ -89,7 +89,14 @@ contract PolygonZkEVMBridgeV2 is
     bytes public gasTokenMetadata;
 
     // WETH address
+    // @note If WETH address is zero, means the gasToken of the network is ether, else means the network has a custom erc20 gas token. This value is set at initialization of the contract. In case gasTokenAddress != zero, a erc20 contract is deployed and the created address is set as WETH address, to handle wrapped ether
     TokenWrapped public WETHToken;
+
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     */
+    uint256[50] private _gap;
 
     /**
      * @dev Emitted when bridge assets or messages to another network
@@ -238,7 +245,7 @@ contract PolygonZkEVMBridgeV2 is
             // In case ether is the native token, WETHToken will be 0, and the address 0 is already checked
             if (token == address(WETHToken)) {
                 // Burn tokens
-                TokenWrapped(token).burn(msg.sender, amount);
+                _bridgeWrappedAsset(TokenWrapped(token), amount);
 
                 // Both origin network and originTokenAddress will be 0
                 // Metadata will be empty
@@ -250,8 +257,7 @@ contract PolygonZkEVMBridgeV2 is
                 if (tokenInfo.originTokenAddress != address(0)) {
                     // The token is a wrapped token from another network
 
-                    // Burn tokens
-                    TokenWrapped(token).burn(msg.sender, amount);
+                    _bridgeWrappedAsset(TokenWrapped(token), amount);
 
                     originTokenAddress = tokenInfo.originTokenAddress;
                     originNetwork = tokenInfo.originNetwork;
@@ -364,7 +370,7 @@ contract PolygonZkEVMBridgeV2 is
         }
 
         // Burn wETH tokens
-        WETHToken.burn(msg.sender, amountWETH);
+        _bridgeWrappedAsset(WETHToken, amountWETH);
 
         _bridgeMessage(
             destinationNetwork,
@@ -437,7 +443,7 @@ contract PolygonZkEVMBridgeV2 is
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
-     * @param originTokenAddress  Origin token address, 0 address is reserved for ether
+     * @param originTokenAddress  Origin token address, 0 address is reserved for gas token address. If WETH address is zero, means this gas token is ether, else means is a custom erc20 gas token
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
@@ -492,7 +498,7 @@ contract PolygonZkEVMBridgeV2 is
                 }
             } else {
                 // Claim wETH
-                WETHToken.mint(destinationAddress, amount);
+                _claimWrappedAsset(WETHToken, destinationAddress, amount);
             }
         } else {
             // Check if it's gas token
@@ -536,7 +542,11 @@ contract PolygonZkEVMBridgeV2 is
                         );
 
                         // Mint tokens for the destination address
-                        newWrappedToken.mint(destinationAddress, amount);
+                        _claimWrappedAsset(
+                            newWrappedToken,
+                            destinationAddress,
+                            amount
+                        );
 
                         // Create mappings
                         tokenInfoToWrappedToken[tokenInfoHash] = address(
@@ -555,7 +565,8 @@ contract PolygonZkEVMBridgeV2 is
                         );
                     } else {
                         // Use the existing wrapped erc20
-                        TokenWrapped(wrappedToken).mint(
+                        _claimWrappedAsset(
+                            TokenWrapped(wrappedToken),
                             destinationAddress,
                             amount
                         );
@@ -608,7 +619,7 @@ contract PolygonZkEVMBridgeV2 is
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) external ifNotEmergencyState {
+    ) external virtual ifNotEmergencyState {
         // Destination network must be this networkID
         if (destinationNetwork != networkID) {
             revert DestinationNetworkInvalid();
@@ -646,7 +657,7 @@ contract PolygonZkEVMBridgeV2 is
             );
         } else {
             // Mint wETH tokens
-            WETHToken.mint(destinationAddress, amount);
+            _claimWrappedAsset(WETHToken, destinationAddress, amount);
 
             // Execute message
             /* solhint-disable avoid-low-level-calls */
@@ -730,7 +741,7 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Function to activate the emergency state
      " Only can be called by the Polygon ZK-EVM in extreme situations
      */
-    function activateEmergencyState() external onlyRollupManager {
+    function activateEmergencyState() external virtual onlyRollupManager {
         _activateEmergencyState();
     }
 
@@ -738,7 +749,7 @@ contract PolygonZkEVMBridgeV2 is
      * @notice Function to deactivate the emergency state
      " Only can be called by the Polygon ZK-EVM
      */
-    function deactivateEmergencyState() external onlyRollupManager {
+    function deactivateEmergencyState() external virtual onlyRollupManager {
         _deactivateEmergencyState();
     }
 
@@ -893,6 +904,36 @@ contract PolygonZkEVMBridgeV2 is
     function _updateGlobalExitRoot() internal {
         lastUpdatedDepositCount = uint32(depositCount);
         globalExitRootManager.updateExitRoot(getRoot());
+    }
+
+    /**
+     * @notice Burn tokens from wrapped token to execute the bridge
+     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
+     * @param tokenWrapped Wrapped token to burnt
+     * @param amount Amount of tokens
+     */
+    function _bridgeWrappedAsset(
+        TokenWrapped tokenWrapped,
+        uint256 amount
+    ) internal virtual {
+        // Burn tokens
+        tokenWrapped.burn(msg.sender, amount);
+    }
+
+    /**
+     * @notice Mints tokens from wrapped token to proceed with the claim
+     * note This  function has been extracted to be able to override it by other contracts like Bridge2SovereignChain
+     * @param tokenWrapped Wrapped token to mint
+     * @param destinationAddress Minted token receiver
+     * @param amount Amount of tokens
+     */
+    function _claimWrappedAsset(
+        TokenWrapped tokenWrapped,
+        address destinationAddress,
+        uint256 amount
+    ) internal virtual {
+        // Burn tokens
+        tokenWrapped.mint(destinationAddress, amount);
     }
 
     /**
