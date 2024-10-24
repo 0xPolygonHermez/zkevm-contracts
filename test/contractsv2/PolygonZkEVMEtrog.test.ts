@@ -332,6 +332,7 @@ describe("PolygonZkEVMEtrog", () => {
             PolygonZKEVMV2Contract.generateInitializeTransaction(0, ethers.ZeroAddress, 1, hugeMetadata)
         ).to.be.revertedWithCustomError(PolygonZKEVMV2Contract, "HugeTokenMetadataNotSupported");
     });
+
     it("should check full flow", async () => {
         // Initialzie using rollup manager
         await ethers.provider.send("hardhat_impersonateAccount", [rollupManagerContract.target]);

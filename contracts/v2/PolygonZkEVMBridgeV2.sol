@@ -75,9 +75,16 @@ contract PolygonZkEVMBridgeV2 is
     // Wrapped token Address --> Origin token information
     mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
 
+    // Existing token address --> Custom wrapper contract
+    mapping(address existingToken => address customWrapper)
+        public existingTokenToWrapper;
+
     // Rollup manager address, previously PolygonZkEVM
     /// @custom:oz-renamed-from polygonZkEVMaddress
     address public polygonRollupManager;
+
+    // Bridge manager address; can set custom mapping for any token
+    address public bridgeManager;
 
     // Native address
     address public gasTokenAddress;
@@ -127,6 +134,11 @@ contract PolygonZkEVMBridgeV2 is
     );
 
     /**
+     * @dev Emitted when a bridge manager is updated
+     */
+    event BridgeManagerUpdated(address bridgeManager);
+
+    /**
      * Disable initalizers on the implementation following the best practices
      */
     constructor() {
@@ -154,6 +166,7 @@ contract PolygonZkEVMBridgeV2 is
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
         polygonRollupManager = _polygonRollupManager;
+        bridgeManager = msg.sender; // Set deployer as default bridge manager
 
         // Set gas token
         if (_gasTokenAddress == address(0)) {
@@ -183,6 +196,13 @@ contract PolygonZkEVMBridgeV2 is
     modifier onlyRollupManager() {
         if (polygonRollupManager != msg.sender) {
             revert OnlyRollupManager();
+        }
+        _;
+    }
+
+    modifier onlyBridgeManager() {
+        if (bridgeManager != msg.sender) {
+            revert OnlyBridgeManager();
         }
         _;
     }
@@ -248,11 +268,16 @@ contract PolygonZkEVMBridgeV2 is
                 ];
 
                 if (tokenInfo.originTokenAddress != address(0)) {
-                    // The token is a wrapped token from another network
-
-                    // Burn tokens
-                    TokenWrapped(token).burn(msg.sender, amount);
-
+                    // The token is either (1) a wrapped token from another network
+                    // or (2) wrapped with custom contract
+                    address wrapper = existingTokenToWrapper[token];
+                    if (wrapper != address(0)) {
+                        // Burn tokens via custom wrapper via setTokenWrappedAddress
+                        TokenWrapped(wrapper).burn(msg.sender, amount);
+                    } else {
+                        // Burn tokens
+                        TokenWrapped(token).burn(msg.sender, amount);
+                    }
                     originTokenAddress = tokenInfo.originTokenAddress;
                     originNetwork = tokenInfo.originNetwork;
                 } else {
@@ -725,6 +750,46 @@ contract PolygonZkEVMBridgeV2 is
                 keccak256(abi.encodePacked(originNetwork, originTokenAddress))
             ];
     }
+
+    /**
+     *
+     */
+    function setBridgeManager(address _bridgeManager) external onlyBridgeManager {
+        if(_bridgeManager == address(0)) revert NotValidBridgeManager();
+        bridgeManager = _bridgeManager;
+        emit BridgeManagerUpdated(bridgeManager);
+    }
+
+    /**
+     * @notice Set the address of a wrapper using the token information if already exist
+     * @dev This function is used to allow any existing token to be mapped with
+     *      origin token. Wrapper contract should handle mint/burn of the existing token.
+     * @notice If this function is called multiple times for the same existingTokenAddress,
+     * this will override the previous calls and only keep the last wrappedTokenAddress.
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param wrappedTokenAddress Arbitary contract that implements TokenWrapped interface
+     */
+    function setCustomTokenMapping(
+        uint32 originNetwork,
+        address originTokenAddress,
+        address wrappedTokenAddress,
+        address existingTokenAddress
+    ) external onlyBridgeManager {
+        // Handle claimAsset on target chain
+        bytes32 tokenInfoHash = keccak256(
+            abi.encodePacked(originNetwork, originTokenAddress)
+        );
+        tokenInfoToWrappedToken[tokenInfoHash] = wrappedTokenAddress;
+
+        // Handle bridgeAsset from origin chain
+        wrappedTokenToTokenInfo[existingTokenAddress] = TokenInformation(
+            originNetwork,
+            originTokenAddress
+        );
+        existingTokenToWrapper[existingTokenAddress] = wrappedTokenAddress;
+    }
+
 
     /**
      * @notice Function to activate the emergency state
