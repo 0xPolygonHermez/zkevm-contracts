@@ -21,7 +21,7 @@
 ```
 Allows the admin to setup the members of the committee. Note that:
 The system will require N / M signatures where N => _requiredAmountOfSignatures and M => urls.length
-There must be the same amount of urls than addressess encoded in the addrsBytes
+There must be the same amount of urls as addresses encoded in the addrsBytes
 A member is represented by the url and the address contained in urls[i] and addrsBytes[i*_ADDR_SIZE : i*_ADDR_SIZE + _ADDR_SIZE]
 
 

@@ -1,6 +1,6 @@
 
 Contrac TransparentUpgradeableProxy from Openzeppelin v5 with the following modifications:
-- Admin is a parameter in the constructor ( like previous versions) isntead of being deployed
+- Admin is a parameter in the constructor ( like previous versions) instead of being deployed
 - Let the admin get access to the proxy
 - Replace _msgSender() with msg.sender
 

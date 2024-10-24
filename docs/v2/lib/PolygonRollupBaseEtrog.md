@@ -190,7 +190,7 @@ The new value can only be lower, except if emergency state is active
   ) external
 ```
 Starts the admin role transfer
-This is a two step process, the pending admin must accepted to finalize the process
+This is a two step process, the pending admin must accept to finalize the process
 
 
 #### Parameters:
