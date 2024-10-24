@@ -17,7 +17,3 @@ sudo DEV_PERIOD=1 docker compose -f docker/docker-compose.yml down
 sudo docker build -t hermeznetwork/geth-zkevm-contracts -f docker/Dockerfile .
 # Let it readable for the multiplatform build coming later!
 sudo chmod -R go+rxw docker/gethData
-# Set the -e option to stop the script if any command fails
-set -e
-sudo rm -rf docker/gethData/geth_data
-sudo DEV_PERIOD=1 docker compose -f docker/docker-compose.yml up -d geth

@@ -1,6 +1,6 @@
 {
     "name": "@0xpolygonhermez/zkevm-contracts",
-    "description": "Core contracts for the Polygon Hermez zkEVM",
+    "description": "Core contracts for the Polygon Hermez zkEVM.",
     "version": "3.0.0",
     "repository": {
         "type": "git",
@@ -34,7 +34,7 @@
         "@nomicfoundation/hardhat-toolbox": "^3.0.0",
         "@openzeppelin/contracts": "4.8.2",
         "@openzeppelin/contracts-upgradeable": "4.8.2",
-        "@openzeppelin/contracts5": "npm:@openzeppelin/contracts@^5.0.0",
+        "@openzeppelin/contracts5": "npm:@openzeppelin/contracts@5.0.0",
         "@openzeppelin/hardhat-upgrades": "^2.5.1",
         "@types/yargs": "^17.0.28",
         "circomlibjs": "0.1.1",
