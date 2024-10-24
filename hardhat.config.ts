@@ -100,7 +100,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 200,
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
@@ -270,8 +270,8 @@ const config: HardhatUserConfig = {
                 network: "polygonZKEVMTestnet",
                 chainId: 2442,
                 urls: {
-                    apiURL: "https://explorer-ui.cardona.zkevm-rpc.com/api",
-                    browserURL: "https://explorer-ui.cardona.zkevm-rpc.com",
+                    apiURL: "https://api-cardona-zkevm.polygonscan.com/api",
+                    browserURL: "https://cardona-zkevm.polygonscan.com/",
                 },
             },
             {

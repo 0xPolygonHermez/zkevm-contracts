@@ -4,30 +4,29 @@
 name: Main CI
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+    push:
+        branches: [main, develop]
+    pull_request:
+        branches: [main, develop]
 
 jobs:
-  lint-and-test:
-    runs-on: ubuntu-latest
+    lint-and-test:
+        runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [16.x]
+        strategy:
+            matrix:
+                node-version: [18.x]
 
-    steps:
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ matrix.node-version }}
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: setup
-        run: npm i
-      - name: linter
-        run: npm run lint
-      - name: test
-        run: npm run test
- 
+        steps:
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+            - name: Checkout code
+              uses: actions/checkout@v3
+            - name: setup
+              run: npm i
+            - name: linter
+              run: npm run lint
+            - name: test
+              run: npm run test
