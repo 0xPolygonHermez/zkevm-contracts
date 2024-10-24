@@ -31,7 +31,7 @@ It is advised to use timelocks for the admin address in case of Validium since i
 ```solidity
   function sequenceBatchesValidium(
     struct PolygonValidiumEtrog.ValidiumBatchData[] batches,
-    uint32 indexL1InfoRoot,
+    uint32 l1InfoTreeLeafCount,
     uint64 maxSequenceTimestamp,
     bytes32 expectedFinalAccInputHash,
     address l2Coinbase,
@@ -45,7 +45,7 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonValidiumEtrog.ValidiumBatchData[] | Struct array which holds the necessary data to append new batches to the sequence
-|`indexL1InfoRoot` | uint32 | Index of the L1InfoRoot that will be used in this sequence
+|`l1InfoTreeLeafCount` | uint32 | leaf count of the L1InfoRoot that will be used in this sequence
 |`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
 This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
 |`expectedFinalAccInputHash` | bytes32 | This parameter must match the acc input hash after hash all the batch data
@@ -60,7 +60,7 @@ note Pol is not a reentrant token
 ```solidity
   function sequenceBatches(
     struct PolygonRollupBaseEtrog.BatchData[] batches,
-    uint32 indexL1InfoRoot,
+    uint32 l1InfoTreeLeafCount,
     uint64 maxSequenceTimestamp,
     bytes32 expectedFinalAccInputHash,
     address l2Coinbase
@@ -73,7 +73,7 @@ Allows a sequencer to send multiple batches
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
 |`batches` | struct PolygonRollupBaseEtrog.BatchData[] | Struct array which holds the necessary data to append new batches to the sequence
-|`indexL1InfoRoot` | uint32 | Index of the L1InfoRoot that will be used in this sequence
+|`l1InfoTreeLeafCount` | uint32 | Index of the L1InfoRoot that will be used in this sequence
 |`maxSequenceTimestamp` | uint64 | Max timestamp of the sequence. This timestamp must be inside a safety range (actual + 36 seconds).
 This timestamp should be equal or higher of the last block inside the sequence, otherwise this batch will be invalidated by circuit.
 |`expectedFinalAccInputHash` | bytes32 | This parameter must match the acc input hash after hash all the batch data
