@@ -89,6 +89,7 @@ contract PolygonZkEVMBridgeV2 is
     bytes public gasTokenMetadata;
 
     // WETH address
+    // @note If WETH address is zero, means the gasToken of the network is ether, else means the network has a custom erc20 gas token. This value is set at initialization of the contract. In case gasTokenAddress != zero, a erc20 contract is deployed and the created address is set as WETH address, to handle wrapped ether
     TokenWrapped public WETHToken;
 
     /**
@@ -442,7 +443,7 @@ contract PolygonZkEVMBridgeV2 is
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
-     * @param originTokenAddress  Origin token address, 0 address is reserved for ether
+     * @param originTokenAddress  Origin token address, 0 address is reserved for gas token address. If WETH address is zero, means this gas token is ether, else means is a custom erc20 gas token
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens
