@@ -18,7 +18,7 @@ async function main() {
 
     /*
      * Check upgrade parameters
-     * Check that every necessary parameter is fullfilled
+     * Check that every necessary parameter is fulfilled
      */
     const mandatoryUpgradeParameters = ["rollupManagerAddress", "timelockDelay"];
 
@@ -39,7 +39,7 @@ async function main() {
     const bridgeAddress = await polygonRMContract.bridgeAddress();
 
     // Load provider
-    let currentProvider = ethers.provider;
+    const currentProvider = ethers.provider;
     if (upgradeParameters.multiplierGas || upgradeParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK !== "hardhat") {
             currentProvider = ethers.getDefaultProvider(
@@ -96,7 +96,7 @@ async function main() {
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
 
-    // prapare upgrades
+    // prepare upgrades
 
     // Upgrade to rollup manager
     const PolygonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager");
@@ -125,8 +125,8 @@ async function main() {
     const operationRollupManager = genOperation(
         proxyAdmin.target,
         0, // value
-        proxyAdmin.interface.encodeFunctionData("upgrade", [rollupManagerAddress, implRollupManager]),
-        ethers.ZeroHash, // predecesoor
+        proxyAdmin.interface.encodeFunctionData("upgrade", [rollupManagerAddress, implRollupManager]), // data
+        ethers.ZeroHash, // predecessor
         salt // salt
     );
 
@@ -135,7 +135,7 @@ async function main() {
         operationRollupManager.target,
         operationRollupManager.value,
         operationRollupManager.data,
-        ethers.ZeroHash, // predecesoor
+        ethers.ZeroHash, // predecessor
         salt, // salt
         timelockDelay,
     ]);
@@ -145,7 +145,7 @@ async function main() {
         operationRollupManager.target,
         operationRollupManager.value,
         operationRollupManager.data,
-        ethers.ZeroHash, // predecesoor
+        ethers.ZeroHash, // predecessor
         salt, // salt
     ]);
 
@@ -155,7 +155,7 @@ async function main() {
     const outputJson = {
         scheduleData,
         executeData,
-        timelockContractAdress: timelockAddress,
+        timelockContractAddress: timelockAddress,
     };
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
