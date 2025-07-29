@@ -1,0 +1,30 @@
+{
+    "rollupManagerAddress": "0xe983fD1798689eee00c0Fb77e79B8f372DF41060",
+    "rollupID": 3,
+    "gasTokenAddress": "0x0000000000000000000000000000000000000000",
+    "bridgeManager": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+    "sovereignWETHAddress": "0x0000000000000000000000000000000000000000",
+    "sovereignWETHAddressIsNotMintable": false,
+    "globalExitRootUpdater": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+    "globalExitRootRemover": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+    "emergencyBridgePauser": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+    "emergencyBridgeUnpauser": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+    "proxiedTokensManager": "0xB55B27Cca633A73108893985350bc26B8A00C43a",
+    "setPreMintAccounts": true,
+    "preMintAccounts": [
+        {
+            "balance": "1000000000000000000",
+            "address": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66"
+        },
+        {
+            "balance": "1000000000000000000",
+            "address": "0xb420EAAbFeFA05b39dE520f811325A463E023954"
+        }
+    ],
+    "setTimelockParameters": true,
+    "timelockParameters": {
+        "adminAddress": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+        "minDelay": 3600
+    },
+    "formatGenesis": "geth"
+}

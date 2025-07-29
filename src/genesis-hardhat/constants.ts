@@ -36,5 +36,6 @@ export const GENESIS_CONTRACT_NAMES = {
     GER_L2_PROXY: 'PolygonZkEVMGlobalExitRootL2 proxy',
     PROXY_ADMIN: 'ProxyAdmin',
     POLYGON_TIMELOCK: 'PolygonZkEVMTimelock',
-    POLYGON_DEPLOYER: 'PolygonZkEVMDeployer',
+    POLYGON_ZKEVM_DEPLOYER: 'PolygonZkEVMDeployer',
+    DEPLOYER: 'deployer',
 };
