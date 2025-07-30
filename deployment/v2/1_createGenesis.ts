@@ -361,7 +361,7 @@ async function main() {
         nonce: implGlobalExitRootL2Info.nonce.toString(),
         address: finalGlobalExitRootL2ImplAddress,
         bytecode: implGlobalExitRootL2Info.bytecode,
-        storage: implGlobalExitRootL2Info.storage, // _initialized = type(uint8).max;
+        storage: implGlobalExitRootL2Info.storage, // should be empty
     });
 
     // polygonZkEVMGlobalExitRootL2 proxy

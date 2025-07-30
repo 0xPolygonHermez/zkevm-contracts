@@ -199,7 +199,7 @@ async function main() {
 
     logger.info('Update genesis-base to the SovereignContracts');
 
-    finalGenesis = await createGenesisHardhat(genesisBase, initializeParams);
+    finalGenesis = await createGenesisHardhat(genesisBase, initializeParams, {});
     // finalGenesis = await updateVanillaGenesis(finalGenesis, createGenesisSovereignParams.chainID, initializeParams);
 
     // Add weth address to deployment output if gas token address is provided and sovereignWETHAddress is not provided
