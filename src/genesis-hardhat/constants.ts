@@ -5,19 +5,11 @@
 // Those genesis are already imported on different tooling and added as a metadata on-chain. Therefore, this util aims
 // to support them too
 
-export const SUPPORTED_GER_MANAGERS = [
-    'PolygonZkEVMGlobalExitRootL2 implementation'
-];
+export const SUPPORTED_GER_MANAGERS = ['PolygonZkEVMGlobalExitRootL2 implementation'];
 
-export const SUPPORTED_BRIDGE_CONTRACTS = [
-    'PolygonZkEVMBridge implementation',
-    'PolygonZkEVMBridgeV2 implementation'
-];
+export const SUPPORTED_BRIDGE_CONTRACTS = ['PolygonZkEVMBridge implementation', 'PolygonZkEVMBridgeV2 implementation'];
 
-export const SUPPORTED_BRIDGE_CONTRACTS_PROXY = [
-    'PolygonZkEVMBridgeV2 proxy',
-    'PolygonZkEVMBridge proxy'
-];
+export const SUPPORTED_BRIDGE_CONTRACTS_PROXY = ['PolygonZkEVMBridgeV2 proxy', 'PolygonZkEVMBridge proxy'];
 
 export const GENESIS_CONTRACT_NAMES = {
     WETH: 'WETH',
