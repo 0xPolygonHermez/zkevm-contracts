@@ -267,23 +267,23 @@ async function main() {
         timelockContractInfo.storage = storageTimelock;
     }
 
-    // regenerate root with the zkEVM root
-    const poseidon = await getPoseidon();
-    const { F } = poseidon;
+    // // regenerate root with the zkEVM root
+    // const poseidon = await getPoseidon();
+    // const { F } = poseidon;
 
-    const zkEVMDB = await ZkEVMDB.newZkEVM(
-        new MemDB(F),
-        poseidon,
-        [F.zero, F.zero, F.zero, F.zero],
-        [F.zero, F.zero, F.zero, F.zero],
-        finalGenesis.genesis,
-        null,
-        null,
-        createGenesisSovereignParams.chainID,
-    );
+    // const zkEVMDB = await ZkEVMDB.newZkEVM(
+    //     new MemDB(F),
+    //     poseidon,
+    //     [F.zero, F.zero, F.zero, F.zero],
+    //     [F.zero, F.zero, F.zero, F.zero],
+    //     finalGenesis.genesis,
+    //     null,
+    //     null,
+    //     createGenesisSovereignParams.chainID,
+    // );
 
-    // update genesis root
-    finalGenesis.root = smtUtils.h4toString(zkEVMDB.getCurrentStateRoot());
+    // // update genesis root
+    // finalGenesis.root = smtUtils.h4toString(zkEVMDB.getCurrentStateRoot());
 
     // extract all [names <--> address] from genesis
     const genesisSCNames = finalGenesis.genesis.reduce((acc: any, obj: any) => {

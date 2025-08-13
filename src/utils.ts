@@ -121,22 +121,25 @@ export function valueToStorageBytes(_value) {
  * Scan all SSTORE opcodes in a trace
  * Does not take into account revert operations neither depth
  * @param {Object} trace
- * @returns {Object} - storage writes: {"key": "value"}
+ * @returns {Object} - storage writes: depth: {"key": "value"}
  */
 export function getStorageWrites(trace) {
     const writes = trace.structLogs
         .filter((log) => log.op === 'SSTORE')
         .map((log) => {
             const [newValue, slot] = log.stack.slice(-2);
-            return { newValue, slot };
+            const depth = Number(log.depth);
+            return { newValue, slot, depth };
         });
 
     // print all storage writes in an object fashion style
     const writeObject = {};
     writes.forEach((write) => {
-        writeObject[`0x${write.slot}`] = `0x${write.newValue}`;
+        if (!writeObject[write.depth]) {
+            writeObject[write.depth] = {};
+        }
+        writeObject[write.depth][`0x${write.slot}`] = `0x${write.newValue}`;
     });
-
     return writeObject;
 }
 

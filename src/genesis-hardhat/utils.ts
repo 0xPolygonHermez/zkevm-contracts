@@ -221,7 +221,7 @@ export function getExpectedStorageBridge(initParams, GERManager) {
 
 export function getExpectedStorageGERManagerL2SovereignChain(initParams) {
     return {
-        [STORAGE_GENESIS.STORAGE_GER_SOVEREIGN.GER_REMOVER]: initParams.globalExitRootRemover,
+        [STORAGE_GENESIS.STORAGE_GER_SOVEREIGN.GER_REMOVER]: ethers.zeroPadValue(initParams.globalExitRootRemover, 32),
         // Storage 0x34 --> Slot 52
         [STORAGE_GENESIS.STORAGE_GER_SOVEREIGN.GER_UPDATER_INIT]: ethers.zeroPadValue(
             ethers.concat([
@@ -252,8 +252,25 @@ export function getExpectedStoragePolygonZkEVMTimelock(minDelay) {
 
 export async function getActualStorage(modificationsStorage, address) {
     const actualStorage = {};
-    for (let key in modificationsStorage) {
+    for (const key in modificationsStorage) {
         actualStorage[key] = await ethers.provider.getStorage(address, key);
     }
     return actualStorage;
+}
+
+export function deepEqual(a, b) {
+    if (a === b) return true;
+    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+        return false;
+    }
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false
+    for (let key of keysA) {
+        if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
+            return false;
+        }
+    }
+
+    return true;
 }
