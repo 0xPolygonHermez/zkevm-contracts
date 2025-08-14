@@ -290,18 +290,9 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
                 const implStorageWrites = await getTraceStorageWrites(bridgeDeploymentResult.txHashes.implementation);
                 const depthBridgeImpl = 1;
                 const depthTokenWrappedImpl = 2;
-                const depthTokenWrappedProxy = 3;
                 storageModifications.BridgeL2SovereignChain_Implementation = implStorageWrites[depthBridgeImpl];
                 storageModifications.TokenWrappedBridgeUpgradeable_Implementation =
                     implStorageWrites[depthTokenWrappedImpl];
-
-                if (
-                    gasTokenAddress !== ethers.ZeroAddress &&
-                    ethers.isAddress(gasTokenAddress) &&
-                    (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress))
-                ) {
-                    storageModifications.TokenWrappedBridgeUpgradeable = implStorageWrites[depthTokenWrappedProxy];
-                }
             }
         } catch (error) {
             logger.error('Could not get Bridge implementation storage writes:', error);
@@ -315,7 +306,12 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             if (initTx) {
                 const initStorageWrites = await getTraceStorageWrites(txInitialitzeBridge.hash);
                 const depthBridgeInit = 2;
+                const depthTokenWrappedProxy = 3;
+                const depthTokenWrappedInit = 4;
                 storageModifications.BridgeL2SovereignChain_Initialization = initStorageWrites[depthBridgeInit];
+                storageModifications.TokenWrappedBridgeUpgradeable = initStorageWrites[depthTokenWrappedProxy];
+                storageModifications.TokenWrappedBridgeUpgradeable_Initialization =
+                    initStorageWrites[depthTokenWrappedInit];
             }
         } catch (error) {
             logger.error('Could not get Bridge initialization storage writes:', error);
@@ -401,22 +397,88 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     expectedStorageModifications.TokenWrappedBridgeUpgradeable_Implementation[
         STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.INITIALIZER
     ] = ethers.zeroPadValue('0xffffffffffffffff', 32);
-    if (
-        gasTokenAddress !== ethers.ZeroAddress &&
-        ethers.isAddress(gasTokenAddress) &&
-        (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress))
-    ) {
-        // Add proxy WETH
-        const wethAddressProxy = await sovereignChainBridgeContract.WETHToken();
-        expectedStorageModifications.TokenWrappedBridgeUpgradeable = {};
-        expectedStorageModifications.TokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.IMPLEMENTATION] =
-            ethers.zeroPadValue(tokenWrappedAddress, 32);
-        const adminWethProxy = await upgrades.erc1967.getAdminAddress(wethAddressProxy as string);
-        expectedStorageModifications.TokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.ADMIN] =
-            ethers.zeroPadValue(adminWethProxy, 32);
-        // Add WETH address
-        expectedStorageModifications.BridgeL2SovereignChain[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.TOKEN_WETH] =
-            ethers.zeroPadValue(wethAddressProxy, 32);
+    if (gasTokenAddress !== ethers.ZeroAddress && ethers.isAddress(gasTokenAddress)) {
+        expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+            STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_ADDRESS
+        ] = ethers.zeroPadValue(gasTokenAddress, 32);
+        if (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress)) {
+            // Add proxy WETH
+            const wethAddressProxy = await sovereignChainBridgeContract.WETHToken();
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable = {};
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.IMPLEMENTATION] =
+                ethers.zeroPadValue(tokenWrappedAddress, 32);
+            const adminWethProxy = await upgrades.erc1967.getAdminAddress(wethAddressProxy as string);
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.ADMIN] =
+                ethers.zeroPadValue(adminWethProxy, 32);
+            // proxy storage init
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization = {};
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.INITIALIZER
+            ] = ethers.zeroPadValue('0x01', 32);
+            const wethNameEncoded = '0x577261707065642045746865720000000000000000000000000000000000001a';
+            const wehtSymbolEncoded = '0x5745544800000000000000000000000000000000000000000000000000000008';
+            const wethVersionEncoded = '0x3100000000000000000000000000000000000000000000000000000000000002';
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_NAME
+            ] = wethNameEncoded;
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_SYMBOL
+            ] = wehtSymbolEncoded;
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDNAME
+            ] = ethers.zeroPadValue('0x', 32);
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDVERSION
+            ] = ethers.zeroPadValue('0x', 32);
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_NAME
+            ] = wethNameEncoded;
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_VERSION
+            ] = wethVersionEncoded;
+            // 18 decimals
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_DECIMALS_BRIDGE_ADDRESS
+            ] = ethers.zeroPadValue(
+                `${sovereignChainBridgeContract.target}${ethers.toBeHex(18).slice(2).toLowerCase()}`,
+                32,
+            );
+            // Add WETH address
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.TOKEN_WETH
+            ] = ethers.zeroPadValue(wethAddressProxy, 32);
+            // gasTokenMetadata
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA
+            ] = ethers.zeroPadValue(ethers.toBeHex(gasTokenMetadata.length - 1), 32);
+            let offset = 2 + 64;
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_1
+            ] = `0x${gasTokenMetadata.slice(2, offset)}`;
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_2
+            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+            offset += 64;
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_3
+            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+            offset += 64;
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_4
+            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+            offset += 64;
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_5
+            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+            offset += 64;
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_6
+            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+            offset += 64;
+            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
+                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_7
+            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+        }
     }
     // BridgeL2SovereignChain Implementation --> PolygonZkEVMBridgeV2
     expectedStorageModifications.BridgeL2SovereignChain_Implementation = {};
@@ -476,6 +538,10 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             storageModifications.TokenWrappedBridgeUpgradeable,
             wethAddressProxy,
         );
+        actualStorage.TokenWrappedBridgeUpgradeable_Initialization = await getActualStorage(
+            storageModifications.TokenWrappedBridgeUpgradeable_Initialization,
+            wethAddressProxy,
+        );
     }
     // GlobalExitRootManagerL2SovereignChain
     actualStorage.GlobalExitRootManagerL2SovereignChain = await getActualStorage(
@@ -501,17 +567,17 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         JSON.stringify(actualStorage, null, 2),
     );
 
-    let equal = await deepEqual(actualStorage, expectedStorageModifications);
-    if (!equal) {
-        throw new Error('Actual storage does not match expected storage');
-    } else {
-        logger.info('Actual storage matches expected storage');
-    }
-    equal = await deepEqual(storageModifications, expectedStorageModifications);
+    let equal = await deepEqual(storageModifications, expectedStorageModifications);
     if (!equal) {
         throw new Error('Storage modifications does not match expected storage');
     } else {
         logger.info('Storage modifications matches expected storage');
+    }
+    equal = await deepEqual(actualStorage, expectedStorageModifications);
+    if (!equal) {
+        throw new Error('Actual storage does not match expected storage');
+    } else {
+        logger.info('Actual storage matches expected storage');
     }
 
     /// ///////////////////////////
@@ -531,7 +597,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     });
     // Update the contract name and bytecode
     bridgeL2SovereignChainImplementation.contractName = GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_IMPLEMENTATION;
-    bridgeL2SovereignChainImplementation.bytecode = ethers.provider.getCode(
+    bridgeL2SovereignChainImplementation.bytecode = await ethers.provider.getCode(
         await upgrades.erc1967.getImplementationAddress(sovereignChainBridgeContract.target),
     );
     // Update the storage and nonce
@@ -564,7 +630,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         return supportedGERManagers.includes(obj.contractName);
     });
     gerManagerL2SovereignChainImplementation.contractName = GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_IMPLEMENTATION;
-    gerManagerL2SovereignChainImplementation.bytecode = ethers.provider.getCode(
+    gerManagerL2SovereignChainImplementation.bytecode = await ethers.provider.getCode(
         await upgrades.erc1967.getImplementationAddress(gerManagerContract.target),
     );
     gerManagerL2SovereignChainImplementation.storage =
@@ -652,16 +718,20 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress))
     ) {
         // Add proxy
-        wethAddress = ethers.zeroPadValue(
-            bridgeL2SovereignChain.storage['0x000000000000000000000000000000000000000000000000000000000000006f'],
-            20,
-        );
+        wethAddress = `0x${bridgeL2SovereignChain.storage[
+            '0x000000000000000000000000000000000000000000000000000000000000006f'
+        ].slice(26)}`;
+
         const wethGenesisProxy = {
             contractName: WETHProxyContractName,
             balance: '0',
             nonce: '1',
             address: wethAddress,
             bytecode: await ethers.provider.getCode(wethAddress),
+            storage: {
+                ...storageModifications.TokenWrappedBridgeUpgradeable,
+                ...storageModifications.TokenWrappedBridgeUpgradeable_Initialization,
+            },
         };
         newGenesis.genesis.push(wethGenesisProxy);
 
@@ -669,7 +739,9 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         // eslint-disable-next-line @typescript-eslint/naming-convention
         const _IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';
         const wethGenesisImplementationAddress = wethGenesisProxy.storage[_IMPLEMENTATION_SLOT];
-        expect(wethGenesisImplementationAddress).to.equal(tokenWrappedAddress.toLocaleLowerCase());
+        expect(wethGenesisImplementationAddress.slice(26).toLocaleLowerCase()).to.equal(
+            tokenWrappedAddress.toLocaleLowerCase().slice(2),
+        );
     }
 
     // switch network previous network

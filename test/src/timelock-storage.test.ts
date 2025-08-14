@@ -31,9 +31,9 @@ describe('Timelock storage util', () => {
         ]);
 
         // Get utils storage and compare with the one computed
-        const computedTimelockStorage = getStorageWrites(trace);
+        const depthTimelockStorage = 1;
+        const computedTimelockStorage = (getStorageWrites(trace) as any[])[depthTimelockStorage];
         const utilsTimelockStorage = initializeTimelockStorage(minDelay, timelockAdminAddress, timelockContract.target);
-
         expect(lodash.isEqual(computedTimelockStorage, utilsTimelockStorage)).to.be.equal(true);
     });
 });
