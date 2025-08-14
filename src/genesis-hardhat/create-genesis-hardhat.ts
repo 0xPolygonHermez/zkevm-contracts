@@ -105,17 +105,17 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     }
 
     // TIMELOCK_OWNER
-    let timelockOwner;
-    // Set the default owner from the genesis base
-    if (config.timelock === undefined || config.timelock.owner === undefined) {
-        timelockOwner = genesisBaseAddresses.deployerAddress;
-    } else {
-        // Check if the owner is a valid address
-        if (!ethers.isAddress(config.timelock.owner)) {
-            throw new Error('timelock owner must be a valid address');
-        }
-        timelockOwner = config.timelock.owner;
-    }
+    // let timelockOwner;
+    // // Set the default owner from the genesis base
+    // if (config.timelock === undefined || config.timelock.owner === undefined) {
+    //     timelockOwner = genesisBaseAddresses.deployerAddress;
+    // } else {
+    //     // Check if the owner is a valid address
+    //     if (!ethers.isAddress(config.timelock.owner)) {
+    //         throw new Error('timelock owner must be a valid address');
+    //     }
+    //     timelockOwner = config.timelock.owner;
+    // }
 
     /// ///////////////////////////////////
     ///   DEPLOY SOVEREIGN CONTRACTS   ///
@@ -370,7 +370,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     // Output the storage modifications JSON
     logger.info('Writing storage modifications JSON to file...');
     await fs.writeFileSync(
-        path.join(__dirname, '../../tools/createSovereignGenesisHardhat/createstorageMofifications.json'),
+        path.join(__dirname, '../../tools/createSovereignGenesisHardhat/storageMofifications.json'),
         JSON.stringify(storageModifications, null, 2),
     );
 
@@ -556,7 +556,8 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     gerManagerL2SovereignChainImplementation.bytecode = ethers.provider.getCode(
         await upgrades.erc1967.getImplementationAddress(gerManagerContract.target),
     );
-    gerManagerL2SovereignChainImplementation.storage = storageModifications.GlobalExitRootManagerL2SovereignChain_Implementation;
+    gerManagerL2SovereignChainImplementation.storage =
+        storageModifications.GlobalExitRootManagerL2SovereignChain_Implementation;
     gerManagerL2SovereignChainImplementation.nonce = await ethers.provider.getTransactionCount(
         await upgrades.erc1967.getImplementationAddress(gerManagerContract.target),
     );

@@ -8,8 +8,6 @@ import * as dotenv from 'dotenv';
 import { ethers, hardhatArguments } from 'hardhat';
 
 // internal dependencies
-import { MemDB, ZkEVMDB, getPoseidon, smtUtils } from '@0xpolygonhermez/zkevm-commonjs';
-import updateVanillaGenesis from '../../deployment/v2/utils/updateVanillaGenesis';
 import { PolygonRollupManager, PolygonZkEVMBridgeV2 } from '../../typechain-types';
 import '../../deployment/helpers/utils';
 import { initializeTimelockStorage } from '../../src/genesis/genesis-helpers';
@@ -200,7 +198,6 @@ async function main() {
     logger.info('Update genesis-base to the SovereignContracts');
 
     finalGenesis = await createGenesisHardhat(genesisBase, initializeParams, {});
-    // finalGenesis = await updateVanillaGenesis(finalGenesis, createGenesisSovereignParams.chainID, initializeParams);
 
     // Add weth address to deployment output if gas token address is provided and sovereignWETHAddress is not provided
     let outWETHAddress;
@@ -244,6 +241,7 @@ async function main() {
                     accountName: `preMintAccount_${i}`,
                     balance: BigInt(preMintAccount.balance).toString(),
                     address: preMintAccount.address,
+                    nonce: '',
                 });
             }
 

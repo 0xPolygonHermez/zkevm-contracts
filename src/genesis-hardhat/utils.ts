@@ -3,6 +3,11 @@ import { SUPPORTED_BRIDGE_CONTRACTS, SUPPORTED_BRIDGE_CONTRACTS_PROXY, GENESIS_C
 import { STORAGE_GENESIS } from './storage';
 import { getStorageWrites } from '../utils';
 
+/**
+ * Function to get the storage modifications of a tx from the txHash
+ * @param {string} txHash - transaction hash
+ * @returns {Object} - storage writes: { depth: {"key": "value"} }
+ */
 export async function getTraceStorageWrites(txHash: any) {
     const trace = await ethers.provider.send('debug_traceTransaction', [
         txHash,
@@ -18,6 +23,11 @@ export async function getTraceStorageWrites(txHash: any) {
     return computedStorageWrites;
 }
 
+/**
+ * Get the addresses of the genesis base contracts
+ * @param {Array} genesisBase - array of genesis base contracts
+ * @returns {Object} - addresses of the genesis base contracts
+ */
 export async function getAddressesGenesisBase(genesisBase: any) {
     // get the proxy admin address
     const proxyAdminAddress = genesisBase.find(
@@ -65,6 +75,11 @@ export async function getAddressesGenesisBase(genesisBase: any) {
     };
 }
 
+/**
+ * Get the minDelay of the timelock from the genesis base (timelock storage)
+ * @param {Array} genesisBase - array of genesis base contracts
+ * @returns value of the minDelay in storage
+ */
 export async function getMinDelayTimelock(genesisBase: any) {
     const timelock = genesisBase.find(
         (account: any) => account.contractName === GENESIS_CONTRACT_NAMES.POLYGON_TIMELOCK,
@@ -76,6 +91,9 @@ export async function getMinDelayTimelock(genesisBase: any) {
 
 /**
  * Analyze deployment transactions and return transaction hashes for proxyAdmin and implementation
+ * @param {String} proxyAddress - address of the proxy contract
+ * @param {Array} deploymentTxs - array of transaction hashes related to the deployment
+ * @returns {Object} - transaction hashes for implementation and proxyAdmin
  */
 export async function analyzeDeploymentTransactions(proxyAddress: string, deploymentTxs: string[]) {
     const implAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
@@ -85,8 +103,10 @@ export async function analyzeDeploymentTransactions(proxyAddress: string, deploy
     let proxyAdminTxHash: string | undefined;
 
     // Check each transaction to see what contract it created
+    // eslint-disable-next-line no-restricted-syntax
     for (const txHash of deploymentTxs) {
         try {
+            // eslint-disable-next-line no-await-in-loop
             const receipt = await ethers.provider.getTransactionReceipt(txHash);
             if (receipt?.contractAddress) {
                 const createdAddress = receipt.contractAddress;
@@ -99,6 +119,7 @@ export async function analyzeDeploymentTransactions(proxyAddress: string, deploy
             }
         } catch (error) {
             // Skip failed transactions
+            // eslint-disable-next-line no-continue
             continue;
         }
     }
@@ -136,13 +157,13 @@ export async function deployProxyWithTxCapture(factory: any, initializerArgs: an
 
     // Get current block number after deployment
     const blockAfter = await ethers.provider.getBlockNumber();
-    console.log('blockAfter', blockAfter);
-    console.log('blockBefore', blockBefore);
     // Collect all transactions from blocks during deployment
     const deploymentTxs: string[] = [];
     for (let blockNum = blockBefore + 1; blockNum <= blockAfter; blockNum++) {
+        // eslint-disable-next-line no-await-in-loop
         const block = await ethers.provider.getBlock(blockNum, false);
         if (block && block.transactions) {
+            // eslint-disable-next-line no-restricted-syntax
             for (const txHash of block.transactions) {
                 deploymentTxs.push(txHash);
             }
@@ -166,6 +187,11 @@ export async function deployProxyWithTxCapture(factory: any, initializerArgs: an
     };
 }
 
+/**
+ * Get the expected storage of the proxy contract
+ * @param {String} addressProxy - address of the proxy contract
+ * @returns {Object} - expected storage of the proxy contract
+ */
 export async function getExpectedStorageProxy(addressProxy) {
     return {
         [STORAGE_GENESIS.STORAGE_PROXY.ADMIN]: ethers.zeroPadValue(
@@ -179,6 +205,14 @@ export async function getExpectedStorageProxy(addressProxy) {
     };
 }
 
+/**
+ * Get the storage value for slot 104 (deposit count, GER manager, network ID and emergency state)
+ * @param {Number} depositCount - last updated deposit count
+ * @param {String} GERManager - address of the global exit root manager
+ * @param {Number} networkID - network ID
+ * @param {Boolean} isEmergencyState - is emergency state
+ * @returns {String} - storage value in hexadecimal string
+ */
 export function getStorage104(depositCount, GERManager, networkID, isEmergencyState) {
     // STORAGE 0x68 --> Slot 104
     // lastUpdatedDepositCount | globalExitRootManager | networkID | isEmergencyState
@@ -194,6 +228,12 @@ export function getStorage104(depositCount, GERManager, networkID, isEmergencySt
     return full;
 }
 
+/**
+ * Get the expected storage of the bridge contract
+ * @param {Object} initParams - initialization parameters for the bridge contract
+ * @param {String} GERManager - address of the global exit root manager
+ * @returns {Object} - expected storage of the bridge contract
+ */
 export function getExpectedStorageBridge(initParams, GERManager) {
     return {
         [STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.INITIALIZER]: ethers.zeroPadValue('0x03', 32),
@@ -219,6 +259,11 @@ export function getExpectedStorageBridge(initParams, GERManager) {
     };
 }
 
+/**
+ * Get the expected storage of the GER manager contract
+ * @param {Object} initParams - initialization parameters for the GER manager contract
+ * @returns {Object} - expected storage of the GER manager contract
+ */
 export function getExpectedStorageGERManagerL2SovereignChain(initParams) {
     return {
         [STORAGE_GENESIS.STORAGE_GER_SOVEREIGN.GER_REMOVER]: ethers.zeroPadValue(initParams.globalExitRootRemover, 32),
@@ -234,6 +279,11 @@ export function getExpectedStorageGERManagerL2SovereignChain(initParams) {
     };
 }
 
+/**
+ * Get the expected storage of the timelock contract
+ * @param {Number} minDelay - minimum delay for the timelock
+ * @returns {Object} - expected storage of the timelock contract
+ */
 export function getExpectedStoragePolygonZkEVMTimelock(minDelay) {
     const timelockAdminRole = ethers.keccak256(ethers.toUtf8Bytes('TIMELOCK_ADMIN_ROLE'));
     return {
@@ -250,14 +300,27 @@ export function getExpectedStoragePolygonZkEVMTimelock(minDelay) {
     };
 }
 
+/**
+ * This function will return the actual storage of the contract in slots of modificationsStorage
+ * @param {String} modificationsStorage - modifications storage object
+ * @returns {Object} - actual storage
+ */
 export async function getActualStorage(modificationsStorage, address) {
     const actualStorage = {};
+    // eslint-disable-next-line no-restricted-syntax, guard-for-in
     for (const key in modificationsStorage) {
+        // eslint-disable-next-line no-await-in-loop
         actualStorage[key] = await ethers.provider.getStorage(address, key);
     }
     return actualStorage;
 }
 
+/**
+ * Check if two objects are deeply equal
+ * @param {Object} a - first object
+ * @param {Object} b - second object
+ * @returns {Boolean} - true if objects are deeply equal, false otherwise
+ */
 export function deepEqual(a, b) {
     if (a === b) return true;
     if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
@@ -265,8 +328,9 @@ export function deepEqual(a, b) {
     }
     const keysA = Object.keys(a);
     const keysB = Object.keys(b);
-    if (keysA.length !== keysB.length) return false
-    for (let key of keysA) {
+    if (keysA.length !== keysB.length) return false;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const key of keysA) {
         if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
             return false;
         }
