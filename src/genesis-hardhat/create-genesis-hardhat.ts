@@ -249,6 +249,14 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
 
     expect(adminBridge).to.equal(adminGerManager);
 
+    // Check initialize params bridge
+    expect(rollupID).to.equal(await sovereignChainBridgeContract.networkID());
+    expect(gerManagerContract.target).to.equal(await sovereignChainBridgeContract.globalExitRootManager());
+
+    // Check initialize params GER
+    expect(globalExitRootUpdater).to.equal(await gerManagerContract.globalExitRootUpdater());
+    expect(globalExitRootRemover).to.equal(await gerManagerContract.globalExitRootRemover());
+
     /// //////////////////////////////
     ///   SANITY CHECKS STORAGE   ///
     /// //////////////////////////////
@@ -370,7 +378,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     // Output the storage modifications JSON
     logger.info('Writing storage modifications JSON to file...');
     await fs.writeFileSync(
-        path.join(__dirname, '../../tools/createSovereignGenesisHardhat/storageMofifications.json'),
+        path.join(__dirname, '../../tools/createSovereignGenesisHardhat/storageModifications.json'),
         JSON.stringify(storageModifications, null, 2),
     );
 
@@ -406,6 +414,9 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         const adminWethProxy = await upgrades.erc1967.getAdminAddress(wethAddressProxy as string);
         expectedStorageModifications.TokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.ADMIN] =
             ethers.zeroPadValue(adminWethProxy, 32);
+        // Add WETH address
+        expectedStorageModifications.BridgeL2SovereignChain[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.TOKEN_WETH] =
+            ethers.zeroPadValue(wethAddressProxy, 32);
     }
     // BridgeL2SovereignChain Implementation --> PolygonZkEVMBridgeV2
     expectedStorageModifications.BridgeL2SovereignChain_Implementation = {};
