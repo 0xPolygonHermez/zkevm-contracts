@@ -260,6 +260,46 @@ export function getExpectedStorageBridge(initParams, GERManager) {
 }
 
 /**
+ * Update the expected storage of the bridge token with WETH address and gas token metadata
+ * @param {Object} actualStorageBridge - actual storage of the bridge contract
+ * @param {String} wethAddressProxy - address of the WETH proxy contract
+ * @param {String} gasTokenMetadata - gas token metadata in hexadecimal string
+ * @returns {Object} - updated actual storage of the bridge contract
+ */
+export function updateExpectedStorageBridgeToken(actualStorageBridge, wethAddressProxy, gasTokenMetadata) {
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.TOKEN_WETH] = ethers.zeroPadValue(
+        wethAddressProxy,
+        32,
+    );
+    // gasTokenMetadata
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA] = ethers.zeroPadValue(
+        ethers.toBeHex(gasTokenMetadata.length - 1),
+        32,
+    );
+    let offset = 2 + 64;
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_1] =
+        `0x${gasTokenMetadata.slice(2, offset)}`;
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_2] =
+        `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+    offset += 64;
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_3] =
+        `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+    offset += 64;
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_4] =
+        `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+    offset += 64;
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_5] =
+        `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+    offset += 64;
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_6] =
+        `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+    offset += 64;
+    actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_7] =
+        `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+    return actualStorageBridge;
+}
+
+/**
  * Get the expected storage of the GER manager contract
  * @param {Object} initParams - initialization parameters for the GER manager contract
  * @returns {Object} - expected storage of the GER manager contract
@@ -297,6 +337,52 @@ export function getExpectedStoragePolygonZkEVMTimelock(minDelay) {
         [STORAGE_GENESIS.TIMELOCK.CANCELLER_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
         [STORAGE_GENESIS.TIMELOCK.EXECUTOR_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
         [STORAGE_GENESIS.TIMELOCK.MINDELAY]: ethers.zeroPadValue(ethers.toBeHex(minDelay), 32),
+    };
+}
+
+/**
+ * Get the expected storage of the TokenWrappedBridgeUpgradeable contract
+ * @param {Object} sovereignChainBridgeContract - sovereign chain bridge contract instance
+ * @param {String} tokenWrappedAddress - address of the token wrapped contract
+ * @returns {Object} - expected storage of the TokenWrappedBridgeUpgradeable contract
+ */
+export function getExpectedStorageTokenWrappedBridgeUpgradeable(sovereignChainBridgeContract, tokenWrappedAddress) {
+    // Add proxy WETH
+    const wethAddressProxy = await sovereignChainBridgeContract.WETHToken();
+    const tokenWrappedBridgeUpgradeable = {};
+    const tokenWrappedBridgeUpgradeableInit = {};
+    tokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.IMPLEMENTATION] = ethers.zeroPadValue(
+        tokenWrappedAddress,
+        32,
+    );
+    const adminWethProxy = await upgrades.erc1967.getAdminAddress(wethAddressProxy as string);
+    tokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.ADMIN] = ethers.zeroPadValue(adminWethProxy, 32);
+    // proxy storage init
+    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.INITIALIZER] =
+        ethers.zeroPadValue('0x01', 32);
+    const wethNameEncoded = '0x577261707065642045746865720000000000000000000000000000000000001a';
+    const wehtSymbolEncoded = '0x5745544800000000000000000000000000000000000000000000000000000008';
+    const wethVersionEncoded = '0x3100000000000000000000000000000000000000000000000000000000000002';
+    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_NAME] =
+        wethNameEncoded;
+    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_SYMBOL] =
+        wehtSymbolEncoded;
+    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDNAME] =
+        ethers.zeroPadValue('0x', 32);
+    tokenWrappedBridgeUpgradeableInit[
+        STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDVERSION
+    ] = ethers.zeroPadValue('0x', 32);
+    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_NAME] =
+        wethNameEncoded;
+    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_VERSION] =
+        wethVersionEncoded;
+    // 18 decimals
+    tokenWrappedBridgeUpgradeableInit[
+        STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_DECIMALS_BRIDGE_ADDRESS
+    ] = ethers.zeroPadValue(`${sovereignChainBridgeContract.target}${ethers.toBeHex(18).slice(2).toLowerCase()}`, 32);
+    return {
+        tokenWrappedBridgeUpgradeable,
+        tokenWrappedBridgeUpgradeableInit,
     };
 }
 

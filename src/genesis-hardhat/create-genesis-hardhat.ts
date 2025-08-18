@@ -15,6 +15,8 @@ import {
     getExpectedStorageGERManagerL2SovereignChain,
     getActualStorage,
     deepEqual,
+    getExpectedStorageTokenWrappedBridgeUpgradeable,
+    updateExpectedStorageBridgeToken,
 } from './utils';
 import { checkParams } from '../utils';
 import { logger } from '../logger';
@@ -197,7 +199,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         proxiedTokensManager,
     } = initializeParams;
 
-    const txInitialitzeBridge = await sovereignChainBridgeContract.initialize(
+    const txInitializeBridge = await sovereignChainBridgeContract.initialize(
         rollupID,
         gasTokenAddress,
         gasTokenNetwork,
@@ -229,7 +231,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     const txDeployTimelock = await timelockContract.deploymentTransaction();
     const txDeployTimelockHash = txDeployTimelock ? txDeployTimelock.hash : undefined;
 
-    // Transfer ownership of the proxyAdmon to the timelock
+    // Transfer ownership of the proxyAdmin to the timelock
     const proxyAdminAddress = await upgrades.erc1967.getAdminAddress(sovereignChainBridgeContract.target as string);
     const proxyAdminFactory = await ethers.getContractFactory(
         '@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol:ProxyAdmin',
@@ -299,12 +301,12 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         }
     }
     // Get storage modifications for Bridge initialization
-    if (txInitialitzeBridge) {
+    if (txInitializeBridge) {
         logger.info('Getting storage modifications for Bridge initialization...');
         try {
-            const initTx = await ethers.provider.getTransaction(txInitialitzeBridge.hash);
+            const initTx = await ethers.provider.getTransaction(txInitializeBridge.hash);
             if (initTx) {
-                const initStorageWrites = await getTraceStorageWrites(txInitialitzeBridge.hash);
+                const initStorageWrites = await getTraceStorageWrites(txInitializeBridge.hash);
                 const depthBridgeInit = 2;
                 const depthTokenWrappedProxy = 3;
                 const depthTokenWrappedInit = 4;
@@ -387,7 +389,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     expectedStorageModifications.BridgeL2SovereignChain = await getExpectedStorageProxy(
         sovereignChainBridgeContract.target,
     );
-    // Bridge initialitzation
+    // Bridge initialization
     expectedStorageModifications.BridgeL2SovereignChain_Initialization = getExpectedStorageBridge(
         initializeParams,
         gerManagerContract.target,
@@ -403,81 +405,20 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         ] = ethers.zeroPadValue(gasTokenAddress, 32);
         if (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress)) {
             // Add proxy WETH
-            const wethAddressProxy = await sovereignChainBridgeContract.WETHToken();
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable = {};
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.IMPLEMENTATION] =
-                ethers.zeroPadValue(tokenWrappedAddress, 32);
-            const adminWethProxy = await upgrades.erc1967.getAdminAddress(wethAddressProxy as string);
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.ADMIN] =
-                ethers.zeroPadValue(adminWethProxy, 32);
-            // proxy storage init
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization = {};
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
-                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.INITIALIZER
-            ] = ethers.zeroPadValue('0x01', 32);
-            const wethNameEncoded = '0x577261707065642045746865720000000000000000000000000000000000001a';
-            const wehtSymbolEncoded = '0x5745544800000000000000000000000000000000000000000000000000000008';
-            const wethVersionEncoded = '0x3100000000000000000000000000000000000000000000000000000000000002';
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
-                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_NAME
-            ] = wethNameEncoded;
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
-                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_SYMBOL
-            ] = wehtSymbolEncoded;
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
-                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDNAME
-            ] = ethers.zeroPadValue('0x', 32);
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
-                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDVERSION
-            ] = ethers.zeroPadValue('0x', 32);
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
-                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_NAME
-            ] = wethNameEncoded;
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
-                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_VERSION
-            ] = wethVersionEncoded;
-            // 18 decimals
-            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization[
-                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_DECIMALS_BRIDGE_ADDRESS
-            ] = ethers.zeroPadValue(
-                `${sovereignChainBridgeContract.target}${ethers.toBeHex(18).slice(2).toLowerCase()}`,
-                32,
+            const tokenStorage = getExpectedStorageTokenWrappedBridgeUpgradeable(
+                sovereignChainBridgeContract,
+                tokenWrappedAddress,
             );
-            // Add WETH address
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.TOKEN_WETH
-            ] = ethers.zeroPadValue(wethAddressProxy, 32);
-            // gasTokenMetadata
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA
-            ] = ethers.zeroPadValue(ethers.toBeHex(gasTokenMetadata.length - 1), 32);
-            let offset = 2 + 64;
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_1
-            ] = `0x${gasTokenMetadata.slice(2, offset)}`;
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_2
-            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
-            offset += 64;
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_3
-            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
-            offset += 64;
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_4
-            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
-            offset += 64;
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_5
-            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
-            offset += 64;
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_6
-            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
-            offset += 64;
-            expectedStorageModifications.BridgeL2SovereignChain_Initialization[
-                STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.GAS_TOKEN_METADATA_7
-            ] = `0x${gasTokenMetadata.slice(offset, offset + 64)}`;
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable = tokenStorage.tokenWrappedBridgeUpgradeable;
+            // proxy storage init
+            expectedStorageModifications.TokenWrappedBridgeUpgradeable_Initialization =
+                tokenStorage.tokenWrappedBridgeUpgradeableInit;
+            // Add WETH to bridge storage
+            updateExpectedStorageBridgeToken(
+                expectedStorageModifications.BridgeL2SovereignChain_Initialization,
+                tokenWrappedAddress,
+                gasTokenMetadata,
+            );
         }
     }
     // BridgeL2SovereignChain Implementation --> PolygonZkEVMBridgeV2
@@ -494,7 +435,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     expectedStorageModifications.GlobalExitRootManagerL2SovereignChain_Implementation[
         STORAGE_GENESIS.STORAGE_GER_SOVEREIGN_IMPLEMENTATION.INITIALIZER_POLYGON_GER_L2
     ] = ethers.zeroPadValue('0xff', 32);
-    // GER initialitzation
+    // GER initialization
     expectedStorageModifications.GlobalExitRootManagerL2SovereignChain_Initialization =
         getExpectedStorageGERManagerL2SovereignChain(initializeParams);
     // PolygonZkEVMTimelock
@@ -567,13 +508,13 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         JSON.stringify(actualStorage, null, 2),
     );
 
-    let equal = await deepEqual(storageModifications, expectedStorageModifications);
+    let equal = deepEqual(storageModifications, expectedStorageModifications);
     if (!equal) {
         throw new Error('Storage modifications does not match expected storage');
     } else {
         logger.info('Storage modifications matches expected storage');
     }
-    equal = await deepEqual(actualStorage, expectedStorageModifications);
+    equal = deepEqual(actualStorage, expectedStorageModifications);
     if (!equal) {
         throw new Error('Actual storage does not match expected storage');
     } else {

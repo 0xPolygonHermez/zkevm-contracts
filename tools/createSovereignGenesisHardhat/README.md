@@ -21,12 +21,12 @@ Fill `.env` with your `INFURA_PROJECT_ID` and `ETHERSCAN_API_KEY`
 
 - Copy configuration files:
 ```
-cp ./tools/createSovereignGenesis/create-genesis-sovereign-params.json.example ./tools/createSovereignGenesis/create-genesis-sovereign-params.json
+cp ./tools/createSovereignGenesisHardhat/create-genesis-sovereign-params.json.example ./tools/createSovereignGenesisHardhat/create-genesis-sovereign-params.json
 ```
 
 - Copy genesis base file:
 ```
-cp ./tools/createSovereignGenesis/genesis-base.json.example ./tools/createSovereignGenesis/genesis-base.json
+cp ./tools/createSovereignGenesisHardhat/genesis-base.json.example ./tools/createSovereignGenesisHardhat/genesis-base.json
 ```
 
 -  Set your parameters
@@ -52,7 +52,7 @@ cp ./tools/createSovereignGenesis/genesis-base.json.example ./tools/createSovere
 
 -  Run tool:
 ```
-npx hardhat run ./tools/createSovereignGenesis/create-sovereign-genesis.ts --network sepolia
+npx hardhat run ./tools/createSovereignGenesisHardhat/create-sovereign-genesis-hardhat.ts --network sepolia
 ```
 
 ### More Info
@@ -60,4 +60,4 @@ npx hardhat run ./tools/createSovereignGenesis/create-sovereign-genesis.ts --net
 - The output files are:
   - `genesis-rollupID-${rollupID}__${timestamp}`: genesis file
   - `output-rollupID-${rollupID}__${timestamp}`: input parameters, gastokenAddress information and network used
-- outputs are saved in the tool folder: `./tools/createSovereignGenesis`
+- outputs are saved in the tool folder: `./tools/createSovereignGenesisHardhat`
