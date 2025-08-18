@@ -262,13 +262,17 @@ export function getExpectedStorageBridge(initParams, GERManager) {
 /**
  * Update the expected storage of the bridge token with WETH address and gas token metadata
  * @param {Object} actualStorageBridge - actual storage of the bridge contract
- * @param {String} wethAddressProxy - address of the WETH proxy contract
+ * @param {Object} sovereignChainBridgeContract - sovereign chain bridge contract instance
  * @param {String} gasTokenMetadata - gas token metadata in hexadecimal string
  * @returns {Object} - updated actual storage of the bridge contract
  */
-export function updateExpectedStorageBridgeToken(actualStorageBridge, wethAddressProxy, gasTokenMetadata) {
+export async function updateExpectedStorageBridgeToken(
+    actualStorageBridge,
+    sovereignChainBridgeContract,
+    gasTokenMetadata,
+) {
     actualStorageBridge[STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.TOKEN_WETH] = ethers.zeroPadValue(
-        wethAddressProxy,
+        (await sovereignChainBridgeContract.WETHToken()).toLowerCase(),
         32,
     );
     // gasTokenMetadata
@@ -346,7 +350,10 @@ export function getExpectedStoragePolygonZkEVMTimelock(minDelay) {
  * @param {String} tokenWrappedAddress - address of the token wrapped contract
  * @returns {Object} - expected storage of the TokenWrappedBridgeUpgradeable contract
  */
-export function getExpectedStorageTokenWrappedBridgeUpgradeable(sovereignChainBridgeContract, tokenWrappedAddress) {
+export async function getExpectedStorageTokenWrappedBridgeUpgradeable(
+    sovereignChainBridgeContract,
+    tokenWrappedAddress,
+) {
     // Add proxy WETH
     const wethAddressProxy = await sovereignChainBridgeContract.WETHToken();
     const tokenWrappedBridgeUpgradeable = {};
@@ -384,6 +391,36 @@ export function getExpectedStorageTokenWrappedBridgeUpgradeable(sovereignChainBr
         tokenWrappedBridgeUpgradeable,
         tokenWrappedBridgeUpgradeableInit,
     };
+}
+
+export async function getExpectedStorageAggOracleCommittee(initParams, aggOracleCommitteeContract) {
+    const expectedStorageAggOracleCommittee = {};
+    expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.INITIALIZER] = ethers.zeroPadValue(
+        '0x01',
+        32,
+    );
+    expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.QUORUM] = ethers.zeroPadValue(
+        ethers.toBeHex(initParams.quorum),
+        32,
+    );
+    expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.OWNER] = ethers.zeroPadValue(
+        initParams.aggOracleOwner,
+        32,
+    );
+    expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.ADDRESS_TO_LAST_PROPOSED_GER_1] =
+        await aggOracleCommitteeContract.INITIAL_PROPOSED_GER();
+    expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.ADDRESS_TO_LAST_PROPOSED_GER_2] =
+        await aggOracleCommitteeContract.INITIAL_PROPOSED_GER();
+    expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.AGG_ORACLE_MEMBERS] =
+        `0x${initParams.aggOracleCommittee.length.toString(16).padStart(64, '0')}`;
+    // Add addresses of the AggOracleCommittee members
+    initParams.aggOracleCommittee.forEach((address, index) => {
+        const memberKey = BigInt(STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.AGG_ORACLE_FIRST_MEMBER);
+        const newMemberKey = memberKey + BigInt(index);
+        const storageKey = `0x${newMemberKey.toString(16).padStart(64, '0')}`;
+        expectedStorageAggOracleCommittee[storageKey] = ethers.zeroPadValue(address, 32);
+    });
+    return expectedStorageAggOracleCommittee;
 }
 
 /**

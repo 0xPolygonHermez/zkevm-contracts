@@ -42,13 +42,13 @@ async function main() {
         'gasTokenAddress',
         'sovereignWETHAddress',
         'sovereignWETHAddressIsNotMintable',
-        'globalExitRootUpdater',
         'globalExitRootRemover',
         'emergencyBridgePauser',
         'emergencyBridgeUnpauser',
         'proxiedTokensManager',
         'setPreMintAccounts',
         'setTimelockParameters',
+        'useAggOracleCommittee',
     ];
 
     // check global parameters
@@ -179,7 +179,25 @@ async function main() {
     let finalGenesis = genesisBase;
 
     // initialize sovereign bridge parameters
-    const initializeParams = {
+    const initializeParams: {
+        rollupID: number;
+        gasTokenAddress: string;
+        gasTokenNetwork: number | bigint;
+        polygonRollupManager: string;
+        gasTokenMetadata: string;
+        bridgeManager: string;
+        sovereignWETHAddress: string;
+        sovereignWETHAddressIsNotMintable: boolean;
+        globalExitRootRemover: string;
+        emergencyBridgePauser: string;
+        emergencyBridgeUnpauser: string;
+        proxiedTokensManager: string;
+        useAggOracleCommittee: boolean;
+        globalExitRootUpdater?: string;
+        aggOracleCommittee?: string[];
+        quorum?: number;
+        aggOracleOwner?: string;
+    } = {
         rollupID: createGenesisSovereignParams.rollupID,
         gasTokenAddress,
         gasTokenNetwork,
@@ -188,13 +206,23 @@ async function main() {
         bridgeManager: createGenesisSovereignParams.bridgeManager,
         sovereignWETHAddress: createGenesisSovereignParams.sovereignWETHAddress,
         sovereignWETHAddressIsNotMintable: createGenesisSovereignParams.sovereignWETHAddressIsNotMintable,
-        globalExitRootUpdater: createGenesisSovereignParams.globalExitRootUpdater,
         globalExitRootRemover: createGenesisSovereignParams.globalExitRootRemover,
         emergencyBridgePauser: createGenesisSovereignParams.emergencyBridgePauser,
         emergencyBridgeUnpauser: createGenesisSovereignParams.emergencyBridgeUnpauser,
         proxiedTokensManager: createGenesisSovereignParams.proxiedTokensManager,
+        useAggOracleCommittee: createGenesisSovereignParams.useAggOracleCommittee,
     };
 
+    if (createGenesisSovereignParams.useAggOracleCommittee === false) {
+        checkParams(createGenesisSovereignParams, ['globalExitRootUpdater']);
+        initializeParams.globalExitRootUpdater = createGenesisSovereignParams.globalExitRootUpdater;
+    } else {
+        // AggOracleCommittee parameters
+        checkParams(createGenesisSovereignParams, ['aggOracleCommittee', 'quorum', 'aggOracleOwner']);
+        initializeParams.aggOracleCommittee = createGenesisSovereignParams.aggOracleCommittee;
+        initializeParams.quorum = createGenesisSovereignParams.quorum;
+        initializeParams.aggOracleOwner = createGenesisSovereignParams.aggOracleOwner;
+    }
     logger.info('Update genesis-base to the SovereignContracts');
 
     finalGenesis = await createGenesisHardhat(genesisBase, initializeParams, {});
@@ -320,11 +348,9 @@ async function main() {
     outputJson.gasTokenAddress = gasTokenAddress;
     outputJson.gasTokenNetwork = gasTokenNetwork;
     outputJson.gasTokenMetadata = gasTokenMetadata;
-    outputJson.chainID = createGenesisSovereignParams.chainID;
     outputJson.bridgeManager = createGenesisSovereignParams.bridgeManager;
     outputJson.sovereignWETHAddress = createGenesisSovereignParams.sovereignWETHAddress;
     outputJson.sovereignWETHAddressIsNotMintable = createGenesisSovereignParams.sovereignWETHAddressIsNotMintable;
-    outputJson.globalExitRootUpdater = createGenesisSovereignParams.globalExitRootUpdater;
     outputJson.globalExitRootRemover = createGenesisSovereignParams.globalExitRootRemover;
     outputJson.emergencyBridgePauser = createGenesisSovereignParams.emergencyBridgePauser;
     outputJson.emergencyBridgeUnpauser = createGenesisSovereignParams.emergencyBridgeUnpauser;
@@ -338,6 +364,16 @@ async function main() {
 
     if (createGenesisSovereignParams.setTimelockParameters === true) {
         outputJson.timelockParameters = createGenesisSovereignParams.timelockParameters;
+    }
+
+    if (createGenesisSovereignParams.useAggOracleCommittee === true) {
+        outputJson.useAggOracleCommittee = true;
+        outputJson.aggOracleCommittee = createGenesisSovereignParams.aggOracleCommittee;
+        outputJson.quorum = createGenesisSovereignParams.quorum;
+        outputJson.aggOracleOwner = createGenesisSovereignParams.aggOracleOwner;
+    } else {
+        outputJson.useAggOracleCommittee = false;
+        outputJson.globalExitRootUpdater = createGenesisSovereignParams.globalExitRootUpdater;
     }
 
     if (typeof outWETHAddress !== 'undefined') {

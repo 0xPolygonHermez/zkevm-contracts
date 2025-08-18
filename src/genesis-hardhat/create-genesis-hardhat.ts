@@ -2,7 +2,12 @@ import path = require('path');
 import fs = require('fs');
 import hre, { ethers, upgrades, hardhatArguments } from 'hardhat';
 import { expect } from 'chai';
-import { BridgeL2SovereignChain, GlobalExitRootManagerL2SovereignChain, ProxyAdmin } from '../../typechain-types';
+import {
+    AggOracleCommittee,
+    BridgeL2SovereignChain,
+    GlobalExitRootManagerL2SovereignChain,
+    ProxyAdmin,
+} from '../../typechain-types';
 import { GENESIS_CONTRACT_NAMES } from './constants';
 import {
     getAddressesGenesisBase,
@@ -17,6 +22,7 @@ import {
     deepEqual,
     getExpectedStorageTokenWrappedBridgeUpgradeable,
     updateExpectedStorageBridgeToken,
+    getExpectedStorageAggOracleCommittee,
 } from './utils';
 import { checkParams } from '../utils';
 import { logger } from '../logger';
@@ -51,11 +57,11 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         'bridgeManager',
         'sovereignWETHAddress',
         'sovereignWETHAddressIsNotMintable',
-        'globalExitRootUpdater',
         'globalExitRootRemover',
         'emergencyBridgePauser',
         'emergencyBridgeUnpauser',
         'proxiedTokensManager',
+        'useAggOracleCommittee',
     ];
     checkParams(initializeParams, mandatoryUpgradeParameters);
 
@@ -178,6 +184,50 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
 
     const gerManagerContract = gerDeploymentResult.contract as unknown as GlobalExitRootManagerL2SovereignChain;
 
+    /// ///////////////////////////////////
+    ///   DEPLOY AGGORACLE COMMITTEE   ////
+    /// ///////////////////////////////////
+
+    let globalExitRootUpdater;
+    let aggOracleImplementationAddress;
+    let aggOracleCommitteeContract;
+    let aggOracleCommitteeDeploymentResult;
+    let txInitializeAggOracleCommittee;
+
+    if (initializeParams.useAggOracleCommittee === true) {
+        checkParams(initializeParams, ['aggOracleCommittee', 'quorum', 'aggOracleOwner']);
+        // deploy AggOracleCommittee
+        const aggOracleCommitteeFactory = await ethers.getContractFactory(
+            GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE,
+            deployer,
+        );
+        aggOracleCommitteeDeploymentResult = await deployProxyWithTxCapture(aggOracleCommitteeFactory, [], {
+            initializer: false,
+            constructorArgs: [gerManagerContract.target], // Constructor arguments
+            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
+        });
+
+        aggOracleCommitteeContract = aggOracleCommitteeDeploymentResult.contract as unknown as AggOracleCommittee;
+        initializeParams.globalExitRootUpdater = aggOracleCommitteeContract.target;
+        globalExitRootUpdater = aggOracleCommitteeContract.target;
+        aggOracleImplementationAddress = await upgrades.erc1967.getImplementationAddress(
+            aggOracleCommitteeContract.target,
+        );
+
+        /// ///////////////////////////////////////
+        ///   INITIALIZE AGGORACLE COMMITTEE   ///
+        /// //////////////////////////////////////
+
+        txInitializeAggOracleCommittee = await aggOracleCommitteeContract.initialize(
+            initializeParams.aggOracleOwner,
+            initializeParams.aggOracleCommittee,
+            initializeParams.quorum,
+        );
+    } else {
+        checkParams(initializeParams, ['globalExitRootUpdater']);
+        globalExitRootUpdater = initializeParams.globalExitRootUpdater;
+    }
+
     /// ///////////////////////////////////////
     ///   INITIALIZE SOVEREIGN CONTRACTS   ///
     /// //////////////////////////////////////
@@ -192,7 +242,6 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         bridgeManager,
         sovereignWETHAddress,
         sovereignWETHAddressIsNotMintable,
-        globalExitRootUpdater,
         globalExitRootRemover,
         emergencyBridgePauser,
         emergencyBridgeUnpauser,
@@ -320,6 +369,53 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         }
     }
 
+    if (aggOracleCommitteeDeploymentResult) {
+        if (aggOracleCommitteeDeploymentResult.txHashes.implementation) {
+            logger.info('Getting storage modifications for Bridge implementation...');
+            try {
+                const implTx = await ethers.provider.getTransaction(
+                    aggOracleCommitteeDeploymentResult.txHashes.implementation,
+                );
+                if (implTx) {
+                    const implStorageWrites = await getTraceStorageWrites(
+                        aggOracleCommitteeDeploymentResult.txHashes.implementation,
+                    );
+                    const depthImplStorageWrites = 1;
+                    storageModifications.AggOracleCommittee_Implementation = implStorageWrites[depthImplStorageWrites];
+                }
+            } catch (error) {
+                logger.error('Could not get Bridge implementation storage writes:', error);
+            }
+        }
+        if (aggOracleCommitteeDeploymentResult.txHashes.proxy) {
+            logger.info('Getting storage modifications for Bridge proxy...');
+            try {
+                const implTx = await ethers.provider.getTransaction(aggOracleCommitteeDeploymentResult.txHashes.proxy);
+                if (implTx) {
+                    const implStorageWrites = await getTraceStorageWrites(
+                        aggOracleCommitteeDeploymentResult.txHashes.proxy,
+                    );
+                    const depthImplStorageWrites = 1;
+                    storageModifications.AggOracleCommittee = implStorageWrites[depthImplStorageWrites];
+                }
+            } catch (error) {
+                logger.error('Could not get Bridge proxy storage writes:', error);
+            }
+        }
+        if (txInitializeAggOracleCommittee) {
+            logger.info('Getting storage modifications for AggOracle initialization...');
+            try {
+                const initTx = await ethers.provider.getTransaction(txInitializeAggOracleCommittee.hash);
+                if (initTx) {
+                    const initStorageWrites = await getTraceStorageWrites(txInitializeAggOracleCommittee.hash);
+                    const depthInitStorageWrites = 2;
+                    storageModifications.AggOracleCommittee_Initialization = initStorageWrites[depthInitStorageWrites];
+                }
+            } catch (error) {
+                logger.error('Could not get AggOracle initialization storage writes:', error);
+            }
+        }
+    }
     // Get storage modifications for GER Manager contract
     logger.info('Getting storage modifications for GER Manager contract...');
     if (gerDeploymentResult.txHashes.proxy) {
@@ -405,7 +501,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         ] = ethers.zeroPadValue(gasTokenAddress, 32);
         if (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress)) {
             // Add proxy WETH
-            const tokenStorage = getExpectedStorageTokenWrappedBridgeUpgradeable(
+            const tokenStorage = await getExpectedStorageTokenWrappedBridgeUpgradeable(
                 sovereignChainBridgeContract,
                 tokenWrappedAddress,
             );
@@ -416,7 +512,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             // Add WETH to bridge storage
             updateExpectedStorageBridgeToken(
                 expectedStorageModifications.BridgeL2SovereignChain_Initialization,
-                tokenWrappedAddress,
+                sovereignChainBridgeContract,
                 gasTokenMetadata,
             );
         }
@@ -426,6 +522,20 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     expectedStorageModifications.BridgeL2SovereignChain_Implementation[
         STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN_IMPLEMENTATION.INITIALIZER
     ] = ethers.zeroPadValue('0xff', 32);
+    // If useCommittee is true, add AggOracleCommittee storage
+    if (initializeParams.useAggOracleCommittee === true) {
+        expectedStorageModifications.AggOracleCommittee_Implementation = {};
+        expectedStorageModifications.AggOracleCommittee_Implementation[
+            STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE_IMPLEMENTATION.INITIALIZER
+        ] = ethers.zeroPadValue('0xffffffffffffffff', 32);
+        expectedStorageModifications.AggOracleCommittee_Initialization = await getExpectedStorageAggOracleCommittee(
+            initializeParams,
+            aggOracleCommitteeContract,
+        );
+        expectedStorageModifications.AggOracleCommittee = await getExpectedStorageProxy(
+            aggOracleCommitteeContract.target,
+        );
+    }
     // GlobalExitRootManagerL2SovereignChain Proxy
     expectedStorageModifications.GlobalExitRootManagerL2SovereignChain = await getExpectedStorageProxy(
         gerManagerContract.target,
@@ -469,6 +579,16 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         storageModifications.TokenWrappedBridgeUpgradeable_Implementation,
         tokenWrappedAddress,
     );
+    if (initializeParams.useAggOracleCommittee === true) {
+        actualStorage.AggOracleCommittee_Implementation = await getActualStorage(
+            storageModifications.AggOracleCommittee_Implementation,
+            aggOracleImplementationAddress,
+        );
+        actualStorage.AggOracleCommittee = await getActualStorage(
+            storageModifications.AggOracleCommittee,
+            aggOracleCommitteeContract.target,
+        );
+    }
     if (
         gasTokenAddress !== ethers.ZeroAddress &&
         ethers.isAddress(gasTokenAddress) &&
@@ -484,6 +604,20 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             wethAddressProxy,
         );
     }
+    // AggOracleCommittee
+    actualStorage.AggOracleCommittee_Initialization = await getActualStorage(
+        storageModifications.AggOracleCommittee_Initialization,
+        aggOracleCommitteeContract.target,
+    );
+    actualStorage.AggOracleCommittee = await getActualStorage(
+        storageModifications.AggOracleCommittee,
+        aggOracleCommitteeContract.target,
+    );
+    actualStorage.AggOracleCommittee_Implementation = await getActualStorage(
+        storageModifications.AggOracleCommittee_Implementation,
+        aggOracleImplementationAddress,
+    );
+
     // GlobalExitRootManagerL2SovereignChain
     actualStorage.GlobalExitRootManagerL2SovereignChain = await getActualStorage(
         storageModifications.GlobalExitRootManagerL2SovereignChain,
@@ -662,7 +796,6 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         wethAddress = `0x${bridgeL2SovereignChain.storage[
             '0x000000000000000000000000000000000000000000000000000000000000006f'
         ].slice(26)}`;
-
         const wethGenesisProxy = {
             contractName: WETHProxyContractName,
             balance: '0',
@@ -682,6 +815,47 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         const wethGenesisImplementationAddress = wethGenesisProxy.storage[_IMPLEMENTATION_SLOT];
         expect(wethGenesisImplementationAddress.slice(26).toLocaleLowerCase()).to.equal(
             tokenWrappedAddress.toLocaleLowerCase().slice(2),
+        );
+    }
+
+    // If useAggOracleCommittee is true, we add AggOracleCommittee implementation and proxy to the genesis
+    if (initializeParams.useAggOracleCommittee === true) {
+        /// //////////////////////////////
+        /// AGGORACLE IMPL  //////////////
+        /// //////////////////////////////
+        logger.info('Updating AggOracleCommittee implementation in genesis file...');
+        const aggOracleImplDeployedBytecode = await ethers.provider.getCode(aggOracleImplementationAddress);
+        // If its not contained add it to the genesis
+        const aggOracleImpl = {
+            contractName: GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE_IMPLEMENTATION,
+            balance: '0',
+            nonce: '1',
+            address: aggOracleImplementationAddress,
+            bytecode: aggOracleImplDeployedBytecode,
+            storage: storageModifications.AggOracleCommittee_Implementation,
+        };
+        newGenesis.genesis.push(aggOracleImpl);
+
+        /// ///////////////////////////////
+        /// AGGORACLE PROXY  //////////////
+        /// ///////////////////////////////
+        logger.info('Updating AggOracleCommittee proxy in genesis file...');
+
+        const aggOracleProxy = {
+            contractName: GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE_PROXY,
+            balance: '0',
+            nonce: '1',
+            address: aggOracleCommitteeContract.target,
+            bytecode: await ethers.provider.getCode(aggOracleCommitteeContract.target),
+            storage: storageModifications.AggOracleCommittee,
+        };
+        newGenesis.genesis.push(aggOracleProxy);
+        // Check implementation
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        const _IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';
+        const aggOracleCommitteeImplementationAddress = aggOracleProxy.storage[_IMPLEMENTATION_SLOT];
+        expect(aggOracleCommitteeImplementationAddress.slice(26).toLocaleLowerCase()).to.equal(
+            aggOracleImplementationAddress.toLocaleLowerCase().slice(2),
         );
     }
 

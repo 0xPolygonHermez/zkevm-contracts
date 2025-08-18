@@ -30,4 +30,7 @@ export const GENESIS_CONTRACT_NAMES = {
     POLYGON_TIMELOCK: 'PolygonZkEVMTimelock',
     POLYGON_ZKEVM_DEPLOYER: 'PolygonZkEVMDeployer',
     DEPLOYER: 'deployer',
+    AGGORACLE_COMMITTEE: 'AggOracleCommittee',
+    AGGORACLE_COMMITTEE_IMPLEMENTATION: 'AggOracleCommittee implementation',
+    AGGORACLE_COMMITTEE_PROXY: 'AggOracleCommittee proxy',
 };
