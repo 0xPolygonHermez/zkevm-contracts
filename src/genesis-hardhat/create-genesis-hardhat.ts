@@ -549,7 +549,10 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     expectedStorageModifications.GlobalExitRootManagerL2SovereignChain_Initialization =
         getExpectedStorageGERManagerL2SovereignChain(initializeParams);
     // PolygonZkEVMTimelock
-    expectedStorageModifications.PolygonZkEVMTimelock = getExpectedStoragePolygonZkEVMTimelock(timelockMinDelay);
+    expectedStorageModifications.PolygonZkEVMTimelock = getExpectedStoragePolygonZkEVMTimelock(
+        timelockMinDelay,
+        initializeParams,
+    );
     await fs.writeFileSync(
         path.join(__dirname, '../../tools/createSovereignGenesisHardhat/expectedStorageModifications.json'),
         JSON.stringify(expectedStorageModifications, null, 2),
@@ -605,18 +608,20 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         );
     }
     // AggOracleCommittee
-    actualStorage.AggOracleCommittee_Initialization = await getActualStorage(
-        storageModifications.AggOracleCommittee_Initialization,
-        aggOracleCommitteeContract.target,
-    );
-    actualStorage.AggOracleCommittee = await getActualStorage(
-        storageModifications.AggOracleCommittee,
-        aggOracleCommitteeContract.target,
-    );
-    actualStorage.AggOracleCommittee_Implementation = await getActualStorage(
-        storageModifications.AggOracleCommittee_Implementation,
-        aggOracleImplementationAddress,
-    );
+    if (initializeParams.useAggOracleCommittee === true) {
+        actualStorage.AggOracleCommittee_Initialization = await getActualStorage(
+            storageModifications.AggOracleCommittee_Initialization,
+            aggOracleCommitteeContract.target,
+        );
+        actualStorage.AggOracleCommittee = await getActualStorage(
+            storageModifications.AggOracleCommittee,
+            aggOracleCommitteeContract.target,
+        );
+        actualStorage.AggOracleCommittee_Implementation = await getActualStorage(
+            storageModifications.AggOracleCommittee_Implementation,
+            aggOracleImplementationAddress,
+        );
+    }
 
     // GlobalExitRootManagerL2SovereignChain
     actualStorage.GlobalExitRootManagerL2SovereignChain = await getActualStorage(
@@ -780,7 +785,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         tokenWrapped.address = tokenWrappedAddress;
     }
 
-    /// ////////////////////////////////
+    /// ///////////////////////////////
     /// TOKEN WRAPPED PROXY ///////////
     /// ///////////////////////////////
     logger.info('Updating TokenWrappedBridgeUpgradeable proxy in genesis file...');

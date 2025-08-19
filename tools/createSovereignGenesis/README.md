@@ -37,7 +37,7 @@ cp ./tools/createSovereignGenesis/genesis-base.json.example ./tools/createSovere
   - `bridgeManager`: bridge manager address
   - `sovereignWETHAddress`: sovereign WETH address
   - `sovereignWETHAddressIsNotMintable`: Flag to indicate if the wrapped ETH is not mintable
-  - `globalExitRootUpdater`: Address of globalExitRootUpdater for sovereign chains
+  - `globalExitRootUpdater`: Address of globalExitRootUpdater for sovereign chains (if `useAggOracleCommittee == false`)
   - `globalExitRootRemover`: Address of globalExitRootRemover for sovereign chains
   - `emergencyBridgePauser`: emergency bridge pauser address, can stop the bridge, recommended to be a multisig
   - `emergencyBridgeUnpauser`: emergency bridge unpauser address, can unpause the bridge, recommended to be a multisig
@@ -47,6 +47,11 @@ cp ./tools/createSovereignGenesis/genesis-base.json.example ./tools/createSovere
   - `setTimelockParameters`: indicates if the timelock parameters are going to be changed
     - `timelockParameters.adminAddress`: address that will have all timelocks roles (ADMIN, PROPOSER, CANCELLER, EXECUTOR)
     - `timelockParameters.minDelay`: minimum delay set in the timelock smart contract
+  - `useAggOracleCommittee`: `true/false`. Indicates if use aggOracleCommittee
+  - if `useAggOracleCommittee == true`:
+    - `ownerAddress`: Address that will own the AggOracleCommittee contract (typically a timelock contract)
+    - `aggOracleMembers`: Array of addresses that will act as initial oracle members
+    - `quorum`: Number of oracle members that must agree on a GER for it to be consolidated (must be <= aggOracleMembers.length and > 0)
 - Optional parameters
   - `format`: choose genesis output format. Supported ones: `geth`
 

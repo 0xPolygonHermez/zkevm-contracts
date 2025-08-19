@@ -328,14 +328,20 @@ export function getExpectedStorageGERManagerL2SovereignChain(initParams) {
  * @param {Number} minDelay - minimum delay for the timelock
  * @returns {Object} - expected storage of the timelock contract
  */
-export function getExpectedStoragePolygonZkEVMTimelock(minDelay) {
+export function getExpectedStoragePolygonZkEVMTimelock(minDelay, initParams) {
     const timelockAdminRole = ethers.keccak256(ethers.toUtf8Bytes('TIMELOCK_ADMIN_ROLE'));
+    let storageTimelockAdminRoleMemberContract;
+    if (initParams.useAggOracleCommittee) {
+        storageTimelockAdminRoleMemberContract = STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE_MEMBER_CONTRACT_AGG;
+    } else {
+        storageTimelockAdminRoleMemberContract = STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE_MEMBER_CONTRACT;
+    }
     return {
         [STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.PROPOSER_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.CANCELLER_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.EXECUTOR_ROLE]: timelockAdminRole,
-        [STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE_MEMBER_CONTRACT]: ethers.zeroPadValue('0x01', 32),
+        [storageTimelockAdminRoleMemberContract]: ethers.zeroPadValue('0x01', 32),
         [STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
         [STORAGE_GENESIS.TIMELOCK.PROPOSER_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
         [STORAGE_GENESIS.TIMELOCK.CANCELLER_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
