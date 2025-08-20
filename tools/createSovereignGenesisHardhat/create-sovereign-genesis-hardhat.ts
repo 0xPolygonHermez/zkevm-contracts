@@ -197,6 +197,7 @@ async function main() {
         aggOracleCommittee?: string[];
         quorum?: number;
         aggOracleOwner?: string;
+        debug?: boolean;
     } = {
         rollupID: createGenesisSovereignParams.rollupID,
         gasTokenAddress,
@@ -225,7 +226,10 @@ async function main() {
     }
     logger.info('Update genesis-base to the SovereignContracts');
 
-    finalGenesis = await createGenesisHardhat(genesisBase, initializeParams, {});
+    const config = {
+        debug: typeof createGenesisSovereignParams.debug !== 'undefined' ? createGenesisSovereignParams.debug : false,
+    };
+    finalGenesis = await createGenesisHardhat(genesisBase, initializeParams, config);
 
     // Add weth address to deployment output if gas token address is provided and sovereignWETHAddress is not provided
     let outWETHAddress;

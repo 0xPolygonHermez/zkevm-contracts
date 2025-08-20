@@ -55,6 +55,7 @@ cp ./tools/createSovereignGenesisHardhat/genesis-base.json.example ./tools/creat
 
 - Optional parameters
   - `format`: choose genesis output format. Supported ones: `geth`
+  - `debug`: to print more info
 
 -  Run tool:
 ```

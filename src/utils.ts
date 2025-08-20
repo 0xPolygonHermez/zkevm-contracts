@@ -3,6 +3,7 @@
 /* eslint-disable no-console */
 import { ethers, upgrades } from 'hardhat';
 import { execSync } from 'child_process';
+import fs from 'fs';
 
 /**
  * Adjusts the multiplier gas and/or the maxFeePer gas of the provider depending on the parameters values and returns the adjusted provider
@@ -117,29 +118,89 @@ export function valueToStorageBytes(_value) {
     return ethers.toBeHex(_value, 32);
 }
 
-/**
- * Scan all SSTORE opcodes in a trace
- * Does not take into account revert operations neither depth
- * @param {Object} trace
- * @returns {Object} - storage writes: depth: {"key": "value"}
- */
-export function getStorageWrites(trace) {
-    const writes = trace.structLogs
-        .filter((log) => log.op === 'SSTORE')
-        .map((log) => {
-            const [newValue, slot] = log.stack.slice(-2);
-            const depth = Number(log.depth);
-            return { newValue, slot, depth };
-        });
+export async function getStorageWrites(trace, addressInfo) {
+    const addresses: { [address: string]: any } = {};
+    addresses[addressInfo.address] = addressInfo.nonce;
+    const stackAddressesStorage = [addressInfo.address];
+    const logs = trace.structLogs.filter(
+        (log) =>
+            log.op === 'CALL' ||
+            log.op === 'CALLCODE' ||
+            log.op === 'DELEGATECALL' ||
+            log.op === 'STATICCALL' ||
+            log.op === 'CREATE' ||
+            log.op === 'CREATE2' ||
+            log.op === 'RETURN' ||
+            log.op === 'REVERT' ||
+            log.op === 'STOP' ||
+            log.op === 'SELFDESTRUCT' ||
+            log.op === 'SSTORE',
+    );
 
-    // print all storage writes in an object fashion style
-    const writeObject = {};
-    writes.forEach((write) => {
-        if (!writeObject[write.depth]) {
-            writeObject[write.depth] = {};
+    const writeObject: { [address: string]: any } = {};
+    // eslint-disable-next-line no-restricted-syntax
+    for (const log of logs) {
+        if (log.op === 'CALL' || log.op === 'STATICCALL') {
+            // Get address from stack
+            const addressStack = `0x${log.stack.slice(-2)[0].slice(-40)}`;
+            // eslint-disable-next-line no-await-in-loop
+            addresses[addressStack] = await ethers.provider.getTransactionCount(addressStack);
+            // Update address stack
+            stackAddressesStorage.push(addressStack);
+        } else if (log.op === 'DELEGATECALL' || log.op === 'CALLCODE') {
+            // Update address stack
+            stackAddressesStorage.push(stackAddressesStorage[stackAddressesStorage.length - 1]);
+        } else if (log.op === 'CREATE') {
+            // Get actual address (create is with this address)
+            const actualAddress = stackAddressesStorage[stackAddressesStorage.length - 1];
+            // Calculate with actual address and nonce
+            const calculatedAddress = ethers.getCreateAddress({
+                from: actualAddress,
+                nonce: addresses[actualAddress],
+            });
+            // Add new address and nonce
+            addresses[calculatedAddress] = 1;
+            // Update nonce actual address
+            addresses[actualAddress] += 1;
+            // Update actual address
+            stackAddressesStorage.push(calculatedAddress);
+        } else if (log.op === 'CREATE2') {
+            // eslint-disable-next-line no-await-in-loop
+            await fs.writeFileSync('log.json', JSON.stringify(log, null, 1));
+            // Get actual address (create is with this address)
+            const actualAddress = stackAddressesStorage[stackAddressesStorage.length - 1];
+            const parameters = log.stack.slice(-4);
+            const memHex = `${log.memory.join('')}`;
+            const salt = `0x${parameters[0]}`;
+            const size = Number(`0x${parameters[1]}`);
+            const offset = Number(`0x${parameters[2]}`);
+            const start = offset * 2;
+            const end = start + size * 2;
+            const initCodeHex = `0x${memHex.slice(start, end)}`;
+            const initCodeHash = ethers.solidityPackedKeccak256(['bytes'], [initCodeHex]);
+            const calculatedAddress = await ethers.getCreate2Address(actualAddress, salt, initCodeHash);
+            // Add new address and nonce
+            addresses[calculatedAddress] = 1;
+            // Update nonce actual address
+            addresses[actualAddress] += 1;
+            // Update actual address
+            stackAddressesStorage.push(calculatedAddress);
+        } else if (log.op === 'SSTORE') {
+            const [newValue, slot] = log.stack.slice(-2);
+            const address = stackAddressesStorage[stackAddressesStorage.length - 1].toLowerCase();
+            if (!writeObject[address]) {
+                writeObject[address] = {};
+            }
+            writeObject[address][`0x${slot}`] = `0x${newValue}`;
+        } else if (
+            (log.op === 'RETURN' || log.op === 'REVERT' || log.op === 'STOP' || log.op === 'SELFDESTRUCT') &&
+            log.depth > 1
+        ) {
+            // Update actual address
+            stackAddressesStorage.pop();
         }
-        writeObject[write.depth][`0x${write.slot}`] = `0x${write.newValue}`;
-    });
+    }
+
     return writeObject;
 }
 

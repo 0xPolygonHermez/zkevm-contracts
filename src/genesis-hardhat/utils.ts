@@ -2,13 +2,29 @@ import { ethers, upgrades } from 'hardhat';
 import { SUPPORTED_BRIDGE_CONTRACTS, SUPPORTED_BRIDGE_CONTRACTS_PROXY, GENESIS_CONTRACT_NAMES } from './constants';
 import { STORAGE_GENESIS } from './storage';
 import { getStorageWrites } from '../utils';
+import { logger } from '../logger';
 
 /**
  * Function to get the storage modifications of a tx from the txHash
  * @param {string} txHash - transaction hash
  * @returns {Object} - storage writes: { depth: {"key": "value"} }
  */
-export async function getTraceStorageWrites(txHash: any) {
+export async function getTraceStorageWrites(txHash: any, address = undefined) {
+    const infoTx = await ethers.provider.getTransaction(txHash);
+    if (!infoTx) {
+        throw new Error(`No info tx: ${txHash}`);
+    }
+    const addressInfo: { address?: string; sender?: string; nonce?: number } = {};
+    addressInfo.sender = infoTx.from.toLowerCase();
+    if (!infoTx.to) {
+        const receipt = await ethers.provider.getTransactionReceipt(txHash);
+        addressInfo.address = receipt?.contractAddress?.toLowerCase();
+        addressInfo.nonce = 1;
+    } else {
+        addressInfo.address = infoTx.to.toLowerCase();
+        addressInfo.nonce = await ethers.provider.getTransactionCount(addressInfo.address);
+    }
+
     const trace = await ethers.provider.send('debug_traceTransaction', [
         txHash,
         {
@@ -18,8 +34,8 @@ export async function getTraceStorageWrites(txHash: any) {
             enableReturnData: false,
         },
     ]);
-
-    const computedStorageWrites = getStorageWrites(trace);
+    const computedStorageWrites = await getStorageWrites(trace, addressInfo);
+    if (address) return computedStorageWrites[address.toLowerCase()];
     return computedStorageWrites;
 }
 
@@ -324,24 +340,35 @@ export function getExpectedStorageGERManagerL2SovereignChain(initParams) {
 }
 
 /**
+ * Get the storage position of the timelock admin role member
+ * @param {String} timelockAddress - address of the timelock contract
+ * @returns {String} - storage position of the timelock admin role member
+ */
+export function getStorageTimelockAdminRoleMember(timelockAddress) {
+    const storagePosition = ethers.solidityPackedKeccak256(
+        ['uint256', 'uint256'],
+        [ethers.id('TIMELOCK_ADMIN_ROLE'), 0],
+    );
+    return ethers.solidityPackedKeccak256(['uint256', 'uint256'], [timelockAddress, storagePosition]);
+}
+
+/**
  * Get the expected storage of the timelock contract
  * @param {Number} minDelay - minimum delay for the timelock
+ * @param {String} timelockContractAddress - address of the timelock contract
  * @returns {Object} - expected storage of the timelock contract
  */
-export function getExpectedStoragePolygonZkEVMTimelock(minDelay, initParams) {
+export function getExpectedStoragePolygonZkEVMTimelock(minDelay, timelockContractAddressGenesis, timelockContractAddress) {
     const timelockAdminRole = ethers.keccak256(ethers.toUtf8Bytes('TIMELOCK_ADMIN_ROLE'));
-    let storageTimelockAdminRoleMemberContract;
-    if (initParams.useAggOracleCommittee) {
-        storageTimelockAdminRoleMemberContract = STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE_MEMBER_CONTRACT_AGG;
-    } else {
-        storageTimelockAdminRoleMemberContract = STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE_MEMBER_CONTRACT;
-    }
+    const storageTimelockAdminRoleMemberGenesis = getStorageTimelockAdminRoleMember(timelockContractAddressGenesis);
+    const storageTimelockAdminRoleMember = getStorageTimelockAdminRoleMember(timelockContractAddress);
     return {
         [STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.PROPOSER_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.CANCELLER_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.EXECUTOR_ROLE]: timelockAdminRole,
-        [storageTimelockAdminRoleMemberContract]: ethers.zeroPadValue('0x01', 32),
+        [storageTimelockAdminRoleMemberGenesis]: ethers.zeroPadValue('0x01', 32),
+        [storageTimelockAdminRoleMember]: ethers.zeroPadValue('0x00', 32),
         [STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
         [STORAGE_GENESIS.TIMELOCK.PROPOSER_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
         [STORAGE_GENESIS.TIMELOCK.CANCELLER_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
@@ -362,14 +389,13 @@ export async function getExpectedStorageTokenWrappedBridgeUpgradeable(
 ) {
     // Add proxy WETH
     const wethAddressProxy = await sovereignChainBridgeContract.WETHToken();
-    const tokenWrappedBridgeUpgradeable = {};
     const tokenWrappedBridgeUpgradeableInit = {};
-    tokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.IMPLEMENTATION] = ethers.zeroPadValue(
+    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.STORAGE_PROXY.IMPLEMENTATION] = ethers.zeroPadValue(
         tokenWrappedAddress,
         32,
     );
     const adminWethProxy = await upgrades.erc1967.getAdminAddress(wethAddressProxy as string);
-    tokenWrappedBridgeUpgradeable[STORAGE_GENESIS.STORAGE_PROXY.ADMIN] = ethers.zeroPadValue(adminWethProxy, 32);
+    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.STORAGE_PROXY.ADMIN] = ethers.zeroPadValue(adminWethProxy, 32);
     // proxy storage init
     tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.INITIALIZER] =
         ethers.zeroPadValue('0x01', 32);
@@ -393,10 +419,8 @@ export async function getExpectedStorageTokenWrappedBridgeUpgradeable(
     tokenWrappedBridgeUpgradeableInit[
         STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_DECIMALS_BRIDGE_ADDRESS
     ] = ethers.zeroPadValue(`${sovereignChainBridgeContract.target}${ethers.toBeHex(18).slice(2).toLowerCase()}`, 32);
-    return {
-        tokenWrappedBridgeUpgradeable,
-        tokenWrappedBridgeUpgradeableInit,
-    };
+
+    return tokenWrappedBridgeUpgradeableInit;
 }
 
 export async function getExpectedStorageAggOracleCommittee(initParams, aggOracleCommitteeContract) {
@@ -453,14 +477,20 @@ export async function getActualStorage(modificationsStorage, address) {
 export function deepEqual(a, b) {
     if (a === b) return true;
     if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+        logger.error(`Type error: a: ${a}, b: ${b}`);
         return false;
     }
     const keysA = Object.keys(a);
     const keysB = Object.keys(b);
-    if (keysA.length !== keysB.length) return false;
+    if (keysA.length !== keysB.length) {
+        logger.error(`Length mismatch: a: ${keysA.length}, b: ${keysB.length}`);
+        logger.error(`Keys: ${keysA}`);
+        return false;
+    }
     // eslint-disable-next-line no-restricted-syntax
     for (const key of keysA) {
         if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
+            logger.error(`Key mismatch: ${key} in a: ${a[key]}, in b: ${b[key]}`);
             return false;
         }
     }
