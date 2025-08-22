@@ -11,7 +11,6 @@ import {
 import { GENESIS_CONTRACT_NAMES } from './constants';
 import {
     getAddressesGenesisBase,
-    getTraceStorageWrites,
     getMinDelayTimelock,
     deployProxyWithTxCapture,
     getExpectedStorageProxy,
@@ -26,7 +25,7 @@ import {
     getStorageTimelockAdminRoleMember,
     buildGenesis,
 } from './utils';
-import { checkParams } from '../utils';
+import { checkParams, getTraceStorageWrites } from '../utils';
 import { logger } from '../logger';
 import { STORAGE_GENESIS } from './storage';
 
@@ -852,7 +851,10 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         genesisInfo.push({
             contractName: GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE_PROXY,
             address: aggOracleCommitteeAddress,
-            storage: storageModifications.AggOracleCommittee,
+            storage: {
+                ...storageModifications.AggOracleCommittee,
+                ...storageModifications.AggOracleCommittee_Initialization,
+            },
             deployedInside: true,
         });
 

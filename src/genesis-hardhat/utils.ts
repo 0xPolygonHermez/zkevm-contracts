@@ -2,43 +2,7 @@
 import { ethers, upgrades } from 'hardhat';
 import { SUPPORTED_BRIDGE_CONTRACTS, SUPPORTED_BRIDGE_CONTRACTS_PROXY, GENESIS_CONTRACT_NAMES } from './constants';
 import { STORAGE_GENESIS } from './storage';
-import { getStorageWrites } from '../utils';
 import { logger } from '../logger';
-
-/**
- * Function to get the storage modifications of a tx from the txHash
- * @param {string} txHash - transaction hash
- * @returns {Object} - storage writes: { depth: {"key": "value"} }
- */
-export async function getTraceStorageWrites(txHash: any, address = undefined) {
-    const infoTx = await ethers.provider.getTransaction(txHash);
-    if (!infoTx) {
-        throw new Error(`No info tx: ${txHash}`);
-    }
-    const addressInfo: { address?: string; sender?: string; nonce?: number } = {};
-    addressInfo.sender = infoTx.from.toLowerCase();
-    if (!infoTx.to) {
-        const receipt = await ethers.provider.getTransactionReceipt(txHash);
-        addressInfo.address = receipt?.contractAddress?.toLowerCase();
-        addressInfo.nonce = 1;
-    } else {
-        addressInfo.address = infoTx.to.toLowerCase();
-        addressInfo.nonce = await ethers.provider.getTransactionCount(addressInfo.address);
-    }
-
-    const trace = await ethers.provider.send('debug_traceTransaction', [
-        txHash,
-        {
-            enableMemory: false,
-            disableStack: false,
-            disableStorage: false,
-            enableReturnData: false,
-        },
-    ]);
-    const computedStorageWrites = await getStorageWrites(trace, addressInfo);
-    if (address) return computedStorageWrites[address.toLowerCase()];
-    return computedStorageWrites;
-}
 
 /**
  * Get the addresses of the genesis base contracts
