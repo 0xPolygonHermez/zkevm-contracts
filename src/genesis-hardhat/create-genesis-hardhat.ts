@@ -24,6 +24,7 @@ import {
     updateExpectedStorageBridgeToken,
     getExpectedStorageAggOracleCommittee,
     getStorageTimelockAdminRoleMember,
+    buildGenesis,
 } from './utils';
 import { checkParams } from '../utils';
 import { logger } from '../logger';
@@ -357,7 +358,6 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             }
         } catch (error) {
             logger.error('Could not get Bridge implementation storage writes:', error);
-            throw new Error(error)
         }
     }
     // Get storage modifications for Bridge initialization
@@ -385,7 +385,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
                 if (implTx) {
                     const implStorageWrites = await getTraceStorageWrites(
                         aggOracleCommitteeDeploymentResult.txHashes.implementation,
-                        aggOracleImplementationAddress
+                        aggOracleImplementationAddress,
                     );
                     storageModifications.AggOracleCommittee_Implementation = implStorageWrites;
                 }
@@ -432,7 +432,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             if (gerProxyTx) {
                 const gerStorageWrites = await getTraceStorageWrites(
                     gerDeploymentResult.txHashes.proxy,
-                    gerProxyAddress
+                    gerProxyAddress,
                 );
                 storageModifications.GlobalExitRootManagerL2SovereignChain = gerStorageWrites;
             }
@@ -690,132 +690,113 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     /// ///////////////////////////
     logger.info('=== BUILD GENESIS FILE ===');
 
-    const newGenesis = _genesisBase;
+    const genesisInfo = [];
 
     /// /////////////////////////
     /// BRIDGE IMPLEMENTATION ///
     /// /////////////////////////
     logger.info('Updating BridgeL2SovereignChain implementation in genesis file...');
     // Get genesis info for bridge implementation
-    const bridgeL2SovereignChainImplementation = newGenesis.genesis.find(function (obj) {
+    const bridgeL2SovereignChainImplementation = _genesisBase.genesis.find(function (obj) {
         return supportedBridgeContracts.includes(obj.contractName);
     });
-    // Update the contract name, bytecode, storage and nonce
-    // Address is not modified because it must match the L1 address
-    bridgeL2SovereignChainImplementation.contractName = GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_IMPLEMENTATION;
-    bridgeL2SovereignChainImplementation.bytecode = await ethers.provider.getCode(
-        await upgrades.erc1967.getImplementationAddress(sovereignChainBridgeContract.target),
-    );
-    bridgeL2SovereignChainImplementation.storage = storageModifications.BridgeL2SovereignChain_Implementation;
-    bridgeL2SovereignChainImplementation.nonce = await ethers.provider.getTransactionCount(
-        await upgrades.erc1967.getImplementationAddress(sovereignChainBridgeContract.target),
-    );
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_IMPLEMENTATION,
+        genesisObject: bridgeL2SovereignChainImplementation,
+        address: bridgeImplAddress,
+        storage: storageModifications.BridgeL2SovereignChain_Implementation,
+    });
 
     /// /////////////////////////
     /// BRIDGE PROXY ////////////
     /// /////////////////////////
     logger.info('Updating BridgeL2SovereignChain proxy in genesis file...');
+
     // Replace old bridge with new bridge proxy
-    const bridgeL2SovereignChain = newGenesis.genesis.find(function (obj) {
+    const bridgeL2SovereignChain = _genesisBase.genesis.find(function (obj) {
         return supportedBridgeContractsProxy.includes(obj.contractName);
     });
-    // Update the contract name, bytecode, storage and nonce
-    bridgeL2SovereignChain.contractName = GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY;
-    bridgeL2SovereignChain.bytecode = await ethers.provider.getCode(sovereignChainBridgeContract.target);
-    // The storage is the storage modified during deployment and initialization.
-    bridgeL2SovereignChain.storage = {
-        ...storageModifications.BridgeL2SovereignChain,
-        ...storageModifications.BridgeL2SovereignChain_Initialization,
-    };
-    bridgeL2SovereignChain.nonce = await ethers.provider.getTransactionCount(sovereignChainBridgeContract.target);
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY,
+        genesisObject: bridgeL2SovereignChain,
+        address: bridgeProxyAddress,
+        storage: {
+            ...storageModifications.BridgeL2SovereignChain,
+            ...storageModifications.BridgeL2SovereignChain_Initialization,
+        },
+    });
 
     /// /////////////////////////
     /// GER IMPLEMENTATION //////
     /// /////////////////////////
     logger.info('Updating GlobalExitRootManagerL2SovereignChain implementation in genesis file...');
     // Get genesis info for ger implementation
-    const gerManagerL2SovereignChainImplementation = newGenesis.genesis.find(function (obj) {
+    const gerManagerL2SovereignChainImplementation = _genesisBase.genesis.find(function (obj) {
         return supportedGERManagers.includes(obj.contractName);
     });
-    // Update the contract name, bytecode, storage and nonce
-    gerManagerL2SovereignChainImplementation.contractName = GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_IMPLEMENTATION;
-    gerManagerL2SovereignChainImplementation.bytecode = await ethers.provider.getCode(
-        await upgrades.erc1967.getImplementationAddress(gerManagerContract.target),
-    );
-    gerManagerL2SovereignChainImplementation.storage =
-        storageModifications.GlobalExitRootManagerL2SovereignChain_Implementation;
-    gerManagerL2SovereignChainImplementation.nonce = await ethers.provider.getTransactionCount(
-        await upgrades.erc1967.getImplementationAddress(gerManagerContract.target),
-    );
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_IMPLEMENTATION,
+        genesisObject: gerManagerL2SovereignChainImplementation,
+        address: gerImplAddress,
+        storage: storageModifications.GlobalExitRootManagerL2SovereignChain_Implementation,
+    });
 
     /// /////////////////////////
     /// GER PROXY ///////////////
     /// /////////////////////////
     logger.info('Updating GlobalExitRootManagerL2SovereignChain proxy in genesis file...');
     // Get genesis info for ger proxy
-    const gerManagerL2SovereignChain = newGenesis.genesis.find(function (obj) {
+    const gerManagerL2SovereignChain = _genesisBase.genesis.find(function (obj) {
         return obj.contractName === GENESIS_CONTRACT_NAMES.GER_L2_PROXY;
     });
-    // Update the contract name, bytecode, storage and nonce
-    gerManagerL2SovereignChain.contractName = GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY;
-    gerManagerL2SovereignChain.bytecode = await ethers.provider.getCode(gerManagerContract.target);
-    // The storage is the storage modified during deployment and initialization.
-    gerManagerL2SovereignChain.storage = {
-        ...storageModifications.GlobalExitRootManagerL2SovereignChain,
-        ...storageModifications.GlobalExitRootManagerL2SovereignChain_Initialization,
-    };
-    gerManagerL2SovereignChain.nonce = await ethers.provider.getTransactionCount(gerManagerContract.target);
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY,
+        genesisObject: gerManagerL2SovereignChain,
+        address: gerProxyAddress,
+        storage: {
+            ...storageModifications.GlobalExitRootManagerL2SovereignChain,
+            ...storageModifications.GlobalExitRootManagerL2SovereignChain_Initialization,
+        },
+    });
 
     /// /////////////////////////
     /// BYTECODE STORER /////////
     /// /////////////////////////
     logger.info('Updating BytecodeStorer in genesis file...');
-    const bytecodeStorer = newGenesis.genesis.find(function (obj) {
+    const bytecodeStorer = _genesisBase.genesis.find(function (obj) {
         return obj.contractName === GENESIS_CONTRACT_NAMES.BYTECODE_STORER;
     });
     const bytecodeStorerAddress = await sovereignChainBridgeContract.wrappedTokenBytecodeStorer();
-    const bytecodeStorerDeployedBytecode = await ethers.provider.getCode(bytecodeStorerAddress);
 
-    // If its not contained add it to the genesis
-    if (typeof bytecodeStorer === 'undefined') {
-        const bytecodeStorerGenesis = {
-            contractName: GENESIS_CONTRACT_NAMES.BYTECODE_STORER,
-            balance: '0',
-            nonce: '1',
-            address: bytecodeStorerAddress,
-            bytecode: bytecodeStorerDeployedBytecode,
-        };
-        newGenesis.genesis.push(bytecodeStorerGenesis);
-    } else {
-        bytecodeStorer.address = bytecodeStorerAddress;
-        // Check bytecode of the BytecodeStorer contract is the same as the one in the genesis
-        expect(bytecodeStorer.bytecode).to.equal(bytecodeStorerDeployedBytecode);
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.BYTECODE_STORER,
+        genesisObject: bytecodeStorer,
+        address: bytecodeStorerAddress,
+        deployedInside: true,
+    });
+
+    if (bytecodeStorer) {
+        expect(bytecodeStorer.bytecode).to.equal(await ethers.provider.getCode(bytecodeStorerAddress));
     }
 
     /// ////////////////////////////////
     /// TOKEN WRAPPED IMPL ///////////
     /// ///////////////////////////////
     logger.info('Updating TokenWrappedBridgeUpgradeable implementation in genesis file...');
-    const tokenWrapped = newGenesis.genesis.find(function (obj) {
+    const tokenWrapped = _genesisBase.genesis.find(function (obj) {
         return obj.contractName === GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION;
     });
-    const tokenWrappedDeployedBytecode = await ethers.provider.getCode(tokenWrappedAddress);
-    // If its not contained add it to the genesis
-    if (typeof tokenWrapped === 'undefined') {
-        const tokenWrappedGenesis = {
-            contractName: GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION,
-            balance: '0',
-            nonce: '1',
-            address: tokenWrappedAddress,
-            bytecode: tokenWrappedDeployedBytecode,
-        };
-        tokenWrappedGenesis.storage = storageModifications.TokenWrappedBridgeUpgradeable_Implementation;
-        newGenesis.genesis.push(tokenWrappedGenesis);
-    } else {
-        // Check bytecode of the TokenWrapped contract is the same as the one in the genesis
-        expect(tokenWrapped.bytecode).to.equal(tokenWrappedDeployedBytecode);
-        // Update the address and storage
-        tokenWrapped.address = tokenWrappedAddress;
+
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION,
+        genesisObject: tokenWrapped,
+        address: tokenWrappedAddress,
+        storage: storageModifications.TokenWrappedBridgeUpgradeable_Implementation,
+        deployedInside: true,
+    });
+
+    if (tokenWrapped) {
+        expect(tokenWrapped.bytecode).to.equal(await ethers.provider.getCode(tokenWrappedAddress));
     }
 
     /// ///////////////////////////////
@@ -824,33 +805,28 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     logger.info('Updating TokenWrappedBridgeUpgradeable proxy in genesis file...');
     // If bridge initialized with a zero sovereign weth address and a non zero gas token, we should add created erc20 weth contract implementation and proxy to the genesis
     let wethAddress;
-    const WETHProxyContractName = GENESIS_CONTRACT_NAMES.WETH_PROXY;
     if (
         gasTokenAddress !== ethers.ZeroAddress &&
         ethers.isAddress(gasTokenAddress) &&
         (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress))
     ) {
-        // Add proxy
-        wethAddress = `0x${bridgeL2SovereignChain.storage[
+        wethAddress = `0x${storageModifications.BridgeL2SovereignChain_Initialization[
             '0x000000000000000000000000000000000000000000000000000000000000006f'
         ].slice(26)}`;
-        const wethGenesisProxy = {
-            contractName: WETHProxyContractName,
-            balance: '0',
-            nonce: '1',
+
+        // Add WETH
+        genesisInfo.push({
+            contractName: GENESIS_CONTRACT_NAMES.WETH_PROXY,
             address: wethAddress,
-            bytecode: await ethers.provider.getCode(wethAddress),
-            storage: {
-                ...storageModifications.TokenWrappedBridgeUpgradeable,
-                ...storageModifications.TokenWrappedBridgeUpgradeable_Initialization,
-            },
-        };
-        newGenesis.genesis.push(wethGenesisProxy);
+            storage: storageModifications.TokenWrappedBridgeUpgradeable,
+            deployedInside: true,
+        });
 
         // Check implementation
         // eslint-disable-next-line @typescript-eslint/naming-convention
         const _IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';
-        const wethGenesisImplementationAddress = wethGenesisProxy.storage[_IMPLEMENTATION_SLOT];
+        const wethGenesisImplementationAddress =
+            storageModifications.TokenWrappedBridgeUpgradeable[_IMPLEMENTATION_SLOT];
         expect(wethGenesisImplementationAddress.slice(26).toLocaleLowerCase()).to.equal(
             tokenWrappedAddress.toLocaleLowerCase().slice(2),
         );
@@ -862,40 +838,35 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         /// AGGORACLE IMPL  //////////////
         /// //////////////////////////////
         logger.info('Updating AggOracleCommittee implementation in genesis file...');
-        const aggOracleImplDeployedBytecode = await ethers.provider.getCode(aggOracleImplementationAddress);
-        // If its not contained add it to the genesis
-        const aggOracleImpl = {
+        genesisInfo.push({
             contractName: GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE_IMPLEMENTATION,
-            balance: '0',
-            nonce: '1',
             address: aggOracleImplementationAddress,
-            bytecode: aggOracleImplDeployedBytecode,
             storage: storageModifications.AggOracleCommittee_Implementation,
-        };
-        newGenesis.genesis.push(aggOracleImpl);
+            deployedInside: true,
+        });
 
         /// ///////////////////////////////
         /// AGGORACLE PROXY  //////////////
         /// ///////////////////////////////
         logger.info('Updating AggOracleCommittee proxy in genesis file...');
-
-        const aggOracleProxy = {
+        genesisInfo.push({
             contractName: GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE_PROXY,
-            balance: '0',
-            nonce: '1',
-            address: aggOracleCommitteeContract.target,
-            bytecode: await ethers.provider.getCode(aggOracleCommitteeContract.target),
+            address: aggOracleCommitteeAddress,
             storage: storageModifications.AggOracleCommittee,
-        };
-        newGenesis.genesis.push(aggOracleProxy);
+            deployedInside: true,
+        });
+
         // Check implementation
         // eslint-disable-next-line @typescript-eslint/naming-convention
         const _IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';
-        const aggOracleCommitteeImplementationAddress = aggOracleProxy.storage[_IMPLEMENTATION_SLOT];
+        const aggOracleCommitteeImplementationAddress = storageModifications.AggOracleCommittee[_IMPLEMENTATION_SLOT];
         expect(aggOracleCommitteeImplementationAddress.slice(26).toLocaleLowerCase()).to.equal(
             aggOracleImplementationAddress.toLocaleLowerCase().slice(2),
         );
     }
+
+    const newGenesis = _genesisBase;
+    await buildGenesis(newGenesis.genesis, genesisInfo);
 
     // switch network previous network
     await hre.switchNetwork(previousNetwork);

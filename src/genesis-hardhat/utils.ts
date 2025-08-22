@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 import { ethers, upgrades } from 'hardhat';
 import { SUPPORTED_BRIDGE_CONTRACTS, SUPPORTED_BRIDGE_CONTRACTS_PROXY, GENESIS_CONTRACT_NAMES } from './constants';
 import { STORAGE_GENESIS } from './storage';
@@ -358,7 +359,11 @@ export function getStorageTimelockAdminRoleMember(timelockAddress) {
  * @param {String} timelockContractAddress - address of the timelock contract
  * @returns {Object} - expected storage of the timelock contract
  */
-export function getExpectedStoragePolygonZkEVMTimelock(minDelay, timelockContractAddressGenesis, timelockContractAddress) {
+export function getExpectedStoragePolygonZkEVMTimelock(
+    minDelay,
+    timelockContractAddressGenesis,
+    timelockContractAddress,
+) {
     const timelockAdminRole = ethers.keccak256(ethers.toUtf8Bytes('TIMELOCK_ADMIN_ROLE'));
     const storageTimelockAdminRoleMemberGenesis = getStorageTimelockAdminRoleMember(timelockContractAddressGenesis);
     const storageTimelockAdminRoleMember = getStorageTimelockAdminRoleMember(timelockContractAddress);
@@ -466,6 +471,42 @@ export async function getActualStorage(modificationsStorage, address) {
         actualStorage[key] = await ethers.provider.getStorage(address, key);
     }
     return actualStorage;
+}
+
+/**
+ * Function to build a new genesis object using genesisInfo
+ * @param newGenesis genesisBase object, to which new information will be added
+ * @param genesisInfo Object containing all the information required to update newGenesis
+ *                    { contractName, address, storage, genesisObject, deployedInside }
+ */
+export async function buildGenesis(newGenesis, genesisInfo) {
+    for (let i = 0; i < genesisInfo.length; i++) {
+        const info = genesisInfo[i];
+        if (info.genesisObject && !info.deployedInside) {
+            // Update the contract name, bytecode, storage and nonce
+            // Address is not modified because it must match the L1 address
+            info.genesisObject.contractName = info.contractName;
+            info.genesisObject.storage = info.storage;
+            info.genesisObject.bytecode = await ethers.provider.getCode(info.address);
+            info.genesisObject.nonce = await ethers.provider.getTransactionCount(info.address);
+        } else if (!info.genesisObject && info.deployedInside) {
+            // Add a new contract that has been deployed and did not exist in the genesis
+            const contractGenesis = {
+                contractName: info.contractName,
+                balance: '0',
+                nonce: '1',
+                address: info.address,
+                bytecode: await ethers.provider.getCode(info.address),
+            };
+            if (info.storage) {
+                contractGenesis.storage = info.storage;
+            }
+            newGenesis.push(contractGenesis);
+        } else if (info.genesisObject && info.deployedInside) {
+            // Update contract that has been deployed and exists in the genesis
+            info.genesisObject.address = info.address;
+        }
+    }
 }
 
 /**

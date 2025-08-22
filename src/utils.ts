@@ -178,7 +178,7 @@ export async function getStorageWrites(trace, addressInfo) {
             const end = start + size * 2;
             const initCodeHex = `0x${memHex.slice(start, end)}`;
             const initCodeHash = ethers.solidityPackedKeccak256(['bytes'], [initCodeHex]);
-            const calculatedAddress = await ethers.getCreate2Address(actualAddress, salt, initCodeHash);
+            const calculatedAddress = ethers.getCreate2Address(actualAddress, salt, initCodeHash);
             // Add new address and nonce
             addresses[calculatedAddress] = 1;
             // Update nonce actual address
