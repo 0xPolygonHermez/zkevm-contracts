@@ -33,4 +33,5 @@ export const GENESIS_CONTRACT_NAMES = {
     AGGORACLE_COMMITTEE: 'AggOracleCommittee',
     AGGORACLE_COMMITTEE_IMPLEMENTATION: 'AggOracleCommittee implementation',
     AGGORACLE_COMMITTEE_PROXY: 'AggOracleCommittee proxy',
+    BRIDGE_LIB: 'BridgeLib',
 };

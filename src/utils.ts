@@ -3,7 +3,6 @@
 /* eslint-disable no-console */
 import { ethers, upgrades } from 'hardhat';
 import { execSync } from 'child_process';
-import fs from 'fs';
 
 /**
  * Adjusts the multiplier gas and/or the maxFeePer gas of the provider depending on the parameters values and returns the adjusted provider
@@ -173,8 +172,6 @@ export async function getStorageWrites(trace, addressInfo) {
             // Update actual address
             stackAddressesStorage.push(calculatedAddress);
         } else if (log.op === 'CREATE2') {
-            // eslint-disable-next-line no-await-in-loop
-            await fs.writeFileSync('log.json', JSON.stringify(log, null, 1));
             // Get actual address (create is with this address)
             const actualAddress = stackAddressesStorage[stackAddressesStorage.length - 1];
             const parameters = log.stack.slice(-4);
@@ -215,6 +212,7 @@ export async function getStorageWrites(trace, addressInfo) {
 /**
  * Function to get the storage modifications of a tx from the txHash
  * @param {string} txHash - transaction hash
+ * @param {string} address - (optional) storage address
  * @returns {Object} - storage writes: { depth: {"key": "value"} }
  */
 export async function getTraceStorageWrites(txHash: any, address = undefined) {

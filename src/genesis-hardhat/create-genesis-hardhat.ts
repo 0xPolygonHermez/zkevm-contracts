@@ -6,13 +6,11 @@ import {
     AggOracleCommittee,
     BridgeL2SovereignChain,
     GlobalExitRootManagerL2SovereignChain,
-    ProxyAdmin,
 } from '../../typechain-types';
-import { GENESIS_CONTRACT_NAMES } from './constants';
+import { GENESIS_CONTRACT_NAMES, SUPPORTED_BRIDGE_CONTRACTS_PROXY } from './constants';
 import {
     getAddressesGenesisBase,
     getMinDelayTimelock,
-    deployProxyWithTxCapture,
     getExpectedStorageProxy,
     getExpectedStorageBridge,
     getExpectedStoragePolygonZkEVMTimelock,
@@ -22,16 +20,15 @@ import {
     getExpectedStorageTokenWrappedBridgeUpgradeable,
     updateExpectedStorageBridgeToken,
     getExpectedStorageAggOracleCommittee,
-    getStorageTimelockAdminRoleMember,
+    checkExpectedStorageLength,
     buildGenesis,
+    deployBridgeL2SovereignChain,
+    deployGlobalExitRootManagerL2SovereignChain,
+    deployAggOracleCommittee,
 } from './utils';
 import { checkParams, getTraceStorageWrites } from '../utils';
 import { logger } from '../logger';
 import { STORAGE_GENESIS } from './storage';
-
-const supportedGERManagers = ['PolygonZkEVMGlobalExitRootL2 implementation'];
-const supportedBridgeContracts = ['PolygonZkEVMBridge implementation', 'PolygonZkEVMBridgeV2 implementation'];
-const supportedBridgeContractsProxy = ['PolygonZkEVMBridgeV2 proxy', 'PolygonZkEVMBridge proxy'];
 
 /**
  * Create a genesis file for hardhat
@@ -139,42 +136,61 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     await ethers.provider.send('hardhat_setBalance', [timelockOwner, '0xffffffffffffffff']); // 18 ethers aprox
     const deployer = await ethers.getSigner(timelockOwner);
 
-    // deploy BridgeL2SovereignChain
-    const BridgeL2SovereignChainFactory = await ethers.getContractFactory(
-        GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE,
+    // deploy timelock
+    const timelockContractFactory = await ethers.getContractFactory(GENESIS_CONTRACT_NAMES.POLYGON_TIMELOCK, deployer);
+    const timelock = await timelockContractFactory.deploy(
+        timelockMinDelay,
+        [deployer],
+        [deployer],
+        deployer,
+        ethers.ZeroAddress, // PolygonRollupManager address not needed in L2
+    );
+    const txDeployTimelock = await timelock.deploymentTransaction();
+    const txDeployTimelockHash = txDeployTimelock ? txDeployTimelock.hash : undefined;
+
+    const timelockContractAddress = timelock.target.toString().toLowerCase();
+
+    // Deploy proxyAdmin
+    const ProxyAdminFactory = await ethers.getContractFactory(
+        '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol:ProxyAdmin',
         deployer,
     );
+    const proxyAdmin = await ProxyAdminFactory.deploy(timelockContractAddress);
+    const deployAdminTx = proxyAdmin.deploymentTransaction();
+    await deployAdminTx?.wait();
+    const proxyAdminAddress = proxyAdmin.target.toString().toLowerCase();
 
-    const bridgeDeploymentResult = await deployProxyWithTxCapture(BridgeL2SovereignChainFactory, [], {
-        initializer: false,
-        unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-    });
-
-    const sovereignChainBridgeContract = bridgeDeploymentResult.contract as unknown as BridgeL2SovereignChain;
+    // deploy BridgeL2SovereignChain
+    const bridgeDeploymentResult = await deployBridgeL2SovereignChain(proxyAdmin, deployer);
+    const sovereignChainBridgeContract = (await ethers.getContractAt(
+        GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE,
+        bridgeDeploymentResult.proxy,
+        deployer,
+    )) as unknown as BridgeL2SovereignChain;
 
     // Get addresses from bridge deployment
-    const bridgeProxyAddress = sovereignChainBridgeContract.target.toString().toLowerCase();
-    const bridgeImplAddress = (await upgrades.erc1967.getImplementationAddress(bridgeProxyAddress)).toLocaleLowerCase();
+    const bridgeProxyAddress = bridgeDeploymentResult.proxy;
+    const bridgeImplAddress = bridgeDeploymentResult.implementation;
     const tokenWrappedAddress = (
         await sovereignChainBridgeContract.getWrappedTokenBridgeImplementation()
     ).toLocaleLowerCase();
+    const bridgeLibAddress = (await sovereignChainBridgeContract.bridgeLib()).toLowerCase();
+
     // deploy GlobalExitRootManagerL2SovereignChain
-    const gerManagerL2SovereignChainFactory = await ethers.getContractFactory(
-        GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN,
+    const gerDeploymentResult = await deployGlobalExitRootManagerL2SovereignChain(
+        proxyAdmin,
         deployer,
+        genesisBaseAddresses.bridgeProxyAddress, // Constructor arguments
     );
 
-    const gerDeploymentResult = await deployProxyWithTxCapture(gerManagerL2SovereignChainFactory, [], {
-        initializer: false,
-        constructorArgs: [genesisBaseAddresses.bridgeProxyAddress], // Constructor arguments
-        unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-    });
-
-    const gerManagerContract = gerDeploymentResult.contract as unknown as GlobalExitRootManagerL2SovereignChain;
+    const gerManagerContract = (await ethers.getContractAt(
+        GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN,
+        gerDeploymentResult.proxy,
+    )) as unknown as GlobalExitRootManagerL2SovereignChain;
 
     // Get addresses from ger deployment
-    const gerProxyAddress = gerManagerContract.target.toString().toLowerCase();
-    const gerImplAddress = await upgrades.erc1967.getImplementationAddress(gerProxyAddress);
+    const gerProxyAddress = gerDeploymentResult.proxy;
+    const gerImplAddress = gerDeploymentResult.implementation;
 
     /// ///////////////////////////////////
     ///   DEPLOY AGGORACLE COMMITTEE   ////
@@ -190,28 +206,20 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     if (initializeParams.useAggOracleCommittee === true) {
         checkParams(initializeParams, ['aggOracleCommittee', 'quorum', 'aggOracleOwner']);
         // deploy AggOracleCommittee
-        const aggOracleCommitteeFactory = await ethers.getContractFactory(
+        aggOracleCommitteeDeploymentResult = await deployAggOracleCommittee(proxyAdmin, deployer, gerProxyAddress);
+        aggOracleCommitteeContract = (await ethers.getContractAt(
             GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE,
-            deployer,
-        );
-        aggOracleCommitteeDeploymentResult = await deployProxyWithTxCapture(aggOracleCommitteeFactory, [], {
-            initializer: false,
-            constructorArgs: [gerManagerContract.target], // Constructor arguments
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        });
+            aggOracleCommitteeDeploymentResult.proxy,
+        )) as unknown as AggOracleCommittee;
+        aggOracleCommitteeAddress = aggOracleCommitteeDeploymentResult.proxy;
+        aggOracleImplementationAddress = aggOracleCommitteeDeploymentResult.implementation;
 
-        aggOracleCommitteeContract = aggOracleCommitteeDeploymentResult.contract as unknown as AggOracleCommittee;
-        initializeParams.globalExitRootUpdater = aggOracleCommitteeContract.target;
-        globalExitRootUpdater = aggOracleCommitteeContract.target;
-        aggOracleCommitteeAddress = aggOracleCommitteeContract.target;
-        aggOracleImplementationAddress = await upgrades.erc1967.getImplementationAddress(
-            aggOracleCommitteeContract.target,
-        );
+        initializeParams.globalExitRootUpdater = aggOracleCommitteeAddress;
+        globalExitRootUpdater = aggOracleCommitteeAddress;
 
         /// ///////////////////////////////////////
         ///   INITIALIZE AGGORACLE COMMITTEE   ///
         /// //////////////////////////////////////
-
         txInitializeAggOracleCommittee = await aggOracleCommitteeContract.initialize(
             initializeParams.aggOracleOwner,
             initializeParams.aggOracleCommittee,
@@ -246,7 +254,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         rollupID,
         gasTokenAddress,
         gasTokenNetwork,
-        gerManagerContract.target, // Global exit root manager address from base genesis
+        genesisBaseAddresses.gerManagerProxyAddress, // Global exit root manager address from base genesis
         ethers.ZeroAddress, // Polygon rollup manager address always zero for sovereign chains
         gasTokenMetadata,
         bridgeManager,
@@ -263,57 +271,29 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     // Initialize the GlobalExitRootManagerL2SovereignChain contract
     const txInitializeGer = await gerManagerContract.initialize(globalExitRootUpdater, globalExitRootRemover);
 
-    // deploy timelock
-    const timelockContractFactory = await ethers.getContractFactory(GENESIS_CONTRACT_NAMES.POLYGON_TIMELOCK, deployer);
-    const timelockContract = await timelockContractFactory.deploy(
-        timelockMinDelay,
-        [deployer],
-        [deployer],
-        deployer,
-        ethers.ZeroAddress, // PolygonRollupManager address not needed in L2
-    );
-    const timelockContractAddress = timelockContract.target.toString().toLowerCase();
-
-    const txDeployTimelock = await timelockContract.deploymentTransaction();
-    const txDeployTimelockHash = txDeployTimelock ? txDeployTimelock.hash : undefined;
-
-    // Transfer ownership of the proxyAdmin to the timelock
-    const proxyAdminAddress = await upgrades.erc1967.getAdminAddress(sovereignChainBridgeContract.target as string);
-    const proxyAdminFactory = await ethers.getContractFactory(
-        '@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol:ProxyAdmin',
-    );
-    const proxyAdminInstance = proxyAdminFactory.attach(proxyAdminAddress as string) as ProxyAdmin;
-    await (
-        await proxyAdminInstance.connect(deployer).transferOwnership(genesisBaseAddresses.timelockAddress as string)
-    ).wait();
-
-    // Set timelock role with timelockAddress from genesisBaseAddresses
-    const txTimelockAdminRole = await timelockContract.connect(deployer).grantRole(
-        ethers.id('TIMELOCK_ADMIN_ROLE'),
-        genesisBaseAddresses.timelockAddress, // timelockAddress from genesisBaseAddresses
-    );
-    const txRevokeTimelockAdminRole = await timelockContract.connect(deployer).revokeRole(
-        ethers.id('TIMELOCK_ADMIN_ROLE'),
-        timelockContractAddress, // Revoke the role from the deployer
-    );
-
     /// /////////////////////////////////
     ///   SANITY CHECKS DEPLOYMENT   ///
     /// /////////////////////////////////
 
     // Check admin of the proxy is the same in the bridge and the GER manager
-    const adminBridge = await upgrades.erc1967.getAdminAddress(sovereignChainBridgeContract.target as string);
-    const adminGerManager = await upgrades.erc1967.getAdminAddress(gerManagerContract.target as string);
-
-    expect(adminBridge).to.equal(adminGerManager);
+    const adminBridge = await upgrades.erc1967.getAdminAddress(bridgeProxyAddress as string);
+    const adminGerManager = await upgrades.erc1967.getAdminAddress(gerProxyAddress as string);
+    expect(proxyAdminAddress).to.equal(adminGerManager.toLowerCase());
+    expect(proxyAdminAddress).to.equal(adminBridge.toLowerCase());
 
     // Check initialize params bridge
     expect(rollupID).to.equal(await sovereignChainBridgeContract.networkID());
-    expect(gerManagerContract.target).to.equal(await sovereignChainBridgeContract.globalExitRootManager());
+    expect(genesisBaseAddresses.gerManagerProxyAddress.toLowerCase()).to.equal(
+        (await sovereignChainBridgeContract.globalExitRootManager()).toLowerCase(),
+    );
 
     // Check initialize params GER
-    expect(globalExitRootUpdater).to.equal(await gerManagerContract.globalExitRootUpdater());
-    expect(globalExitRootRemover).to.equal(await gerManagerContract.globalExitRootRemover());
+    expect(globalExitRootUpdater.toLowerCase()).to.equal(
+        (await gerManagerContract.globalExitRootUpdater()).toLowerCase(),
+    );
+    expect(globalExitRootRemover.toLowerCase()).to.equal(
+        (await gerManagerContract.globalExitRootRemover()).toLowerCase(),
+    );
 
     // Check AggOracleCommittee params
     if (initializeParams.useAggOracleCommittee === true) {
@@ -339,8 +319,19 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     // Build storage modifications JSON
     const storageModifications: { [contractName: string]: any } = {};
 
+    // Get storage modifications Timelock
+    await checkExpectedStorageLength(txDeployTimelockHash, 1);
+    const timelockStorageWrites = await getTraceStorageWrites(txDeployTimelockHash, timelockContractAddress);
+    storageModifications.PolygonZkEVMTimelock = timelockStorageWrites;
+
+    // Get storage modifications for ProxyAdmin
+    await checkExpectedStorageLength(deployAdminTx?.hash, 1);
+    const proxyAdminStorageWrites = await getTraceStorageWrites(deployAdminTx?.hash, proxyAdminAddress);
+    storageModifications.ProxyAdmin = proxyAdminStorageWrites;
+
     // Get storage modifications for Bridge contract
     logger.info('Getting storage modifications for Bridge contract...');
+    await checkExpectedStorageLength(bridgeDeploymentResult.txHashes.proxy, 1);
     const bridgeStorageWrites = await getTraceStorageWrites(bridgeDeploymentResult.txHashes.proxy, bridgeProxyAddress);
     storageModifications.BridgeL2SovereignChain = bridgeStorageWrites;
 
@@ -350,6 +341,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         try {
             const implTx = await ethers.provider.getTransaction(bridgeDeploymentResult.txHashes.implementation);
             if (implTx) {
+                await checkExpectedStorageLength(bridgeDeploymentResult.txHashes.implementation, 2);
                 const implStorageWrites = await getTraceStorageWrites(bridgeDeploymentResult.txHashes.implementation);
                 storageModifications.BridgeL2SovereignChain_Implementation = implStorageWrites[bridgeImplAddress];
                 storageModifications.TokenWrappedBridgeUpgradeable_Implementation =
@@ -367,7 +359,12 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             if (initTx) {
                 const initStorageWrites = await getTraceStorageWrites(txInitializeBridge.hash);
                 storageModifications.BridgeL2SovereignChain_Initialization = initStorageWrites[bridgeProxyAddress];
-                storageModifications.TokenWrappedBridgeUpgradeable = initStorageWrites[WETHTokenAddress];
+                if (gasTokenAddress !== ethers.ZeroAddress && ethers.isAddress(gasTokenAddress)) {
+                    await checkExpectedStorageLength(txInitializeBridge.hash, 2);
+                    storageModifications.TokenWrappedBridgeUpgradeable = initStorageWrites[WETHTokenAddress];
+                } else {
+                    await checkExpectedStorageLength(txInitializeBridge.hash, 1);
+                }
             }
         } catch (error) {
             logger.error('Could not get Bridge initialization storage writes:', error);
@@ -382,6 +379,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
                     aggOracleCommitteeDeploymentResult.txHashes.implementation,
                 );
                 if (implTx) {
+                    await checkExpectedStorageLength(aggOracleCommitteeDeploymentResult.txHashes.implementation, 1);
                     const implStorageWrites = await getTraceStorageWrites(
                         aggOracleCommitteeDeploymentResult.txHashes.implementation,
                         aggOracleImplementationAddress,
@@ -397,6 +395,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             try {
                 const implTx = await ethers.provider.getTransaction(aggOracleCommitteeDeploymentResult.txHashes.proxy);
                 if (implTx) {
+                    await checkExpectedStorageLength(aggOracleCommitteeDeploymentResult.txHashes.proxy, 1);
                     const implStorageWrites = await getTraceStorageWrites(
                         aggOracleCommitteeDeploymentResult.txHashes.proxy,
                         aggOracleCommitteeAddress,
@@ -412,6 +411,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             try {
                 const initTx = await ethers.provider.getTransaction(txInitializeAggOracleCommittee.hash);
                 if (initTx) {
+                    await checkExpectedStorageLength(txInitializeAggOracleCommittee.hash, 1);
                     const initStorageWrites = await getTraceStorageWrites(
                         txInitializeAggOracleCommittee.hash,
                         aggOracleCommitteeAddress,
@@ -429,6 +429,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         try {
             const gerProxyTx = await ethers.provider.getTransaction(gerDeploymentResult.txHashes.proxy);
             if (gerProxyTx) {
+                await checkExpectedStorageLength(gerDeploymentResult.txHashes.proxy, 1);
                 const gerStorageWrites = await getTraceStorageWrites(
                     gerDeploymentResult.txHashes.proxy,
                     gerProxyAddress,
@@ -446,6 +447,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         try {
             const gerImplTx = await ethers.provider.getTransaction(gerDeploymentResult.txHashes.implementation);
             if (gerImplTx) {
+                await checkExpectedStorageLength(gerDeploymentResult.txHashes.implementation, 1);
                 const gerImplStorageWrites = await getTraceStorageWrites(
                     gerDeploymentResult.txHashes.implementation,
                     gerImplAddress,
@@ -463,6 +465,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         try {
             const gerInitTx = await ethers.provider.getTransaction(txInitializeGer.hash);
             if (gerInitTx) {
+                await checkExpectedStorageLength(txInitializeGer.hash, 1);
                 const gerInitStorageWrites = await getTraceStorageWrites(txInitializeGer.hash, gerProxyAddress);
                 storageModifications.GlobalExitRootManagerL2SovereignChain_Initialization = gerInitStorageWrites;
             }
@@ -471,39 +474,33 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         }
     }
 
-    // Get storage modifications for Timelock contract
-    logger.info('Getting storage modifications for Timelock contract...');
-    const timelockStorageWrites = await getTraceStorageWrites(txDeployTimelockHash, timelockContractAddress);
-    storageModifications.PolygonZkEVMTimelock = timelockStorageWrites;
-    const timelockStorageAdmin = await getTraceStorageWrites(txTimelockAdminRole.hash, timelockContractAddress);
-    const timelockStorageRevokeAdmin = await getTraceStorageWrites(
-        txRevokeTimelockAdminRole.hash,
-        timelockContractAddress,
-    );
-    expect(timelockStorageAdmin[getStorageTimelockAdminRoleMember(genesisBaseAddresses.timelockAddress)]).to.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000001',
-    );
-    expect(timelockStorageRevokeAdmin[getStorageTimelockAdminRoleMember(timelockContractAddress)]).to.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-    );
-    storageModifications.PolygonZkEVMTimelock[getStorageTimelockAdminRoleMember(timelockContractAddress)] =
-        '0x0000000000000000000000000000000000000000000000000000000000000000';
-    storageModifications.PolygonZkEVMTimelock[getStorageTimelockAdminRoleMember(genesisBaseAddresses.timelockAddress)] =
-        '0x0000000000000000000000000000000000000000000000000000000000000001';
-
     /// /////////////////////////////////////////////////
     ///   BUILD EXPECTED STORAGE MODIFICATIONS JSON   ///
     /// /////////////////////////////////////////////////
 
+    logger.info('Getting expected storage modifications...');
+
     const expectedStorageModifications: { [key: string]: any } = {};
-    // BridgeL2SovereignChain Proxy
-    expectedStorageModifications.BridgeL2SovereignChain = await getExpectedStorageProxy(
-        sovereignChainBridgeContract.target,
+    // PolygonZkEVMTimelock
+    expectedStorageModifications.PolygonZkEVMTimelock = getExpectedStoragePolygonZkEVMTimelock(
+        timelockMinDelay,
+        timelockContractAddress,
+        deployer.address,
     );
+
+    // ProxyAdmin
+    expectedStorageModifications.ProxyAdmin = {};
+    expectedStorageModifications.ProxyAdmin[STORAGE_GENESIS.STORAGE_PROXY_ADMIN.OWNER] = ethers.zeroPadValue(
+        timelockContractAddress,
+        32,
+    );
+
+    // BridgeL2SovereignChain Proxy
+    expectedStorageModifications.BridgeL2SovereignChain = await getExpectedStorageProxy(bridgeProxyAddress);
     // Bridge initialization
     expectedStorageModifications.BridgeL2SovereignChain_Initialization = getExpectedStorageBridge(
         initializeParams,
-        gerManagerContract.target,
+        genesisBaseAddresses.gerManagerProxyAddress,
     );
     // BridgeL2SovereignChain Implementation --> TokenWrappedBridgeUpgradeable
     expectedStorageModifications.TokenWrappedBridgeUpgradeable_Implementation = {};
@@ -544,14 +541,10 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             initializeParams,
             aggOracleCommitteeContract,
         );
-        expectedStorageModifications.AggOracleCommittee = await getExpectedStorageProxy(
-            aggOracleCommitteeContract.target,
-        );
+        expectedStorageModifications.AggOracleCommittee = await getExpectedStorageProxy(aggOracleCommitteeAddress);
     }
     // GlobalExitRootManagerL2SovereignChain Proxy
-    expectedStorageModifications.GlobalExitRootManagerL2SovereignChain = await getExpectedStorageProxy(
-        gerManagerContract.target,
-    );
+    expectedStorageModifications.GlobalExitRootManagerL2SovereignChain = await getExpectedStorageProxy(gerProxyAddress);
     // GER Implementation --> PolygonZkEVMGlobalExitRootL2
     expectedStorageModifications.GlobalExitRootManagerL2SovereignChain_Implementation = {};
     expectedStorageModifications.GlobalExitRootManagerL2SovereignChain_Implementation[
@@ -560,32 +553,28 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     // GER initialization
     expectedStorageModifications.GlobalExitRootManagerL2SovereignChain_Initialization =
         getExpectedStorageGERManagerL2SovereignChain(initializeParams);
-    // PolygonZkEVMTimelock
-    expectedStorageModifications.PolygonZkEVMTimelock = getExpectedStoragePolygonZkEVMTimelock(
-        timelockMinDelay,
-        genesisBaseAddresses.timelockAddress,
-        timelockContractAddress,
-    );
 
     /// //////////////////////////////
     ///   CHECK ACTUAL STORAGE    ///
     /// /////////////////////////////
-    logger.info('\n=== CHECKING STORAGE MODIFICATIONS ===');
-    logger.info('Checking BridgeL2SovereignChain storage modifications...');
+
+    logger.info('Getting actual storage...');
 
     const actualStorage: { [key: string]: any } = {};
+    // ProxyAdmin
+    actualStorage.ProxyAdmin = await getActualStorage(storageModifications.ProxyAdmin, proxyAdminAddress);
     // BridgeL2SovereignChain
     actualStorage.BridgeL2SovereignChain = await getActualStorage(
         storageModifications.BridgeL2SovereignChain,
-        sovereignChainBridgeContract.target,
+        bridgeProxyAddress,
     );
     actualStorage.BridgeL2SovereignChain_Initialization = await getActualStorage(
         storageModifications.BridgeL2SovereignChain_Initialization,
-        sovereignChainBridgeContract.target,
+        bridgeProxyAddress,
     );
     actualStorage.BridgeL2SovereignChain_Implementation = await getActualStorage(
         storageModifications.BridgeL2SovereignChain_Implementation,
-        await upgrades.erc1967.getImplementationAddress(sovereignChainBridgeContract.target),
+        await upgrades.erc1967.getImplementationAddress(bridgeProxyAddress),
     );
     actualStorage.TokenWrappedBridgeUpgradeable_Implementation = await getActualStorage(
         storageModifications.TokenWrappedBridgeUpgradeable_Implementation,
@@ -598,7 +587,7 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         );
         actualStorage.AggOracleCommittee = await getActualStorage(
             storageModifications.AggOracleCommittee,
-            aggOracleCommitteeContract.target,
+            aggOracleCommitteeAddress,
         );
     }
     if (
@@ -616,11 +605,11 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     if (initializeParams.useAggOracleCommittee === true) {
         actualStorage.AggOracleCommittee_Initialization = await getActualStorage(
             storageModifications.AggOracleCommittee_Initialization,
-            aggOracleCommitteeContract.target,
+            aggOracleCommitteeAddress,
         );
         actualStorage.AggOracleCommittee = await getActualStorage(
             storageModifications.AggOracleCommittee,
-            aggOracleCommitteeContract.target,
+            aggOracleCommitteeAddress,
         );
         actualStorage.AggOracleCommittee_Implementation = await getActualStorage(
             storageModifications.AggOracleCommittee_Implementation,
@@ -631,15 +620,15 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     // GlobalExitRootManagerL2SovereignChain
     actualStorage.GlobalExitRootManagerL2SovereignChain = await getActualStorage(
         storageModifications.GlobalExitRootManagerL2SovereignChain,
-        gerManagerContract.target,
+        gerProxyAddress,
     );
     actualStorage.GlobalExitRootManagerL2SovereignChain_Initialization = await getActualStorage(
         storageModifications.GlobalExitRootManagerL2SovereignChain_Initialization,
-        gerManagerContract.target,
+        gerProxyAddress,
     );
     actualStorage.GlobalExitRootManagerL2SovereignChain_Implementation = await getActualStorage(
         storageModifications.GlobalExitRootManagerL2SovereignChain_Implementation,
-        await upgrades.erc1967.getImplementationAddress(gerManagerContract.target),
+        gerImplAddress,
     );
     // PolygonZkEVMTimelock
     actualStorage.PolygonZkEVMTimelock = await getActualStorage(
@@ -691,17 +680,34 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
 
     const genesisInfo = [];
 
+    /// /////////////////////
+    /// POLYGON TIMELOCK ////
+    /// /////////////////////
+    logger.info('Updating Polygon Timelock in genesis file...');
+    // Get genesis info for bridge implementation
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.POLYGON_TIMELOCK,
+        address: timelockContractAddress,
+        storage: storageModifications.PolygonZkEVMTimelock,
+    });
+
+    /// ////////////////
+    /// PROXY ADMIN ////
+    /// ////////////////
+    logger.info('Updating proxy admin in genesis file...');
+    // Get genesis info for bridge implementation
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.PROXY_ADMIN,
+        address: proxyAdminAddress,
+        storage: storageModifications.ProxyAdmin,
+    });
+
     /// /////////////////////////
     /// BRIDGE IMPLEMENTATION ///
     /// /////////////////////////
     logger.info('Updating BridgeL2SovereignChain implementation in genesis file...');
-    // Get genesis info for bridge implementation
-    const bridgeL2SovereignChainImplementation = _genesisBase.genesis.find(function (obj) {
-        return supportedBridgeContracts.includes(obj.contractName);
-    });
     genesisInfo.push({
         contractName: GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_IMPLEMENTATION,
-        genesisObject: bridgeL2SovereignChainImplementation,
         address: bridgeImplAddress,
         storage: storageModifications.BridgeL2SovereignChain_Implementation,
     });
@@ -713,12 +719,14 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
 
     // Replace old bridge with new bridge proxy
     const bridgeL2SovereignChain = _genesisBase.genesis.find(function (obj) {
-        return supportedBridgeContractsProxy.includes(obj.contractName);
+        return SUPPORTED_BRIDGE_CONTRACTS_PROXY.includes(obj.contractName);
     });
+
     genesisInfo.push({
+        isProxy: true,
         contractName: GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY,
-        genesisObject: bridgeL2SovereignChain,
         address: bridgeProxyAddress,
+        genesisContract: bridgeL2SovereignChain,
         storage: {
             ...storageModifications.BridgeL2SovereignChain,
             ...storageModifications.BridgeL2SovereignChain_Initialization,
@@ -730,12 +738,8 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     /// /////////////////////////
     logger.info('Updating GlobalExitRootManagerL2SovereignChain implementation in genesis file...');
     // Get genesis info for ger implementation
-    const gerManagerL2SovereignChainImplementation = _genesisBase.genesis.find(function (obj) {
-        return supportedGERManagers.includes(obj.contractName);
-    });
     genesisInfo.push({
         contractName: GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_IMPLEMENTATION,
-        genesisObject: gerManagerL2SovereignChainImplementation,
         address: gerImplAddress,
         storage: storageModifications.GlobalExitRootManagerL2SovereignChain_Implementation,
     });
@@ -748,9 +752,11 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
     const gerManagerL2SovereignChain = _genesisBase.genesis.find(function (obj) {
         return obj.contractName === GENESIS_CONTRACT_NAMES.GER_L2_PROXY;
     });
+
     genesisInfo.push({
+        isProxy: true,
         contractName: GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY,
-        genesisObject: gerManagerL2SovereignChain,
+        genesisContract: gerManagerL2SovereignChain,
         address: gerProxyAddress,
         storage: {
             ...storageModifications.GlobalExitRootManagerL2SovereignChain,
@@ -771,7 +777,6 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         contractName: GENESIS_CONTRACT_NAMES.BYTECODE_STORER,
         genesisObject: bytecodeStorer,
         address: bytecodeStorerAddress,
-        deployedInside: true,
     });
 
     if (bytecodeStorer) {
@@ -788,10 +793,8 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
 
     genesisInfo.push({
         contractName: GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION,
-        genesisObject: tokenWrapped,
         address: tokenWrappedAddress,
         storage: storageModifications.TokenWrappedBridgeUpgradeable_Implementation,
-        deployedInside: true,
     });
 
     if (tokenWrapped) {
@@ -813,12 +816,23 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             '0x000000000000000000000000000000000000000000000000000000000000006f'
         ].slice(26)}`;
 
+        let storageBridgeProxy =
+            storageModifications.TokenWrappedBridgeUpgradeable[
+                STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_DECIMALS_BRIDGE_ADDRESS
+            ];
+        storageBridgeProxy = storageBridgeProxy.replace(
+            bridgeProxyAddress.slice(2),
+            genesisBaseAddresses.bridgeProxyAddress.toLowerCase().slice(2),
+        );
+        storageModifications.TokenWrappedBridgeUpgradeable[
+            STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_DECIMALS_BRIDGE_ADDRESS
+        ] = storageBridgeProxy;
+
         // Add WETH
         genesisInfo.push({
             contractName: GENESIS_CONTRACT_NAMES.WETH_PROXY,
             address: wethAddress,
             storage: storageModifications.TokenWrappedBridgeUpgradeable,
-            deployedInside: true,
         });
 
         // Check implementation
@@ -831,6 +845,24 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         );
     }
 
+    /// /////////////////////////
+    /// BRIDGE LIB  /////////////
+    /// /////////////////////////
+    logger.info('Updating BytecodeStorer in genesis file...');
+    const bridgeLib = _genesisBase.genesis.find(function (obj) {
+        return obj.contractName === GENESIS_CONTRACT_NAMES.BRIDGE_LIB;
+    });
+
+    genesisInfo.push({
+        contractName: GENESIS_CONTRACT_NAMES.BRIDGE_LIB,
+        genesisObject: bridgeLib,
+        address: bridgeLibAddress,
+    });
+
+    if (bridgeLib) {
+        expect(bridgeLib.bytecode).to.equal(await ethers.provider.getCode(bridgeLibAddress));
+    }
+
     // If useAggOracleCommittee is true, we add AggOracleCommittee implementation and proxy to the genesis
     if (initializeParams.useAggOracleCommittee === true) {
         /// //////////////////////////////
@@ -841,7 +873,6 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
             contractName: GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE_IMPLEMENTATION,
             address: aggOracleImplementationAddress,
             storage: storageModifications.AggOracleCommittee_Implementation,
-            deployedInside: true,
         });
 
         /// ///////////////////////////////
@@ -855,7 +886,6 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
                 ...storageModifications.AggOracleCommittee,
                 ...storageModifications.AggOracleCommittee_Initialization,
             },
-            deployedInside: true,
         });
 
         // Check implementation
@@ -867,11 +897,19 @@ export async function createGenesisHardhat(_genesisBase: any, initializeParams: 
         );
     }
 
-    const newGenesis = _genesisBase;
-    await buildGenesis(newGenesis.genesis, genesisInfo);
+    const returnObject = { genesis: [] as any };
+
+    // Add accounts
+    const accounts = _genesisBase.genesis.filter(function (obj) {
+        return obj.accountName !== undefined;
+    });
+    returnObject.genesis.push(accounts);
+
+    // Add deployed contracts
+    returnObject.genesis = await buildGenesis(genesisInfo);
 
     // switch network previous network
     await hre.switchNetwork(previousNetwork);
 
-    return newGenesis;
+    return returnObject;
 }
