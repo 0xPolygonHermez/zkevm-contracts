@@ -741,7 +741,7 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     );
     // Check deployer is the owner of Polygon deployer
     const polygonDeployerObj = genesis.genesis.find(function (obj) {
-        return obj.contractName === GENESIS_CONTRACT_NAMES.POLYGON_ZKEVM_DEPLOYER;
+        return obj.contractName === GENESIS_CONTRACT_NAMES.POLYGON_DEPLOYER;
     });
     const deployerAddressObj = genesis.genesis.find(function (obj) {
         return obj.accountName === GENESIS_CONTRACT_NAMES.DEPLOYER;

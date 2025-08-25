@@ -5,32 +5,12 @@
 // Those genesis are already imported on different tooling and added as a metadata on-chain. Therefore, this util aims
 // to support them too
 
-export const SUPPORTED_GER_MANAGERS = ['PolygonZkEVMGlobalExitRootL2 implementation'];
+import { GENESIS_CONTRACT_NAMES } from "../utils-common-aggchain";
 
-export const SUPPORTED_BRIDGE_CONTRACTS = ['PolygonZkEVMBridge implementation', 'PolygonZkEVMBridgeV2 implementation'];
+export const SUPPORTED_GER_MANAGERS = ['LegacyAgglayerGERL2 implementation'];
 
-export const SUPPORTED_BRIDGE_CONTRACTS_PROXY = ['PolygonZkEVMBridgeV2 proxy', 'PolygonZkEVMBridge proxy'];
+export const SUPPORTED_BRIDGE_CONTRACTS = ['PolygonZkEVMBridge implementation', 'AgglayerBridge implementation'];
 
-export const GENESIS_CONTRACT_NAMES = {
-    WETH: 'WETH',
-    WETH_PROXY: 'WETH proxy',
-    TOKEN_WRAPPED_IMPLEMENTATION: 'TokenWrapped implementation',
-    SOVEREIGN_BRIDGE: 'BridgeL2SovereignChain',
-    SOVEREIGN_BRIDGE_IMPLEMENTATION: 'BridgeL2SovereignChain implementation',
-    SOVEREIGN_BRIDGE_PROXY: 'BridgeL2SovereignChain proxy',
-    BYTECODE_STORER: 'BytecodeStorer',
-    BRIDGE_V2: 'PolygonZkEVMBridgeV2',
-    GER_L2_SOVEREIGN: 'GlobalExitRootManagerL2SovereignChain',
-    GER_L2_SOVEREIGN_IMPLEMENTATION: 'GlobalExitRootManagerL2SovereignChain implementation',
-    GER_L2_SOVEREIGN_PROXY: 'GlobalExitRootManagerL2SovereignChain proxy',
-    GER_L2: 'PolygonZkEVMGlobalExitRootL2',
-    GER_L2_IMPLEMENTATION: 'PolygonZkEVMGlobalExitRootL2 implementation',
-    GER_L2_PROXY: 'PolygonZkEVMGlobalExitRootL2 proxy',
-    PROXY_ADMIN: 'ProxyAdmin',
-    POLYGON_TIMELOCK: 'PolygonZkEVMTimelock',
-    POLYGON_ZKEVM_DEPLOYER: 'PolygonZkEVMDeployer',
-    DEPLOYER: 'deployer',
-    AGGORACLE_COMMITTEE: 'AggOracleCommittee',
-    AGGORACLE_COMMITTEE_IMPLEMENTATION: 'AggOracleCommittee implementation',
-    AGGORACLE_COMMITTEE_PROXY: 'AggOracleCommittee proxy',
-};
+export const SUPPORTED_BRIDGE_CONTRACTS_PROXY = ['AgglayerBridge proxy', 'PolygonZkEVMBridge proxy'];
+
+export { GENESIS_CONTRACT_NAMES };

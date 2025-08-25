@@ -41,7 +41,6 @@ export const GENESIS_CONTRACT_NAMES = {
     ROLLUP_MANAGER_IMPLEMENTATION: 'AgglayerManager implementation',
     AGGLAYER_GATEWAY_IMPLEMENTATION: 'AgglayerGateway implementation',
     GER_IMPLEMENTATION: 'AgglayerGER implementation',
-    POLYGON_ZKEVM_DEPLOYER: 'PolygonZkEVMDeployer',
     DEPLOYER: 'deployer',
 };
 /// //////////////////////////////

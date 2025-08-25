@@ -1,8 +1,14 @@
 /* eslint-disable no-await-in-loop */
 import { ethers, upgrades } from 'hardhat';
-import { SUPPORTED_BRIDGE_CONTRACTS, SUPPORTED_BRIDGE_CONTRACTS_PROXY, GENESIS_CONTRACT_NAMES } from './constants';
+import {
+    SUPPORTED_BRIDGE_CONTRACTS,
+    SUPPORTED_BRIDGE_CONTRACTS_PROXY,
+    GENESIS_CONTRACT_NAMES,
+    SUPPORTED_GER_MANAGERS,
+} from './constants';
 import { STORAGE_GENESIS } from './storage';
 import { logger } from '../logger';
+import { getTraceStorageWrites } from '../utils';
 
 /**
  * Get the addresses of the genesis base contracts
@@ -17,22 +23,22 @@ export async function getAddressesGenesisBase(genesisBase: any) {
 
     // get the bridge proxy address
     const bridgeProxyAddress = genesisBase.find((account: any) =>
-        SUPPORTED_BRIDGE_CONTRACTS.includes(account.contractName),
+        SUPPORTED_BRIDGE_CONTRACTS_PROXY.includes(account.contractName),
     ).address;
 
     // get the bridge proxy implementation address
     const bridgeImplementationAddress = genesisBase.find((account: any) =>
-        SUPPORTED_BRIDGE_CONTRACTS_PROXY.includes(account.contractName),
+        SUPPORTED_BRIDGE_CONTRACTS.includes(account.contractName),
     ).address;
 
     // get the bridge proxy address
-    const gerManagerProxyAddress = genesisBase.find((account: any) =>
-        SUPPORTED_BRIDGE_CONTRACTS.includes(account.contractName),
+    const gerManagerProxyAddress = genesisBase.find(
+        (account: any) => account.contractName === GENESIS_CONTRACT_NAMES.GER_L2_PROXY,
     ).address;
 
     // get the bridge proxy implementation address
     const gerManagerImplementationAddress = genesisBase.find((account: any) =>
-        SUPPORTED_BRIDGE_CONTRACTS_PROXY.includes(account.contractName),
+        SUPPORTED_GER_MANAGERS.includes(account.contractName),
     ).address;
 
     // get the bridge proxy implementation address
@@ -112,60 +118,87 @@ export async function analyzeDeploymentTransactions(proxyAddress: string, deploy
 }
 
 /**
- * Deploy proxy and capture all deployment transaction hashes
- *
- * @example
- * ```typescript
- * const factory = await ethers.getContractFactory("MyContract", deployer);
- * const result = await deployProxyWithTxCapture(factory, [], {
- *     initializer: false,
- *     unsafeAllow: ['constructor'],
- * });
- *
- * console.log('Proxy address:', result.contract.target);
- * console.log('Proxy tx hash:', result.txHashes.proxy);
- * console.log('Implementation tx hash:', result.txHashes.implementation);
- * console.log('ProxyAdmin tx hash:', result.txHashes.proxyAdmin);
- * ```
+ * Deploy proxy and return all information from deployment
+ * @param {Object} implementation - transaction factory.deploy()
+ * @param {String} proxyAdmin - proxy admin, for proxy deployment
+ * @param {Array} deployer - deployer for deploy transactions
+ * @returns {Object} - proxy address, implementation address, txHashes: { proxy txHash, impl txHash }
  */
-export async function deployProxyWithTxCapture(factory: any, initializerArgs: any[] = [], options: any = {}) {
-    // Get current block number before deployment
-    const blockBefore = await ethers.provider.getBlockNumber();
+export async function deployProxyWithTxCapture(implementation: any, proxyAdmin: any, deployer: any) {
+    const deployImplTx = await implementation.deploymentTransaction();
+    await deployImplTx.wait();
 
-    // Deploy the proxy
-    const contract = await upgrades.deployProxy(factory, initializerArgs, options);
-    await contract.waitForDeployment();
+    // Deploy proxy
+    const transparentProxyFactory = await ethers.getContractFactory(
+        '@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy',
+        deployer,
+    );
 
-    // Get current block number after deployment
-    const blockAfter = await ethers.provider.getBlockNumber();
-    // Collect all transactions from blocks during deployment
-    const deploymentTxs: string[] = [];
-    for (let blockNum = blockBefore + 1; blockNum <= blockAfter; blockNum++) {
-        // eslint-disable-next-line no-await-in-loop
-        const block = await ethers.provider.getBlock(blockNum, false);
-        if (block && block.transactions) {
-            // eslint-disable-next-line no-restricted-syntax
-            for (const txHash of block.transactions) {
-                deploymentTxs.push(txHash);
-            }
-        }
-    }
+    const proxy = await transparentProxyFactory.deploy(
+        implementation.target, // Implementation address
+        proxyAdmin, // Use centralized ProxyAdmin
+        '0x', // Call data for initialization (empty for separated initialization)
+    );
 
-    // Get proxy transaction hash
-    const proxyTx = await contract.deploymentTransaction();
-    const proxyTxHash = proxyTx?.hash;
-
-    // Get implementation and proxyAdmin transaction hashes
-    const deploymentInfo = await analyzeDeploymentTransactions(contract.target as string, deploymentTxs);
+    const deployProxyTx = proxy.deploymentTransaction();
+    await deployProxyTx?.wait();
 
     return {
-        contract,
+        proxy: proxy.target.toString().toLowerCase(),
+        implementation: implementation.target.toString().toLowerCase(),
         txHashes: {
-            proxy: proxyTxHash,
-            implementation: deploymentInfo.implementationTxHash,
-            proxyAdmin: deploymentInfo.proxyAdminTxHash,
+            proxy: deployProxyTx?.hash,
+            implementation: deployImplTx?.hash,
         },
     };
+}
+
+/**
+ * Deploy implmentation and proxy for BridgeL2SovereignChain
+ * @param {String} proxyAdmin - proxy admin, for proxy deployment
+ * @param {Array} deployer - deployer for deploy transactions
+ * @returns {Object} - proxy address, implementation address, txHashes: { proxy txHash, impl txHash }
+ */
+export async function deployBridgeL2SovereignChain(proxyAdmin: any, deployer: any) {
+    // Deploy implementation
+    const BridgeFactory = await ethers.getContractFactory(GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE, deployer);
+    const implementation = await BridgeFactory.deploy();
+    const result = await deployProxyWithTxCapture(implementation, proxyAdmin, deployer);
+    return result;
+}
+
+/**
+ * Deploy implmentation and proxy for GlobalExitRootManagerL2SovereignChain
+ * @param {String} proxyAdmin - proxy admin, for proxy deployment
+ * @param {Array} deployer - deployer for deploy transactions
+ * @param {String} bridgeProxyAddress - bridge address (ger constructor)
+ * @returns {Object} - proxy address, implementation address, txHashes: { proxy txHash, impl txHash }
+ */
+export async function deployGlobalExitRootManagerL2SovereignChain(
+    proxyAdmin: any,
+    deployer: any,
+    bridgeProxyAddress: any,
+) {
+    // Deploy implementation
+    const GERManagerFactory = await ethers.getContractFactory(GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN, deployer);
+    const implementation = await GERManagerFactory.deploy(bridgeProxyAddress);
+    const result = await deployProxyWithTxCapture(implementation, proxyAdmin, deployer);
+    return result;
+}
+
+/**
+ * Deploy implmentation and proxy for AggOracleCommittee
+ * @param {String} proxyAdmin - proxy admin, for proxy deployment
+ * @param {Array} deployer - deployer for deploy transactions
+ * @param {String} gerManagerAddress - ger address (aggoracle committee constructor)
+ * @returns {Object} - proxy address, implementation address, txHashes: { proxy txHash, impl txHash }
+ */
+export async function deployAggOracleCommittee(proxyAdmin: any, deployer: any, gerManagerAddress: any) {
+    // Deploy implementation
+    const GERManagerFactory = await ethers.getContractFactory(GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE, deployer);
+    const implementation = await GERManagerFactory.deploy(gerManagerAddress);
+    const result = await deployProxyWithTxCapture(implementation, proxyAdmin, deployer);
+    return result;
 }
 
 /**
@@ -306,15 +339,13 @@ export function getExpectedStorageGERManagerL2SovereignChain(initParams) {
 
 /**
  * Get the storage position of the timelock admin role member
- * @param {String} timelockAddress - address of the timelock contract
+ * @param {String} role - constant role
+ * @param {String} address - address of the timelock role
  * @returns {String} - storage position of the timelock admin role member
  */
-export function getStorageTimelockAdminRoleMember(timelockAddress) {
-    const storagePosition = ethers.solidityPackedKeccak256(
-        ['uint256', 'uint256'],
-        [ethers.id('TIMELOCK_ADMIN_ROLE'), 0],
-    );
-    return ethers.solidityPackedKeccak256(['uint256', 'uint256'], [timelockAddress, storagePosition]);
+export function getStorageTimelockAdminRoleMember(role, address) {
+    const storagePosition = ethers.solidityPackedKeccak256(['uint256', 'uint256'], [ethers.id(role), 0]);
+    return ethers.solidityPackedKeccak256(['uint256', 'uint256'], [address, storagePosition]);
 }
 
 /**
@@ -323,25 +354,26 @@ export function getStorageTimelockAdminRoleMember(timelockAddress) {
  * @param {String} timelockContractAddress - address of the timelock contract
  * @returns {Object} - expected storage of the timelock contract
  */
-export function getExpectedStoragePolygonZkEVMTimelock(
-    minDelay,
-    timelockContractAddressGenesis,
-    timelockContractAddress,
-) {
+export function getExpectedStoragePolygonZkEVMTimelock(minDelay, timelockContractAddress, deployer) {
     const timelockAdminRole = ethers.keccak256(ethers.toUtf8Bytes('TIMELOCK_ADMIN_ROLE'));
-    const storageTimelockAdminRoleMemberGenesis = getStorageTimelockAdminRoleMember(timelockContractAddressGenesis);
-    const storageTimelockAdminRoleMember = getStorageTimelockAdminRoleMember(timelockContractAddress);
+    const storageTimelockAdminRoleSelf = getStorageTimelockAdminRoleMember(
+        'TIMELOCK_ADMIN_ROLE',
+        timelockContractAddress,
+    );
+    const storageTimelockAdminRole = getStorageTimelockAdminRoleMember('TIMELOCK_ADMIN_ROLE', deployer);
+    const storageProposerRole = getStorageTimelockAdminRoleMember('PROPOSER_ROLE', deployer);
+    const storageCancellerRole = getStorageTimelockAdminRoleMember('EXECUTOR_ROLE', deployer);
+    const storageExecutorRole = getStorageTimelockAdminRoleMember('CANCELLER_ROLE', deployer);
     return {
         [STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.PROPOSER_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.CANCELLER_ROLE]: timelockAdminRole,
         [STORAGE_GENESIS.TIMELOCK.EXECUTOR_ROLE]: timelockAdminRole,
-        [storageTimelockAdminRoleMemberGenesis]: ethers.zeroPadValue('0x01', 32),
-        [storageTimelockAdminRoleMember]: ethers.zeroPadValue('0x00', 32),
-        [STORAGE_GENESIS.TIMELOCK.TIMELOCK_ADMIN_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
-        [STORAGE_GENESIS.TIMELOCK.PROPOSER_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
-        [STORAGE_GENESIS.TIMELOCK.CANCELLER_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
-        [STORAGE_GENESIS.TIMELOCK.EXECUTOR_ROLE_MEMBER]: ethers.zeroPadValue('0x01', 32),
+        [storageTimelockAdminRoleSelf]: ethers.zeroPadValue('0x01', 32),
+        [storageTimelockAdminRole]: ethers.zeroPadValue('0x01', 32),
+        [storageProposerRole]: ethers.zeroPadValue('0x01', 32),
+        [storageCancellerRole]: ethers.zeroPadValue('0x01', 32),
+        [storageExecutorRole]: ethers.zeroPadValue('0x01', 32),
         [STORAGE_GENESIS.TIMELOCK.MINDELAY]: ethers.zeroPadValue(ethers.toBeHex(minDelay), 32),
     };
 }
@@ -358,7 +390,7 @@ export async function getExpectedStorageTokenWrappedBridgeUpgradeable(
 ) {
     // Add proxy WETH
     const wethAddressProxy = await sovereignChainBridgeContract.WETHToken();
-    const tokenWrappedBridgeUpgradeableInit = {};
+    const tokenWrappedBridgeUpgradeableInit: { [key: string]: any } = {};
     tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.STORAGE_PROXY.IMPLEMENTATION] = ethers.zeroPadValue(
         tokenWrappedAddress,
         32,
@@ -392,8 +424,14 @@ export async function getExpectedStorageTokenWrappedBridgeUpgradeable(
     return tokenWrappedBridgeUpgradeableInit;
 }
 
+/**
+ * Get the expected storage of the AggOracleCommittee contract
+ * @param {Object} initParams - initial parameters
+ * @param {String} aggOracleCommitteeContract - address of the aggOracleCommittee
+ * @returns {Object} - expected storage of the AggOracleCommittee contract
+ */
 export async function getExpectedStorageAggOracleCommittee(initParams, aggOracleCommitteeContract) {
-    const expectedStorageAggOracleCommittee = {};
+    const expectedStorageAggOracleCommittee: { [key: string]: any } = {};
     expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.INITIALIZER] = ethers.zeroPadValue(
         '0x01',
         32,
@@ -406,18 +444,26 @@ export async function getExpectedStorageAggOracleCommittee(initParams, aggOracle
         initParams.aggOracleOwner,
         32,
     );
-    expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.ADDRESS_TO_LAST_PROPOSED_GER_1] =
-        await aggOracleCommitteeContract.INITIAL_PROPOSED_GER();
-    expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.ADDRESS_TO_LAST_PROPOSED_GER_2] =
-        await aggOracleCommitteeContract.INITIAL_PROPOSED_GER();
     expectedStorageAggOracleCommittee[STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.AGG_ORACLE_MEMBERS] =
         `0x${initParams.aggOracleCommittee.length.toString(16).padStart(64, '0')}`;
-    // Add addresses of the AggOracleCommittee members
-    initParams.aggOracleCommittee.forEach((address, index) => {
+    const keccakSlot0 = ethers.keccak256(STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.AGG_ORACLE_MEMBERS);
+
+    initParams.aggOracleCommittee.forEach(async (address, index) => {
+        const memberAddress = ethers.zeroPadValue(address, 32);
+
+        const paddedSlot = STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.ADDRESS_TO_LAST_PROPOSED_GER;
+        const mappingSlot = ethers.keccak256(ethers.concat([memberAddress, paddedSlot]));
+        expectedStorageAggOracleCommittee[mappingSlot] = await aggOracleCommitteeContract.INITIAL_PROPOSED_GER();
+
+        // The dynamic array is stored at slot 0 (aggOracleMembers)
+        // Length is at slot 0, elements start at keccak256(0)
+        const slot = ethers.toBeHex(BigInt(keccakSlot0) + BigInt(index), 32);
+        expectedStorageAggOracleCommittee[slot] = memberAddress;
+
         const memberKey = BigInt(STORAGE_GENESIS.STORAGE_AGG_ORACLE_COMMITTEE.AGG_ORACLE_FIRST_MEMBER);
         const newMemberKey = memberKey + BigInt(index);
         const storageKey = `0x${newMemberKey.toString(16).padStart(64, '0')}`;
-        expectedStorageAggOracleCommittee[storageKey] = ethers.zeroPadValue(address, 32);
+        expectedStorageAggOracleCommittee[storageKey] = memberAddress;
     });
     return expectedStorageAggOracleCommittee;
 }
@@ -428,7 +474,7 @@ export async function getExpectedStorageAggOracleCommittee(initParams, aggOracle
  * @returns {Object} - actual storage
  */
 export async function getActualStorage(modificationsStorage, address) {
-    const actualStorage = {};
+    const actualStorage: { [key: string]: any } = {};
     // eslint-disable-next-line no-restricted-syntax, guard-for-in
     for (const key in modificationsStorage) {
         // eslint-disable-next-line no-await-in-loop
@@ -443,34 +489,21 @@ export async function getActualStorage(modificationsStorage, address) {
  * @param genesisInfo Object containing all the information required to update newGenesis
  *                    { contractName, address, storage, genesisObject, deployedInside }
  */
-export async function buildGenesis(newGenesis, genesisInfo) {
+export async function buildGenesis(genesisInfo: any[]) {
+    const newGenesis = [];
     for (let i = 0; i < genesisInfo.length; i++) {
-        const info = genesisInfo[i];
-        if (info.genesisObject && !info.deployedInside) {
-            // Update the contract name, bytecode, storage and nonce
-            // Address is not modified because it must match the L1 address
-            info.genesisObject.contractName = info.contractName;
-            info.genesisObject.storage = info.storage;
-            info.genesisObject.bytecode = await ethers.provider.getCode(info.address);
-            info.genesisObject.nonce = await ethers.provider.getTransactionCount(info.address);
-        } else if (!info.genesisObject && info.deployedInside) {
-            // Add a new contract that has been deployed and did not exist in the genesis
-            const contractGenesis = {
-                contractName: info.contractName,
-                balance: '0',
-                nonce: '1',
-                address: info.address,
-                bytecode: await ethers.provider.getCode(info.address),
-            };
-            if (info.storage) {
-                contractGenesis.storage = info.storage;
-            }
-            newGenesis.push(contractGenesis);
-        } else if (info.genesisObject && info.deployedInside) {
-            // Update contract that has been deployed and exists in the genesis
-            info.genesisObject.address = info.address;
+        const contract = genesisInfo[i];
+        contract.bytecode = await ethers.provider.getCode(contract.address);
+        contract.nonce = await ethers.provider.getTransactionCount(contract.address);
+        if (contract.isProxy) {
+            contract.address = contract.genesisContract.address;
+            contract.balance = contract.genesisContract.balance;
+        } else {
+            contract.balance = await ethers.provider.getBalance(contract.address);
         }
+        newGenesis.push(contract);
     }
+    return newGenesis;
 }
 
 /**
@@ -490,6 +523,7 @@ export function deepEqual(a, b) {
     if (keysA.length !== keysB.length) {
         logger.error(`Length mismatch: a: ${keysA.length}, b: ${keysB.length}`);
         logger.error(`Keys: ${keysA}`);
+        logger.error(`Keys: ${keysB}`);
         return false;
     }
     // eslint-disable-next-line no-restricted-syntax
@@ -501,4 +535,16 @@ export function deepEqual(a, b) {
     }
 
     return true;
+}
+
+/**
+ * Check if txhash have the expected storage writes length
+ * @param {Object} txHash - transaction hash
+ * @param {Object} expectedLength - expected storage writes length
+ */
+export async function checkExpectedStorageLength(txHash, expectedLength) {
+    const lengthStorage = Object.keys(await getTraceStorageWrites(txHash)).length;
+    if (lengthStorage !== expectedLength) {
+        throw new Error('Storage not expected');
+    }
 }
