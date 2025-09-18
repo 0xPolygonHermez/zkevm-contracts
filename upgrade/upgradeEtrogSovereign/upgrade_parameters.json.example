@@ -1,0 +1,14 @@
+{
+    "bridgeL2": "0x..",
+    "gerL2": "0x..",
+    "bridgeManager": "0x..",
+    "proxiedTokensManagerAddress": "0x..",
+    "emergencyBridgePauserAddress": "0x..",
+    "emergencyBridgeUnpauserAddress": "0x..",
+    "globalExitRootUpdater": "0x..",
+    "globalExitRootRemover": "0x..",
+    "forkParams": {
+        "rpc": "rpc url",
+        "timelockAdminAddress": "0x.."
+    }
+}
