@@ -6,7 +6,7 @@ import path = require('path');
 import * as dotenv from 'dotenv';
 import { ethers, upgrades } from 'hardhat';
 import { time, reset, setBalance, mine } from '@nomicfoundation/hardhat-network-helpers';
-import { PolygonZkEVMTimelock, AgglayerBridge, AgglayerGERL2, AgglayerBridgeL2 } from '../../../typechain-types';
+import { PolygonZkEVMTimelock, AgglayerBridge, AgglayerGERL2, AgglayerBridgeL2, LegacyAgglayerGERL2 } from '../../../typechain-types';
 import upgradeParams from '../upgrade_parameters.json';
 import upgradeOutput from '../upgrade_output.json';
 import { logger } from '../../../src/logger';
@@ -98,6 +98,10 @@ async function main() {
     const bridgeGasTokenNetwork = await bridgeOldContract.gasTokenNetwork();
     const bridgeGasTokenMetadata = await bridgeOldContract.gasTokenMetadata();
 
+    const polygonZkEVMGERL2 = await ethers.getContractFactory('LegacyAgglayerGERL2');
+    const gerOldContract = polygonZkEVMGERL2.attach(upgradeParams.gerL2) as LegacyAgglayerGERL2;
+    const gerBridgeAddress = await gerOldContract.bridgeAddress();
+
     // Send schedule transaction
     const txScheduleUpgrade = {
         to: upgradeOutput.timelockContractAddress,
@@ -126,6 +130,7 @@ async function main() {
     expect(await gerL2Contract.globalExitRootUpdater()).to.equal(upgradeParams.globalExitRootUpdater);
     expect(await gerL2Contract.globalExitRootRemover()).to.equal(upgradeParams.globalExitRootRemover);
     expect(await gerL2Contract.GER_SOVEREIGN_VERSION()).to.equal(GER_VERSION);
+    expect(await gerL2Contract.bridgeAddress()).to.equal(gerBridgeAddress);
 
     logger.info(`✓ Checked AgglayerGERL2 contract storage parameters`);
 

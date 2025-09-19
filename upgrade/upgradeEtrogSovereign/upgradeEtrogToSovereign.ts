@@ -12,13 +12,22 @@ import { genTimelockOperation, decodeScheduleData } from '../utils';
 import { checkParams, getDeployerFromParameters, getProviderAdjustingMultiplierGas } from '../../src/utils';
 
 import upgradeParameters from './upgrade_parameters.json';
+import { addInfoOutput } from '../../tools/utils';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const pathOutputJson = path.join(__dirname, './upgrade_output.json');
 
 async function main() {
+    // Check for unsafe mode from parameters
+    const isUnsafeMode = (upgradeParameters as any).unsafeMode || false;
+    if (isUnsafeMode) {
+        logger.warn('⚠️  UNSAFE MODE ENABLED: criticalTooling checks disabled');
+    }
+
     let outputJson = {};
+    // Add git info using addInfoOutput with criticalTooling flag
+    outputJson = addInfoOutput(outputJson, !isUnsafeMode);
 
     /*
      * Check upgrade parameters
