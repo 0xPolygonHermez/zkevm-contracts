@@ -6,12 +6,7 @@ import path = require('path');
 import * as dotenv from 'dotenv';
 import { ethers, upgrades } from 'hardhat';
 import { time, reset, setBalance, mine } from '@nomicfoundation/hardhat-network-helpers';
-import {
-    PolygonZkEVMTimelock,
-    AgglayerBridge,
-    AgglayerGERL2,
-    AgglayerBridgeL2,
-} from '../../../typechain-types';
+import { PolygonZkEVMTimelock, AgglayerBridge, AgglayerGERL2, AgglayerBridgeL2 } from '../../../typechain-types';
 import upgradeParams from '../upgrade_parameters.json';
 import upgradeOutput from '../upgrade_output.json';
 import { logger } from '../../../src/logger';

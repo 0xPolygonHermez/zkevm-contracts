@@ -2,6 +2,7 @@ pragma solidity 0.8.28;
 
 import "./AgglayerBridgeL2.sol";
 
+// Contract created to perform the upgrade from the Etrog version to the AgglayerBridgeL2 version.
 contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
     /**
      * @notice Override the function to prevent the contract from being initialized with this initializer
@@ -23,6 +24,13 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
         revert InvalidInitializeFunction();
     }
 
+    /**
+     * @dev initializer function to set the initial values when the contract is upgraded from the Etrog version
+     * @param _bridgeManager bridge manager address
+     * @param _emergencyBridgePauser emergency bridge pauser address, allowed to be zero if the chain wants to disable the feature to stop the bridge
+     * @param _emergencyBridgeUnpauser emergency bridge unpauser address, allowed to be zero if the chain wants to disable the feature to unpause the bridge
+     * @param _proxiedTokensManager address of the proxied tokens manager
+     */
     function initializeBridgeZkEVM(
         address _bridgeManager,
         address _emergencyBridgePauser,
