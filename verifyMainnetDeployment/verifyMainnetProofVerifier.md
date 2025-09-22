@@ -1,4 +1,4 @@
-# Verify deployment on Mainnet the proof verifier smart contract (fork.11)
+# Verify deployment on Mainnet the proof verifier smart contract (fork.12)
 
 In order to verify the smart contract, you will need a machine with at least 512GB of RAM and 32 cores.
 
@@ -63,11 +63,52 @@ The version of circom should be: 2.1.8
 
 ## Prepare fast build constant tree tool and fflonk setup
 
+Checkout to [v8.0.0-RC16](https://github.com/0xPolygon/zkevm-prover/releases/tag/v8.0.0-RC16)
+
+Note that in this release, `bctree` fails to build due to a problem in the Makefile. Apply these changes.
+
+```
+git diff Makefile
+diff --git a/Makefile b/Makefile
+index 663a1850..7cc66972 100644
+--- a/Makefile
++++ b/Makefile
+@@ -79,13 +79,13 @@ OBJS_ZKP := $(SRCS_ZKP:%=$(BUILD_DIR)/%.o)
+ OBJS_ZKP_GPU := $(SRCS_ZKP_GPU:%=$(BUILD_DIR_GPU)/%.o)
+ DEPS_ZKP := $(OBJS_ZKP:.o=.d)
+
+-SRCS_BCT := $(shell find ./tools/starkpil/bctree/build_const_tree.cpp ./tools/starkpil/bctree/main.cpp ./src/goldilocks/src ./src/starkpil/merkleTree/merkleTreeBN128.cpp ./src/starkpil/merkleTree/merkleTreeGL.cpp ./src/poseidon_opt/poseidon_opt.cpp ./src/XKCP ./src/ffiasm ./src/starkpil/stark_info.* ./src/utils/* \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
++SRCS_BCT := $(shell find ./tools/starkpil/bctree/ ./src/goldilocks/src ./src/ffiasm ./src/starkpil ./src/poseidon_opt ./tools/sm ./src/sm ./src/hashdb ./src/config ./src/utils ./src/witness2db ./src/XKCP ./src/rapidsnark \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
+ OBJS_BCT := $(SRCS_BCT:%=$(BUILD_DIR)/%.o)
+ DEPS_BCT := $(OBJS_BCT:.o=.d)
+
+-SRCS_TEST := $(shell find ./test/examples/ ./src/XKCP ./src/goldilocks/src ./src/starkpil/stark_info.* ./src/starkpil/starks.* ./src/starkpil/chelpers.* ./src/rapidsnark/binfile_utils.* ./src/starkpil/steps.* ./src/starkpil/polinomial.hpp ./src/starkpil/merkleTree/merkleTreeGL.* ./src/starkpil/transcript/transcript.* ./src/starkpil/fri ./src/ffiasm ./src/utils ./tools/sm/sha256/sha256.cpp ./tools/sm/sha256/bcon/bcon_sha256.cpp ! -path "./src/starkpil/fri/friProveC12.*" \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
++SRCS_TEST := $(shell find ./test/examples/ ./src/XKCP ./src/goldilocks/src ./src/starkpil/stark_info.* ./src/starkpil/starks.* ./src/starkpil/chelpers.* ./src/rapidsnark/binfile_utils.* ./src/starkpil/steps.* ./src/starkpil/polinomial.hpp ./src/starkpil/merkleTree/merkleTreeGL.* ./src/starkpil/transcript/transcript.* ./src/starkpil/fri ./src/ffiasm ./src/utils ! -path "./src/starkpil/fri/friProveC12.*" \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
+
+-SRCS_TEST_GPU := $(shell find ./test/examples/ ./src/XKCP ./src/goldilocks/src ./src/goldilocks/utils ./src/starkpil/stark_info.* ./src/starkpil/starks.* ./src/starkpil/chelpers.*  ./src/starkpil/chelpers_steps_gpu.cu  ./src/rapidsnark/binfile_utils.* ./src/starkpil/steps.* ./src/starkpil/polinomial.hpp ./src/starkpil/merkleTree/merkleTreeGL.* ./src/starkpil/transcript/transcript.* ./src/starkpil/fri ./src/ffiasm ./src/utils ./tools/sm/sha256/sha256.cpp ./tools/sm/sha256/bcon/bcon_sha256.cpp ! -path "./src/starkpil/fri/friProveC12.*" ! -path "./src/goldilocks/utils/deviceQuery.cu" \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc -or -name *.cu \))
++SRCS_TEST_GPU := $(shell find ./test/examples/ ./src/XKCP ./src/goldilocks/src ./src/goldilocks/utils ./src/starkpil/stark_info.* ./src/starkpil/starks.* ./src/starkpil/chelpers.*  ./src/starkpil/chelpers_steps_gpu.cu  ./src/rapidsnark/binfile_utils.* ./src/starkpil/steps.* ./src/starkpil/polinomial.hpp ./src/starkpil/merkleTree/merkleTreeGL.* ./src/starkpil/transcript/transcript.* ./src/starkpil/fri ./src/ffiasm ./src/utils ! -path "./src/starkpil/fri/friProveC12.*" ! -path "./src/goldilocks/utils/deviceQuery.cu" \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc -or -name *.cu \))
+ OBJS_TEST := $(SRCS_TEST:%=$(BUILD_DIR)/%.o)
+ OBJS_TEST_GPU := $(SRCS_TEST_GPU:%=$(BUILD_DIR_GPU)/%.o)
+ DEPS_TEST := $(OBJS_TEST:.o=.d)
+@@ -124,7 +124,7 @@ $(BUILD_DIR_GPU)/$(TARGET_ZKP_GPU): $(OBJS_ZKP_GPU)
+        $(NVCC) $(OBJS_ZKP_GPU) -O3 -arch=$(CUDA_ARCH) -o $@ $(LDFLAGS_GPU)
+
+ $(BUILD_DIR)/$(TARGET_BCT): $(OBJS_BCT)
+-       $(CXX) $(OBJS_BCT) $(CXXFLAGS) -o $@ $(LDFLAGS) $(CFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
++       $(CXX) $(OBJS_BCT) $(CXXFLAGS) -Wl,--allow-multiple-definition -o $@ $(LDFLAGS) $(CFLAGS) $(CPPFLA
+GS) $(CXXFLAGS) $(LDFLAGS)
+
+ $(BUILD_DIR)/$(TARGET_TEST): $(OBJS_TEST)
+        $(CXX) $(OBJS_TEST) $(CXXFLAGS) -o $@ $(LDFLAGS) $(CFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
+```
+
+And run:
+
 ```bash
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-prover.git
 cd zkevm-prover
-git checkout 4a237f1c5d770373c9ff19d75fe87890c4599878
+git checkout a94d7d0
 git submodule init
 git submodule update
 sudo apt install -y build-essential libomp-dev libgmp-dev nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev grpc-proto libsodium-dev uuid-dev libsecp256k1-dev
@@ -78,13 +119,43 @@ this step takes less than 1 minute.
 
 ## Prepare and launch setup (zkevm-proverjs)
 
+Now checkout to [v8.0.0-fork.12](https://github.com/0xPolygon/zkevm-proverjs/releases/tag/v8.0.0-fork.12).
+
 ```bash
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-proverjs.git
 cd zkevm-proverjs
-git checkout cec76cc411838b78d3649543fb0fca712317c713
+git checkout 9fe5733
 npm install
 tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree --fflonksetup=../zkevm-prover/build/fflonkSetup --mode=25"
+```
+
+`BLOCKED` I get this error.
+
+```
+####### buildconstanttree #######
+
+> @0xpolygonhermez/zkevm-proverjs@6.0.0 buildconstanttree
+> . ./pre.sh && $BCTREE -c $BDIR/config/zkevm/zkevm.const -p $PIL -s $BDIR/config/zkevm/zkevm.starkinfo.json -v $BDIR/config/zkevm/zkevm.verkey.json
+
+Using 475524 MB
+bctree: version 0.1.0.0
+{"level":"info","ts":"1758534493.326967","msg":"--> BUILD_CONST_TREE starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534493.326997","msg":"--> STARK_INFO_LOAD starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534493.327001","msg":"file2json() loading JSON file build/proof/config/zkevm/zkevm.starkinfo.json","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534494.037531","msg":"<-- STARK_INFO_LOAD done: 0.710523 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534494.194156","msg":"--> LOADING_CONST_POLS starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534498.459125","msg":"<-- LOADING_CONST_POLS done: 4.264960 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534498.459170","msg":"--> EXTEND_CONST_POLS starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534539.174349","msg":"<-- EXTEND_CONST_POLS done: 40.715163 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534539.174396","msg":"--> MERKELIZE_CONST_TREE starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534628.143672","msg":"<-- MERKELIZE_CONST_TREE done: 88.969246 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534628.143885","msg":"--> GENERATING_FILES starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534628.144515","msg":"<-- GENERATING_FILES done: 0.000627 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+{"level":"info","ts":"1758534628.365651","msg":"<-- BUILD_CONST_TREE done: 135.038673 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
+malloc_consolidate(): unaligned fastbin chunk detected
+Aborted
+buildconstanttree ...[FAIL] 0:02:15 / 0:27:38
 ```
 
 This step is quite long, it takes approximately 4.5 hours. 2 out of 4.5 hours are for the powersOfTau28_hez_final.ptau download, a file of 288GB that it's loaded only once.
