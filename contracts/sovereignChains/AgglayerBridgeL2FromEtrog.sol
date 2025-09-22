@@ -4,6 +4,11 @@ import "./AgglayerBridgeL2.sol";
 
 // Contract created to perform the upgrade from the Etrog version to the AgglayerBridgeL2 version.
 contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
+     /**
+     * @dev Thrown when one of the initialization parameters that must be 0 has already been initialized
+     */
+    error ParameterAlreadyInitialized();
+
     /**
      * @notice Override the function to prevent the contract from being initialized with this initializer
      */
@@ -36,8 +41,26 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
         address _emergencyBridgePauser,
         address _emergencyBridgeUnpauser,
         address _proxiedTokensManager
-    ) public virtual reinitializer(3) {
+    ) public virtual getInitializedVersion reinitializer(3) {
+        // Checks that upgrade is being done from the contract initialized
+        if (_initializerVersion == 0) {
+            revert InvalidInitializeFunction();
+        }
+
+        // Checks that the new parameters are not already set
+        if (
+            bridgeManager != address(0) || 
+            emergencyBridgePauser != address(0) || 
+            emergencyBridgeUnpauser != address(0) ||
+            proxiedTokensManager != address(0)
+        ) {
+            revert ParameterAlreadyInitialized();
+        }
+
+        // Set bridge manager
         bridgeManager = _bridgeManager;
+
+        // Set emergency bridge pauser and unpauser
         emergencyBridgePauser = _emergencyBridgePauser;
         emit AcceptEmergencyBridgePauserRole(address(0), emergencyBridgePauser);
         emergencyBridgeUnpauser = _emergencyBridgeUnpauser;
@@ -54,10 +77,7 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
 
         // It's not allowed proxiedTokensManager to be zero address. If disabling token upgradability is required, add a not owned account like 0xffff...fffff
         require(_proxiedTokensManager != address(0), InvalidZeroAddress());
-
         proxiedTokensManager = _proxiedTokensManager;
-
         emit AcceptProxiedTokensManagerRole(address(0), proxiedTokensManager);
     }
-
 }
