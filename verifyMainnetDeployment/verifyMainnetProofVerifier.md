@@ -31,6 +31,7 @@ node -v
 ```
 
 The version of node should be: 18 (e.g. 18.19.0 )
+Note that hardhat will complain that this node version is not supported byt hardhat. It seems to be just a warning and `v24.8.0` produces the same contract bytecode, so maybe it can be ignored.
 
 ## Download and prepare circom
 
