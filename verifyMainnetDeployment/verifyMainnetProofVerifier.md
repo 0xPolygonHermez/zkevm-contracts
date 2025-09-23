@@ -74,36 +74,17 @@ Note that in this release, `bctree` fails to build due to a problem in the Makef
 ```
 git diff Makefile
 diff --git a/Makefile b/Makefile
-index 663a1850..7cc66972 100644
+index 663a1850..0eea0f69 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -79,13 +79,13 @@ OBJS_ZKP := $(SRCS_ZKP:%=$(BUILD_DIR)/%.o)
+@@ -79,7 +79,7 @@ OBJS_ZKP := $(SRCS_ZKP:%=$(BUILD_DIR)/%.o)
  OBJS_ZKP_GPU := $(SRCS_ZKP_GPU:%=$(BUILD_DIR_GPU)/%.o)
  DEPS_ZKP := $(OBJS_ZKP:.o=.d)
 
 -SRCS_BCT := $(shell find ./tools/starkpil/bctree/build_const_tree.cpp ./tools/starkpil/bctree/main.cpp ./src/goldilocks/src ./src/starkpil/merkleTree/merkleTreeBN128.cpp ./src/starkpil/merkleTree/merkleTreeGL.cpp ./src/poseidon_opt/poseidon_opt.cpp ./src/XKCP ./src/ffiasm ./src/starkpil/stark_info.* ./src/utils/* \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
-+SRCS_BCT := $(shell find ./tools/starkpil/bctree/ ./src/goldilocks/src ./src/ffiasm ./src/starkpil ./src/poseidon_opt ./tools/sm ./src/sm ./src/hashdb ./src/config ./src/utils ./src/witness2db ./src/XKCP ./src/rapidsnark \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
++SRCS_BCT := $(shell find ./tools/starkpil/bctree/build_const_tree.cpp ./tools/starkpil/bctree/main.cpp ./src/goldilocks/src ./src/starkpil/merkleTree/merkleTreeBN128.cpp ./src/starkpil/merkleTree/merkleTreeGL.cpp ./src/poseidon_opt/poseidon_opt.cpp ./src/XKCP ./src/ffiasm ./src/starkpil/stark_info.* ./tools/sm/sha256/sha256.cpp ./tools/sm/sha256/bcon/bcon_sha256.cpp ./src/utils/* \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
  OBJS_BCT := $(SRCS_BCT:%=$(BUILD_DIR)/%.o)
  DEPS_BCT := $(OBJS_BCT:.o=.d)
-
--SRCS_TEST := $(shell find ./test/examples/ ./src/XKCP ./src/goldilocks/src ./src/starkpil/stark_info.* ./src/starkpil/starks.* ./src/starkpil/chelpers.* ./src/rapidsnark/binfile_utils.* ./src/starkpil/steps.* ./src/starkpil/polinomial.hpp ./src/starkpil/merkleTree/merkleTreeGL.* ./src/starkpil/transcript/transcript.* ./src/starkpil/fri ./src/ffiasm ./src/utils ./tools/sm/sha256/sha256.cpp ./tools/sm/sha256/bcon/bcon_sha256.cpp ! -path "./src/starkpil/fri/friProveC12.*" \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
-+SRCS_TEST := $(shell find ./test/examples/ ./src/XKCP ./src/goldilocks/src ./src/starkpil/stark_info.* ./src/starkpil/starks.* ./src/starkpil/chelpers.* ./src/rapidsnark/binfile_utils.* ./src/starkpil/steps.* ./src/starkpil/polinomial.hpp ./src/starkpil/merkleTree/merkleTreeGL.* ./src/starkpil/transcript/transcript.* ./src/starkpil/fri ./src/ffiasm ./src/utils ! -path "./src/starkpil/fri/friProveC12.*" \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
-
--SRCS_TEST_GPU := $(shell find ./test/examples/ ./src/XKCP ./src/goldilocks/src ./src/goldilocks/utils ./src/starkpil/stark_info.* ./src/starkpil/starks.* ./src/starkpil/chelpers.*  ./src/starkpil/chelpers_steps_gpu.cu  ./src/rapidsnark/binfile_utils.* ./src/starkpil/steps.* ./src/starkpil/polinomial.hpp ./src/starkpil/merkleTree/merkleTreeGL.* ./src/starkpil/transcript/transcript.* ./src/starkpil/fri ./src/ffiasm ./src/utils ./tools/sm/sha256/sha256.cpp ./tools/sm/sha256/bcon/bcon_sha256.cpp ! -path "./src/starkpil/fri/friProveC12.*" ! -path "./src/goldilocks/utils/deviceQuery.cu" \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc -or -name *.cu \))
-+SRCS_TEST_GPU := $(shell find ./test/examples/ ./src/XKCP ./src/goldilocks/src ./src/goldilocks/utils ./src/starkpil/stark_info.* ./src/starkpil/starks.* ./src/starkpil/chelpers.*  ./src/starkpil/chelpers_steps_gpu.cu  ./src/rapidsnark/binfile_utils.* ./src/starkpil/steps.* ./src/starkpil/polinomial.hpp ./src/starkpil/merkleTree/merkleTreeGL.* ./src/starkpil/transcript/transcript.* ./src/starkpil/fri ./src/ffiasm ./src/utils ! -path "./src/starkpil/fri/friProveC12.*" ! -path "./src/goldilocks/utils/deviceQuery.cu" \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc -or -name *.cu \))
- OBJS_TEST := $(SRCS_TEST:%=$(BUILD_DIR)/%.o)
- OBJS_TEST_GPU := $(SRCS_TEST_GPU:%=$(BUILD_DIR_GPU)/%.o)
- DEPS_TEST := $(OBJS_TEST:.o=.d)
-@@ -124,7 +124,7 @@ $(BUILD_DIR_GPU)/$(TARGET_ZKP_GPU): $(OBJS_ZKP_GPU)
-        $(NVCC) $(OBJS_ZKP_GPU) -O3 -arch=$(CUDA_ARCH) -o $@ $(LDFLAGS_GPU)
-
- $(BUILD_DIR)/$(TARGET_BCT): $(OBJS_BCT)
--       $(CXX) $(OBJS_BCT) $(CXXFLAGS) -o $@ $(LDFLAGS) $(CFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
-+       $(CXX) $(OBJS_BCT) $(CXXFLAGS) -Wl,--allow-multiple-definition -o $@ $(LDFLAGS) $(CFLAGS) $(CPPFLA
-GS) $(CXXFLAGS) $(LDFLAGS)
-
- $(BUILD_DIR)/$(TARGET_TEST): $(OBJS_TEST)
-        $(CXX) $(OBJS_TEST) $(CXXFLAGS) -o $@ $(LDFLAGS) $(CFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
 ```
 
 And run:
@@ -125,6 +106,23 @@ this step takes less than 1 minute.
 
 Now checkout to [v8.0.0-fork.12](https://github.com/0xPolygon/zkevm-proverjs/releases/tag/v8.0.0-fork.12).
 
+Change this line in the `package.json`.
+```
+diff --git a/package.json b/package.json
+index b4503af..ed4105c 100644
+--- a/package.json
++++ b/package.json
+@@ -55,7 +55,7 @@
+     "recursivef_verifier_gencircom": ". ./pre.sh && $PILSTARK/main_pil2circom.js --skipMain -p $BDIR/pil/recursivef.pil -s $BDIR/config/recursivef/recursivef.starkinfo.json -v $BDIR/config/recursivef/recursivef.verkey.json -o $BDIR/circom/recursivef.verifier.circom",
+     "final_gencircom": ". ./pre.sh && cp recursive/final.circom $BDIR/circom/final.circom",
+     "final_compile": ". ./pre.sh && mkdir -p $BDIR/config/final/ && circom --O1 --r1cs --sym --wasm --c --verbose $BDIR/circom/final.circom -o $BDIR/build/ -l node_modules/pil-stark/circuits.bn128 -l node_modules/circomlib/circuits",
+-    "downloadptaw": "wget -P build https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final.ptau",
++     "downloadptaw": "wget -P build https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final.ptau",
+     "fflonk_setup": ". ./pre.sh && $FFLONKSETUP $BDIR/build/final.r1cs build/powersOfTau28_hez_final.ptau $BDIR/config/final/final.fflonk.zkey",
+     "fflonk_evk": ". ./pre.sh && $SNARKJS zkev $BDIR/config/final/final.fflonk.zkey $BDIR/config/final/final.fflonk.verkey.json",
+     "fflonk_solidity": ". ./pre.sh && $SNARKJS zkesv $BDIR/config/final/final.fflonk.zkey $BDIR/build/final.fflonk.verifier.sol",
+```
+
 ```bash
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-proverjs.git
@@ -132,34 +130,6 @@ cd zkevm-proverjs
 git checkout 9fe5733
 npm install
 tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree --fflonksetup=../zkevm-prover/build/fflonkSetup --mode=25"
-```
-
-`BLOCKED` I get this error.
-
-```
-####### buildconstanttree #######
-
-> @0xpolygonhermez/zkevm-proverjs@6.0.0 buildconstanttree
-> . ./pre.sh && $BCTREE -c $BDIR/config/zkevm/zkevm.const -p $PIL -s $BDIR/config/zkevm/zkevm.starkinfo.json -v $BDIR/config/zkevm/zkevm.verkey.json
-
-Using 475524 MB
-bctree: version 0.1.0.0
-{"level":"info","ts":"1758534493.326967","msg":"--> BUILD_CONST_TREE starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534493.326997","msg":"--> STARK_INFO_LOAD starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534493.327001","msg":"file2json() loading JSON file build/proof/config/zkevm/zkevm.starkinfo.json","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534494.037531","msg":"<-- STARK_INFO_LOAD done: 0.710523 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534494.194156","msg":"--> LOADING_CONST_POLS starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534498.459125","msg":"<-- LOADING_CONST_POLS done: 4.264960 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534498.459170","msg":"--> EXTEND_CONST_POLS starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534539.174349","msg":"<-- EXTEND_CONST_POLS done: 40.715163 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534539.174396","msg":"--> MERKELIZE_CONST_TREE starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534628.143672","msg":"<-- MERKELIZE_CONST_TREE done: 88.969246 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534628.143885","msg":"--> GENERATING_FILES starting...","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534628.144515","msg":"<-- GENERATING_FILES done: 0.000627 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-{"level":"info","ts":"1758534628.365651","msg":"<-- BUILD_CONST_TREE done: 135.038673 s","pid":"","tid":"4489980","version":"v8.0.0-RC16"}
-malloc_consolidate(): unaligned fastbin chunk detected
-Aborted
-buildconstanttree ...[FAIL] 0:02:15 / 0:27:38
 ```
 
 This step is quite long, it takes approximately 4.5 hours. 2 out of 4.5 hours are for the powersOfTau28_hez_final.ptau download, a file of 288GB that it's loaded only once.
