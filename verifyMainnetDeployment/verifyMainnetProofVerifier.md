@@ -46,11 +46,15 @@ git log --pretty=format:'%H' -n 1
 
 The hash of the commit should be: f0deda416abe91e5dd906c55507c737cd9986ab5
 
+Install Rust
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
 Install and compile circom (RUST)
 
 ```bash
 cd ~
-sudo apt install -y cargo
 cd circom
 cargo build --release
 cargo install --path circom
