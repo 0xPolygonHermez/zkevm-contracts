@@ -145,7 +145,7 @@ cd ~
 mkdir contract
 cd contract
 npm init -y
-npm install hardhat
+npm i hardhat@2.26.3
 mkdir -p contracts/verifiers
 ```
 
@@ -189,15 +189,15 @@ Once the project structure is created, we proceed to copy the smart contract gen
 
 ```bash
 cd ~/contract
-cp ~/zkevm-proverjs/build/proof/build/final.fflonk.verifier.sol contracts/verifiers/FflonkVerifier_11.sol
-sed -i "s/FflonkVerifier {/FflonkVerifier_11 {/" contracts/verifiers/FflonkVerifier_11.sol
-sha256sum contracts/verifiers/FflonkVerifier_11.sol
+cp ~/zkevm-proverjs/build/proof/build/final.fflonk.verifier.sol contracts/verifiers/FflonkVerifier_12.sol
+sed -i "s/FflonkVerifier {/FflonkVerifier_12 {/" contracts/verifiers/FflonkVerifier_12.sol
+sha256sum contracts/verifiers/FflonkVerifier_12.sol
 ```
 
 The result should be:
 
 ```
-367fab7b80c452378ba888be84ec08aea3fcf5099cdc4d61c140c61f99982f31
+a4b031d247834a2dca50ce5159fb6d968cc5882c10110a23f5ab0166fc215511
 ```
 
 To compile smartcontract execute following command:
@@ -241,35 +241,35 @@ Verify bytecode compiled:
 
 ```
 cd ~/contract
-cat ./artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier_11.json | jq .bytecode -r | tee FflonkVerifier.sol.compiled.bytecode | sha256sum
+cat ./artifacts/contracts/verifiers/FflonkVerifier_12.sol/FflonkVerifier_12.json | jq .bytecode -r | tee FflonkVerifier.sol.compiled.bytecode | sha256sum
 ```
 
 The result should be:
 
 ```
-ab331dc7cc63216e55a3058e51773cdfda280aa37382f444471373706d112a57
+5037e7d03e291c79b2aaac644bfabc69e29191cce5b0f268fb7b53ea16fbd89f
 ```
 
 ## Download bytecode of deployed smartcontract
 
-To download bytecode of deployed smartcontract, need the address of smart contract, in this case it's _0x0775e11309d75aA6b0967917fB0213C5673eDf81_.
+To download bytecode of deployed smartcontract, need the address of smart contract, in this case it's 0x9B9671dB83CfcB4508bF361942488C5cA2b1286D.
 
 ### Download by copying data manually
 
 Go to Etherscan or Beaconcha to get transaction bytecode.
 
-Associated with address _0x082cCe3072A26a3871D3e5D40afB425fF5038Cf6_ found the transacction _0xeef8a49cc2469c11043eeb4a1a90c9c184ea1908651326b1b81f2761218f3397_.
+Associated with address 0x9B9671dB83CfcB4508bF361942488C5cA2b1286D found the transacction 0x47ce4fb6fc1bc6ac737dd54b33b5618a50e644dd24ff32a72fabfb2fdc0f3f33.
 
 -   ### Etherscan (https://etherscan.io)
-    https://etherscan.io/address/0xc521580cd8586cc688a7430f9dce0f6a803f2883
-    https://etherscan.io/tx/0xeef8a49cc2469c11043eeb4a1a90c9c184ea1908651326b1b81f2761218f3397
+    https://etherscan.io/address/0x9B9671dB83CfcB4508bF361942488C5cA2b1286D
+    https://etherscan.io/tx/0x47ce4fb6fc1bc6ac737dd54b33b5618a50e644dd24ff32a72fabfb2fdc0f3f33
 
 
     Click to show more > Input Data > Select all data and copy to clipboard.
 
 -   ### Beacocha (https://beaconcha.in)
-    https://beaconcha.in/address/c521580cd8586Cc688A7430F9DcE0f6A803F2883
-    https://beaconcha.in/tx/0xeef8a49cc2469c11043eeb4a1a90c9c184ea1908651326b1b81f2761218f3397
+    https://beaconcha.in/address/0x9B9671dB83CfcB4508bF361942488C5cA2b1286D
+    https://beaconcha.in/tx/0x47ce4fb6fc1bc6ac737dd54b33b5618a50e644dd24ff32a72fabfb2fdc0f3f33
 
     Advanced Info > Call Data > Select all data and copy to clipboard.
 
