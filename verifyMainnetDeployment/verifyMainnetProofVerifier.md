@@ -11,6 +11,7 @@ So lets start by launching and instance.
 ```bash
 sudo apt update
 sudo apt install -y tmux git curl jq
+sudo apt install -y build-essential libomp-dev libgmp-dev nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev grpc-proto libsodium-dev uuid-dev libsecp256k1-dev
 ```
 
 ## Tweaking the OS to accept high amount of memory.
@@ -103,7 +104,6 @@ cd zkevm-prover
 git checkout a94d7d0
 git submodule init
 git submodule update
-sudo apt install -y build-essential libomp-dev libgmp-dev nlohmann-json3-dev libpqxx-dev nasm libgrpc++-dev libprotobuf-dev grpc-proto libsodium-dev uuid-dev libsecp256k1-dev
 make -j bctree fflonk_setup
 ```
 
