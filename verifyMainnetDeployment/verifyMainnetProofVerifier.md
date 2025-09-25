@@ -95,22 +95,7 @@ this step takes less than 1 minute.
 
 Now checkout to [v8.0.0-fork.12](https://github.com/0xPolygon/zkevm-proverjs/releases/tag/v8.0.0-fork.12).
 
-Change this line in the `package.json`.
-```
-diff --git a/package.json b/package.json
-index b4503af..ed4105c 100644
---- a/package.json
-+++ b/package.json
-@@ -55,7 +55,7 @@
-     "recursivef_verifier_gencircom": ". ./pre.sh && $PILSTARK/main_pil2circom.js --skipMain -p $BDIR/pil/recursivef.pil -s $BDIR/config/recursivef/recursivef.starkinfo.json -v $BDIR/config/recursivef/recursivef.verkey.json -o $BDIR/circom/recursivef.verifier.circom",
-     "final_gencircom": ". ./pre.sh && cp recursive/final.circom $BDIR/circom/final.circom",
-     "final_compile": ". ./pre.sh && mkdir -p $BDIR/config/final/ && circom --O1 --r1cs --sym --wasm --c --verbose $BDIR/circom/final.circom -o $BDIR/build/ -l node_modules/pil-stark/circuits.bn128 -l node_modules/circomlib/circuits",
--    "downloadptaw": "wget -P build https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final.ptau",
-+     "downloadptaw": "wget -P build https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final.ptau",
-     "fflonk_setup": ". ./pre.sh && $FFLONKSETUP $BDIR/build/final.r1cs build/powersOfTau28_hez_final.ptau $BDIR/config/final/final.fflonk.zkey",
-     "fflonk_evk": ". ./pre.sh && $SNARKJS zkev $BDIR/config/final/final.fflonk.zkey $BDIR/config/final/final.fflonk.verkey.json",
-     "fflonk_solidity": ". ./pre.sh && $SNARKJS zkesv $BDIR/config/final/final.fflonk.zkey $BDIR/build/final.fflonk.verifier.sol",
-```
+Notice the `sed` which changes the link containing the powers of tau file, which was moved from aws to google.
 
 ```bash
 cd ~
@@ -118,6 +103,7 @@ git clone https://github.com/0xPolygonHermez/zkevm-proverjs.git
 cd zkevm-proverjs
 git checkout v8.0.0-fork.12
 rm -f package-lock.json
+sed -i -E 's|https://hermez\.s3-eu-west-1\.amazonaws\.com/powersOfTau28_hez_final\.ptau|https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final.ptau%7C' package.json
 npm install
 tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree --fflonksetup=../zkevm-prover/build/fflonkSetup --mode=25"
 ```
