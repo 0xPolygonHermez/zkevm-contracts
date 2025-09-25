@@ -30,6 +30,12 @@ sudo apt install -y nodejs
 node -v
 ```
 
+## Install Python deps
+
+```bash
+pip install z3-solver==4.13.0.0
+```
+
 The version of node should be: 18 (e.g. 18.19.0 )
 Note that hardhat will complain that this node version is not supported byt hardhat. It seems to be just a warning and `v24.8.0` produces the same contract bytecode, so maybe it can be ignored.
 
