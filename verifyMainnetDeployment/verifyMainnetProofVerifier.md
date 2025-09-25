@@ -75,35 +75,17 @@ The version of circom should be: 2.1.8
 
 ## Prepare fast build constant tree tool and fflonk setup
 
-Checkout to [v8.0.0-RC16](https://github.com/0xPolygon/zkevm-prover/releases/tag/v8.0.0-RC16)
+Get the zkevm-prover and checkout to the tag. TODO: Check  if it works with RC16.
 
-Note that in this release, `bctree` fails to build due to a problem in the Makefile. Apply these changes.
+Notice the `sed` which fixes a minor problem in the Makefile causing the `bctree` to not compile correctly.
 
 ```
-git diff Makefile
-diff --git a/Makefile b/Makefile
-index 663a1850..0eea0f69 100644
---- a/Makefile
-+++ b/Makefile
-@@ -79,7 +79,7 @@ OBJS_ZKP := $(SRCS_ZKP:%=$(BUILD_DIR)/%.o)
- OBJS_ZKP_GPU := $(SRCS_ZKP_GPU:%=$(BUILD_DIR_GPU)/%.o)
- DEPS_ZKP := $(OBJS_ZKP:.o=.d)
-
--SRCS_BCT := $(shell find ./tools/starkpil/bctree/build_const_tree.cpp ./tools/starkpil/bctree/main.cpp ./src/goldilocks/src ./src/starkpil/merkleTree/merkleTreeBN128.cpp ./src/starkpil/merkleTree/merkleTreeGL.cpp ./src/poseidon_opt/poseidon_opt.cpp ./src/XKCP ./src/ffiasm ./src/starkpil/stark_info.* ./src/utils/* \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
-+SRCS_BCT := $(shell find ./tools/starkpil/bctree/build_const_tree.cpp ./tools/starkpil/bctree/main.cpp ./src/goldilocks/src ./src/starkpil/merkleTree/merkleTreeBN128.cpp ./src/starkpil/merkleTree/merkleTreeGL.cpp ./src/poseidon_opt/poseidon_opt.cpp ./src/XKCP ./src/ffiasm ./src/starkpil/stark_info.* ./tools/sm/sha256/sha256.cpp ./tools/sm/sha256/bcon/bcon_sha256.cpp ./src/utils/* \( -name *.cpp -or -name *.c -or -name *.asm -or -name *.cc \))
- OBJS_BCT := $(SRCS_BCT:%=$(BUILD_DIR)/%.o)
- DEPS_BCT := $(OBJS_BCT:.o=.d)
-```
-
-And run:
-
-```bash
-cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-prover.git
 cd zkevm-prover
-git checkout a94d7d0
+git checkout v8.0.0-RC9
 git submodule init
 git submodule update
+sed -i -E 's|^(SRCS_BCT := .*./src/starkpil/stark_info\.\*)|\1 ./tools/sm/sha256/sha256.cpp ./tools/sm/sha256/bcon/bcon_sha256.cpp|' Makefile
 make -j bctree fflonk_setup
 ```
 
@@ -134,7 +116,8 @@ index b4503af..ed4105c 100644
 cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-proverjs.git
 cd zkevm-proverjs
-git checkout 9fe5733
+git checkout v8.0.0-fork.12
+rm -f package-lock.json
 npm install
 tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree --fflonksetup=../zkevm-prover/build/fflonkSetup --mode=25"
 ```
