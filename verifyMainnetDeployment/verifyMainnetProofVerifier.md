@@ -103,7 +103,7 @@ git clone https://github.com/0xPolygonHermez/zkevm-proverjs.git
 cd zkevm-proverjs
 git checkout v8.0.0-fork.12
 rm -f package-lock.json
-sed -i -E 's|https://hermez\.s3-eu-west-1\.amazonaws\.com/powersOfTau28_hez_final\.ptau|https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final.ptau%7C' package.json
+sed -i -E 's|https://hermez\.s3-eu-west-1\.amazonaws\.com/powersOfTau28_hez_final\.ptau|https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final.ptau|g' package.json
 npm install
 tmux -c "npm run buildsetup --bctree=../zkevm-prover/build/bctree --fflonksetup=../zkevm-prover/build/fflonkSetup --mode=25"
 ```
