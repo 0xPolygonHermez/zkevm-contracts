@@ -6,7 +6,13 @@ import path = require('path');
 import * as dotenv from 'dotenv';
 import { ethers, upgrades } from 'hardhat';
 import { time, reset, setBalance, mine } from '@nomicfoundation/hardhat-network-helpers';
-import { PolygonZkEVMTimelock, AgglayerBridge, AgglayerGERL2, AgglayerBridgeL2, LegacyAgglayerGERL2 } from '../../../typechain-types';
+import {
+    PolygonZkEVMTimelock,
+    AgglayerGERL2,
+    AgglayerBridgeL2,
+    PolygonZkEVMBridgeV2Pessimistic,
+    LegacyAgglayerGERL2,
+} from '../../../typechain-types';
 import upgradeParams from '../upgrade_parameters.json';
 import upgradeOutput from '../upgrade_output.json';
 import { logger } from '../../../src/logger';
@@ -90,8 +96,8 @@ async function main() {
     logger.info(`✓ Funded proposer account ${proposerRoleAddress}`);
 
     // get current storage values before upgrade
-    const polygonZkEVMBridgeL2 = await ethers.getContractFactory('AgglayerBridge');
-    const bridgeOldContract = polygonZkEVMBridgeL2.attach(upgradeParams.bridgeL2) as AgglayerBridge;
+    const polygonZkEVMBridgeL2 = await ethers.getContractFactory('PolygonZkEVMBridgeV2Pessimistic');
+    const bridgeOldContract = polygonZkEVMBridgeL2.attach(upgradeParams.bridgeL2) as PolygonZkEVMBridgeV2Pessimistic;
     const bridgeLastUpdatedDepositCount = await bridgeOldContract.lastUpdatedDepositCount();
     const bridgeRollupManager = await bridgeOldContract.polygonRollupManager();
     const bridgeGasTokenAddress = await bridgeOldContract.gasTokenAddress();
