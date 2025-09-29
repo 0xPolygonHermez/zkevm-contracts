@@ -4,6 +4,8 @@ In order to verify the smart contract, you will need a machine with at least 512
 
 In this tutorial we will give instructions for a r6a.16xlarge aws instance. This instance has 32 cores 64 threads. The instance will use Ubuntu 22.04 LTS and the cost of the instance is about 3.62$/h. This process is quite long, it takes approximately 4-5 hours.
 
+If using GCP, these instructions worked fine in a "n2d-highmem-64 (64 vCPUs, 512 GB memory) AMD Milan"
+
 So lets start by launching and instance.
 
 ## Basic OS preparation
