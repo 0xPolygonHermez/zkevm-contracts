@@ -14,6 +14,10 @@ import { checkParams, getDeployerFromParameters, getProviderAdjustingMultiplierG
 import upgradeParameters from './upgrade_parameters.json';
 import { addInfoOutput } from '../../tools/utils';
 
+// You can replace this import with the actual values obtained from getLBT
+import { originNetwork, originTokenAddress, totalSupply } from './initializeLBT.json';
+// import { getLBT } from './getLBT';
+
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const pathOutputJson = path.join(__dirname, './upgrade_output.json');
@@ -55,6 +59,7 @@ async function main() {
         gerL2,
         globalExitRootUpdater,
         globalExitRootRemover,
+        // creationBridgeL2Block
     } = upgradeParameters;
 
     // Load provider
@@ -116,18 +121,26 @@ async function main() {
     // Create schedule and execute operation
     logger.info('Create schedule and execute operation');
     logger.info('Operation Bridge');
+    // Get LBT initialization parameters (if not imported, import getLBT and use it)
+    // const { originNetwork, originTokenAddress, totalSupply } = await getLBT(bridgeL2, creationBridgeL2Block);
     const operationBridge = genTimelockOperation(
         proxyAdmin.target,
         0, // value
         proxyAdmin.interface.encodeFunctionData('upgradeAndCall', [
             bridgeL2,
             impBridge,
-            bridgeFactory.interface.encodeFunctionData('initializeBridgeZkEVM(address,address,address,address)', [
-                bridgeManager,
-                emergencyBridgePauserAddress,
-                emergencyBridgeUnpauserAddress,
-                proxiedTokensManagerAddress,
-            ]),
+            bridgeFactory.interface.encodeFunctionData(
+                'initializeBridgeZkEVM(address,address,address,address,uint32[],address[],uint256[])',
+                [
+                    bridgeManager,
+                    emergencyBridgePauserAddress,
+                    emergencyBridgeUnpauserAddress,
+                    proxiedTokensManagerAddress,
+                    originNetwork,
+                    originTokenAddress,
+                    totalSupply,
+                ],
+            ),
         ]), // data
         ethers.ZeroHash, // predecessor
         salt, // salt
