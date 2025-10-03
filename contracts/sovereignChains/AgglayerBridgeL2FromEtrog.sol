@@ -4,7 +4,7 @@ import "./AgglayerBridgeL2.sol";
 
 // Contract created to perform the upgrade from the Etrog version to the AgglayerBridgeL2 version.
 contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
-     /**
+    /**
      * @dev Thrown when one of the initialization parameters that must be 0 has already been initialized
      */
     error ParameterAlreadyInitialized();
@@ -52,8 +52,8 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
 
         // Checks that the new parameters are not already set
         if (
-            bridgeManager != address(0) || 
-            emergencyBridgePauser != address(0) || 
+            bridgeManager != address(0) ||
+            emergencyBridgePauser != address(0) ||
             emergencyBridgeUnpauser != address(0) ||
             proxiedTokensManager != address(0)
         ) {
@@ -84,7 +84,11 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
         emit AcceptProxiedTokensManagerRole(address(0), proxiedTokensManager);
 
         // set local balance tree
-        _setLocalBalanceTreeInitialize(originNetwork, originTokenAddress, amount);
+        _setLocalBalanceTreeInitialize(
+            originNetwork,
+            originTokenAddress,
+            amount
+        );
     }
 
     /**
