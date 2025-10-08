@@ -86,6 +86,7 @@ Update `upgrade_parameters.json` with the following values:
 - `multiplierGas`: Gas multiplier with 3 decimals (e.g., "1500" for 1.5x)
 - `timelockAdminAddress`: Address with timelock admin privileges (auto-detected if not provided)
 - `unsafeMode`: Boolean flag to disable critical tooling checks (default: false, ⚠️ only for development/testing)
+- `blockRange`: Block range to get LBT
 
 #### Fork Parameters (for testing)
 
