@@ -7,7 +7,6 @@
     "emergencyBridgeUnpauserAddress": "0x..",
     "globalExitRootUpdater": "0x..",
     "globalExitRootRemover": "0x..",
-    "creationBridgeL2Block": 4000000,
     "forkParams": {
         "rpc": "rpc url",
         "timelockAdminAddress": "0x.."
