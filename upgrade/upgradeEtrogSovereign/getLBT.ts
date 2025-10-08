@@ -1,33 +1,25 @@
 import { ethers } from 'hardhat';
 import fs from 'fs';
 import path from 'path';
+import upgradeParams from './upgrade_parameters.json';
+import { logger } from '../../src/logger';
 
-export async function getLBT(contractAddress, creationBlock) {
+export async function getLBT(contractAddress) {
     const contract = await ethers.getContractAt('PolygonZkEVMBridgeV2Pessimistic', contractAddress);
     const latest = await ethers.provider.getBlockNumber();
-    //     const blocks = [
-    //         4812268,  4928835,  4944446,  5158649,  5194772,
-    //         5393214,  5422889,  6095242,  6270488,  6388907,
-    //         6618558,  7330119,  7521564,  7594832,  7605727,
-    //         7622767,  7636575,  8032851,  8282456,  8283019,
-    //         8284099,  8284099,  8310228,  8310228,  8338175,
-    //         8475285,  8475762,  8527816,  8528375,  8528948,
-    //         8603501,  8628006,  8628442,  8650774,  8651327,
-    //         8815013,  8817997,  8819998,  9695861,  9708554,
-    //        10475255, 10892067, 11045636, 11085624, 11086166,
-    //        11107670, 12365967, 13079718, 13094711, 14453733,
-    //        14851442, 16270183, 16579157, 16831773, 16833747
-    //      ];
 
     // //////////////////////////////
     //  Get events NewWrappedToken //
     // //////////////////////////////
-
-    const loops = (latest - creationBlock) / 10000;
+    const blockRange = upgradeParams.blockRange || 100;
+    const loops = latest / blockRange;
     const events = [];
+    logger.info(`Contract address: ${contractAddress}`);
+    logger.info(`Events fetching from block 0 to ${latest} in ${Math.ceil(loops)} loops`);
     for (let i = 0; i < loops; i++) {
-        const to = creationBlock + 10000 * (i + 1) < latest ? creationBlock + 10000 * (i + 1) : latest;
-        const from = creationBlock + 10000 * i; // Últimos 10,000 bloques
+        const to = blockRange * (i + 1) < latest ? blockRange * (i + 1) : latest;
+        const from = blockRange * i;
+        logger.info(`Processing blocks from ${from} to ${to}`);
         // eslint-disable-next-line no-await-in-loop
         const eventsFilter = await contract.queryFilter('NewWrappedToken', from, to);
         if (eventsFilter.length > 0) {
@@ -39,6 +31,7 @@ export async function getLBT(contractAddress, creationBlock) {
                     originTokenAddress: event.args[1],
                     wrappedTokenAddress: event.args[2],
                 });
+                logger.info(`Block number: ${event.blockNumber.toString()} - wrappedTokenAddress: ${event.args[2]}`);
             }
         }
     }
@@ -71,10 +64,12 @@ export async function getLBT(contractAddress, creationBlock) {
 }
 
 async function main() {
-    const contractAddress = '0x528e26b25a34a4A5d0dbDa1d57D318153d2ED582';
-    const creationBlock = 4789186;
-    const objectInitialize = await getLBT(contractAddress, creationBlock);
-    await fs.writeFileSync(path.join(__dirname, 'initializeLBT.json'), JSON.stringify(objectInitialize, null, 2));
+    const objectInitialize = await getLBT(upgradeParams.bridgeL2);
+    const dateStr = new Date().toISOString();
+    await fs.writeFileSync(
+        path.join(__dirname, `initializeLBT-${dateStr}.json`),
+        JSON.stringify(objectInitialize, null, 2),
+    );
 }
 
 main().catch((error) => {
