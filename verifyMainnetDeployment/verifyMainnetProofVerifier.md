@@ -36,6 +36,7 @@ node -v
 ## Install Python deps
 
 ```bash
+apt install python3-pip
 pip install z3-solver==4.13.0.0
 ```
 
@@ -82,6 +83,7 @@ Get the zkevm-prover and checkout to the tag. TODO: Check  if it works with RC16
 Notice the `sed` which fixes a minor problem in the Makefile causing the `bctree` to not compile correctly.
 
 ```
+cd ~
 git clone https://github.com/0xPolygonHermez/zkevm-prover.git
 cd zkevm-prover
 git checkout v8.0.0-RC9
