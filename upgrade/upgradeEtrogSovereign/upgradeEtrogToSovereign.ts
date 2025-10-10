@@ -97,7 +97,7 @@ async function main() {
     // load timelock
     const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock', deployer);
     const timelockContract = (await timelockContractFactory.attach(timelockAddress)) as TimelockController;
-    // take params delay, or minimum timelock dela
+    // take params delay, or minimum timelock delay
     const timelockDelay = upgradeParameters.timelockDelay || (await timelockContract.getMinDelay());
 
     // Upgrade AgglayerBridge -> AgglayerBridgeL2FromEtrog
