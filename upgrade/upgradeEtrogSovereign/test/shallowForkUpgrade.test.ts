@@ -131,8 +131,12 @@ async function main() {
     // Check ger params after upgrade
     const agglayerGERL2Factory = await ethers.getContractFactory('AgglayerGERL2');
     const gerL2Contract = agglayerGERL2Factory.attach(upgradeParams.gerL2) as AgglayerGERL2;
-    expect(await gerL2Contract.globalExitRootUpdater()).to.equal(upgradeParams.globalExitRootUpdater);
-    expect(await gerL2Contract.globalExitRootRemover()).to.equal(upgradeParams.globalExitRootRemover);
+    expect(await gerL2Contract.globalExitRootUpdater()).to.equal(
+        upgradeParams.ger_initiaizationParameters.globalExitRootUpdater,
+    );
+    expect(await gerL2Contract.globalExitRootRemover()).to.equal(
+        upgradeParams.ger_initiaizationParameters.globalExitRootRemover,
+    );
     expect(await gerL2Contract.GER_SOVEREIGN_VERSION()).to.equal(GER_VERSION);
     expect(await gerL2Contract.bridgeAddress()).to.equal(gerBridgeAddress);
 
@@ -148,9 +152,15 @@ async function main() {
     expect(await bridgeContract.gasTokenAddress()).to.equal(bridgeGasTokenAddress);
     expect(await bridgeContract.gasTokenNetwork()).to.equal(bridgeGasTokenNetwork);
     expect(await bridgeContract.gasTokenMetadata()).to.equal(bridgeGasTokenMetadata);
-    expect(await bridgeContract.proxiedTokensManager()).to.equal(upgradeParams.proxiedTokensManagerAddress);
-    expect(await bridgeContract.emergencyBridgePauser()).to.equal(upgradeParams.emergencyBridgePauserAddress);
-    expect(await bridgeContract.emergencyBridgeUnpauser()).to.equal(upgradeParams.emergencyBridgeUnpauserAddress);
+    expect(await bridgeContract.proxiedTokensManager()).to.equal(
+        upgradeParams.bridge_initiaizationParameters.proxiedTokensManagerAddress,
+    );
+    expect(await bridgeContract.emergencyBridgePauser()).to.equal(
+        upgradeParams.bridge_initiaizationParameters.emergencyBridgePauserAddress,
+    );
+    expect(await bridgeContract.emergencyBridgeUnpauser()).to.equal(
+        upgradeParams.bridge_initiaizationParameters.emergencyBridgeUnpauserAddress,
+    );
 
     logger.info(`✓ Checked AgglayerBridgeL2 contract storage parameters`);
     logger.info('Finished shallow fork upgrade');

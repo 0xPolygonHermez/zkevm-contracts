@@ -14,10 +14,6 @@ import { checkParams, getDeployerFromParameters, getProviderAdjustingMultiplierG
 import upgradeParameters from './upgrade_parameters.json';
 import { addInfoOutput } from '../../tools/utils';
 
-// You can replace this import with the actual values obtained from getLBT
-import { originNetwork, originTokenAddress, totalSupply } from './initializeLBT.json';
-// import { getLBT } from './getLBT';
-
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const pathOutputJson = path.join(__dirname, './upgrade_output.json');
@@ -38,29 +34,28 @@ async function main() {
      * Check that every necessary parameter is fulfilled
      */
     const mandatoryUpgradeParameters = [
-        'bridgeManager',
         'bridgeL2',
         'gerL2',
-        'proxiedTokensManagerAddress',
-        'emergencyBridgePauserAddress',
-        'emergencyBridgeUnpauserAddress',
-        'globalExitRootUpdater',
-        'globalExitRootRemover',
+        'pathJsonInitLBT',
+        'bridge_initiaizationParameters.bridgeManager',
+        'bridge_initiaizationParameters.proxiedTokensManagerAddress',
+        'bridge_initiaizationParameters.emergencyBridgePauserAddress',
+        'bridge_initiaizationParameters.emergencyBridgeUnpauserAddress',
+        'ger_initiaizationParameters.globalExitRootUpdater',
+        'ger_initiaizationParameters.globalExitRootRemover',
     ];
     checkParams(upgradeParameters, mandatoryUpgradeParameters);
     const salt = upgradeParameters.timelockSalt || ethers.ZeroHash;
 
-    const {
-        bridgeManager,
-        proxiedTokensManagerAddress,
-        emergencyBridgePauserAddress,
-        emergencyBridgeUnpauserAddress,
-        bridgeL2,
-        gerL2,
-        globalExitRootUpdater,
-        globalExitRootRemover,
-        // creationBridgeL2Block
-    } = upgradeParameters;
+    const { bridgeL2, gerL2, pathJsonInitLBT } = upgradeParameters;
+
+    const { bridgeManager, proxiedTokensManagerAddress, emergencyBridgePauserAddress, emergencyBridgeUnpauserAddress } =
+        upgradeParameters.bridge_initiaizationParameters;
+
+    const { globalExitRootUpdater, globalExitRootRemover } = upgradeParameters.ger_initiaizationParameters;
+
+    // eslint-disable-next-line import/no-dynamic-require, global-require, @typescript-eslint/no-var-requires
+    const { originNetwork, originTokenAddress, totalSupply } = require(pathJsonInitLBT);
 
     // Load provider
     const currentProvider = getProviderAdjustingMultiplierGas(upgradeParameters, ethers);
@@ -121,8 +116,7 @@ async function main() {
     // Create schedule and execute operation
     logger.info('Create schedule and execute operation');
     logger.info('Operation Bridge');
-    // Get LBT initialization parameters (if not imported, import getLBT and use it)
-    // const { originNetwork, originTokenAddress, totalSupply } = await getLBT(bridgeL2, creationBridgeL2Block);
+
     const operationBridge = genTimelockOperation(
         proxyAdmin.target,
         0, // value

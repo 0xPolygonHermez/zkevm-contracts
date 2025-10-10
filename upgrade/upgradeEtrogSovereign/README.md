@@ -42,6 +42,17 @@ Fill `.env` with your credentials:
 cp ./upgrade/upgradeEtrogSovereign/upgrade_parameters.json.example ./upgrade/upgradeEtrogSovereign/upgrade_parameters.json
 ```
 
+4. **Local Balance Tree file**
+You’ll need the path to a .json file containing the local balance tree in order to run the script and perform the upgrade.
+This JSON file must include three arrays with the LBT information, structured as follows:
+```
+{
+    "originNetwork": [ ... ],
+    "originTokenAddress": [ ... ],
+    "totalSupply": [ ... ]
+}
+```
+
 ## Configuration
 
 ### Required Parameters
@@ -50,17 +61,22 @@ Update `upgrade_parameters.json` with the following values:
 
 ```json
 {
-    "bridgeL2": "0x528e26b25a34a4A5d0dbDa1d57D318153d2ED582",
-    "gerL2": "0xa40D5f56745a118D0906a34E69aeC8C0Db1cB8fA",
-    "bridgeManager": "0x36810012486fc134D0679c07f85fe5ba5A087D8C",
-    "proxiedTokensManagerAddress": "0x36810012486fc134D0679c07f85fe5ba5A087D8C",
-    "emergencyBridgePauserAddress": "0x36810012486fc134D0679c07f85fe5ba5A087D8C",
-    "emergencyBridgeUnpauserAddress": "0x36810012486fc134D0679c07f85fe5ba5A087D8C",
-    "globalExitRootUpdater": "0x36810012486fc134D0679c07f85fe5ba5A087D8C",
-    "globalExitRootRemover": "0x36810012486fc134D0679c07f85fe5ba5A087D8C",
+    "bridgeL2": "0x..",
+    "gerL2": "0x..",
+    "pathJsonInitLBT": "path/init.json",
+    "bridge_initiaizationParameters": {
+        "bridgeManager": "0x..",
+        "proxiedTokensManagerAddress": "0x..",
+        "emergencyBridgePauserAddress": "0x..",
+        "emergencyBridgeUnpauserAddress": "0x.."
+    },
+    "ger_initiaizationParameters": {
+        "globalExitRootUpdater": "0x..",
+        "globalExitRootRemover": "0x.."
+    },
     "forkParams": {
-        "rpc": "https://rpc.cardona.zkevm-rpc.com",
-        "timelockAdminAddress": "0xff6250d0E86A2465B0C1bF8e36409503d6a26963"
+        "rpc": "rpc url",
+        "timelockAdminAddress": "0x.."
     }
 }
 ```
@@ -71,12 +87,16 @@ Update `upgrade_parameters.json` with the following values:
 
 - `bridgeL2`: Address of the bridge proxy on L2
 - `gerL2`: Address of the ger proxy on L2
-- `bridgeManager`: Address of the bridge manager role
-- `proxiedTokensManagerAddress`: Address of the proxied tokens manager role
-- `emergencyBridgePauserAddress`: Address of the emergency bridge pauser role
-- `emergencyBridgeUnpauserAddress`: Address of the emergency bridge unpauser role
-- `globalExitRootUpdater`: Address of the GER updater role
-- `globalExitRootRemover`: Address of the GER remover role
+- `pathJsonInitLBT`: Path to JSON file with the local balance tree (to initialize the bridge)
+- `bridge_initiaizationParameters`:
+    - `bridgeManager`: Address of the bridge manager role
+    - `proxiedTokensManagerAddress`: Address of the proxied tokens manager role
+    - `emergencyBridgePauserAddress`: Address of the emergency bridge pauser role
+    - `emergencyBridgeUnpauserAddress`: Address of the emergency bridge unpauser role
+- `ger_initiaizationParameters`:
+    - `globalExitRootUpdater`: Address of the GER updater role
+    - `globalExitRootRemover`: Address of the GER remover role
+
 
 #### Optional Parameters
 
