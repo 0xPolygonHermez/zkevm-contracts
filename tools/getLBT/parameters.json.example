@@ -1,0 +1,7 @@
+{
+    "blockRange": 1000,
+    "contractName": "PolygonZkEVMBridgeV2Pessimistic",
+    "contractAddress": "0x..",
+    "printEvents": true,
+    "getEventsFromFile": false
+}
