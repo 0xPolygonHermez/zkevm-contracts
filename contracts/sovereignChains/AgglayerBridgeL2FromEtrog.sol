@@ -36,7 +36,7 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
      * @param _emergencyBridgeUnpauser emergency bridge unpauser address, allowed to be zero if the chain wants to disable the feature to unpause the bridge
      * @param _proxiedTokensManager address of the proxied tokens manager
      */
-    function initializeBridgeZkEVM(
+    function initializeFromEtrog(
         address _bridgeManager,
         address _emergencyBridgePauser,
         address _emergencyBridgeUnpauser,
@@ -84,51 +84,6 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
         emit AcceptProxiedTokensManagerRole(address(0), proxiedTokensManager);
 
         // set local balance tree
-        _setLocalBalanceTreeInitialize(
-            originNetwork,
-            originTokenAddress,
-            amount
-        );
-    }
-
-    /**
-     * @notice Set local balance tree leaves to specific amounts
-     * @param originNetwork The origin network of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
-     * @param originTokenAddress The origin address of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
-     * @dev The key is generated as keccak256(abi.encodePacked(originNetwork, originTokenAddress))
-     * @param amount The amount to set for the local balance tree leaf
-     */
-    function _setLocalBalanceTreeInitialize(
-        uint32[] memory originNetwork,
-        address[] memory originTokenAddress,
-        uint256[] memory amount
-    ) internal {
-        if (
-            originNetwork.length != originTokenAddress.length ||
-            originNetwork.length != amount.length
-        ) {
-            revert InputArraysLengthMismatch();
-        }
-
-        for (uint256 i = 0; i < originNetwork.length; i++) {
-            // Ensures that only tokens from other networks are updated in the Local Balance Tree.
-            if (originNetwork[i] == networkID) {
-                revert InvalidLBTLeaf();
-            }
-
-            // Compute token info hash
-            bytes32 tokenInfoHash = keccak256(
-                abi.encodePacked(originNetwork[i], originTokenAddress[i])
-            );
-            // Set the local balance tree
-            localBalanceTree[tokenInfoHash] = amount[i];
-
-            // Emit event
-            emit SetLocalBalanceTree(
-                originNetwork[i],
-                originTokenAddress[i],
-                amount[i]
-            );
-        }
+        _setLocalBalanceTree(originNetwork, originTokenAddress, amount);
     }
 }
