@@ -4,7 +4,7 @@ import path from 'path';
 import upgradeParams from './upgrade_parameters.json';
 import { logger } from '../../src/logger';
 
-export async function getLBT(contractAddress) {
+export async function getLBT(contractAddress: string) {
     const contract = await ethers.getContractAt('PolygonZkEVMBridgeV2Pessimistic', contractAddress);
     const latest = await ethers.provider.getBlockNumber();
 
@@ -36,8 +36,7 @@ export async function getLBT(contractAddress) {
             // await fs.writeFileSync(path.join(__dirname, `events.json`), JSON.stringify(events, null, 2));
         }
     }
-    // await fs.writeFileSync(path.join(__dirname, 'eventsList.json'), JSON.stringify(events, null, 2));
-    // const events = JSON.parse(fs.readFileSync(path.join(__dirname, 'eventsList.json'), 'utf-8'));
+    // const events = JSON.parse(fs.readFileSync(path.join(__dirname, 'events.json'), 'utf-8'));
     // eslint-disable-next-line no-restricted-syntax
     for (const event of events) {
         const { wrappedTokenAddress } = event;

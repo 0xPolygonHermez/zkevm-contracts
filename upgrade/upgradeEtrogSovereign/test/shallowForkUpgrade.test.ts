@@ -21,10 +21,8 @@ import { ProxyAdmin } from '../../../typechain-types/@openzeppelin/contracts4/pr
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-
 async function main() {
-    // Asser upgrade version
+    // Assert upgrade version
     const BRIDGE_VERSION = 'v1.1.0';
     const GER_VERSION = 'v1.0.0';
     const mandatoryParameters = ['timelockAdminAddress', 'rpc'];
