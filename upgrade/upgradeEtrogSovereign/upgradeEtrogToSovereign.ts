@@ -130,7 +130,7 @@ async function main() {
             bridgeL2,
             impBridge,
             bridgeFactory.interface.encodeFunctionData(
-                'initializeBridgeZkEVM(address,address,address,address,uint32[],address[],uint256[])',
+                'initializeFromEtrog(address,address,address,address,uint32[],address[],uint256[])',
                 [
                     bridgeManager,
                     emergencyBridgePauserAddress,

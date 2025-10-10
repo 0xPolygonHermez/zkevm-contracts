@@ -136,24 +136,5 @@ After running the deployment script:
 Run the shadow fork test:
 
 ```bash
-npx hardhat test ./upgrade/upgradeV12/upgradeV12.test.ts --network hardhat
+npx hardhat run ./upgrade/upgradeEtrogSovereign/test/shallowForkUpgrade.test.ts
 ```
-
-The test performs:
-
-**Network Setup:**
-
-- Forks the target network at deployment block
-- Impersonates timelock admin account
-- Funds accounts for transaction execution
-
-**Upgrade Execution:**
-
-- Simulates timelock schedule transaction
-- Fast-forwards time to bypass delay
-- Executes the batch upgrade atomically
-
-**Validation:**
-
-- ✅ Verifies all 2 contracts upgraded
-- ✅ Validates all storage variables preserved

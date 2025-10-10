@@ -11,7 +11,7 @@ export async function getLBT(contractAddress) {
     // //////////////////////////////
     //  Get events NewWrappedToken //
     // //////////////////////////////
-    const blockRange = upgradeParams.blockRange || 100;
+    const blockRange = upgradeParams.blockRange || 1000;
     const loops = latest / blockRange;
     const events = [];
     logger.info(`Contract address: ${contractAddress}`);
@@ -33,6 +33,7 @@ export async function getLBT(contractAddress) {
                 });
                 logger.info(`Block number: ${event.blockNumber.toString()} - wrappedTokenAddress: ${event.args[2]}`);
             }
+            // await fs.writeFileSync(path.join(__dirname, `events.json`), JSON.stringify(events, null, 2));
         }
     }
     // await fs.writeFileSync(path.join(__dirname, 'eventsList.json'), JSON.stringify(events, null, 2));

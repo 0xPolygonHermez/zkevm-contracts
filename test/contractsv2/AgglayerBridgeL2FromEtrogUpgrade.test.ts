@@ -71,7 +71,7 @@ describe('PolygonZkEVMBridgeV2Pessimistic upgrade -> AgglayerBridgeL2FromEtrog',
         bridgeContract = (await upgrades.upgradeProxy(bridgeOldContract.target, bridgeL2Factory, {
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
             call: {
-                fn: 'initializeBridgeZkEVM(address,address,address,address,uint32[],address[],uint256[])',
+                fn: 'initializeFromEtrog(address,address,address,address,uint32[],address[],uint256[])',
                 args: [
                     bridgeManager.address,
                     emergencyBridgePauser.address,
