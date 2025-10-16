@@ -18,6 +18,11 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const pathOutputJson = path.join(__dirname, './upgrade_output.json');
 
+const OLD_GER_L2 = 'PolygonZkEVMGlobalExitRootL2Pessimistic';
+const OLD_BRIDGE_L2 = 'PolygonZkEVMBridgeV2Pessimistic';
+const NEW_GER_L2 = 'AgglayerGERL2';
+const NEW_BRIDGE_L2 = 'AgglayerBridgeL2FromEtrog';
+
 async function main() {
     // Check for unsafe mode from parameters
     const isUnsafeMode = (upgradeParameters as any).unsafeMode || false;
@@ -45,13 +50,11 @@ async function main() {
         'ger_initiaizationParameters.globalExitRootRemover',
     ];
     checkParams(upgradeParameters, mandatoryUpgradeParameters);
+
     const salt = upgradeParameters.timelockSalt || ethers.ZeroHash;
-
     const { bridgeL2, gerL2, pathJsonInitLBT } = upgradeParameters;
-
     const { bridgeManager, proxiedTokensManagerAddress, emergencyBridgePauserAddress, emergencyBridgeUnpauserAddress } =
         upgradeParameters.bridge_initiaizationParameters;
-
     const { globalExitRootUpdater, globalExitRootRemover } = upgradeParameters.ger_initiaizationParameters;
 
     // eslint-disable-next-line import/no-dynamic-require, global-require, @typescript-eslint/no-var-requires
@@ -67,13 +70,13 @@ async function main() {
     // Force import hardhat manifest
     logger.info('Force import hardhat manifest');
     // As this contract is deployed in the genesis of a L2 network, no open zeppelin network file is created, we need to force import it
-    const bridgeFactory = await ethers.getContractFactory('AgglayerBridgeL2FromEtrog', deployer);
-    await upgrades.forceImport(bridgeL2, bridgeFactory, {
+    const oldBridgeFactory = await ethers.getContractFactory(OLD_BRIDGE_L2, deployer);
+    await upgrades.forceImport(bridgeL2, oldBridgeFactory, {
         constructorArgs: [],
         kind: 'transparent',
     });
-    const gerFactory = await ethers.getContractFactory('AgglayerGERL2', deployer);
-    await upgrades.forceImport(gerL2, gerFactory, {
+    const oldGerFactory = await ethers.getContractFactory(OLD_GER_L2, deployer);
+    await upgrades.forceImport(gerL2, oldGerFactory, {
         constructorArgs: [bridgeL2],
         kind: 'transparent',
     });
@@ -96,18 +99,20 @@ async function main() {
     const timelockDelay = upgradeParameters.timelockDelay || (await timelockContract.getMinDelay());
 
     // Upgrade AgglayerBridge -> AgglayerBridgeL2FromEtrog
-    const impBridge = await upgrades.prepareUpgrade(bridgeL2, bridgeFactory, {
+    const newBridgeFactory = await ethers.getContractFactory(NEW_BRIDGE_L2, deployer);
+    const impBridge = await upgrades.prepareUpgrade(bridgeL2, newBridgeFactory, {
         unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        redeployImplementation: 'always',
+        // redeployImplementation: 'always',
     });
 
     logger.info('#######################\n');
     logger.info(`Polygon sovereign bridge implementation deployed at: ${impBridge}`);
 
     // Upgrade AgglayerGER --> AgglayerGERL2
-    const impGER = await upgrades.prepareUpgrade(gerL2, gerFactory, {
+    const newGerFactory = await ethers.getContractFactory(NEW_GER_L2, deployer);
+    const impGER = await upgrades.prepareUpgrade(gerL2, newGerFactory, {
         unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        redeployImplementation: 'always',
+        // redeployImplementation: 'always',
         constructorArgs: [bridgeL2],
     });
 
@@ -123,7 +128,7 @@ async function main() {
         proxyAdmin.interface.encodeFunctionData('upgradeAndCall', [
             bridgeL2,
             impBridge,
-            bridgeFactory.interface.encodeFunctionData(
+            newBridgeFactory.interface.encodeFunctionData(
                 'initializeFromEtrog(address,address,address,address,uint32[],address[],uint256[])',
                 [
                     bridgeManager,
@@ -146,7 +151,7 @@ async function main() {
         proxyAdmin.interface.encodeFunctionData('upgradeAndCall', [
             gerL2,
             impGER,
-            gerFactory.interface.encodeFunctionData('initialize(address,address)', [
+            newGerFactory.interface.encodeFunctionData('initialize(address,address)', [
                 globalExitRootUpdater,
                 globalExitRootRemover,
             ]),
