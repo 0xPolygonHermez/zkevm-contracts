@@ -35,15 +35,18 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
      * @param _emergencyBridgePauser emergency bridge pauser address, allowed to be zero if the chain wants to disable the feature to stop the bridge
      * @param _emergencyBridgeUnpauser emergency bridge unpauser address, allowed to be zero if the chain wants to disable the feature to unpause the bridge
      * @param _proxiedTokensManager address of the proxied tokens manager
+     * @param originNetworkArray The origin network of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
+     * @param originTokenAddressArray The origin address of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
+     * @param amountArray The amount to set for the local balance tree leaf
      */
     function initializeFromEtrog(
         address _bridgeManager,
         address _emergencyBridgePauser,
         address _emergencyBridgeUnpauser,
         address _proxiedTokensManager,
-        uint32[] memory originNetwork,
-        address[] memory originTokenAddress,
-        uint256[] memory amount
+        uint32[] memory originNetworkArray,
+        address[] memory originTokenAddressArray,
+        uint256[] memory amountArray
     ) public virtual getInitializedVersion reinitializer(3) {
         // Checks that upgrade is being done from the contract initialized
         if (_initializerVersion == 0) {
@@ -84,6 +87,10 @@ contract AgglayerBridgeL2FromEtrog is AgglayerBridgeL2 {
         emit AcceptProxiedTokensManagerRole(address(0), proxiedTokensManager);
 
         // set local balance tree
-        _setLocalBalanceTree(originNetwork, originTokenAddress, amount);
+        _setLocalBalanceTree(
+            originNetworkArray,
+            originTokenAddressArray,
+            amountArray
+        );
     }
 }
