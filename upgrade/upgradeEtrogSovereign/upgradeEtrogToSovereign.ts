@@ -18,8 +18,6 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const pathOutputJson = path.join(__dirname, './upgrade_output.json');
 
-const OLD_GER_L2 = 'PolygonZkEVMGlobalExitRootL2Pessimistic';
-const OLD_BRIDGE_L2 = 'PolygonZkEVMBridgeV2Pessimistic';
 const NEW_GER_L2 = 'AgglayerGERL2';
 const NEW_BRIDGE_L2 = 'AgglayerBridgeL2FromEtrog';
 
@@ -67,20 +65,6 @@ async function main() {
     const deployer = await getDeployerFromParameters(currentProvider, upgradeParameters, ethers);
     logger.info(`Deploying implementation with: ${deployer.address}`);
 
-    // Force import hardhat manifest
-    logger.info('Force import hardhat manifest');
-    // As this contract is deployed in the genesis of a L2 network, no open zeppelin network file is created, we need to force import it
-    const oldBridgeFactory = await ethers.getContractFactory(OLD_BRIDGE_L2, deployer);
-    await upgrades.forceImport(bridgeL2, oldBridgeFactory, {
-        constructorArgs: [],
-        kind: 'transparent',
-    });
-    const oldGerFactory = await ethers.getContractFactory(OLD_GER_L2, deployer);
-    await upgrades.forceImport(gerL2, oldGerFactory, {
-        constructorArgs: [bridgeL2],
-        kind: 'transparent',
-    });
-
     // get proxy admin and timelock
     logger.info('Get proxy admin information');
     // Get proxy admin
@@ -102,7 +86,6 @@ async function main() {
     const newBridgeFactory = await ethers.getContractFactory(NEW_BRIDGE_L2, deployer);
     const impBridge = await upgrades.prepareUpgrade(bridgeL2, newBridgeFactory, {
         unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        // redeployImplementation: 'always',
     });
 
     logger.info('#######################\n');
@@ -112,7 +95,6 @@ async function main() {
     const newGerFactory = await ethers.getContractFactory(NEW_GER_L2, deployer);
     const impGER = await upgrades.prepareUpgrade(gerL2, newGerFactory, {
         unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        // redeployImplementation: 'always',
         constructorArgs: [bridgeL2],
     });
 
