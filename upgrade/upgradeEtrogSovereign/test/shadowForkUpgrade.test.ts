@@ -33,7 +33,7 @@ async function main() {
             : upgradeParams.forkParams.rpc;
 
     // hard fork
-    logger.info(`Shallow forking ${rpc}`);
+    logger.info(`Shadow forking ${rpc}`);
     try {
         await reset(rpc, upgradeOutput.implementationDeployBlockNumber + 1);
         await mine();
@@ -41,7 +41,7 @@ async function main() {
         console.log(e);
     }
 
-    logger.info(`Shallow forked block number: ${await ethers.provider.getBlockNumber()}`);
+    logger.info(`Shadow forked block number: ${await ethers.provider.getBlockNumber()}`);
     const forkedBlock = await ethers.provider.getBlockNumber();
 
     // If forked block is lower than implementation deploy block, wait until it is reached
@@ -55,7 +55,7 @@ async function main() {
         logger.info('Retrying fork...');
         await reset(rpc);
     }
-    logger.info('Shallow fork Succeed!');
+    logger.info('Shadow fork Succeed!');
     const bridgeImplAddress = upgradeOutput.bridgeImplementationAddress;
     const gerImplAddress = upgradeOutput.GERImplementationAddress;
 
@@ -163,7 +163,7 @@ async function main() {
     );
 
     logger.info(`✓ Checked AgglayerBridgeL2 contract storage parameters`);
-    logger.info('Finished shallow fork upgrade');
+    logger.info('Finished shadow fork upgrade');
 }
 
 main().catch((e) => {

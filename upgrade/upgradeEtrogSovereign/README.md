@@ -8,8 +8,7 @@ Script to create schedule and execute transaction for upgrading bridge L2 and GE
 ## Files
 
 - `upgradeEtrogToSovereign.ts`: Main upgrade script that deploys implementations and creates timelock operations
-- `test/upgradeEtrogToSovereign.test.ts` - Shadow fork test validating all contract upgrades
-- `test/checkCode.ts`: generates `code.json` (bytecode bridge L2 in zkevm) and `data.json` (bytecode bridge L2 from agglayer-contracts repository in etrog tag) to compare
+- `test/shadowForkUpgrade.test.ts` - Shadow fork test validating all contract upgrades
 - `upgrade_parameters.json` - Configuration parameters for the upgrade
 - `upgrade_parameters.json.example` - Example configuration file
 - `upgrade_output.json` - Generated output after running the upgrade script (created after execution)
@@ -106,7 +105,6 @@ Update `upgrade_parameters.json` with the following values:
 - `multiplierGas`: Gas multiplier with 3 decimals (e.g., "1500" for 1.5x)
 - `timelockAdminAddress`: Address with timelock admin privileges (auto-detected if not provided)
 - `unsafeMode`: Boolean flag to disable critical tooling checks (default: false, ⚠️ only for development/testing)
-- `blockRange`: Block range to get LBT
 
 #### Fork Parameters (for testing)
 
