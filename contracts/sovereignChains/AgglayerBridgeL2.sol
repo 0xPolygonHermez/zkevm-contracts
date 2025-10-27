@@ -299,7 +299,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Network ID must be different from 0 for sovereign chains
-        require(_networkID != 0, InvalidZeroNetworkID());
+        // require(_networkID != 0, InvalidZeroNetworkID());
 
         networkID = _networkID;
         globalExitRootManager = _globalExitRootManager;
