@@ -440,6 +440,14 @@ contract AggchainFEP is AggchainBase {
         }
     }
 
+    function reinitializel2Outputs() external {
+        // Clear the array by popping all elements
+        while (l2Outputs.length > 0) {
+            l2Outputs.pop();
+        }
+    }
+
+
     /**
      * @notice Initialize function for upgrade from AggchainECDSAMultisig to AggchainFEP
      * @custom:security Only initializes FEP specific parameters, assumes base and consensus are already initialized

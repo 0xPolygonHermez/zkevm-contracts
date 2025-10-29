@@ -425,15 +425,28 @@ describe('Upgrade FEP to ECDSA', () => {
         // Verify pessimistic proof
         const { newLER, newPPRoot } = await verifyPessimisticProof(rollupID);
 
-        // FEP->ECDSA: Migrate FEP to ECDSA
         const rollupDataBefore = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
+
+        // Check the number of proposals before migration
+        const fepContractBefore = aggchainFEPFactory.attach(rollupDataBefore.rollupContract);
+        const nextOutputIndex = await fepContractBefore.nextOutputIndex();
+        expect(nextOutputIndex).to.equal(2);
+
+        // FEP->ECDSA: Migrate FEP to ECDSA
         await rollupManagerContract.connect(timelock).updateRollup(rollupDataBefore.rollupContract, rollupTypeECDSAId, '0x');
 
         // ECDSA->FEP: Migrate ECDSA back again to FEP
         const rollupDataAfterFirstMigration = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
         await rollupManagerContract.connect(timelock).updateRollup(rollupDataAfterFirstMigration.rollupContract, rollupTypeFEPId, '0x');
 
+        // Ensure the l2Outputs from the initial FEP contract are empty after migration back ECDSA->FEP
+        const rollupDataAfterMigrationBack = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
+        const fepContractAfterMigrationBack = aggchainFEPFactory.attach(rollupDataAfterMigrationBack.rollupContract);
+        const nextOutputIndexAfterMigration = await fepContractAfterMigrationBack.nextOutputIndex();
+        expect(nextOutputIndexAfterMigration).to.equal(0);
+
         // Initialize FEP contract after migrating from ECDSA
+        // TODO: Unused
         const fepContractAfterMigration = aggchainFEPFactory.attach(rollupDataAfterFirstMigration.rollupContract);
         const initParams = {
             l2BlockTime: 2,

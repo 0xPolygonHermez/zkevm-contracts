@@ -21,6 +21,7 @@ import "./interfaces/IAggchainBase.sol";
 import "./interfaces/IAgglayerGateway.sol";
 import "./interfaces/IVersion.sol";
 import "./lib/Hashes.sol";
+import "./aggchains/AggchainFEP.sol"; // or from interface?
 
 /**
  * Contract responsible for managing rollups and the verification of their batches.
@@ -957,6 +958,23 @@ contract AgglayerManager is
 
         uint64 lastVerifiedBatch = getLastVerifiedBatch(rollupID);
         rollup.lastVerifiedBatchBeforeUpgrade = lastVerifiedBatch;
+        
+        // If update from FEP to ECDSA, clear l2Outputs before upgrade.
+        // This ensures if it migrates back to FEP, the l2Outputs are empty.
+        if (
+            rollup.rollupVerifierType == VerifierType.ALGateway &&
+            newRollupType.rollupVerifierType == VerifierType.ALGateway
+        ) {
+            bytes2 currentAggchainType = IAggchainBase(address(rollupContract)).AGGCHAIN_TYPE();
+            bytes2 newAggchainType = IAggchainBase(newRollupType.consensusImplementation).AGGCHAIN_TYPE();
+            
+            // If migrating from FEP to ECDSA, clear l2Outputs before upgrade
+            if (currentAggchainType == bytes2(0x0001) && newAggchainType == bytes2(0x0000)) {
+                AggchainFEP(address(rollupContract)).reinitializel2Outputs();
+                // TODO: Cleanup other slots?
+            }
+        }
+        
         // Upgrade rollup
         rollupContract.upgradeToAndCall(
             newRollupType.consensusImplementation,
