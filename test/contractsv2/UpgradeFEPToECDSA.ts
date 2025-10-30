@@ -435,9 +435,11 @@ describe('Upgrade FEP to ECDSA', () => {
         // FEP->ECDSA: Migrate FEP to ECDSA
         await rollupManagerContract.connect(timelock).updateRollup(rollupDataBefore.rollupContract, rollupTypeECDSAId, '0x');
 
-        // ECDSA->FEP: Migrate ECDSA back again to FEP
+        // ECDSA->FEP: Migrate ECDSA back again to FEP. Its important to call reinitializel2Outputs(). In ECDSA that slot wont be used.
+        // be used but if we migrate back to FEP in the future, we dont want the old l2Outputs
+        const upgradeData = aggchainFEPFactory.interface.encodeFunctionData('reinitializel2Outputs()', []);
         const rollupDataAfterFirstMigration = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
-        await rollupManagerContract.connect(timelock).updateRollup(rollupDataAfterFirstMigration.rollupContract, rollupTypeFEPId, '0x');
+        await rollupManagerContract.connect(timelock).updateRollup(rollupDataAfterFirstMigration.rollupContract, rollupTypeFEPId, upgradeData);
 
         // Ensure the l2Outputs from the initial FEP contract are empty after migration back ECDSA->FEP
         const rollupDataAfterMigrationBack = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);

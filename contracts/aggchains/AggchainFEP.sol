@@ -440,11 +440,14 @@ contract AggchainFEP is AggchainBase {
         }
     }
 
-    function reinitializel2Outputs() external {
-        // Clear the array by popping all elements
-        while (l2Outputs.length > 0) {
-            l2Outputs.pop();
-        }
+    /**
+     * @notice Cleans up the l2Outputs array by setting the length to 0
+     * @custom:security Meant to be used when migration from FEP to ECDSA. By resetting the array, we make
+     * sure that if in the future we migrate back to FEP, the l2Outputs array is empty.
+     */
+    function reinitializel2Outputs() onlyRollupManager external {
+        // Clear the array. delete sets length to 0
+        delete l2Outputs;
     }
 
 
