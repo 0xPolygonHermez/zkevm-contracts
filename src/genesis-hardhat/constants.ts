@@ -5,9 +5,12 @@
 // Those genesis are already imported on different tooling and added as a metadata on-chain. Therefore, this util aims
 // to support them too
 
-import { GENESIS_CONTRACT_NAMES } from "../utils-common-aggchain";
+import { GENESIS_CONTRACT_NAMES } from '../utils-common-aggchain';
 
-export const SUPPORTED_GER_MANAGERS = ['LegacyAgglayerGERL2 implementation'];
+export const SUPPORTED_GER_MANAGERS = [
+    'PolygonZkEVMGlobalExitRootL2 implementation',
+    GENESIS_CONTRACT_NAMES.GER_L2_IMPLEMENTATION,
+];
 
 export const SUPPORTED_BRIDGE_CONTRACTS = ['PolygonZkEVMBridge implementation', 'AgglayerBridge implementation'];
 

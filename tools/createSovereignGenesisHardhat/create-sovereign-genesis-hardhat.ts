@@ -8,7 +8,7 @@ import * as dotenv from 'dotenv';
 import { ethers, hardhatArguments } from 'hardhat';
 
 // internal dependencies
-import { PolygonRollupManager, PolygonZkEVMBridgeV2 } from '../../typechain-types';
+import { AgglayerManager, AgglayerBridge } from '../../typechain-types';
 import '../../deployment/helpers/utils';
 import { initializeTimelockStorage } from '../../src/genesis/genesis-helpers';
 import { checkParams, getGitInfo } from '../../src/utils';
@@ -97,10 +97,10 @@ async function main() {
     logger.info('Check SovereignBridge requirements for its correct initialization');
 
     // Load Rollup manager
-    const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager');
+    const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager');
     const rollupManagerContract = PolygonRollupManagerFactory.attach(
         createGenesisSovereignParams.rollupManagerAddress,
-    ) as PolygonRollupManager;
+    ) as AgglayerManager;
 
     // Checks like in bridge contract
     if (
@@ -133,9 +133,9 @@ async function main() {
     let gasTokenMetadata;
 
     // Get bridge instance
-    const bridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+    const bridgeFactory = await ethers.getContractFactory('AgglayerBridge');
     const bridgeContractAddress = await rollupManagerContract.bridgeAddress();
-    const rollupBridgeContract = bridgeFactory.attach(bridgeContractAddress) as PolygonZkEVMBridgeV2;
+    const rollupBridgeContract = bridgeFactory.attach(bridgeContractAddress) as AgglayerBridge;
 
     // check bridge address is the same in genesisBase and on-chain
     checkBridgeAddress(genesisBase, bridgeContractAddress);

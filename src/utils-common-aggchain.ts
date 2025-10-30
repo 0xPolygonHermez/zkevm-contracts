@@ -36,6 +36,7 @@ export const GENESIS_CONTRACT_NAMES = {
     POLYGON_TIMELOCK: 'PolygonZkEVMTimelock',
     POLYGON_DEPLOYER: 'PolygonZkEVMDeployer',
     BRIDGE_LIB: `BridgeLib`,
+    AGG_ORACLE: 'AggOracleCommittee',
     AGG_ORACLE_PROXY: 'AggOracleCommittee proxy',
     AGG_ORACLE_IMPL: 'AggOracleCommittee implementation',
     ROLLUP_MANAGER_IMPLEMENTATION: 'AgglayerManager implementation',

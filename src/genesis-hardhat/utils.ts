@@ -32,8 +32,8 @@ export async function getAddressesGenesisBase(genesisBase: any) {
     ).address;
 
     // get the bridge proxy address
-    const gerManagerProxyAddress = genesisBase.find(
-        (account: any) => account.contractName === GENESIS_CONTRACT_NAMES.GER_L2_PROXY,
+    const gerManagerProxyAddress = genesisBase.find((account: any) =>
+        SUPPORTED_GER_MANAGERS.includes(account.contractName),
     ).address;
 
     // get the bridge proxy implementation address
@@ -154,7 +154,7 @@ export async function deployProxyWithTxCapture(implementation: any, proxyAdmin: 
 }
 
 /**
- * Deploy implmentation and proxy for BridgeL2SovereignChain
+ * Deploy implmentation and proxy for AgglayerBridgeL2
  * @param {String} proxyAdmin - proxy admin, for proxy deployment
  * @param {Array} deployer - deployer for deploy transactions
  * @returns {Object} - proxy address, implementation address, txHashes: { proxy txHash, impl txHash }
@@ -168,7 +168,7 @@ export async function deployBridgeL2SovereignChain(proxyAdmin: any, deployer: an
 }
 
 /**
- * Deploy implmentation and proxy for GlobalExitRootManagerL2SovereignChain
+ * Deploy implmentation and proxy for AgglayerGERL2
  * @param {String} proxyAdmin - proxy admin, for proxy deployment
  * @param {Array} deployer - deployer for deploy transactions
  * @param {String} bridgeProxyAddress - bridge address (ger constructor)
@@ -195,7 +195,7 @@ export async function deployGlobalExitRootManagerL2SovereignChain(
  */
 export async function deployAggOracleCommittee(proxyAdmin: any, deployer: any, gerManagerAddress: any) {
     // Deploy implementation
-    const GERManagerFactory = await ethers.getContractFactory(GENESIS_CONTRACT_NAMES.AGGORACLE_COMMITTEE, deployer);
+    const GERManagerFactory = await ethers.getContractFactory(GENESIS_CONTRACT_NAMES.AGG_ORACLE, deployer);
     const implementation = await GERManagerFactory.deploy(gerManagerAddress);
     const result = await deployProxyWithTxCapture(implementation, proxyAdmin, deployer);
     return result;
