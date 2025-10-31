@@ -80,14 +80,14 @@ describe('Upgrade FEP to ECDSA', () => {
         await aggchainContract.connect(aggLayerAdmin).initialize(
             {
                 l2BlockTime: 2,
-                rollupConfigHash: computeRandomBytes(32),
-                startingOutputRoot: computeRandomBytes(32),
+                rollupConfigHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                startingOutputRoot: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
                 startingBlockNumber: 0,
                 startingTimestamp: ((await ethers.provider.getBlock('latest'))?.timestamp || 0) - 100,
                 submissionInterval: 10,
                 optimisticModeManager: admin.address,
-                aggregationVkey: computeRandomBytes(32),
-                rangeVkeyCommitment: computeRandomBytes(32),
+                aggregationVkey: '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+                rangeVkeyCommitment: '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
             },
             [
                 // signers
@@ -119,7 +119,7 @@ describe('Upgrade FEP to ECDSA', () => {
 
         // Aggchain data
         const aggchainVKeySelectorForData = '0x12340001';
-        const outputRoot = computeRandomBytes(32);
+        const outputRoot = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
         const l2BlockNumber = 10;
 
         const aggchainData = ethers.AbiCoder.defaultAbiCoder().encode(
@@ -310,7 +310,7 @@ describe('Upgrade FEP to ECDSA', () => {
             0, // newThreshold
         );
 
-        const aggchainVKey = computeRandomBytes(32);
+        const aggchainVKey = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
         // Compose selector for generated aggchain verification key
         await expect(
@@ -425,14 +425,8 @@ describe('Upgrade FEP to ECDSA', () => {
         // Verify pessimistic proof
         const { newLER, newPPRoot } = await verifyPessimisticProof(rollupID);
 
-        const rollupDataBefore = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
-
-        // Check the number of proposals before migration
-        const fepContractBefore = aggchainFEPFactory.attach(rollupDataBefore.rollupContract);
-        const nextOutputIndex = await fepContractBefore.nextOutputIndex();
-        expect(nextOutputIndex).to.equal(2);
-
         // FEP->ECDSA: Migrate FEP to ECDSA
+        const rollupDataBefore = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
         await rollupManagerContract.connect(timelock).updateRollup(rollupDataBefore.rollupContract, rollupTypeECDSAId, '0x');
 
         // ECDSA->FEP: Migrate ECDSA back again to FEP. Its important to call reinitializel2Outputs(). In ECDSA that slot wont be used.
@@ -444,67 +438,20 @@ describe('Upgrade FEP to ECDSA', () => {
         // Ensure the l2Outputs from the initial FEP contract are empty after migration back ECDSA->FEP
         const rollupDataAfterMigrationBack = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
         const fepContractAfterMigrationBack = aggchainFEPFactory.attach(rollupDataAfterMigrationBack.rollupContract);
-        const nextOutputIndexAfterMigration = await fepContractAfterMigrationBack.nextOutputIndex();
-        expect(nextOutputIndexAfterMigration).to.equal(0);
-
-        // Initialize FEP contract after migrating from ECDSA
-        // TODO: Unused
-        const fepContractAfterMigration = aggchainFEPFactory.attach(rollupDataAfterFirstMigration.rollupContract);
-        const initParams = {
-            l2BlockTime: 2,
-            rollupConfigHash: computeRandomBytes(32),
-            startingOutputRoot: computeRandomBytes(32),
-            startingBlockNumber: 0,
-            startingTimestamp: ((await ethers.provider.getBlock('latest'))?.timestamp || 0) - 100,
-            submissionInterval: 10,
-            optimisticModeManager: admin.address,
-            aggregationVkey: computeRandomBytes(32),
-            rangeVkeyCommitment: computeRandomBytes(32),
-        };
-        
-        // TODO: This is expected to not work. It was already initialized.
-        //await fepContractAfterMigration.connect(aggLayerAdmin).initializeFromECDSAMultisig(
-        //    initParams,
-        //    true, // useDefaultVkeys
-        //    ethers.ZeroHash, // initOwnedAggchainVKey
-        //    '0x00010001', // initAggchainVKeySelector for FEP
-        //);
 
         // Verify the the path FEP -> ECDSA -> FEP keeps the original parameters
-        const rollupDataAfterSecondMigration = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
-        const rollupTypeDataAfterSecondMigration = await rollupManagerContract.rollupTypeMap(rollupDataAfterSecondMigration.rollupTypeID);
-        const implementationContractAfterSecondMigration = aggchainFEPFactory.attach(rollupTypeDataAfterSecondMigration.consensusImplementation);
-        const aggchainTypeAfterSecondMigration = await implementationContractAfterSecondMigration.AGGCHAIN_TYPE();
+        expect(await fepContractAfterMigrationBack.startingBlockNumber()).to.equal(0);
+        expect(await fepContractAfterMigrationBack.submissionInterval()).to.equal(10);
+        expect(await fepContractAfterMigrationBack.l2BlockTime()).to.equal(2);
 
-        // Print FEP contract fields in the order defined in MigrationFEPToECDSASlots.sol
-        const fepContract = aggchainFEPFactory.attach(rollupDataAfterSecondMigration.rollupContract);
-
-        // TODO: Think about the asserts
-        console.log('FEP Contract Fields');
-        console.log('1. startingBlockNumber:', await fepContract.startingBlockNumber());
-        console.log('2. startingTimestamp:', await fepContract.startingTimestamp());
-        console.log('3. submissionInterval:', await fepContract.submissionInterval());
-        console.log('4. l2BlockTime:', await fepContract.l2BlockTime());
-        console.log('5. aggregationVkey:', await fepContract.aggregationVkey());
-        console.log('6. rangeVkeyCommitment:', await fepContract.rangeVkeyCommitment());
-        console.log('7. rollupConfigHash:', await fepContract.rollupConfigHash());
-        console.log('8. optimisticMode:', await fepContract.optimisticMode());
-        console.log('9. optimisticModeManager:', await fepContract.optimisticModeManager());
-        console.log('10. pendingOptimisticModeManager:', await fepContract.pendingOptimisticModeManager());
-        console.log('11. selectedOpSuccinctConfigName:', await fepContract.selectedOpSuccinctConfigName());
-        
-        // TODO: Think about the asserts
-        console.log('\nAdditional Fields:');
-        console.log('AGGCHAIN_TYPE:', await fepContract.AGGCHAIN_TYPE());
-        console.log('aggchainManager:', await fepContract.aggchainManager());
-        console.log('threshold:', await fepContract.threshold());
-        console.log('useDefaultSigners:', await fepContract.useDefaultSigners());
-        console.log('useDefaultVkeys:', await fepContract.useDefaultVkeys());
-  
-        expect(aggchainTypeAfterSecondMigration).to.equal('0x0001');
-        expect(rollupDataAfterSecondMigration.rollupTypeID).to.equal(rollupTypeFEPId);
-        expect(rollupDataAfterSecondMigration.lastLocalExitRoot).to.equal(newLER);
-        expect(rollupDataAfterSecondMigration.lastPessimisticRoot).to.equal(newPPRoot);
-        expect(rollupDataAfterSecondMigration.chainID).to.equal(chainId);
+        // With the exception of l2Outputs, which was cleared when migrating from FEP to ECDSA
+        expect(await fepContractAfterMigrationBack.nextOutputIndex()).to.equal(0);
+       
+        // And the rest of the parameters are the usual ones for FEP.
+        expect(await fepContractAfterMigrationBack.AGGCHAIN_TYPE()).to.equal('0x0001');
+        expect(rollupDataAfterMigrationBack.rollupTypeID).to.equal(rollupTypeFEPId);
+        expect(rollupDataAfterMigrationBack.lastLocalExitRoot).to.equal(newLER);
+        expect(rollupDataAfterMigrationBack.lastPessimisticRoot).to.equal(newPPRoot);
+        expect(rollupDataAfterMigrationBack.chainID).to.equal(chainId);
     });
 });
