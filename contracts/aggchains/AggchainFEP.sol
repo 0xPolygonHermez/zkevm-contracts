@@ -445,7 +445,7 @@ contract AggchainFEP is AggchainBase {
      * @custom:security Meant to be used when migration from FEP to ECDSA. By resetting the array, we make
      * sure that if in the future we migrate back to FEP, the l2Outputs array is empty.
      */
-    function reinitializel2Outputs() onlyRollupManager external {
+    function reinitializel2Outputs() onlyAggchainManager external {
         // Clear the array. delete sets length to 0
         delete l2Outputs;
     }

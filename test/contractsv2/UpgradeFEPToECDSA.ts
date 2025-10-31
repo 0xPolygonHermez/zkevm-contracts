@@ -21,7 +21,7 @@ describe('Upgrade FEP to ECDSA', () => {
     let trustedAggregator: any;
     let trustedSequencer: any;
     let admin: any;
-    let aggLayerAdmin: any;
+    let aggchainManager: any;
 
     let polTokenContract: ERC20PermitMock;
     let verifierContract: VerifierRollupHelperMock;
@@ -66,7 +66,7 @@ describe('Upgrade FEP to ECDSA', () => {
             ethers.ZeroHash,
         );
 
-        const initializeBytesAggchain = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [aggLayerAdmin.address]);
+        const initializeBytesAggchain = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [aggchainManager.address]);
 
         // Attach the FEP aggchain to the AL
         await rollupManagerContract.connect(admin).attachAggchainToAL(rollupTypeFEPId, chainId, initializeBytesAggchain);
@@ -77,7 +77,7 @@ describe('Upgrade FEP to ECDSA', () => {
         const aggchainContract = aggchainFEPFactory.attach(rollupData.rollupContract);
 
         // Initialize FEP contract
-        await aggchainContract.connect(aggLayerAdmin).initialize(
+        await aggchainContract.connect(aggchainManager).initialize(
             {
                 l2BlockTime: 2,
                 rollupConfigHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -191,7 +191,7 @@ describe('Upgrade FEP to ECDSA', () => {
         upgrades.silenceWarnings();
 
         // load signers
-        [deployer, trustedAggregator, trustedSequencer, admin, timelock, emergencyCouncil, aggLayerAdmin] =
+        [deployer, trustedAggregator, trustedSequencer, admin, timelock, emergencyCouncil, aggchainManager] =
             await ethers.getSigners();
 
         // deploy mock verifier
@@ -299,9 +299,9 @@ describe('Upgrade FEP to ECDSA', () => {
         // Initialize aggLayerGateway
         await aggLayerGatewayContract.initialize(
             admin.address,
-            aggLayerAdmin.address,
-            aggLayerAdmin.address,
-            aggLayerAdmin.address,
+            aggchainManager.address,
+            aggchainManager.address,
+            aggchainManager.address,
             PESSIMISTIC_SELECTOR,
             verifierContract.target,
             programVKey,
@@ -314,7 +314,7 @@ describe('Upgrade FEP to ECDSA', () => {
 
         // Compose selector for generated aggchain verification key
         await expect(
-            aggLayerGatewayContract.connect(aggLayerAdmin).addDefaultAggchainVKey(aggchainVKeySelector, aggchainVKey),
+            aggLayerGatewayContract.connect(aggchainManager).addDefaultAggchainVKey(aggchainVKeySelector, aggchainVKey),
         )
             .to.emit(aggLayerGatewayContract, 'AddDefaultAggchainVKey')
             .withArgs(aggchainVKeySelector, aggchainVKey);
@@ -429,15 +429,17 @@ describe('Upgrade FEP to ECDSA', () => {
         const rollupDataBefore = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
         await rollupManagerContract.connect(timelock).updateRollup(rollupDataBefore.rollupContract, rollupTypeECDSAId, '0x');
 
-        // ECDSA->FEP: Migrate ECDSA back again to FEP. Its important to call reinitializel2Outputs(). In ECDSA that slot wont be used.
-        // be used but if we migrate back to FEP in the future, we dont want the old l2Outputs
-        const upgradeData = aggchainFEPFactory.interface.encodeFunctionData('reinitializel2Outputs()', []);
+        // ECDSA->FEP: Migrate ECDSA back again to FEP.
         const rollupDataAfterFirstMigration = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
-        await rollupManagerContract.connect(timelock).updateRollup(rollupDataAfterFirstMigration.rollupContract, rollupTypeFEPId, upgradeData);
+        await rollupManagerContract.connect(timelock).updateRollup(rollupDataAfterFirstMigration.rollupContract, rollupTypeFEPId, "0x");
 
         // Ensure the l2Outputs from the initial FEP contract are empty after migration back ECDSA->FEP
         const rollupDataAfterMigrationBack = await rollupManagerContract.rollupIDToRollupDataV2(rollupID);
         const fepContractAfterMigrationBack = aggchainFEPFactory.attach(rollupDataAfterMigrationBack.rollupContract);
+
+        // Its important to call reinitializel2Outputs(). In ECDSA that slot was not used.
+        // If we migrate back to FEP, we dont want the old l2Outputs.
+        await fepContractAfterMigrationBack.connect(aggchainManager).reinitializel2Outputs();
 
         // Verify the the path FEP -> ECDSA -> FEP keeps the original parameters
         expect(await fepContractAfterMigrationBack.startingBlockNumber()).to.equal(0);
