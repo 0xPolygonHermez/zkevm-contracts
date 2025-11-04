@@ -186,6 +186,7 @@ describe('Phantom Claim Functionality Tests', () => {
             await expect(tx)
                 .to.emit(sovereignChainBridgeContract, 'PhantomClaim')
                 .withArgs(
+                    globalIndex,
                     LEAF_TYPE_ASSET,
                     originNetwork,
                     tokenAddress,
@@ -666,6 +667,7 @@ describe('Phantom Claim Functionality Tests', () => {
             await expect(tx)
                 .to.emit(sovereignChainBridgeContract, 'PhantomClaim')
                 .withArgs(
+                    globalIndex,
                     LEAF_TYPE_ASSET,
                     originNetwork,
                     tokenAddress,

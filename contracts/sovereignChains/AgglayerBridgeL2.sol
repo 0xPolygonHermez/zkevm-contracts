@@ -262,6 +262,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      * @dev Emitted when a phantom claim is made
      */
     event PhantomClaim(
+        uint256 globalIndex,
         uint8 leafType,
         uint32 originNetwork,
         address originAddress,
@@ -1287,6 +1288,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         emit PhantomClaim(
+            globalIndex,
             _LEAF_TYPE_ASSET,
             originNetwork,
             originTokenAddress,
@@ -1332,7 +1334,12 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) public override(IAgglayerBridge, AgglayerBridge) ifNotEmergencyState nonReentrant {
+    )
+        public
+        override(IAgglayerBridge, AgglayerBridge)
+        ifNotEmergencyState
+        nonReentrant
+    {
         // Destination network must be this networkID
         if (destinationNetwork != networkID) {
             revert DestinationNetworkInvalid();
