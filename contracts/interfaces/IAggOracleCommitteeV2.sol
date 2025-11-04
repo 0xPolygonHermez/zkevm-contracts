@@ -4,17 +4,138 @@ pragma solidity 0.8.28;
 
 import {IAgglayerGERL2} from "./IAgglayerGERL2.sol";
 import {IAgglayerBridgeL2} from "./IAgglayerBridgeL2.sol";
+import {IVersion} from "./IVersion.sol";
+
+/**
+ * @title IAggOracleCommitteeV2Events
+ * @notice Events emitted by AggOracleCommitteeV2 implementations
+ */
+interface IAggOracleCommitteeV2Events {
+    /// @notice Emitted when a GER is injected
+    event GERInjected(bytes32 indexed globalExitRoot);
+
+    /// @notice Emitted when a GER is injected
+    event LERInjected(uint32 indexed rollupIndex, bytes32 indexed LER, bytes indexed agglayerParams);
+
+    /// @notice Emitted when the aggOracleProposer is updated
+    event UpdateAggOracleProposer(address indexed newProposer);
+
+    /// @notice Emitted when validators and threshold are updated
+    event ValidatorsAndThresholdUpdated(address[] validators, uint256 threshold);
+}
+
+/**
+ * @title IAggOracleCommitteeV2Errors
+ * @notice Error definitions for AggOracleCommitteeV2 implementations
+ */
+interface IAggOracleCommitteeV2Errors {
+    /// @notice Thrown when the AgglayerGERL2 address is zero
+    error AgglayerGERL2CannotBeZero();
+
+    /// @notice Thrown when the AgglayerBridgeL2 address is zero
+    error AgglayerBridgeL2CannotBeZero();
+
+    /// @notice Thrown when the owner address is zero
+    error OwnerCannotBeZero();
+
+    /// @notice Thrown when the proposer address is zero
+    error ProposerCannotBeZero();
+
+    /// @notice Thrown when the caller is not the oracle proposer
+    error OnlyAggOracleProposerCanCall();
+
+    /// @notice Thrown when array lengths don't match
+    error ArrayLengthMismatch();
+
+    /// @notice Thrown when a GER is zero
+    error GERCannotBeZero();
+
+    /// @notice Thrown when the validator address is zero
+    error ValidatorCannotBeZero();
+
+    /// @notice Thrown when the address is already a validator
+    error ValidatorAlreadyExists();
+
+    /// @notice Thrown when the validator index is out of bounds
+    error ValidatorIndexOutOfBounds();
+
+    /// @notice Thrown when the validator index doesn't match the address
+    error ValidatorIndexMismatch();
+
+    /// @notice Thrown when threshold is greater than the number of validators
+    error ThresholdCannotBeGreaterThanValidators();
+
+    /// @notice Thrown when threshold cannot be zero if any validator exists
+    error ThresholdCannotBeZeroIfAnyValidatorExists();
+
+    /// @notice Thrown when indices are not in descending order
+    error IndicesNotInDescendingOrder();
+
+    /// @notice Thrown when there are insufficient signatures
+    error InsufficientSignatures();
+
+    /// @notice Thrown when a validator does not exist
+    error ValidatorDoesNotExist();
+
+    /// @notice Thrown when validators are not ordered
+    error ValidatorsNotOrdered();
+
+    /// @notice Thrown when a validator is not found
+    error ValidatorNotFound();
+
+    /// @notice Thrown when a LER is zero
+    error LERCannotBeZero();
+}
 
 /**
  * @title IAggOracleCommitteeV2
- * @notice Interface for the AggOracleCommitteeV2 contract responsible for managing the insertion of GERs and LERs.
+ * @notice Core interface for the AggOracleCommitteeV2 contract responsible for managing the insertion of GERs and LERs.
+ * @dev This contract uses signature verification similar to Safe multisig for permissioned injection of GERs and LERs.
  */
-interface IAggOracleCommitteeV2 {
+interface IAggOracleCommitteeV2 is
+    IAggOracleCommitteeV2Errors,
+    IAggOracleCommitteeV2Events,
+    IVersion
+{
+    ////////////////////
+    // Structs
+    ////////////////////
+
+    /**
+     * @notice Struct containing validator information
+     * @param addr The address of the validator
+     * @param url The URL associated with the validator
+     */
+    struct ValidatorInfo {
+        address addr;
+        string url;
+    }
+
+    /**
+     * @notice Struct containing internal validator information
+     * @param isValidator Whether the address is a validator
+     * @param url The URL associated with the validator
+     */
+    struct ValidatorInternalInfo {
+        bool isValidator;
+        string url;
+    }
+
+    /**
+     * @notice Struct to hold information for removing a validator
+     * @param addr The address of the validator to remove
+     * @param index The index of the validator in the validators array
+     */
+    struct RemoveValidatorInfo {
+        address addr;
+        uint256 index;
+    }
+
     /**
      * @notice Struct containing LER information
-     * @param rollupIndex The rollup index for the LER
+     * @param rollupIndex The rollup index
      * @param LER The local exit root
-     * @param agglayerParams Metadata for the agglayer
+     * @param agglayerParams The agglayer parameters
      */
     struct LERInformation {
         uint32 rollupIndex;
@@ -22,47 +143,22 @@ interface IAggOracleCommitteeV2 {
         bytes agglayerParams;
     }
 
-    // Events
-
-    /// @dev Emitted when a GER is injected
-    event GERInjected(bytes32 indexed globalExitRoot);
-
-    /// @dev Emitted when a LER is injected
-    event LERInjected(
-        uint32 indexed rollupIndex,
-        bytes32 indexed LER,
-        bytes agglayerParams
-    );
-
-    /// @dev Emitted when a claim is executed
-    event ClaimExecuted(uint256 indexed claimIndex, bool success);
-
-    /// @dev Emitted when the threshold is updated
-    event UpdateThreshold(uint64 newThreshold);
-
-    /// @dev Emitted when a new oracle member is added
-    event AddAggOracleMember(address newOracleMember);
-
-    /// @dev Emitted when an oracle member is removed
-    event RemoveAggOracleMember(address oracleMemberRemoved);
-
-    /// @dev Emitted when the aggOracleProposer is updated
-    event UpdateAggOracleProposer(address newProposer);
-
-    // External functions
+    ////////////////////
+    // External Functions
+    ////////////////////
 
     /**
-     * @notice Initializes the contract.
+     * @notice Initializes the contract
      * @param _owner Owner of the contract, presumably a multisig
-     * @param _aggOracleMembers Initial oracle members
-     * @param _threshold Threshold required for signature verification
-     * @param _aggOracleProposer Address that can propose LER injections
+     * @param _newProposer Address that can propose GER/LER injections
+     * @param _newValidators Initial array of validator information
+     * @param _newThreshold Number of signatures required for GER/LER injection
      */
     function initialize(
         address _owner,
-        address[] calldata _aggOracleMembers,
-        uint64 _threshold,
-        address _aggOracleProposer
+        address _newProposer,
+        ValidatorInfo[] memory _newValidators,
+        uint256 _newThreshold
     ) external;
 
     /**
@@ -76,62 +172,6 @@ interface IAggOracleCommitteeV2 {
     ) external;
 
     /**
-     * @notice Inject multiple LERs with signature verification
-     * @param _lerInformation Array of LER information to inject
-     * @param _signatures Array of signature arrays for each LER
-     */
-    function injectLER(
-        LERInformation[] calldata _lerInformation,
-        bytes[] calldata _signatures
-    ) external;
-
-    /**
-     * @notice Inject LER and execute claims
-     * @param _lerInformation LER information to inject
-     * @param _signatures Signatures for the LER
-     * @param _smtProofLocalExitRoot Array of SMT proofs for local exit roots
-     * @param _originNetwork Array of origin networks
-     * @param _originTokenAddress Array of origin token addresses
-     * @param _destinationNetwork Array of destination networks
-     * @param _destinationAddress Array of destination addresses
-     * @param _amount Array of amounts
-     * @param _metadata Array of metadata
-     */
-    function injectLERAndClaim(
-        LERInformation calldata _lerInformation,
-        bytes calldata _signatures,
-        bytes32[32][][] calldata _smtProofLocalExitRoot,
-        uint32[][] calldata _originNetwork,
-        address[][] calldata _originTokenAddress,
-        uint32[][] calldata _destinationNetwork,
-        address[] calldata _destinationAddress,
-        uint256[][] calldata _amount,
-        bytes[][] calldata _metadata
-    ) external;
-
-    /**
-     * @notice Add an oracle member
-     * @param _newOracleMember Address of the new oracle member
-     */
-    function addOracleMember(address _newOracleMember) external;
-
-    /**
-     * @notice Remove an oracle member
-     * @param _oracleMemberAddress Address of the oracle member to remove
-     * @param _oracleMemberIndex Index of the oracle member to remove
-     */
-    function removeOracleMember(
-        address _oracleMemberAddress,
-        uint256 _oracleMemberIndex
-    ) external;
-
-    /**
-     * @notice Update the threshold value
-     * @param _newThreshold New threshold value
-     */
-    function updateThreshold(uint64 _newThreshold) external;
-
-    /**
      * @notice Update the aggOracleProposer address
      * @param _newProposer New proposer address
      */
@@ -139,6 +179,7 @@ interface IAggOracleCommitteeV2 {
 
     /**
      * @notice Transfer the globalExitRootUpdater role
+     * @dev This is a two-step process; the pending globalExitRootUpdater must accept to finalize the process
      * @param _newGlobalExitRootUpdater Address of the new globalExitRootUpdater
      */
     function transferGlobalExitRootUpdater(
@@ -147,54 +188,84 @@ interface IAggOracleCommitteeV2 {
 
     /**
      * @notice Accept the globalExitRootUpdater role
+     * @dev This is the second step from a two-step process
      */
     function acceptGlobalExitRootUpdater() external;
 
     /**
-     * @notice Returns the index of an oracle member
-     * @param _oracleMember Oracle member address
-     * @return The index of the oracle member
+     * @notice Update the validators and threshold
+     * @param _validatorsToRemove Array of validators to remove with their indices (MUST be in descending index order)
+     * @param _validatorsToAdd Array of new validators to add with their URLs
+     * @param _newThreshold New threshold value
      */
-    function getAggOracleMemberIndex(
-        address _oracleMember
+    function updateValidatorsAndThreshold(
+        RemoveValidatorInfo[] memory _validatorsToRemove,
+        ValidatorInfo[] memory _validatorsToAdd,
+        uint256 _newThreshold
+    ) external;
+
+    ////////////////////
+    // View Functions
+    ////////////////////
+
+    /**
+     * @notice Verify a GER with signatures
+     * @param _globalExitRoot The GER to verify
+     * @param _signatures The signatures to verify
+     * @return True if the GER is valid
+     */
+    function verifyGER(
+        bytes32 _globalExitRoot,
+        bytes memory _signatures
+    ) external view returns (bool);
+
+    /**
+     * @notice Returns the index of a validator
+     * @param _validator Validator address
+     * @return The index of the validator
+     */
+    function getValidatorIndex(
+        address _validator
     ) external view returns (uint256);
 
     /**
-     * @notice Returns all the oracle members
-     * @return Array of oracle member addresses
+     * @notice Returns all the validators with their information
+     * @return Array of validator information
      */
-    function getAllAggOracleMembers() external view returns (address[] memory);
+    function getValidatorsInfo() external view returns (ValidatorInfo[] memory);
 
     /**
-     * @notice Returns the number of oracle members
-     * @return The count of oracle members
+     * @notice Returns the number of validators
+     * @return The count of validators
      */
-    function getAggOracleMembersCount() external view returns (uint256);
+    function getValidatorsCount() external view returns (uint256);
 
-    // Public state variables (as getters)
+    /**
+     * @notice Returns if an address is a validator
+     * @param _validator The address to check
+     * @return True if the address is a validator
+     */
+    function isValidator(address _validator) external view returns (bool);
 
-    /// @notice Version constant
-    function VERSION() external view returns (string memory);
+    ////////////////////
+    // Public State Variables
+    ////////////////////
 
     /// @notice Global exit root manager L2
-    function globalExitRootManagerL2Sovereign()
-        external
-        view
-        returns (IAgglayerGERL2);
+    function agglayerGERL2() external view returns (IAgglayerGERL2);
 
     /// @notice Agglayer Bridge L2
     function agglayerBridgeL2() external view returns (IAgglayerBridgeL2);
 
-    /// @notice Array of oracle members
-    function aggOracleMembers(uint256 index) external view returns (address);
+    /// @notice Array of validators
+    function validators(uint256 index) external view returns (address);
 
     /// @notice Threshold required for signature verification
-    function threshold() external view returns (uint64);
+    function threshold() external view returns (uint256);
 
-    /// @notice Mapping to track if an address is an oracle member
-    function isAggOracleMember(address member) external view returns (bool);
+    /// @notice Mapping to track validator information
+    function validatorInfo(address validator) external view returns (bool isValidator, string memory url);
 
-    /// @notice Address that can propose LER injections
-    function aggOracleProposer() external view returns (address);
+    /// @notice Address that can propose GER and LER injections
+    function proposer() external view returns (address);
 }
-

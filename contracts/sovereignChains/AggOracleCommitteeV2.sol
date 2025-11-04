@@ -6,186 +6,193 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable5/access/Ow
 import {ECDSA} from "@openzeppelin/contracts5/utils/cryptography/ECDSA.sol";
 import {IAgglayerGERL2} from "../interfaces/IAgglayerGERL2.sol";
 import {IAgglayerBridgeL2} from "../interfaces/IAgglayerBridgeL2.sol";
+import {IAggOracleCommitteeV2} from "../interfaces/IAggOracleCommitteeV2.sol";
+import {IVersion} from "../interfaces/IVersion.sol";
+import {SignatureDecoder} from "../lib/SignatureDecoder.sol";
 
 /**
  * @title AggOracleCommitteeV2
- * @notice Contract responsible for managing the insertion of GERs and LERs into the AgglayerGERL2.
- * @dev This contract uses signature verification similar to Safe multisig for permissioned injection of GERs and LERs.
+ * @notice Contract responsible for managing the insertion of GERs (Global Exit Roots) and LERs (Local Exit Roots)
+ * @notice Proposer-validator management is equal as the one implemented in the AggchainSigners contract but a minor modification
+ *         which allows the `url` of a validator to be empty. This Sc will be deployed on L2 and therefore GASc osts are not an issue.
+ * @dev This contract uses signature verification similar to Safe multisig for permissioned injection of GERs and LERs
+ *      It implements a threshold-based multi-signature scheme where a minimum number of oracle validators must sign
+ *      each GER/LER injection before it can be executed.
  */
-contract AggOracleCommitteeV2 is OwnableUpgradeable {
-    /**
-     * @notice Struct containing LER information
-     * @param rollupIndex The rollup index for the LER
-     * @param LER The local exit root
-     * @param agglayerParams Metadata for the agglayer
-     */
-    struct LERInformation {
-        uint32 rollupIndex;
-        bytes32 LER;
-        bytes agglayerParams;
-    }
+contract AggOracleCommitteeV2 is SignatureDecoder, OwnableUpgradeable, IVersion, IAggOracleCommitteeV2 {
+    ////////////////////
+    // Immutables & Constants
+    ////////////////////
 
-    // Version
-    string public constant VERSION = "v2.0.0";
+    /// @notice Version constant
+    string public constant VERSION_AGG_ORACLE_COMMITTEE_V2 = "v1.0.0";
 
-    // Merkle tree depth constant
+    /// @notice Merkle tree depth constant for SMT proofs
     uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
-    // Global exit root manager L2
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IAgglayerGERL2 public immutable globalExitRootManagerL2Sovereign;
+    /// @notice Global exit root manager L2 - manages the GER tree
+    IAgglayerGERL2 public immutable agglayerGERL2;
 
-    // Agglayer Bridge L2
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    /// @notice Agglayer Bridge L2 - manages cross-chain asset transfers
     IAgglayerBridgeL2 public immutable agglayerBridgeL2;
 
-    // Array of oracle members
-    address[] public aggOracleMembers;
+    ////////////////////
+    // Storage
+    ////////////////////
 
-    // Threshold required for signature verification
-    uint64 public threshold;
+    /// @notice Array of oracle validator addresses
+    address[] public validators;
 
-    // Mapping to track if an address is an oracle member
-    mapping(address => bool) public isAggOracleMember;
+    /// @notice Number of signatures required to inject a GER or LER
+    uint256 public threshold;
 
-    // Address that can propose LER injections
-    address public aggOracleProposer;
+    /// @notice Mapping to track if an address is an authorized oracle validator
+    mapping(address => ValidatorInternalInfo) public validatorInfo;
+
+    /// @notice Address authorized to propose GER and LER injections
+    address public proposer;
+
+    ////////////////////
+    // Modifiers
+    ////////////////////
 
     /**
-     * @dev Disables initializers on the implementation, following best practices.
+     * @notice Modifier to restrict access to the oracle proposer
+     * @dev Reverts if the caller is not the designated oracle proposer
      */
-    /// @custom:oz-upgrades-unsafe-allow constructor
+    modifier onlyAggOracleProposer() {
+        if (msg.sender != proposer) {
+            revert OnlyAggOracleProposerCanCall();
+        }
+        _;
+    }
+
+    ////////////////////
+    // Constructor
+    ////////////////////
+
+    /**
+     * @notice Contract constructor
+     * @dev Disables initializers on the implementation contract following UUPS proxy pattern best practices
+     * @param _agglayerGERL2 Address of the Agglayer Global Exit Root manager L2
+     * @param _agglayerBridgeL2 Address of the Agglayer Bridge L2
+     */
     constructor(
-        IAgglayerGERL2 _globalExitRootManager,
+        IAgglayerGERL2 _agglayerGERL2,
         IAgglayerBridgeL2 _agglayerBridgeL2
     ) {
-        require(
-            address(_globalExitRootManager) != address(0),
-            "GlobalExitRootManagerCannotBeZero"
-        );
+        if (address(_agglayerGERL2) == address(0)) {
+            revert AgglayerGERL2CannotBeZero();
+        }
 
-        require(
-            address(_agglayerBridgeL2) != address(0),
-            "AgglayerBridgeL2CannotBeZero"
-        );
+        if (address(_agglayerBridgeL2) == address(0)) {
+            revert AgglayerBridgeL2CannotBeZero();
+        }
 
-        globalExitRootManagerL2Sovereign = _globalExitRootManager;
+        agglayerGERL2 = _agglayerGERL2;
         agglayerBridgeL2 = _agglayerBridgeL2;
         _disableInitializers();
     }
 
+    ////////////////////
+    // Initializer
+    ////////////////////
+
     /**
-     * @notice Initializes the contract.
-     * @param _owner Owner of the contract, presumably a multisig
-     * @param _aggOracleMembers Initial oracle members
-     * @param _threshold Threshold required for signature verification
-     * @param _aggOracleProposer Address that can propose LER injections
+     * @notice Initializes the contract with initial configuration
+     * @dev Can only be called once due to initializer modifier. Sets up the owner, validators, threshold, and proposer
+     * @param _owner Owner of the contract, presumably a multisig for governance
+     * @param _newProposer Address authorized to propose GER/LER injections
+     * @param _newValidators Initial array of oracle validator addresses
+     * @param _newThreshold Number of signatures required for GER/LER injection
      */
     function initialize(
         address _owner,
-        address[] calldata _aggOracleMembers,
-        uint64 _threshold,
-        address _aggOracleProposer
+        address _newProposer,
+        ValidatorInfo[] memory _newValidators,
+        uint256 _newThreshold
     ) external initializer {
-        require(_threshold != 0, "ThresholdCannotBeZero");
-        require(_aggOracleMembers.length >= 1, "MustHaveAtLeastOneSigner");
-        require(
-            _threshold <= _aggOracleMembers.length,
-            "ThresholdCannotBeGreaterThanMembers"
-        );
-        require(_aggOracleProposer != address(0), "ProposerCannotBeZero");
-
-        // Set initialization parameters
-        threshold = _threshold;
-        aggOracleProposer = _aggOracleProposer;
-
-        // Add oracle members
-        for (uint256 i = 0; i < _aggOracleMembers.length; i++) {
-            _addOracleMember(_aggOracleMembers[i]);
+        // Validate owner is not zero address
+        if (_owner == address(0)) {
+            revert OwnerCannotBeZero();
         }
 
-        // Initialize OpenZeppelin OwnableUpgradeable
+        // Validate proposer is not zero address
+        if (_newProposer == address(0)) {
+            revert ProposerCannotBeZero();
+        }
+
+        // threshold and validators are validated in the internal function _updateValidatorsAndThreshold
+        _updateValidatorsAndThreshold(
+            new RemoveValidatorInfo[](0), // No validators to remove
+            _newValidators,
+            _newThreshold
+        );
+
+        // Initialize ownership
         __Ownable_init(_owner);
 
-        // Emit events
-        emit UpdateThreshold(_threshold);
-        emit UpdateAggOracleProposer(_aggOracleProposer);
     }
 
     ////////////////////
-    // Owner functions
-    ///////////////////
+    // Oracle Proposer Functions
+    ////////////////////
 
     /**
-     * @notice Inject multiple GERs with signature verification
-     * @param _globalExitRoots Array of GERs to inject
-     * @param _signatures Array of signature arrays for each GER
+     * @notice Inject multiple Global Exit Roots (GERs) with signature verification
+     * @dev Each GER must be signed by at least `threshold` number of oracle validators
+     *      Signatures must be ordered by signer address in ascending order to prevent duplicates
+     * @param _globalExitRoots Array of GERs to inject into the GER manager
+     * @param _signatures Array of concatenated signatures for each GER (65 bytes per signature: r+s+v)
      */
     function injectGER(
         bytes32[] calldata _globalExitRoots,
         bytes[] calldata _signatures
-    ) external onlyOwner {
-        require(
-            _globalExitRoots.length == _signatures.length,
-            "ArrayLengthMismatch"
-        );
+    ) external onlyAggOracleProposer {
+        // Validate input arrays have matching lengths
+        if (_globalExitRoots.length != _signatures.length) {
+            revert ArrayLengthMismatch();
+        }
 
+        // Process each GER
         for (uint256 i = 0; i < _globalExitRoots.length; i++) {
             bytes32 globalExitRoot = _globalExitRoots[i];
-            require(globalExitRoot != bytes32(0), "GERCannotBeZero");
 
-            // Build message to verify
-            bytes32 messageHash = _buildGERMessage(globalExitRoot);
+            // Validate the GER
+            _validateGER(globalExitRoot, _signatures[i]);
 
-            // Verify signatures
-            _verifySignatures(messageHash, _signatures[i]);
-
-            // Insert GER
-            globalExitRootManagerL2Sovereign.insertGlobalExitRoot(
-                globalExitRoot
-            );
+            // Insert the GER into the global exit root manager
+            agglayerGERL2.insertGlobalExitRoot(globalExitRoot);
 
             emit GERInjected(globalExitRoot);
         }
     }
 
     /**
-     * @notice Inject multiple LERs with signature verification
-     * @param _lerInformation Array of LER information to inject
-     * @param _signatures Array of signature arrays for each LER
+     * @notice Inject multiple Local Exit Roots (LERs) with signature verification
+     * @dev Each LER must be signed by at least `threshold` number of oracle validators
+     *      Signatures must be ordered by signer address in ascending order to prevent duplicates
+     * @param _lerInformation Array of LER information containing rollup index, LER, and agglayer params
+     * @param _signatures Array of concatenated signatures for each LER (65 bytes per signature: r+s+v)
      */
     function injectLER(
         LERInformation[] calldata _lerInformation,
         bytes[] calldata _signatures
-    ) external {
-        require(
-            msg.sender == aggOracleProposer,
-            "OnlyAggOracleProposerCanCall"
-        );
-        require(
-            _lerInformation.length == _signatures.length,
-            "ArrayLengthMismatch"
-        );
+    ) external onlyAggOracleProposer {
+        // Validate input arrays have matching lengths
+        if (_lerInformation.length != _signatures.length) {
+            revert ArrayLengthMismatch();
+        }
 
+        // Process each LER
         for (uint256 i = 0; i < _lerInformation.length; i++) {
             LERInformation calldata lerInfo = _lerInformation[i];
-            require(lerInfo.LER != bytes32(0), "LERCannotBeZero");
+            
+            // Validate the LER
+            _validateLER(lerInfo.rollupIndex, lerInfo.LER, lerInfo.agglayerParams, _signatures[i]);
 
-            // Build message to verify
-            bytes32 messageHash = _buildLERMessage(
-                lerInfo.rollupIndex,
-                lerInfo.LER,
-                lerInfo.agglayerParams
-            );
-
-            // Verify signatures
-            _verifySignatures(messageHash, _signatures[i]);
-
-            // Note: The actual insertion of LER into AgglayerGERL2 or AgglayerBridgeL2
-            // depends on the bridge implementation. This is a placeholder.
-            // The spec mentions calling insertLER but IAgglayerGERL2 doesn't have this function.
-            // For now, we emit an event. Implementation may need adjustment based on actual interface.
-
+            // Emit LER injection event
+            // Note: The actual insertion of LER into bridge/GER manager depends on final bridge implementation
             emit LERInjected(
                 lerInfo.rollupIndex,
                 lerInfo.LER,
@@ -194,386 +201,378 @@ contract AggOracleCommitteeV2 is OwnableUpgradeable {
         }
     }
 
-    /**
-     * @notice Inject LER and execute claims
-     * @param _lerInformation LER information to inject
-     * @param _signatures Signatures for the LER
-     * @param _smtProofLocalExitRoot Array of SMT proofs for local exit roots
-     * @param _originNetwork Array of origin networks
-     * @param _originTokenAddress Array of origin token addresses
-     * @param _destinationNetwork Array of destination networks
-     * @param _destinationAddress Array of destination addresses
-     * @param _amount Array of amounts
-     * @param _metadata Array of metadata
-     */
-    function injectLERAndClaim(
-        LERInformation calldata _lerInformation,
-        bytes calldata _signatures,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH][][] calldata _smtProofLocalExitRoot,
-        uint32[][] calldata _originNetwork,
-        address[][] calldata _originTokenAddress,
-        uint32[][] calldata _destinationNetwork,
-        address[] calldata _destinationAddress,
-        uint256[][] calldata _amount,
-        bytes[][] calldata _metadata
-    ) external {
-        require(
-            msg.sender == aggOracleProposer,
-            "OnlyAggOracleProposerCanCall"
-        );
-        require(_lerInformation.LER != bytes32(0), "LERCannotBeZero");
-
-        // Build message to verify
-        bytes32 messageHash = _buildLERMessage(
-            _lerInformation.rollupIndex,
-            _lerInformation.LER,
-            _lerInformation.agglayerParams
-        );
-
-        // Verify signatures
-        _verifySignatures(messageHash, _signatures);
-
-        // Emit LER injection event
-        emit LERInjected(
-            _lerInformation.rollupIndex,
-            _lerInformation.LER,
-            _lerInformation.agglayerParams
-        );
-
-        // Process claims - iterate through arrays and call claimAsset
-        // Arrays validation
-        uint256 claimCount = _destinationAddress.length;
-        require(
-            _smtProofLocalExitRoot.length == claimCount &&
-                _originNetwork.length == claimCount &&
-                _originTokenAddress.length == claimCount &&
-                _destinationNetwork.length == claimCount &&
-                _amount.length == claimCount &&
-                _metadata.length == claimCount,
-            "ClaimArrayLengthMismatch"
-        );
-
-        // Execute claims - if any fail, continue without reverting
-        for (uint256 i = 0; i < claimCount; i++) {
-            try
-                this.claimAssetFromLER(
-                    _smtProofLocalExitRoot[i],
-                    _originNetwork[i],
-                    _originTokenAddress[i],
-                    _destinationNetwork[i],
-                    _destinationAddress[i],
-                    _amount[i],
-                    _metadata[i]
-                )
-            {
-                emit ClaimExecuted(i, true);
-            } catch {
-                emit ClaimExecuted(i, false);
-            }
-        }
-    }
+    ////////////////////
+    // Owner Functions
+    ////////////////////
 
     /**
-     * @notice Helper function to execute claims from LER
-     * @dev This function is called externally from injectLERAndClaim to allow try/catch
-     */
-    function claimAssetFromLER(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH][] calldata, /* smtProofLocalExitRoot */
-        uint32[] calldata, /* originNetwork */
-        address[] calldata, /* originTokenAddress */
-        uint32[] calldata, /* destinationNetwork */
-        address calldata, /* destinationAddress */
-        uint256[] calldata, /* amount */
-        bytes[] calldata /* metadata */
-    ) external {
-        require(msg.sender == address(this), "OnlySelfCanCall");
-        // Placeholder for actual claim logic
-        // This would interact with agglayerBridgeL2.claimAsset()
-        // Implementation depends on the exact bridge interface
-    }
-
-    /**
-     * @notice Add an oracle member
-     * @param _newOracleMember Address of the new oracle member
-     */
-    function addOracleMember(address _newOracleMember) external onlyOwner {
-        _addOracleMember(_newOracleMember);
-    }
-
-    /**
-     * @notice Remove an oracle member
-     * @param _oracleMemberAddress Address of the oracle member to remove
-     * @param _oracleMemberIndex Index of the oracle member to remove
-     */
-    function removeOracleMember(
-        address _oracleMemberAddress,
-        uint256 _oracleMemberIndex
-    ) external onlyOwner {
-        require(
-            _oracleMemberIndex < aggOracleMembers.length,
-            "OracleMemberIndexOutOfBounds"
-        );
-
-        require(isAggOracleMember[_oracleMemberAddress], "NotOracleMember");
-
-        require(
-            aggOracleMembers[_oracleMemberIndex] == _oracleMemberAddress,
-            "OracleMemberIndexMismatch"
-        );
-
-        // Remove oracle member
-        isAggOracleMember[_oracleMemberAddress] = false;
-
-        // Remove from array
-        aggOracleMembers[_oracleMemberIndex] = aggOracleMembers[
-            aggOracleMembers.length - 1
-        ];
-        aggOracleMembers.pop();
-
-        emit RemoveAggOracleMember(_oracleMemberAddress);
-    }
-
-    /**
-     * @notice Update the threshold value
-     * @param _newThreshold New threshold value
-     */
-    function updateThreshold(uint64 _newThreshold) external onlyOwner {
-        require(_newThreshold != 0, "ThresholdCannotBeZero");
-        require(
-            _newThreshold <= aggOracleMembers.length,
-            "ThresholdCannotBeGreaterThanMembers"
-        );
-
-        threshold = _newThreshold;
-        emit UpdateThreshold(_newThreshold);
-    }
-
-    /**
-     * @notice Update the aggOracleProposer address
+     * @notice Update the oracle proposer address
+     * @dev Only callable by the contract owner. Proposer address cannot be zero
      * @param _newProposer New proposer address
      */
-    function updateAggOracleProposer(
-        address _newProposer
-    ) external onlyOwner {
-        require(_newProposer != address(0), "ProposerCannotBeZero");
+    function updateAggOracleProposer(address _newProposer) external onlyOwner {
+        // Validate proposer is not zero address
+        if (_newProposer == address(0)) {
+            revert ProposerCannotBeZero();
+        }
 
-        aggOracleProposer = _newProposer;
+        proposer = _newProposer;
         emit UpdateAggOracleProposer(_newProposer);
     }
 
     /**
-     * @notice Transfer the globalExitRootUpdater role
-     * @dev This is a two-step process; the pending globalExitRootUpdater must accept to finalize the process
+     * @notice Transfer the globalExitRootUpdater role to a new address
+     * @dev Only callable by the contract owner. This is step 1 of a two-step transfer process
      * @param _newGlobalExitRootUpdater Address of the new globalExitRootUpdater
      */
     function transferGlobalExitRootUpdater(
         address _newGlobalExitRootUpdater
     ) external onlyOwner {
-        globalExitRootManagerL2Sovereign.transferGlobalExitRootUpdater(
-            _newGlobalExitRootUpdater
-        );
+        agglayerGERL2.transferGlobalExitRootUpdater(_newGlobalExitRootUpdater);
     }
 
     /**
      * @notice Accept the globalExitRootUpdater role
-     * @dev This is the second step from a two-step process
+     * @dev Only callable by the contract owner. This is step 2 of a two-step transfer process
      */
     function acceptGlobalExitRootUpdater() external onlyOwner {
-        globalExitRootManagerL2Sovereign.acceptGlobalExitRootUpdater();
+        agglayerGERL2.acceptGlobalExitRootUpdater();
+    }
+
+    /**
+     * @notice Update the validators and threshold
+     * @dev Only callable by the contract owner. Validators and threshold are updated in a single transaction
+     * @param _validatorsToRemove Array of validators to remove with their indices (MUST be in descending index order)
+     * @param _validatorsToAdd Array of new validators to add with their URLs
+     * @param _newThreshold New threshold value
+     */
+    function updateValidatorsAndThreshold(
+        RemoveValidatorInfo[] memory _validatorsToRemove,
+        ValidatorInfo[] memory _validatorsToAdd,
+        uint256 _newThreshold
+    ) external onlyOwner {
+        _updateValidatorsAndThreshold(_validatorsToRemove, _validatorsToAdd, _newThreshold);
     }
 
     ////////////////////
-    // Internal functions
-    ///////////////////
+    // Internal Functions
+    ////////////////////
 
     /**
-     * @notice Internal function to add an oracle member
-     * @param _newOracleMember Address of the new oracle member
+     * @notice Internal function to add an oracle validator
+     * @dev Validates that the address is not zero and not already a validator
+     * @param _newValidator Address of the new validator
+     * @param _url URL of the validator
      */
-    function _addOracleMember(address _newOracleMember) internal {
-        require(_newOracleMember != address(0), "OracleMemberCannotBeZero");
-        require(!isAggOracleMember[_newOracleMember], "AlreadyOracleMember");
+    function _addValidator(address _newValidator, string memory _url) internal {
+        // Validate address is not zero
+        if (_newValidator == address(0)) {
+            revert ValidatorCannotBeZero();
+        }
+        
+        // Validate address is not already a validator
+        if (validatorInfo[_newValidator].isValidator) {
+            revert ValidatorAlreadyExists();
+        }
 
-        // Add oracle member
-        isAggOracleMember[_newOracleMember] = true;
-        aggOracleMembers.push(_newOracleMember);
+        // Add validator to array
+        validators.push(_newValidator);
+        // Add validator to mapping
+        validatorInfo[_newValidator] = ValidatorInternalInfo({
+            isValidator: true,
+            url: _url
+        });
+    }
 
-        emit AddAggOracleMember(_newOracleMember);
+    /**
+     * @notice Remove an existing oracle validator
+     * @dev Only callable by the contract owner. Uses swap-and-pop pattern for gas-efficient removal
+     * @param _oracleValidatorAddress Address of the oracle validator to remove
+     * @param _oracleValidatorIndex Index of the validator in the validators array
+     */
+    function _removeValidator(
+        address _oracleValidatorAddress,
+        uint256 _oracleValidatorIndex
+    ) internal {
+        // cache array length
+        uint256 validatorsLength = validators.length;
+
+        // Validate index is within bounds
+        if (_oracleValidatorIndex >= validatorsLength) {
+            revert ValidatorIndexOutOfBounds();
+        }
+
+        // Validate address is a current validator
+        if (validators[_oracleValidatorIndex] != _oracleValidatorAddress) {
+            revert ValidatorIndexMismatch();
+        }
+
+        // Remove validator status
+        // use delete to remove from mapping
+        delete validatorInfo[_oracleValidatorAddress];
+
+        // Remove from array using swap-and-pop pattern
+        validators[_oracleValidatorIndex] = validators[validatorsLength - 1];
+        validators.pop();
+    }
+
+    // internal function to uopdate the threshold
+    function _updateThreshold(uint256 _newThreshold) internal {
+        // Validate threshold doesn't exceed number of validators
+        if (_newThreshold > validators.length) {
+            revert ThresholdCannotBeGreaterThanValidators();
+        }
+
+        // Validate threshold is not zero
+        if (validators.length != 0 && _newThreshold == 0) {
+            revert ThresholdCannotBeZeroIfAnyValidatorExists();
+        }
+
+        threshold = _newThreshold;
+    }
+
+    // new internal function that updates: Validators (either added or removed) and the threshold
+    function _updateValidatorsAndThreshold(
+        RemoveValidatorInfo[] memory _validatorsToRemove,
+        ValidatorInfo[] memory _validatorsToAdd,
+        uint256 _newThreshold
+    ) internal {
+        // Validate descending order of indices for removal to avoid index shifting issues
+        // When removing multiple signers, we must process them from highest index to lowest
+        if (_validatorsToRemove.length > 1) {
+            for (uint256 i = 0; i < _validatorsToRemove.length - 1; i++) {
+                if (
+                    _validatorsToRemove[i].index <= _validatorsToRemove[i + 1].index
+                ) {
+                    revert IndicesNotInDescendingOrder();
+                }
+            }
+        }
+
+        // Remove validators (in descending index order to avoid index shifting issues)
+        for (uint256 i = 0; i < _validatorsToRemove.length; i++) {
+            _removeValidator(_validatorsToRemove[i].addr, _validatorsToRemove[i].index);
+        }
+
+        // Add new validators
+        for (uint256 i = 0; i < _validatorsToAdd.length; i++) {
+            _addValidator(_validatorsToAdd[i].addr, _validatorsToAdd[i].url);
+        }
+
+        _updateThreshold(_newThreshold);
+
+        emit ValidatorsAndThresholdUpdated(
+            validators,
+            threshold
+        );
     }
 
     /**
      * @notice Build message hash for GER verification
+     * @dev Virtual function to allow for different hashing schemes in derived contracts
      * @param _globalExitRoot The GER to build message for
-     * @return The message hash
+     * @return The message hash to be signed by oracle validators
      */
     function _buildGERMessage(
         bytes32 _globalExitRoot
-    ) internal view virtual returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    address(this),
-                    block.chainid,
-                    _globalExitRoot
-                )
-            );
+    ) internal pure virtual returns (bytes32) {
+        return keccak256(abi.encodePacked(_globalExitRoot));
+    }
+
+    /**
+     * @notice Validate a GER
+     * @dev Validates the GER is not zero and builds the message hash to verify
+     * @param _globalExitRoot The GER to validate
+     * @param _signatures The signatures to verify
+     */
+    function _validateGER(
+        bytes32 _globalExitRoot,
+        bytes memory _signatures
+    ) internal view {
+        // Validate GER is not zero
+        if (_globalExitRoot == bytes32(0)) {
+            revert GERCannotBeZero();
+        }
+
+        // Build the message hash to verify
+        bytes32 messageHash = _buildGERMessage(_globalExitRoot);
+
+        // Verify required number of valid signatures
+        _verifySignatures(messageHash, _signatures);
     }
 
     /**
      * @notice Build message hash for LER verification
+     * @dev Virtual function to allow for different hashing schemes in derived contracts
      * @param _rollupIndex The rollup index
      * @param _LER The local exit root
      * @param _agglayerParams The agglayer parameters
-     * @return The message hash
+     * @return The message hash to be signed by oracle validators
      */
     function _buildLERMessage(
         uint32 _rollupIndex,
         bytes32 _LER,
         bytes memory _agglayerParams
-    ) internal view virtual returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    address(this),
-                    block.chainid,
-                    _rollupIndex,
-                    _LER,
-                    _agglayerParams
-                )
-            );
+    ) internal pure virtual returns (bytes32) {
+        return keccak256(
+            abi.encodePacked(
+                _rollupIndex,
+                _LER,
+                _agglayerParams
+            )
+        );
     }
 
     /**
-     * @notice Verify signatures according to threshold
-     * @dev Similar to Safe's signature verification approach
-     * @param _messageHash The message hash to verify
-     * @param _signatures Concatenated signatures (r, s, v format)
+     * @notice Validate a LER
+     * @dev Validates the LER is not zero and builds the message hash to verify
+     * @param _rollupIndex The rollup index
+     * @param _LER The local exit root
+     * @param _agglayerParams The agglayer parameters
+     * @param _signatures The signatures to verify
+     */
+    function _validateLER(
+        uint32 _rollupIndex,
+        bytes32 _LER,
+        bytes memory _agglayerParams,
+        bytes memory _signatures
+    ) internal view {
+        // Validate LER is not zero
+        if (_LER == bytes32(0)) {
+            revert LERCannotBeZero();
+        }
+
+        // Build the message hash to verify
+        bytes32 messageHash = _buildLERMessage(_rollupIndex, _LER, _agglayerParams);
+
+        // Verify required number of valid signatures
+        _verifySignatures(messageHash, _signatures);
+    }
+
+    /**
+     * @notice Verify signatures meet the threshold requirement
+     * @notice Heavily based on the Safe multisig implementation: https://github.com/safe-fndn/safe-smart-account/blob/v1.5.0/contracts/Safe.sol#L287
+     * @dev Implements signature verification similar to Safe multisig
+     *      - Expects tightly packed signatures (r, s, v) where v is 27 or 28
+     *      - Requires exactly `threshold` number of signatures
+     *      - Signers must be in ascending address order to prevent duplicate signatures
+     * @param _messageHash The message hash that was signed
+     * @param _signatures Concatenated signatures (65 bytes each: 32 bytes r + 32 bytes s + 1 byte v)
      */
     function _verifySignatures(
         bytes32 _messageHash,
         bytes memory _signatures
     ) internal view {
-        // Signatures are expected to be tightly packed as (r, s, v) for each signature
-        // where v is the recovery id (27 or 28)
-        require(
-            _signatures.length >= threshold * 65,
-            "InsufficientSignatures"
-        );
+        // Validate minimum signature length (threshold * 65 bytes per signature)
+        if (_signatures.length < threshold * 65) {
+            revert InsufficientSignatures();
+        }
 
-        bytes32 ethSignedMessageHash = ECDSA.toEthSignedMessageHash(
-            _messageHash
-        );
+        address lastValidator = address(0);
+        address currentValidator;
 
-        address lastSigner = address(0);
-        address currentSigner;
-
+        // Verify each required signature
         for (uint256 i = 0; i < threshold; i++) {
-            (uint8 v, bytes32 r, bytes32 s) = _splitSignature(
-                _signatures,
-                i
-            );
+            // Extract signature components (v, r, s)
+            (uint8 v, bytes32 r, bytes32 s) = _splitSignature(_signatures, i);
 
-            // Recover signer
-            currentSigner = ECDSA.recover(ethSignedMessageHash, v, r, s);
+            // Recover the signer address from the signature
+            currentValidator = ECDSA.recover(_messageHash, v, r, s);
 
-            // Check that signer is an oracle member
-            require(
-                isAggOracleMember[currentSigner],
-                "SignerNotOracleMember"
-            );
-
-            // Check that signers are ordered (prevent duplicates)
-            require(currentSigner > lastSigner, "SignersNotOrdered");
-
-            lastSigner = currentSigner;
-        }
-    }
-
-    /**
-     * @notice Split signature from concatenated signatures
-     * @param _signatures Concatenated signatures
-     * @param _index Index of the signature to extract
-     * @return v The recovery id
-     * @return r The r value
-     * @return s The s value
-     */
-    function _splitSignature(
-        bytes memory _signatures,
-        uint256 _index
-    ) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
-        uint256 offset = _index * 65;
-
-        assembly {
-            r := mload(add(_signatures, add(0x20, offset)))
-            s := mload(add(_signatures, add(0x40, offset)))
-            v := byte(0, mload(add(_signatures, add(0x60, offset))))
-        }
-    }
-
-    ///////////////////
-    // View functions
-    ///////////////////
-
-    /**
-     * @notice Returns the index of an oracle member
-     * @param _oracleMember Oracle member address
-     * @return The index of the oracle member
-     */
-    function getAggOracleMemberIndex(
-        address _oracleMember
-    ) external view returns (uint256) {
-        for (uint256 i = 0; i < aggOracleMembers.length; ++i) {
-            if (aggOracleMembers[i] == _oracleMember) {
-                return i;
+            // Validate signer is an authorized oracle validator
+            if (!validatorInfo[currentValidator].isValidator) {
+                revert ValidatorDoesNotExist();
             }
+
+            // Validate signers are in ascending order (prevents duplicate signatures)
+            if (currentValidator <= lastValidator) {
+                revert ValidatorsNotOrdered();
+            }
+
+            lastValidator = currentValidator;
         }
-
-        revert("OracleMemberNotFound");
-    }
-
-    /**
-     * @notice Returns all the oracle members
-     * @return Array of oracle member addresses
-     */
-    function getAllAggOracleMembers() external view returns (address[] memory) {
-        return aggOracleMembers;
-    }
-
-    /**
-     * @notice Returns the number of oracle members
-     * @return The count of oracle members
-     */
-    function getAggOracleMembersCount() external view returns (uint256) {
-        return aggOracleMembers.length;
     }
 
     ////////////////////
-    // Events
-    ///////////////////
+    // View Functions
+    ////////////////////
 
-    /// @dev Emitted when a GER is injected
-    event GERInjected(bytes32 indexed globalExitRoot);
+    function verifyGER(
+        bytes32 _globalExitRoot,
+        bytes memory _signatures
+    ) external view returns (bool) {
+        _validateGER(_globalExitRoot, _signatures);
+        return true;
+    }
 
-    /// @dev Emitted when a LER is injected
-    event LERInjected(
-        uint32 indexed rollupIndex,
-        bytes32 indexed LER,
-        bytes agglayerParams
-    );
+    function verifyLER(
+        uint32 _rollupIndex,
+        bytes32 _LER,
+        bytes memory _agglayerParams,
+        bytes memory _signatures
+    ) external view returns (bool) {
+        _validateLER(_rollupIndex, _LER, _agglayerParams, _signatures);
+        return true;
+    }
 
-    /// @dev Emitted when a claim is executed
-    event ClaimExecuted(uint256 indexed claimIndex, bool success);
+    /**
+     * @notice Returns the index of an oracle validator in the validators array
+     * @dev Reverts if the validator is not found. Used for off-chain index lookups
+     * @param _validator Oracle validator address to search for
+     * @return The index of the oracle validator
+     */
+    function getValidatorIndex(
+        address _validator
+    ) external view returns (uint256) {
+        for (uint256 i = 0; i < validators.length; ++i) {
+            if (validators[i] == _validator) {
+                return i;
+            }
+        }
+        revert ValidatorNotFound();
+    }
 
-    /// @dev Emitted when the threshold is updated
-    event UpdateThreshold(uint64 newThreshold);
+    /**
+     * @notice Returns all oracle validator addresses
+     * @dev Returns a memory copy of the entire validators array
+     * @return Array of all oracle validator addresses
+     */
+    function getValidatorsInfo() external view returns (ValidatorInfo[] memory) {
+        ValidatorInfo[] memory validatorInfos = new ValidatorInfo[](validators.length);
+        for (uint256 i = 0; i < validators.length; i++) {
+            validatorInfos[i] = ValidatorInfo({
+                addr: validators[i],
+                url: validatorInfo[validators[i]].url
+            });
+        }
+        return validatorInfos;
+    }
 
-    /// @dev Emitted when a new oracle member is added
-    event AddAggOracleMember(address newOracleMember);
+    /**
+     * @notice Returns the total number of oracle validators
+     * @dev More gas-efficient than calling getValidatorsInfo() for just the count
+     * @return The count of oracle validators
+     */
+    function getValidatorsCount() external view returns (uint256) {
+        return validators.length;
+    }
 
-    /// @dev Emitted when an oracle member is removed
-    event RemoveAggOracleMember(address oracleMemberRemoved);
+    /**
+     * @notice Returns the version of the contract
+     * @dev Returns the version of the contract
+     * @return The version of the contract
+     */
+    function version() external pure returns (string memory) {
+        return VERSION_AGG_ORACLE_COMMITTEE_V2;
+    }
 
-    /// @dev Emitted when the aggOracleProposer is updated
-    event UpdateAggOracleProposer(address newProposer);
+    /**
+     * @notice Returns if an address is a validator
+     * @dev Returns if an address is a validator
+     * @param _validator The address to check
+     * @return True if the address is a validator
+     */
+    function isValidator(address _validator) external view returns (bool) {
+        return validatorInfo[_validator].isValidator;
+    }
 }
-
