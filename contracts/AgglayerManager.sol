@@ -168,6 +168,20 @@ contract AgglayerManager is
         bytes32 programVKey;
     }
 
+    /**
+     * @notice Struct representing a pessimistic proof state transition.
+     * @param rollupID Chain ID of the rollup
+     * @param newLocalExitRoot New local exit root
+     * @param newPessimisticRoot New pessimistic root
+     * @param aggchainData Aggchain data
+     */
+    struct PessimisticProofInput {
+        uint32 rollupID;
+        bytes32 newLocalExitRoot;
+        bytes32 newPessimisticRoot;
+        bytes aggchainData;
+    }
+
     // Modulus zkSNARK
     uint256 internal constant _RFIELD =
         21888242871839275222246405745257275088548364400416034343698204186575808495617;
@@ -318,6 +332,9 @@ contract AgglayerManager is
     // Mapping to track chains in migration
     mapping(uint32 rollupID => bool) public isRollupMigrating;
 
+    // Last Agglayer Rollup Exit Root
+    bytes32 public lastAgglayerRollupExitRoot;
+
     /**
      * @dev Emitted when a new rollup type is added
      */
@@ -429,6 +446,16 @@ contract AgglayerManager is
         bytes32 newLocalExitRoot,
         bytes32 l1InfoRoot,
         address indexed trustedAggregator
+    );
+
+    /**
+     * @notice Emitted when an aggregated proof verifying multiple aggchains is verified
+     * @param prevArer Previous Agglayer Rollup Exit Root before the state transition
+     * @param newArer New Agglayer Rollup Exit Root after the state transition
+     */
+    event VerifyAggregatedProof(
+        bytes32 indexed prevArer,
+        bytes32 indexed newArer
     );
 
     /**
@@ -1276,39 +1303,101 @@ contract AgglayerManager is
     }
 
     /**
-     * @notice Allows a trusted aggregator to verify pessimistic proof
-     * @param rollupID Rollup identifier
-     * @param l1InfoTreeLeafCount Count of the L1InfoTree leaf that will be used to verify imported bridge exits
-     * @param newLocalExitRoot New local exit root
-     * @param newPessimisticRoot New pessimistic information, Hash(localBalanceTreeRoot, nullifierTreeRoot)
-     * @param proof SP1 proof (Plonk)
-     * @param aggchainData Specific custom data to verify Aggregation layer chains
-     * @dev A reentrancy measure has been applied because this function calls `onVerifyPessimistic`, is an open function implemented by the aggchains
-     * @dev the function can not be a view because the nonReentrant uses a transient storage variable
+     * @notice Allows a trusted aggregator to verify an aggregated proof, which validates the state transition
+     * of multiple aggchains at once.
+     * @param pessimisticProofInputs Array of pessimistic proof inputs verified by the proof
+     * @param l1InfoRoot L1 info tree root
+     * @param newArer New Agglayer Rollup Exit Root
+     * @param proofBytes Aggregated proof containing a SP1 proof (Plonk) validating the state transition of multiple
+     * aggchains at once. The first 4 bytes of the proofBytes are the selector.
      */
-    function verifyPessimisticTrustedAggregator(
-        uint32 rollupID,
-        uint32 l1InfoTreeLeafCount,
-        bytes32 newLocalExitRoot,
-        bytes32 newPessimisticRoot,
-        bytes calldata proof,
-        bytes calldata aggchainData
+    function verifyAggregatedProofTrusted(
+        PessimisticProofInput[] calldata pessimisticProofInputs,
+        bytes32 l1InfoRoot,
+        bytes32 newArer,
+        bytes calldata proofBytes
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) nonReentrant {
-        RollupData storage rollup = _rollupIDToRollupData[rollupID];
+        bytes32 hashChainLeafPubValues = bytes32(0);
 
-        // Not for state transition chains
-        if (rollup.rollupVerifierType == VerifierType.StateTransition) {
-            revert StateTransitionChainsNotAllowed();
+        for (uint256 i = 0; i < pessimisticProofInputs.length; i++) {
+            PessimisticProofInput calldata proofData = pessimisticProofInputs[i];
+            uint32 rollupID = proofData.rollupID;
+            RollupData storage rollup = _rollupIDToRollupData[rollupID];
+
+            if (rollup.rollupVerifierType != VerifierType.ALGateway) {
+                revert InvalidRollupType();
+            }
+
+            bytes32 aggchainHash = IAggchainBase(rollup.rollupContract)
+                .getAggchainHash(proofData.aggchainData);
+
+            // TODO: Point to the code once its released (now its a prototype branch)
+            // https://github.com/agglayer/agglayer/blob/sandbox/aggregation_with_preconf/crates/aggregation-proof-core/src/lib.rs#L106-L116
+            bytes memory leafPubValues = abi.encodePacked(
+                rollupID,
+                rollup.lastLocalExitRoot,
+                proofData.newLocalExitRoot,
+                rollup.lastPessimisticRoot,
+                proofData.newPessimisticRoot,
+                aggchainHash
+            );
+
+            bytes32 ppOutputDigest = sha256(leafPubValues);
+            hashChainLeafPubValues = keccak256(abi.encodePacked(hashChainLeafPubValues, ppOutputDigest));
         }
 
-        // Check l1InfoTreeLeafCount has a valid l1InfoTreeRoot
-        bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
-            l1InfoTreeLeafCount
+        // TODO: Check that l1InfoRoot is in the contract? Otherwise its a free input?
+
+        // TODO: Remove this TODO: when agglayer removes the ppvkey from the input. Right now the ppvkey
+        // is part of the public input in agglayer, but that will be removed.
+        // TODO: Once agglayer releases, point to this instead of the sandbox branch
+        // https://github.com/agglayer/agglayer/blob/sandbox/aggregation_with_preconf/crates/aggregation-proof-core/src/lib.rs#L401
+        bytes memory aggregationPublicValues = serializeAggregationPublicValues(
+            hashChainLeafPubValues,
+            l1InfoRoot,
+            lastAgglayerRollupExitRoot,
+            newArer
         );
 
-        if (l1InfoRoot == bytes32(0)) {
-            revert L1InfoTreeLeafCountInvalid();
+        aggLayerGateway.verifyAggregatedProof(
+            aggregationPublicValues,
+            proofBytes
+        );
+
+        // Consolidate state for all aggchains
+        _consolidateMultiple(pessimisticProofInputs, l1InfoRoot, newArer);
+    }
+
+    function _consolidateMultiple(
+        PessimisticProofInput[] calldata pessimisticProofInputs,
+        bytes32 l1InfoRoot,
+        bytes32 newArer
+    ) internal nonReentrant {
+        // Update aggregation parameters
+        lastAggregationTimestamp = uint64(block.timestamp);
+
+        bytes32 prevArer = lastAgglayerRollupExitRoot;
+
+        // Update previous Agglayer Rollup Exit Root
+        lastAgglayerRollupExitRoot = newArer;
+
+        for (uint256 i = 0; i < pessimisticProofInputs.length; i++) {
+            _consolidateSingle(pessimisticProofInputs[i], l1InfoRoot);
         }
+
+        emit VerifyAggregatedProof(
+            prevArer,
+            newArer
+        );
+    }
+
+    function _consolidateSingle(
+        PessimisticProofInput calldata proofData,
+        bytes32 l1InfoRoot
+    ) internal nonReentrant {
+        uint32 rollupID = proofData.rollupID;
+        bytes32 newLocalExitRoot = proofData.newLocalExitRoot;
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
 
         // In case of a chain in migration, the inputs are a special case.
         if (isRollupMigrating[rollupID]) {
@@ -1333,44 +1422,22 @@ contract AgglayerManager is
             emit CompletedMigration(rollupID);
         }
 
-        bytes memory inputPessimisticBytes = _getInputPessimisticBytes(
-            rollupID,
-            rollup,
-            l1InfoRoot,
-            newLocalExitRoot,
-            newPessimisticRoot,
-            aggchainData
-        );
-
-        // Verify proof. The pessimistic proof selector is attached at the first 4 bytes of the proof
-        // proof[0:4]: 4 bytes selector pp
-        // proof[4:8]: 4 bytes selector SP1 verifier
-        // proof[8:]: proof
-        aggLayerGateway.verifyPessimisticProof(
-            inputPessimisticBytes,
-            proof
-        );
-
-        // Update aggregation parameters
-        lastAggregationTimestamp = uint64(block.timestamp);
-
-        // Consolidate state
         bytes32 prevLocalExitRoot = rollup.lastLocalExitRoot;
-        rollup.lastLocalExitRoot = newLocalExitRoot;
         bytes32 prevPessimisticRoot = rollup.lastPessimisticRoot;
-        rollup.lastPessimisticRoot = newPessimisticRoot;
 
-        // Interact with globalExitRootManager
+        // Apply state transition for the rollup
+        rollup.lastLocalExitRoot = newLocalExitRoot;
+        rollup.lastPessimisticRoot = proofData.newPessimisticRoot;
+
+        // Update the Rollup Exit Root
         globalExitRootManager.updateExitRoot(getRollupExitRoot());
 
         // Same event as verifyBatches to support current bridge service to synchronize everything
-        /// @dev moved newLocalExitRoot to aux variable to avoid stack too deep errors at compilation
-        bytes32 newLocalExitRootAux = newLocalExitRoot;
         emit VerifyBatchesTrustedAggregator(
             rollupID,
             0, // final batch: does not  apply in pessimistic
             bytes32(0), // new state root: does not apply in pessimistic
-            newLocalExitRootAux,
+            newLocalExitRoot,
             msg.sender
         );
 
@@ -1378,17 +1445,38 @@ contract AgglayerManager is
         emit VerifyPessimisticStateTransition(
             rollupID,
             prevPessimisticRoot,
-            newPessimisticRoot,
+            proofData.newPessimisticRoot,
             prevLocalExitRoot,
-            newLocalExitRootAux,
+            newLocalExitRoot,
             l1InfoRoot,
             msg.sender
         );
 
-        // Allow chains to manage customData
-        // Callback to the rollup address
+        // Only ALGateway are supported
         IAggchainBase(rollup.rollupContract).onVerifyPessimistic(
-            aggchainData
+            proofData.aggchainData
+        );
+    }
+
+    /**
+     * @notice Serializes AggregationPublicValues struct to bytes.
+     * @param hashChainPpInputs The hash chain of pessimistic proof inputs (32 bytes)
+     * @param l1InfoRoot The L1 info tree root (32 bytes)
+     * @param prevArer Previous aggregation exit root (32 bytes)
+     * @param newArer New aggregation exit root (32 bytes)
+     * @return encoded bytes (160 bytes total)
+     */
+    function serializeAggregationPublicValues(
+        bytes32 hashChainPpInputs,
+        bytes32 l1InfoRoot,
+        bytes32 prevArer,
+        bytes32 newArer
+    ) public pure returns (bytes memory) {
+        return abi.encodePacked(
+            hashChainPpInputs,
+            l1InfoRoot,
+            prevArer,
+            newArer
         );
     }
 

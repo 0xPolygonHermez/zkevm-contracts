@@ -407,15 +407,6 @@ interface IAgglayerManager {
         bytes32[24] calldata proof
     ) external;
 
-    function verifyPessimisticTrustedAggregator(
-        uint32 rollupID,
-        uint32 l1InfoTreeLeafCount,
-        bytes32 newLocalExitRoot,
-        bytes32 newPessimisticRoot,
-        bytes calldata proof,
-        bytes memory aggchainData
-    ) external;
-
     function activateEmergencyState() external;
 
     function deactivateEmergencyState() external;
