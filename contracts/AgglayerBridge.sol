@@ -601,6 +601,30 @@ contract AgglayerBridge is
             amount
         );
 
+        _transferAssets(
+            originNetwork,
+            originTokenAddress,
+            destinationAddress,
+            amount,
+            metadata
+        );
+    }
+
+    /**
+     * @notice Internal function to transfer assets to destination address
+     * @param originNetwork Origin network
+     * @param originTokenAddress  Origin token address,
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens
+     * @param metadata Abi encoded metadata if any, empty otherwise
+     */
+    function _transferAssets(
+        uint32 originNetwork,
+        address originTokenAddress,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) internal virtual {
         // Transfer funds
         if (
             originTokenAddress == address(0) &&
@@ -980,7 +1004,7 @@ contract AgglayerBridge is
     function isClaimed(
         uint32 leafIndex,
         uint32 sourceBridgeNetwork
-    ) external view virtual returns (bool) {
+    ) public view virtual returns (bool) {
         uint256 globalIndex;
 
         // For consistency with the previous set nullifiers

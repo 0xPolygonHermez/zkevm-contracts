@@ -63,14 +63,18 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     // Emergency bridge unpauser address: can unpause the bridge, both bridges and claims
     address public emergencyBridgeUnpauser;
 
-    //  This account will be able to accept the emergencyBridgeUnpauser role
+    // This account will be able to accept the emergencyBridgeUnpauser role
     address public pendingEmergencyBridgeUnpauser;
+
+    // Phantom claim mapping
+    mapping(bytes32 leafValue => uint256 phantomClaimCount)
+        public phantomClaimMap;
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      */
-    uint256[48] private __gap;
+    uint256[47] private __gap;
 
     /**
      * @dev Emitted when a bridge manager is updated
@@ -244,6 +248,19 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address originTokenAddress,
         uint32 destinationNetwork,
         address indexed destinationAddress,
+        uint256 amount,
+        bytes metadata
+    );
+
+    /**
+     * @dev Emitted when a phantom claim is made
+     */
+    event PhantomClaim(
+        uint8 leafType,
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
         uint256 amount,
         bytes metadata
     );
@@ -425,6 +442,16 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         _;
     }
 
+    modifier onlyPhantomClaimManager() {
+        // Only allowed to be called by PhantomClaimManager
+        if (
+            IAgglayerGERL2(address(globalExitRootManager))
+                .globalExitRootUpdater() != msg.sender
+        ) {
+            revert OnlyPhantomClaimManager();
+        }
+        _;
+    }
     /**
      * @notice Remap multiple wrapped tokens to a new sovereign token address
      * @dev This function is a "multi/batch call" to `setSovereignTokenAddress`
@@ -1128,7 +1155,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function isClaimed(
         uint32 leafIndex,
         uint32 sourceBridgeNetwork
-    ) external view override returns (bool) {
+    ) public view override returns (bool) {
         uint256 globalIndex = uint256(leafIndex) +
             uint256(sourceBridgeNetwork) *
             _MAX_LEAFS_PER_NETWORK;
@@ -1180,6 +1207,73 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     }
 
     /**
+     * @dev Function to execute a phantom claim
+     * @param globalIndex Global index is defined as:
+     *        | 191 bits |    1 bit     |   32 bits   |     32 bits    |
+     *        |    0     |  mainnetFlag | rollupIndex | localRootIndex |
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin token address
+     * @param destinationNetwork Network destination (must be this networkID)
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens to claim
+     * @param metadata Abi encoded metadata if any, empty otherwise
+     */
+    function phantomClaimAsset(
+        uint256 globalIndex,
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) public ifNotEmergencyState nonReentrant onlyPhantomClaimManager {
+        // Validate and decode global index
+        (
+            uint32 leafIndex,
+            ,
+            uint32 sourceBridgeNetwork
+        ) = _validateAndDecodeGlobalIndex(globalIndex);
+
+        // Check global index was not claimed avoiding possible front-runnings
+        require(
+            isClaimed(leafIndex, sourceBridgeNetwork) == false,
+            AlreadyClaimed()
+        );
+
+        // Set phantom claim
+        bytes32 leafValue = getLeafValue(
+            _LEAF_TYPE_ASSET,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            keccak256(metadata)
+        );
+
+        // Mark as phantom claimed
+        phantomClaimMap[leafValue]++;
+
+        _transferAssets(
+            originNetwork,
+            originTokenAddress,
+            destinationAddress,
+            amount,
+            metadata
+        );
+
+        emit PhantomClaim(
+            _LEAF_TYPE_ASSET,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
+    }
+
+    /**
      * @notice Override claimAsset to emit additional DetailedClaimEvent for rollup gas efficiency
      * @dev This function extends the parent claimAsset functionality by emitting an additional event
      *      with all calldata parameters. This event can be emitted on rollups because gas costs are
@@ -1215,22 +1309,60 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint256 amount,
         bytes calldata metadata
     ) public override(IAgglayerBridge, AgglayerBridge) {
-        // Call parent implementation with all inherited security modifiers:
-        // - ifNotEmergencyState: Only allows claims when emergency state is inactive
-        // - nonReentrant: Prevents reentrancy attacks during token operations
-        super.claimAsset(
+        // Destination network must be this networkID
+        if (destinationNetwork != networkID) {
+            revert DestinationNetworkInvalid();
+        }
+
+        // Verify leaf exist and it does not have been claimed
+        _verifyLeafBridge(
             smtProofLocalExitRoot,
             smtProofRollupExitRoot,
             globalIndex,
             mainnetExitRoot,
             rollupExitRoot,
+            _LEAF_TYPE_ASSET,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
             destinationAddress,
             amount,
-            metadata
+            keccak256(metadata)
         );
+
+        emit ClaimEvent(
+            globalIndex,
+            originNetwork,
+            originTokenAddress,
+            destinationAddress,
+            amount
+        );
+
+        // check if there is a phantom claim to consume
+        bytes32 leafValue = getLeafValue(
+            _LEAF_TYPE_ASSET,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            keccak256(metadata)
+        );
+
+        // Check and consume phantom claim if exists
+        if (phantomClaimMap[leafValue] > 0) {
+            // consume phantom claim
+            phantomClaimMap[leafValue]--;
+        } else {
+            // Proceed with normal claim processclaim
+            _transferAssets(
+                originNetwork,
+                originTokenAddress,
+                destinationAddress,
+                amount,
+                metadata
+            );
+        }
 
         emit DetailedClaimEvent(
             smtProofLocalExitRoot,

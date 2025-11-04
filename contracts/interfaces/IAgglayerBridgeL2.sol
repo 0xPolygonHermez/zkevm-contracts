@@ -145,6 +145,11 @@ interface IAgglayerBridgeL2 is IAgglayerBridge {
      */
     error OnlyDeployer();
 
+    /**
+     * @dev Thrown when the caller is not phaton claim manager
+     */
+    error OnlyPhantomClaimManager();
+
     function initialize(
         uint32 _networkID,
         address _gasTokenAddress,
