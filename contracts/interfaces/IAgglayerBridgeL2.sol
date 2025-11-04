@@ -150,6 +150,12 @@ interface IAgglayerBridgeL2 is IAgglayerBridge {
      */
     error OnlyPhantomClaimManager();
 
+    /**
+     * @dev Thrown when attempting to set a phantom claim for a globalIndex that already maps to a different leaf
+     * and the override flag is not set to true
+     */
+    error PhantomGlobalIndexInvalid();
+
     function initialize(
         uint32 _networkID,
         address _gasTokenAddress,

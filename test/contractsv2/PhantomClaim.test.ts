@@ -170,17 +170,17 @@ describe('Phantom Claim Functionality Tests', () => {
             const initialBalance = await polTokenContract.balanceOf(destinationAddress);
 
             // Execute phantom claim as phantom claim manager (deployer in this test setup)
-            const tx = await sovereignChainBridgeContract
-                .connect(deployer)
-                .phantomClaimAsset(
-                    globalIndex,
-                    originNetwork,
-                    tokenAddress,
-                    destinationNetwork,
-                    destinationAddress,
-                    amount,
-                    metadata,
-                );
+            // overridePhantomGlobalIndex = false (don't override existing mappings)
+            const tx = await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                false, // overridePhantomGlobalIndex
+            );
 
             // Verify PhantomClaim event emitted
             await expect(tx)
@@ -198,6 +198,11 @@ describe('Phantom Claim Functionality Tests', () => {
 
             // Check phantom claim count incremented
             expect(await sovereignChainBridgeContract.phantomClaimMap(leafHash)).to.equal(1);
+
+            // Check phantom global index to leaf mapping is set correctly
+            // leafValue was already computed above for the merkle tree
+            expect(await sovereignChainBridgeContract.phantomGlobalIndexToLeaf(globalIndex)).to.equal(leafValue);
+
             // Compute wrapped token proxy address (same as done in other tests)
             const wrappedTokenAddress = await computeWrappedTokenProxyAddress(
                 originNetwork,
@@ -225,18 +230,18 @@ describe('Phantom Claim Functionality Tests', () => {
             const globalIndex = 0;
 
             // acc1 is not the phantom claim manager (deployer is)
+            // Should revert with OnlyPhantomClaimManager error
             await expect(
-                sovereignChainBridgeContract
-                    .connect(acc1)
-                    .phantomClaimAsset(
-                        globalIndex,
-                        originNetwork,
-                        tokenAddress,
-                        destinationNetwork,
-                        destinationAddress,
-                        amount,
-                        metadata,
-                    ),
+                sovereignChainBridgeContract.connect(acc1).phantomClaimAsset(
+                    globalIndex,
+                    originNetwork,
+                    tokenAddress,
+                    destinationNetwork,
+                    destinationAddress,
+                    amount,
+                    metadata,
+                    false, // overridePhantomGlobalIndex
+                ),
             ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyPhantomClaimManager');
         });
 
@@ -250,17 +255,16 @@ describe('Phantom Claim Functionality Tests', () => {
             const globalIndex = 0;
 
             await expect(
-                sovereignChainBridgeContract
-                    .connect(deployer)
-                    .phantomClaimAsset(
-                        globalIndex,
-                        originNetwork,
-                        tokenAddress,
-                        wrongDestinationNetwork,
-                        destinationAddress,
-                        amount,
-                        metadata,
-                    ),
+                sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                    globalIndex,
+                    originNetwork,
+                    tokenAddress,
+                    wrongDestinationNetwork,
+                    destinationAddress,
+                    amount,
+                    metadata,
+                    false, // overridePhantomGlobalIndex
+                ),
             ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'DestinationNetworkInvalid');
         });
 
@@ -276,18 +280,18 @@ describe('Phantom Claim Functionality Tests', () => {
             const metadata = metadataToken;
             const globalIndex = 0;
 
+            // Should revert with OnlyNotEmergencyState error
             await expect(
-                sovereignChainBridgeContract
-                    .connect(deployer)
-                    .phantomClaimAsset(
-                        globalIndex,
-                        originNetwork,
-                        tokenAddress,
-                        destinationNetwork,
-                        destinationAddress,
-                        amount,
-                        metadata,
-                    ),
+                sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                    globalIndex,
+                    originNetwork,
+                    tokenAddress,
+                    destinationNetwork,
+                    destinationAddress,
+                    amount,
+                    metadata,
+                    false, // overridePhantomGlobalIndex
+                ),
             ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyNotEmergencyState');
         });
     });
@@ -350,18 +354,17 @@ describe('Phantom Claim Functionality Tests', () => {
 
             const rollupExitRoot = rootRollupExitRoot;
 
-            // Execute phantom claim first
-            await sovereignChainBridgeContract
-                .connect(deployer)
-                .phantomClaimAsset(
-                    globalIndex,
-                    originNetwork,
-                    tokenAddress,
-                    destinationNetwork,
-                    destinationAddress,
-                    amount,
-                    metadata,
-                );
+            // Execute phantom claim first (simulate early liquidity provision)
+            await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                false, // overridePhantomGlobalIndex
+            );
 
             // Check phantom claim count
             const leafHash = ethers.solidityPackedKeccak256(
@@ -522,31 +525,29 @@ describe('Phantom Claim Functionality Tests', () => {
             const globalIndex1 = computeGlobalIndex(0, 0, false);
             const globalIndex2 = computeGlobalIndex(1, 0, false);
 
-            // Execute first phantom claim
-            await sovereignChainBridgeContract
-                .connect(deployer)
-                .phantomClaimAsset(
-                    globalIndex1,
-                    originNetwork,
-                    tokenAddress,
-                    destinationNetwork,
-                    destinationAddress1,
-                    amount1,
-                    metadata,
-                );
+            // Execute first phantom claim for different leaf
+            await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex1,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress1,
+                amount1,
+                metadata,
+                false, // overridePhantomGlobalIndex
+            );
 
-            // Execute second phantom claim
-            await sovereignChainBridgeContract
-                .connect(deployer)
-                .phantomClaimAsset(
-                    globalIndex2,
-                    originNetwork,
-                    tokenAddress,
-                    destinationNetwork,
-                    destinationAddress2,
-                    amount2,
-                    metadata,
-                );
+            // Execute second phantom claim for different leaf
+            await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex2,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress2,
+                amount2,
+                metadata,
+                false, // overridePhantomGlobalIndex
+            );
 
             // Check both phantom claims recorded
             const leafHash1 = ethers.solidityPackedKeccak256(
@@ -617,19 +618,123 @@ describe('Phantom Claim Functionality Tests', () => {
                 ],
             );
 
+            // Execute first phantom claim for the same leaf (counter should increment)
+            await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                false, // overridePhantomGlobalIndex
+            );
+            // Verify phantom claim counter incremented to 1
+            expect(await sovereignChainBridgeContract.phantomClaimMap(leafHash)).to.equal(1);
+        });
+
+        it('Should revert when trying to set same globalIndex with different leaf without override', async () => {
+            const originNetwork = networkIDMainnet;
+            const tokenAddress = polTokenContract.target;
+            const amount1 = ethers.parseEther('10');
+            const amount2 = ethers.parseEther('20'); // Different amount = different leaf
+            const destinationNetwork = networkIDRollup;
+            const destinationAddress = acc1.address;
+            const metadata = metadataToken;
+            const globalIndex = computeGlobalIndex(0, 0, false);
+
+            // Transfer tokens to bridge
+            await polTokenContract.transfer(sovereignChainBridgeContract.target, amount1 + amount2);
+
             // Execute first phantom claim
-            await sovereignChainBridgeContract
-                .connect(deployer)
-                .phantomClaimAsset(
-                    globalIndex,
+            await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount1,
+                metadata,
+                false, // overridePhantomGlobalIndex = false
+            );
+
+            // Try to execute second phantom claim with same globalIndex but different amount (different leaf)
+            // Should revert with PhantomGlobalIndexInvalid error
+            await expect(
+                sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                    globalIndex, // Same global index
                     originNetwork,
                     tokenAddress,
                     destinationNetwork,
                     destinationAddress,
-                    amount,
+                    amount2, // Different amount = different leaf
                     metadata,
-                );
-            expect(await sovereignChainBridgeContract.phantomClaimMap(leafHash)).to.equal(1);
+                    false, // overridePhantomGlobalIndex = false (no override allowed)
+                ),
+            ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'PhantomGlobalIndexInvalid');
+        });
+
+        it('Should allow override of globalIndex to leaf mapping when override flag is true', async () => {
+            const originNetwork = networkIDMainnet;
+            const tokenAddress = polTokenContract.target;
+            const amount1 = ethers.parseEther('10');
+            const amount2 = ethers.parseEther('20'); // Different amount = different leaf
+            const destinationNetwork = networkIDRollup;
+            const destinationAddress = acc1.address;
+            const metadata = metadataToken;
+            const globalIndex = computeGlobalIndex(0, 0, false);
+
+            // Transfer tokens to bridge
+            await polTokenContract.transfer(sovereignChainBridgeContract.target, amount1 + amount2);
+
+            // Execute first phantom claim
+            await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount1,
+                metadata,
+                false, // overridePhantomGlobalIndex = false
+            );
+
+            // Check first mapping is set
+            const leafValue1 = getLeafValue(
+                LEAF_TYPE_ASSET,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount1,
+                ethers.keccak256(metadata),
+            );
+            expect(await sovereignChainBridgeContract.phantomGlobalIndexToLeaf(globalIndex)).to.equal(leafValue1);
+
+            // Execute second phantom claim with same globalIndex but different amount (different leaf)
+            // This time with override = true, should succeed
+            await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex, // Same global index
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount2, // Different amount = different leaf
+                metadata,
+                true, // overridePhantomGlobalIndex = true (override allowed)
+            );
+
+            // Check mapping was overridden to new leaf
+            const leafValue2 = getLeafValue(
+                LEAF_TYPE_ASSET,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount2,
+                ethers.keccak256(metadata),
+            );
+            expect(await sovereignChainBridgeContract.phantomGlobalIndexToLeaf(globalIndex)).to.equal(leafValue2);
         });
 
         it('Should handle native ETH phantom claims', async () => {
@@ -650,18 +755,17 @@ describe('Phantom Claim Functionality Tests', () => {
             // Check initial balance
             const initialBalance = await ethers.provider.getBalance(destinationAddress);
 
-            // Execute phantom claim for ETH
-            const tx = await sovereignChainBridgeContract
-                .connect(deployer)
-                .phantomClaimAsset(
-                    globalIndex,
-                    originNetwork,
-                    tokenAddress,
-                    destinationNetwork,
-                    destinationAddress,
-                    amount,
-                    metadata,
-                );
+            // Execute phantom claim for native ETH
+            const tx = await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                false, // overridePhantomGlobalIndex
+            );
 
             // Verify PhantomClaim event emitted
             await expect(tx)
@@ -749,20 +853,19 @@ describe('Phantom Claim Functionality Tests', () => {
 
             const globalIndex = computeGlobalIndex(0, 0, false);
 
-            // Execute phantom claim
-            await sovereignChainBridgeContract
-                .connect(deployer)
-                .phantomClaimAsset(
-                    globalIndex,
-                    originNetwork,
-                    tokenAddress,
-                    destinationNetwork,
-                    destinationAddress,
-                    amount,
-                    metadata,
-                );
+            // Execute phantom claim before activating emergency state
+            await sovereignChainBridgeContract.connect(deployer).phantomClaimAsset(
+                globalIndex,
+                originNetwork,
+                tokenAddress,
+                destinationNetwork,
+                destinationAddress,
+                amount,
+                metadata,
+                false, // overridePhantomGlobalIndex
+            );
 
-            // Activate emergency state
+            // Activate emergency state to test claim prevention
             await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
 
             // Try to claim during emergency - should fail

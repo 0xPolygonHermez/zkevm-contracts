@@ -77,10 +77,20 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         public phantomClaimMap;
 
     /**
+     * @notice Mapping to track which leaf value corresponds to each phantom claimed global index
+     * @dev Maps globalIndex to the leaf value that was phantom claimed
+     * This main a protection for the message sender to not be able to claim the same globalIndex with different leaves (unless override is enabled)
+     * This prevents the same globalIndex from being used for different leaves (unless override is enabled)
+     * Ensures consistency between phantom claims and actual claims
+     */
+    mapping(uint256 globalIndex => bytes32 leafValue)
+        public phantomGlobalIndexToLeaf;
+
+    /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      */
-    uint256[47] private __gap;
+    uint256[46] private __gap;
 
     /**
      * @dev Emitted when a bridge manager is updated
@@ -259,7 +269,16 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     );
 
     /**
-     * @dev Emitted when a phantom claim is made
+     * @dev Emitted when a phantom claim is executed
+     * @notice This event indicates that assets have been transferred before the actual claim proof
+     * @param globalIndex The global index of the claim
+     * @param leafType Type of the leaf (0 for asset, 1 for message)
+     * @param originNetwork Network ID where the tokens originated
+     * @param originAddress Address of the origin token
+     * @param destinationNetwork Network ID of the destination (this network)
+     * @param destinationAddress Address receiving the tokens
+     * @param amount Amount of tokens transferred
+     * @param metadata Additional metadata for the claim (token info for wrapped tokens)
      */
     event PhantomClaim(
         uint256 globalIndex,
@@ -1237,6 +1256,8 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      * @param destinationAddress Address destination
      * @param amount Amount of tokens to claim
      * @param metadata Abi encoded metadata if any, empty otherwise
+     * @param overridePhantomGlobalIndex If true, allows overriding an existing globalIndex->leaf mapping
+     *        If false, reverts with PhantomGlobalIndexInvalid if globalIndex already maps to a different leaf
      */
     function phantomClaimAsset(
         uint256 globalIndex,
@@ -1245,7 +1266,8 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes calldata metadata
+        bytes calldata metadata,
+        bool overridePhantomGlobalIndex
     ) public ifNotEmergencyState nonReentrant onlyPhantomClaimManager {
         // Destination network must be this networkID
         if (destinationNetwork != networkID) {
@@ -1259,13 +1281,14 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             uint32 sourceBridgeNetwork
         ) = _validateAndDecodeGlobalIndex(globalIndex);
 
-        // Check global index was not claimed avoiding possible front-runnings
+        // Ensure global index hasn't been claimed yet to prevent front-running attacks
+        // If already claimed, the phantom claim would be useless as the tokens were already transferred
         require(
             isClaimed(leafIndex, sourceBridgeNetwork) == false,
             AlreadyClaimed()
         );
 
-        // Set phantom claim
+        // Calculate the leaf value for this claim
         bytes32 leafValue = getLeafValue(
             _LEAF_TYPE_ASSET,
             originNetwork,
@@ -1276,9 +1299,26 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             keccak256(metadata)
         );
 
-        // Mark as phantom claimed
+        // Validate and set the globalIndex to leaf mapping
+        // This ensures consistency - a globalIndex should always map to the same leaf
+        bytes32 currentPhantomleaf = phantomGlobalIndexToLeaf[globalIndex];
+        if (
+            currentPhantomleaf == bytes32(0) ||  // First time setting this globalIndex
+            (overridePhantomGlobalIndex == true &&
+                currentPhantomleaf != leafValue)  // Override allowed and leaf is different
+        ) {
+            // Set or override the mapping
+            phantomGlobalIndexToLeaf[globalIndex] = leafValue;
+        } else {
+            // GlobalIndex already maps to a different leaf and override not allowed
+            revert PhantomGlobalIndexInvalid();
+        }
+
+        // Increment phantom claim counter for this leaf value
         phantomClaimMap[leafValue]++;
 
+        // Execute the asset transfer immediately
+        // When the actual claim is made later, this transfer will be skipped
         _transferAssets(
             originNetwork,
             originTokenAddress,
@@ -1287,6 +1327,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             metadata
         );
 
+        // Emit event for tracking phantom claims
         emit PhantomClaim(
             globalIndex,
             _LEAF_TYPE_ASSET,
