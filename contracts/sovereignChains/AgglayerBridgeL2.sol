@@ -66,7 +66,13 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     // This account will be able to accept the emergencyBridgeUnpauser role
     address public pendingEmergencyBridgeUnpauser;
 
-    // Phantom claim mapping
+    /**
+     * @notice Mapping to track phantom claims that have been executed
+     * @dev Maps the leaf value hash to the number of phantom claims executed for that leaf
+     * When a phantom claim is made, this counter is incremented
+     * When a regular claim is made, if a phantom claim exists, the counter is decremented
+     * and no actual token transfer occurs (as tokens were already transferred via phantom claim)
+     */
     mapping(bytes32 leafValue => uint256 phantomClaimCount)
         public phantomClaimMap;
 
@@ -442,6 +448,11 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         _;
     }
 
+    /**
+     * @dev Modifier to check that the caller is the phantom claim manager
+     * The phantom claim manager is the globalExitRootUpdater from the global exit root manager
+     * This role is authorized to execute phantom claims on behalf of users
+     */
     modifier onlyPhantomClaimManager() {
         // Only allowed to be called by PhantomClaimManager
         if (
@@ -1207,7 +1218,15 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     }
 
     /**
-     * @dev Function to execute a phantom claim
+     * @notice Function to execute a phantom claim - transfers assets before the actual claim proof is submitted
+     * @dev This function allows the phantom claim manager to pre-execute asset transfers for claims
+     *      that are expected to be claimed later. When the actual claim is made, no transfer occurs
+     *      as the phantom claim counter is decremented instead.
+     * @dev Security considerations:
+     *      - Only callable by the phantom claim manager (globalExitRootUpdater)
+     *      - Protected by nonReentrant modifier to prevent reentrancy attacks
+     *      - Only executable when not in emergency state
+     *      - Validates that the global index hasn't been claimed yet
      * @param globalIndex Global index is defined as:
      *        | 191 bits |    1 bit     |   32 bits   |     32 bits    |
      *        |    0     |  mainnetFlag | rollupIndex | localRootIndex |
@@ -1227,6 +1246,11 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint256 amount,
         bytes calldata metadata
     ) public ifNotEmergencyState nonReentrant onlyPhantomClaimManager {
+        // Destination network must be this networkID
+        if (destinationNetwork != networkID) {
+            revert DestinationNetworkInvalid();
+        }
+
         // Validate and decode global index
         (
             uint32 leafIndex,
@@ -1308,7 +1332,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) public override(IAgglayerBridge, AgglayerBridge) {
+    ) public override(IAgglayerBridge, AgglayerBridge) ifNotEmergencyState nonReentrant {
         // Destination network must be this networkID
         if (destinationNetwork != networkID) {
             revert DestinationNetworkInvalid();
@@ -1338,7 +1362,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             amount
         );
 
-        // check if there is a phantom claim to consume
+        // Calculate the leaf value to check if there is a phantom claim to consume
         bytes32 leafValue = getLeafValue(
             _LEAF_TYPE_ASSET,
             originNetwork,
@@ -1349,12 +1373,14 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             keccak256(metadata)
         );
 
-        // Check and consume phantom claim if exists
+        // Check if a phantom claim exists for this leaf
+        // If yes, decrement the counter and skip the asset transfer (already done in phantom claim)
+        // If no, proceed with the normal asset transfer
         if (phantomClaimMap[leafValue] > 0) {
-            // consume phantom claim
+            // Consume one phantom claim by decrementing the counter
             phantomClaimMap[leafValue]--;
         } else {
-            // Proceed with normal claim processclaim
+            // No phantom claim exists, proceed with normal claim process and transfer assets
             _transferAssets(
                 originNetwork,
                 originTokenAddress,

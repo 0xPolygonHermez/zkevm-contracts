@@ -146,7 +146,7 @@ interface IAgglayerBridgeL2 is IAgglayerBridge {
     error OnlyDeployer();
 
     /**
-     * @dev Thrown when the caller is not phaton claim manager
+     * @dev Thrown when the caller is not phantom claim manager
      */
     error OnlyPhantomClaimManager();
 
