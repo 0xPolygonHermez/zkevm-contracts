@@ -142,30 +142,20 @@ contract AggOracleCommitteeV2 is SignatureDecoder, OwnableUpgradeable, IVersion,
      * @notice Inject multiple Global Exit Roots (GERs) with signature verification
      * @dev Each GER must be signed by at least `threshold` number of oracle validators
      *      Signatures must be ordered by signer address in ascending order to prevent duplicates
-     * @param _globalExitRoots Array of GERs to inject into the GER manager
-     * @param _signatures Array of concatenated signatures for each GER (65 bytes per signature: r+s+v)
+     * @param _globalExitRoot The global exit root to inject into the GER manager
+     * @param _signatures Concatenated signatures for the global exit root (65 bytes per signature: r+s+v)
      */
     function injectGER(
-        bytes32[] calldata _globalExitRoots,
-        bytes[] calldata _signatures
+        bytes32 _globalExitRoot,
+        bytes calldata _signatures
     ) external onlyAggOracleProposer {
-        // Validate input arrays have matching lengths
-        if (_globalExitRoots.length != _signatures.length) {
-            revert ArrayLengthMismatch();
-        }
+        // Validate the GER
+        _validateGER(_globalExitRoot, _signatures);
 
-        // Process each GER
-        for (uint256 i = 0; i < _globalExitRoots.length; i++) {
-            bytes32 globalExitRoot = _globalExitRoots[i];
+        // Insert the GER into the global exit root manager
+        agglayerGERL2.insertGlobalExitRoot(_globalExitRoot);
 
-            // Validate the GER
-            _validateGER(globalExitRoot, _signatures[i]);
-
-            // Insert the GER into the global exit root manager
-            agglayerGERL2.insertGlobalExitRoot(globalExitRoot);
-
-            emit GERInjected(globalExitRoot);
-        }
+        emit GERInjected(_globalExitRoot);
     }
 
     /**

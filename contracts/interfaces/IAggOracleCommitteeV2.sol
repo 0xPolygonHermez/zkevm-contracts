@@ -163,12 +163,12 @@ interface IAggOracleCommitteeV2 is
 
     /**
      * @notice Inject multiple GERs with signature verification
-     * @param _globalExitRoots Array of GERs to inject
-     * @param _signatures Array of signature arrays for each GER
+     * @param _globalExitRoot The GER to inject
+     * @param _signatures The signatures to verify
      */
     function injectGER(
-        bytes32[] calldata _globalExitRoots,
-        bytes[] calldata _signatures
+        bytes32 _globalExitRoot,
+        bytes calldata _signatures
     ) external;
 
     /**
