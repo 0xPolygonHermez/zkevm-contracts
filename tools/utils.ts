@@ -3,7 +3,7 @@
 import * as ethers from 'ethers';
 import { getGitInfo } from '../src/utils';
 
-export const supportedBridgeContracts = ['AgglayerBridge proxy', 'PolygonZkEVMBridge proxy', 'AgglayerBridgeL2 proxy'];
+export const supportedBridgeContracts = ['AgglayerBridge proxy', 'PolygonZkEVMBridge proxy', 'PolygonZkEVMBridgeV2 proxy', 'AgglayerBridgeL2 proxy'];
 
 export function genOperation(target, value, data, predecessor, salt) {
     const abiEncoded = ethers.AbiCoder.defaultAbiCoder().encode(

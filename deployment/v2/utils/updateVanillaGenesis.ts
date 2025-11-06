@@ -14,12 +14,25 @@ import { checkParams } from '../../../src/utils';
 // Genesis files have been created previously and so they have old naming, as it shown in the links above
 // Those genesis are already imported on different tooling and added as a metadata on-chain. Therefore, this util aims
 // to support them too
-const supportedGERManagers = ['LegacyAgglayerGERL2 implementation'];
-const supportedBridgeContracts = ['PolygonZkEVMBridge implementation', 'AgglayerBridge implementation'];
-const supportedBridgeContractsProxy = ['AgglayerBridge proxy', 'PolygonZkEVMBridge proxy'];
+const supportedGERManagers = ['LegacyAgglayerGERL2 implementation', 'PolygonZkEVMGlobalExitRootL2 implementation'];
+const supportedGERManagersProxy = ['LegacyAgglayerGERL2 proxy', 'PolygonZkEVMGlobalExitRootL2 proxy'];
+const supportedBridgeContracts = ['PolygonZkEVMBridge implementation', 'PolygonZkEVMBridgeV2 implementation', 'AgglayerBridge implementation'];
+const supportedBridgeContractsProxy = ['AgglayerBridge proxy', 'PolygonZkEVMBridge proxy', 'PolygonZkEVMBridgeV2 proxy'];
 
 function toPaddedHex32(val: string | number | bigint): string {
     return ethers.zeroPadValue(ethers.toBeHex(val), 32);
+}
+
+// Strip metadata hash from bytecode for comparison
+// Metadata starts with 0xa264697066735822 (a2 64 69 70 66 73 58 22 = "ipfs" in CBOR)
+function stripMetadata(bytecode: string): string {
+    const metadataMarker = 'a264697066735822';
+    const index = bytecode.lastIndexOf(metadataMarker);
+    if (index !== -1) {
+        // Return bytecode up to (but not including) the metadata
+        return bytecode.substring(0, index);
+    }
+    return bytecode;
 }
 
 async function updateVanillaGenesis(genesis, chainID, initializeParams) {
@@ -165,10 +178,10 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         genesis.genesis.push(bytecodeStorerGenesis);
     } else {
         bytecodeStorerObject.address = precalculatedAddressBytecodeStorer;
-        // Check bytecode of the BytecodeStorer contract is the same as the one in the genesis
-        expect(bytecodeStorerObject.bytecode).to.equal(
-            `0x${await zkEVMDB.getBytecode(precalculatedAddressBytecodeStorer)}`,
-        );
+        // Check bytecode of the BytecodeStorer contract is the same as the one in the genesis (excluding metadata)
+        const existingBytecode = stripMetadata(bytecodeStorerObject.bytecode.toLowerCase().replace('0x', ''));
+        const expectedBytecode = stripMetadata(await zkEVMDB.getBytecode(precalculatedAddressBytecodeStorer));
+        expect(existingBytecode).to.equal(expectedBytecode);
     }
 
     // Compute the address of the wrappedTokenImplementation contract deployed by the deployed sovereign bridge with nonce 2
@@ -205,10 +218,10 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         genesis.genesis.push(tokenWrappedImplementationObject);
     } else {
         tokenWrappedImplementationObject.address = precalculatedAddressTokenWrappedImplementation;
-        // Check bytecode of the TokenWrappedImplementation contract
-        expect(tokenWrappedImplementationObject.bytecode).to.equal(
-            `0x${await zkEVMDB.getBytecode(precalculatedAddressTokenWrappedImplementation)}`,
-        );
+        // Check bytecode of the TokenWrappedImplementation contract (excluding metadata)
+        const existingBytecode = stripMetadata(tokenWrappedImplementationObject.bytecode.toLowerCase().replace('0x', ''));
+        const expectedBytecode = stripMetadata(await zkEVMDB.getBytecode(precalculatedAddressTokenWrappedImplementation));
+        expect(existingBytecode).to.equal(expectedBytecode);
     }
 
     // Compute the address of the bridgeLib contract deployed by the deployed sovereign bridge with nonce 3
@@ -247,10 +260,10 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         genesis.genesis.push(bridgeLibImplementationObject);
     } else {
         bridgeLibImplementationObject.address = precalculatedAddressBridgeLib;
-        // Check bytecode of the BridgeLibImplementation contract
-        expect(bridgeLibImplementationObject.bytecode).to.equal(
-            `0x${await zkEVMDB.getBytecode(precalculatedAddressBridgeLib)}`,
-        );
+        // Check bytecode of the BridgeLibImplementation contract (excluding metadata)
+        const existingBytecode = stripMetadata(bridgeLibImplementationObject.bytecode.toLowerCase().replace('0x', ''));
+        const expectedBytecode = stripMetadata(await zkEVMDB.getBytecode(precalculatedAddressBridgeLib));
+        expect(existingBytecode).to.equal(expectedBytecode);
     }
 
     const oldGer = genesis.genesis.find(function (obj) {
@@ -266,7 +279,7 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
 
     // Initialize bridge
     const gerProxy = genesis.genesis.find(function (obj) {
-        return obj.contractName === GENESIS_CONTRACT_NAMES.GER_L2_PROXY;
+        return supportedGERManagersProxy.includes(obj.contractName);
     });
     const {
         rollupID,
