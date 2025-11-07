@@ -1226,6 +1226,309 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     ///////////////////////////
     //// LocalBalanceTree /////
     ///////////////////////////
+    /**
+     * @notice Function to claim a message from a Local Exit Root (LER)
+     * @dev This function allows users to claim messages that were sent via the bridge and recorded in a Local Exit Root.
+     *      It verifies the provided Merkle proof against the specified LER and ensures the claim has not been previously made.
+     * @dev Security Modifiers:
+     *      - ifNotEmergencyState: Prevents claims during emergency state
+     *      - nonReentrant: Prevents reentrancy attacks during token transfers
+     * @param smtProofLocalExitRoot Smt proof to prove the leaf against the local exit root
+     * @param globalIndex Global index is defined as:
+     *        | 191 bits |    1 bit     |   32 bits   |     32 bits    |
+     *        |    0     |  mainnetFlag | rollupIndex | localRootIndex |
+     * @param localExitRoot Local exit root to verify the proof against
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin address
+     * @param destinationNetwork Destination network
+     * @param destinationAddress Destination address
+     * @param amount Amount of tokens
+     * @param metadata Abi encoded metadata if any, empty otherwise
+     * @dev Emits ClaimEvent upon successful claim
+     */
+    function claimAssetFromLER(
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
+        uint256 globalIndex,
+        bytes32 localExitRoot,
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) public virtual ifNotEmergencyState nonReentrant {
+        // Validate and decode global index
+        (
+            uint32 leafIndex,
+            ,
+            uint32 sourceBridgeNetwork
+        ) = _validateAndDecodeGlobalIndex(globalIndex);
+
+        // Verify if LER exists
+        bool existLER = IAgglayerGERL2(address(globalExitRootManager)).existLER(
+            localExitRoot,
+            sourceBridgeNetwork
+        );
+
+        // check that this local exit root exists
+        if (existLER == false) {
+            revert LocalExitRootInvalid();
+        }
+
+        // build leaf data
+        bytes32 leafValue = getLeafValue(
+            _LEAF_TYPE_ASSET,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            keccak256(metadata)
+        );
+
+        // Verify merkle proof against rollup exit root
+        if (
+            !verifyMerkleProof(
+                leafValue,
+                smtProofLocalExitRoot,
+                leafIndex,
+                localExitRoot
+            )
+        ) {
+            revert InvalidSmtProof();
+        }
+
+        // Set and check nullifier
+        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
+
+        // Event
+        emit ClaimEvent(
+            globalIndex,
+            originNetwork,
+            originTokenAddress,
+            destinationAddress,
+            amount
+        );
+
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
+        for (uint256 i = 0; i < _DEPOSIT_CONTRACT_TREE_DEPTH; i++) {
+            emptyProof[i] = bytes32(0);
+        }
+
+        emit DetailedClaimEvent(
+            smtProofLocalExitRoot,
+            emptyProof,
+            globalIndex,
+            bytes32(0),
+            localExitRoot,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
+
+        // Transfer funds
+        // Check if it's gas token
+        if (
+            originTokenAddress == gasTokenAddress &&
+            gasTokenNetwork == originNetwork
+        ) {
+            // Transfer gas token
+            /* solhint-disable avoid-low-level-calls */
+            (bool success, ) = destinationAddress.call{value: amount}(
+                new bytes(0)
+            );
+            if (!success) {
+                revert EtherTransferFailed();
+            }
+        } else {
+            // Transfer tokens
+            if (originNetwork == networkID) {
+                // The token is an ERC20 from this network
+                ITokenWrappedBridgeUpgradeable(originTokenAddress).safeTransfer(
+                    destinationAddress,
+                    amount
+                );
+            } else {
+                // The tokens is not from this network
+                // Create a wrapper for the token if not exist yet
+                bytes32 tokenInfoHash = keccak256(
+                    abi.encodePacked(originNetwork, originTokenAddress)
+                );
+                address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
+
+                if (wrappedToken == address(0)) {
+                    // Get ERC20 metadata
+
+                    // Create a new wrapped erc20 using create2
+                    ITokenWrappedBridgeUpgradeable newWrappedToken = _deployWrappedToken(
+                            tokenInfoHash,
+                            metadata
+                        );
+
+                    // Mint tokens for the destination address
+                    _claimWrappedAsset(
+                        newWrappedToken,
+                        destinationAddress,
+                        amount
+                    );
+
+                    // Create mappings
+                    tokenInfoToWrappedToken[tokenInfoHash] = address(
+                        newWrappedToken
+                    );
+
+                    wrappedTokenToTokenInfo[
+                        address(newWrappedToken)
+                    ] = TokenInformation(originNetwork, originTokenAddress);
+
+                    emit NewWrappedToken(
+                        originNetwork,
+                        originTokenAddress,
+                        address(newWrappedToken),
+                        metadata
+                    );
+                } else {
+                    // Use the existing wrapped erc20
+                    _claimWrappedAsset(
+                        ITokenWrappedBridgeUpgradeable(wrappedToken),
+                        destinationAddress,
+                        amount
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * @notice Function to claim messages from Local Exit Roots (LER)
+     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the network exit root
+     * @param globalIndex Global index is defined as:
+     *        | 191 bits |    1 bit     |   32 bits   |     32 bits    |
+     *        |    0     |  mainnetFlag | rollupIndex | localRootIndex |
+     * @param localExitRoot Local exit root
+     * @param originNetwork Origin network
+     * @param originAddress Origin address
+     * @param destinationNetwork Network destination (must be this networkID)
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens to claim
+     * @param metadata Abi encoded metadata if any, empty otherwise
+     */
+    function claimMessageFromLER(
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
+        uint256 globalIndex,
+        bytes32 localExitRoot,
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) public virtual ifNotEmergencyState nonReentrant {
+        // Validate and decode global index
+        (
+            uint32 leafIndex,
+            ,
+            uint32 sourceBridgeNetwork
+        ) = _validateAndDecodeGlobalIndex(globalIndex);
+
+        // Verify if LER exists
+        bool existLER = IAgglayerGERL2(address(globalExitRootManager)).existLER(
+            localExitRoot,
+            sourceBridgeNetwork
+        );
+
+        // check that this global exit root exists
+        if (existLER == false) {
+            revert LocalExitRootInvalid();
+        }
+
+        // build leaf data
+        bytes32 leafValue = getLeafValue(
+            _LEAF_TYPE_ASSET,
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            keccak256(metadata)
+        );
+
+        // Verify merkle proof against rollup exit root
+        if (
+            !verifyMerkleProof(
+                leafValue,
+                smtProofLocalExitRoot,
+                leafIndex,
+                localExitRoot
+            )
+        ) {
+            revert InvalidSmtProof();
+        }
+
+        // Set and check nullifier
+        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
+
+        // Events
+        emit ClaimEvent(
+            globalIndex,
+            originNetwork,
+            originAddress,
+            destinationAddress,
+            amount
+        );
+
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
+        for (uint256 i = 0; i < _DEPOSIT_CONTRACT_TREE_DEPTH; i++) {
+            emptyProof[i] = bytes32(0);
+        }
+
+        emit DetailedClaimEvent(
+            smtProofLocalExitRoot,
+            emptyProof,
+            globalIndex,
+            bytes32(0),
+            localExitRoot,
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
+
+        // Execute message
+        bool success;
+        if (address(WETHToken) == address(0)) {
+            // Native token is ether
+            // Transfer ether
+            /* solhint-disable avoid-low-level-calls */
+            (success, ) = destinationAddress.call{value: amount}(
+                abi.encodeCall(
+                    IBridgeMessageReceiver.onMessageReceived,
+                    (originAddress, originNetwork, metadata)
+                )
+            );
+        } else {
+            // Mint wETH tokens
+            _claimWrappedAsset(WETHToken, destinationAddress, amount);
+
+            // Execute message
+            /* solhint-disable avoid-low-level-calls */
+            (success, ) = destinationAddress.call(
+                abi.encodeCall(
+                    IBridgeMessageReceiver.onMessageReceived,
+                    (originAddress, originNetwork, metadata)
+                )
+            );
+        }
+
+        if (!success) {
+            revert MessageFailed();
+        }
+    }
 
     /**
      * @notice Function to decrease the local balance tree

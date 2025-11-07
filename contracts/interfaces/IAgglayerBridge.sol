@@ -114,6 +114,11 @@ interface IAgglayerBridge {
      */
     error InvalidGlobalIndex();
 
+    /**
+     * @dev Thrown when the LER is not found in globalExitRootManager
+     */
+    error LocalExitRootInvalid();
+
     function wrappedTokenToTokenInfo(
         address destinationAddress
     ) external view returns (uint32, address);

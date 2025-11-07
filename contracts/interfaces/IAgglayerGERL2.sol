@@ -61,4 +61,15 @@ interface IAgglayerGERL2 is IBaseLegacyAgglayerGER {
      * @return The current hash chain value
      */
     function insertedGERHashChain() external view returns (bytes32);
+
+    /**
+     * @notice Get if a local exit root exists for a given network
+     * @param ler local exit root to check
+     * @param networkID origin network ID of the local exit root
+     * @return True if the local exit root exists, false otherwise
+     */
+    function existLER(
+        bytes32 ler,
+        uint32 networkID
+    ) external view returns (bool);
 }
