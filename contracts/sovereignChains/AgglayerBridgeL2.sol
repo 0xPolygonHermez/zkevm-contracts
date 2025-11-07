@@ -1242,6 +1242,8 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      * @dev This function allows the phantom claim manager to pre-execute asset transfers for claims
      *      that are expected to be claimed later. When the actual claim is made, no transfer occurs
      *      as the phantom claim counter is decremented instead.
+     * @dev Note that phantom claims do not store the sourceBridgeNetwork, therefore could happen
+     * that a phantom claim that was made for a "mainnet" is consolidated with a claim from a rollup.
      * @dev Security considerations:
      *      - Only callable by the phantom claim manager (globalExitRootUpdater)
      *      - Protected by nonReentrant modifier to prevent reentrancy attacks
