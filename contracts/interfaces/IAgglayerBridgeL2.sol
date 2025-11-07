@@ -159,4 +159,28 @@ interface IAgglayerBridgeL2 is IAgglayerBridge {
         address _emergencyBridgeUnpauser,
         address _proxiedTokensManager
     ) external;
+
+    function claimAssetFromLER(
+        bytes32[32] calldata smtProofLocalExitRoot,
+        uint256 globalIndex,
+        bytes32 localExitRoot,
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) external;
+
+    function claimMessageFromLER(
+        bytes32[32] calldata smtProofLocalExitRoot,
+        uint256 globalIndex,
+        bytes32 localExitRoot,
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) external;
 }

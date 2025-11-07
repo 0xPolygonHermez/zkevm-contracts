@@ -34,9 +34,19 @@ interface IBaseLegacyAgglayerGER {
     error GlobalExitRootAlreadySet();
 
     /**
+     * @dev Thrown when trying to insert a local exit root that is already set
+     */
+    error LocalExitRootAlreadySet();
+
+    /**
      * @dev Thrown when trying to remove a ger that doesn't exist
      */
     error GlobalExitRootNotFound();
+
+    /**
+     * @dev Thrown when trying to remove a ler that doesn't exist
+     */
+    error LocalExitRootNotFound();
 
     /**
      * @dev Thrown when trying to call a function with an input zero address
