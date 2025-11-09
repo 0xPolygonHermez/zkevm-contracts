@@ -34,12 +34,9 @@ contract AgglayerBridge is
         address originTokenAddress;
     }
 
-    // Address of the contract that contains the bytecode to deploy wrapped tokens, upgradeable tokens and the code of the transparent proxy
-    /// @dev the constant has been exported to a separate contract to improve this bytecode length.
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IBytecodeStorer public immutable wrappedTokenBytecodeStorer;
-
     /// Instance of the BridgeLib contract deployed for bytecode optimization
+    /// Also contains the bytecode to deploy wrapped tokens, upgradeable tokens and the code of the transparent proxy
+    /// @dev thos functions been exported to a separate contract to improve this bytecode length.
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     BridgeLib public immutable bridgeLib;
 
@@ -66,7 +63,7 @@ contract AgglayerBridge is
     uint256 internal constant _GLOBAL_INDEX_MAINNET_FLAG = 2 ** 64;
 
     // Current bridge version
-    string public constant BRIDGE_VERSION = "v1.1.0";
+    string internal constant BRIDGE_VERSION = "v1.1.0";
 
     // Network identifier
     uint32 public networkID;
@@ -184,10 +181,6 @@ contract AgglayerBridge is
     }
 
     constructor() {
-        // Deploy the wrapped token contract
-        /// @dev this contract is used to store the bytecode of the wrapped token contract, previously stored in the bridge contract but moved to a separate contract to reduce the bytecode size.
-        wrappedTokenBytecodeStorer = new BytecodeStorer();
-
         // Deploy the implementation of the wrapped token contract
         /// @dev its the address where proxy wrapped tokens with deterministic address will point
         wrappedTokenBridgeImplementation = address(
@@ -1302,7 +1295,7 @@ contract AgglayerBridge is
         returns (bytes memory)
     {
         return
-            IBytecodeStorer(wrappedTokenBytecodeStorer)
+            bridgeLib
                 .INIT_BYTECODE_TRANSPARENT_PROXY();
     }
 
