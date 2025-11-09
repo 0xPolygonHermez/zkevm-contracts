@@ -156,18 +156,8 @@ interface IAgglayerBridgeL2 is IAgglayerBridge {
      */
     error PhantomGlobalIndexInvalid();
 
-    function initialize(
-        uint32 _networkID,
-        address _gasTokenAddress,
-        uint32 _gasTokenNetwork,
-        IBaseLegacyAgglayerGER _globalExitRootManager,
-        address _polygonRollupManager,
-        bytes memory _gasTokenMetadata,
-        address _bridgeManager,
-        address sovereignWETHAddress,
-        bool _sovereignWETHAddressIsNotMintable,
-        address _emergencyBridgePauser,
-        address _emergencyBridgeUnpauser,
-        address _proxiedTokensManager
-    ) external;
+    /**
+     * @dev Thrown when trying to call a function that is not supported
+     */
+    error NonSupportedFunction();
 }

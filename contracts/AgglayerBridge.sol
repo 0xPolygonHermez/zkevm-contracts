@@ -102,7 +102,7 @@ contract AgglayerBridge is
     ITokenWrappedBridgeUpgradeable public WETHToken;
 
     // Address of the proxied tokens manager, is the admin of proxied wrapped tokens
-    address public proxiedTokensManager;
+    address internal proxiedTokensManager;
 
     //  This account will be able to accept the proxiedTokensManager role
     address public pendingProxiedTokensManager;
@@ -247,23 +247,6 @@ contract AgglayerBridge is
 
         // Initialize OZ contracts
         __ReentrancyGuard_init();
-    }
-
-    /**
-     * @notice initializer to set PolygonTimelock as proxiedTokensManager
-     */
-    function initialize()
-        public
-        virtual
-        getInitializedVersion
-        reinitializer(2)
-    {
-        if (_initializerVersion == 0) {
-            revert InvalidInitializeFunction();
-        }
-
-        // Set PolygonTimelock contract address as proxied tokens manager, the owner of current proxy contract
-        _setProxiedTokensManagerFromProxy();
     }
 
     modifier onlyRollupManager() {
@@ -437,7 +420,7 @@ contract AgglayerBridge is
         address destinationAddress,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
-    ) external payable ifNotEmergencyState {
+    ) external payable virtual ifNotEmergencyState {
         // If exist a gas token, only allow call this function without value
         if (msg.value != 0 && address(WETHToken) != address(0)) {
             revert NoValueInMessagesOnGasTokenNetworks();
@@ -467,7 +450,7 @@ contract AgglayerBridge is
         uint256 amountWETH,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
-    ) external ifNotEmergencyState {
+    ) external virtual ifNotEmergencyState {
         // If native token is ether, disable this function
         if (address(WETHToken) == address(0)) {
             revert NativeTokenIsEther();
@@ -748,7 +731,7 @@ contract AgglayerBridge is
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) external ifNotEmergencyState {
+    ) external virtual ifNotEmergencyState {
         // Destination network must be this networkID
         if (destinationNetwork != networkID) {
             revert DestinationNetworkInvalid();
@@ -864,7 +847,7 @@ contract AgglayerBridge is
     function getTokenWrappedAddress(
         uint32 originNetwork,
         address originTokenAddress
-    ) external view returns (address) {
+    ) external view virtual returns (address) {
         return
             tokenInfoToWrappedToken[
                 keccak256(abi.encodePacked(originNetwork, originTokenAddress))
@@ -1059,7 +1042,7 @@ contract AgglayerBridge is
      */
     function transferProxiedTokensManagerRole(
         address newProxiedTokensManager
-    ) external {
+    ) external virtual {
         require(msg.sender == proxiedTokensManager, OnlyProxiedTokensManager());
 
         pendingProxiedTokensManager = newProxiedTokensManager;
@@ -1073,7 +1056,7 @@ contract AgglayerBridge is
     /**
      * @notice Allow the current pending ProxiedTokensManager to accept the ProxiedTokensManager role
      */
-    function acceptProxiedTokensManagerRole() external {
+    function acceptProxiedTokensManagerRole() external virtual {
         require(
             msg.sender == pendingProxiedTokensManager,
             OnlyPendingProxiedTokensManager()
@@ -1092,7 +1075,7 @@ contract AgglayerBridge is
     /**
      * @notice Function to update the globalExitRoot if the last deposit is not submitted
      */
-    function updateGlobalExitRoot() external {
+    function updateGlobalExitRoot() external virtual {
         if (lastUpdatedDepositCount < depositCount) {
             _updateGlobalExitRoot();
         }
@@ -1225,9 +1208,7 @@ contract AgglayerBridge is
         /// @dev A bytecode stored on chain is used to deploy the proxy in a way that ALWAYS it's used the same
         /// bytecode, therefore the proxy addresses are the same in all chains as they are deployed deterministically with same init bytecode
         /// @dev there is no constructor args as the implementation address + owner of the proxied are set at constructor level and taken from the bridge itself
-        bytes memory proxyInitBytecode = abi.encodePacked(
-            INIT_BYTECODE_TRANSPARENT_PROXY()
-        );
+        bytes memory proxyInitBytecode = INIT_BYTECODE_TRANSPARENT_PROXY();
 
         // Deploy wrapped token proxy
         /// @solidity memory-safe-assembly
@@ -1254,7 +1235,7 @@ contract AgglayerBridge is
     /**
      * @notice Returns internal proxiedTokensManager address
      */
-    function getProxiedTokensManager() external view returns (address) {
+    function getProxiedTokensManager() external view virtual returns (address) {
         return proxiedTokensManager;
     }
 
@@ -1262,6 +1243,7 @@ contract AgglayerBridge is
     function getWrappedTokenBridgeImplementation()
         external
         view
+        virtual
         returns (address)
     {
         return wrappedTokenBridgeImplementation;
@@ -1279,7 +1261,7 @@ contract AgglayerBridge is
      */
     function getTokenMetadata(
         address token
-    ) external view returns (bytes memory) {
+    ) external view virtual returns (bytes memory) {
         return bridgeLib.getTokenMetadata(token);
     }
 
@@ -1292,11 +1274,10 @@ contract AgglayerBridge is
     function INIT_BYTECODE_TRANSPARENT_PROXY()
         public
         view
+        virtual
         returns (bytes memory)
     {
-        return
-            bridgeLib
-                .INIT_BYTECODE_TRANSPARENT_PROXY();
+        return bridgeLib.INIT_BYTECODE_TRANSPARENT_PROXY();
     }
 
     /**
@@ -1307,7 +1288,7 @@ contract AgglayerBridge is
     function computeTokenProxyAddress(
         uint32 originNetwork,
         address originTokenAddress
-    ) public view returns (address) {
+    ) public view virtual returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
@@ -1317,7 +1298,7 @@ contract AgglayerBridge is
                 bytes1(0xff),
                 address(this),
                 salt,
-                keccak256(abi.encodePacked(INIT_BYTECODE_TRANSPARENT_PROXY()))
+                keccak256(INIT_BYTECODE_TRANSPARENT_PROXY())
             )
         );
 
