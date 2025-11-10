@@ -1141,6 +1141,11 @@ contract AgglayerBridge is
      * @return leafIndex The leaf index extracted from global index
      * @return indexRollup The rollup index extracted from global index (0 for mainnet)
      * @return sourceBridgeNetwork The source bridge network (0 for mainnet, indexRollup + 1 for rollups)
+     * | network  |  indexRollup | sourceBridgeNetwork (networkID) |
+     * | mainnet  | 0 (non-used) |         0           |
+     * | rollup 1 |       0      |         1           |
+     * | rollup 2 |       1      |         2           |
+     * ....
      */
     function _validateAndDecodeGlobalIndex(
         uint256 globalIndex
