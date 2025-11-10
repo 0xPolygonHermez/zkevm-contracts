@@ -602,6 +602,17 @@ contract AgglayerBridge is
         );
 
         // Transfer funds
+        _transferFundsClaim(originNetwork, originTokenAddress, destinationNetwork, destinationAddress, amount, metadata);
+    }
+
+    function _transferFundsClaim(
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) internal {
         if (
             originTokenAddress == address(0) &&
             originNetwork == _MAINNET_NETWORK_ID
@@ -762,6 +773,17 @@ contract AgglayerBridge is
         );
 
         // Execute message
+        _executeMessage(originNetwork, originAddress, destinationNetwork, destinationAddress, amount, metadata);
+    }
+
+    function _executeMessage(
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) internal {
         bool success;
         if (address(WETHToken) == address(0)) {
             // Native token is ether
