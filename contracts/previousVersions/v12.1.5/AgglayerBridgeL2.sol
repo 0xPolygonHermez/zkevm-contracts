@@ -2,45 +2,26 @@
 
 pragma solidity 0.8.28;
 
-import "../interfaces/IAgglayerBridgeL2.sol";
-import "../AgglayerBridge.sol";
-import "../interfaces/IAgglayerGERL2.sol";
+import "./interfaces/IAgglayerBridgeL2.sol";
+import "../../AgglayerBridge.sol";
+import "./interfaces/IAgglayerGERL2.sol";
 
 /**
  * Sovereign chains bridge that will be deployed on all Sovereign chains
  * Contract responsible to manage the token interactions with other networks
  * This contract is not meant to replace the current zkEVM bridge contract, but deployed on sovereign networks
  */
-contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
+contract AgglayerBridgeL2v12 is AgglayerBridge, IAgglayerBridgeL2 {
     using SafeERC20 for ITokenWrappedBridgeUpgradeable;
     // address used to permission the initialization of the contract
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address private immutable deployer;
 
     // Current bridge version
-    string internal constant BRIDGE_SOVEREIGN_VERSION = "v1.2.0";
+    string public constant BRIDGE_SOVEREIGN_VERSION = "v1.1.0";
 
     // Struct to represent leaf data for forwardLET function
     struct LeafData {
-        uint8 leafType;
-        uint32 originNetwork;
-        address originAddress;
-        uint32 destinationNetwork;
-        address destinationAddress;
-        uint256 amount;
-        bytes metadata;
-    }
-
-    /**
-     * @notice Struct to represent claim data for forceEmitDetailedClaimEvent function
-     * @dev Contains all parameters needed to verify and emit a DetailedClaimEvent
-     */
-    struct ClaimData {
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] smtProofLocalExitRoot;
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] smtProofRollupExitRoot;
-        uint256 globalIndex;
-        bytes32 mainnetExitRoot;
-        bytes32 rollupExitRoot;
         uint8 leafType;
         uint32 originNetwork;
         address originAddress;
@@ -82,7 +63,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     // Emergency bridge unpauser address: can unpause the bridge, both bridges and claims
     address public emergencyBridgeUnpauser;
 
-    // This account will be able to accept the emergencyBridgeUnpauser role
+    //  This account will be able to accept the emergencyBridgeUnpauser role
     address public pendingEmergencyBridgeUnpauser;
 
     /**
@@ -191,9 +172,10 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
 
     /**
      * @dev Emitted when a claim is set
-     * @param globalIndex Global index set
+     * @param leafIndex Index of the leaf of the set claim in the Merkle tree
+     * @param sourceNetwork Identifier of the source network of the claim (0 = Ethereum).
      */
-    event SetClaim(bytes32 globalIndex);
+    event SetClaim(uint32 leafIndex, uint32 sourceNetwork);
 
     /**
      * @dev Emitted when local exit tree is moved backward
@@ -258,7 +240,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint256 indexed globalIndex,
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
-        uint8 leafType,
         uint32 originNetwork,
         address originTokenAddress,
         uint32 destinationNetwork,
@@ -277,7 +258,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     }
 
     /**
-     * @notice Initialize the AgglayerBridgeL2 contract
+     * @dev initializer function to set the initial values of the contract when the contract is deployed for the first time
      * @param _networkID networkID
      * @param _gasTokenAddress gas token address
      * @param _gasTokenNetwork gas token network
@@ -405,6 +386,13 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         revert InvalidInitializeFunction();
     }
 
+    /**
+     * @notice Override the function to prevent the usage, only allowed for L1 bridge, not sovereign chains
+     */
+    function initialize() public pure override(AgglayerBridge) {
+        revert InvalidInitializeFunction();
+    }
+
     modifier onlyBridgeManager() {
         if (bridgeManager != msg.sender) {
             revert OnlyBridgeManager();
@@ -450,7 +438,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address[] memory originTokenAddresses,
         address[] memory sovereignTokenAddresses,
         bool[] memory isNotMintable
-    ) external virtual onlyBridgeManager {
+    ) external onlyBridgeManager {
         if (
             originNetworks.length != originTokenAddresses.length ||
             originNetworks.length != sovereignTokenAddresses.length ||
@@ -539,7 +527,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      */
     function removeLegacySovereignTokenAddress(
         address legacySovereignTokenAddress
-    ) external virtual onlyBridgeManager {
+    ) external onlyBridgeManager {
         // Only allow to remove already remapped tokens
         TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
             legacySovereignTokenAddress
@@ -573,7 +561,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function setSovereignWETHAddress(
         address sovereignWETHTokenAddress,
         bool isNotMintable
-    ) external virtual onlyBridgeManager {
+    ) external onlyBridgeManager {
         _setSovereignWETHAddress(sovereignWETHTokenAddress, isNotMintable);
     }
 
@@ -598,7 +586,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address legacyTokenAddress,
         uint256 amount,
         bytes calldata permitData
-    ) external virtual {
+    ) external {
         // Use permit if any
         if (permitData.length != 0) {
             _permit(legacyTokenAddress, permitData);
@@ -655,7 +643,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      */
     function unsetMultipleClaims(
         uint256[] memory globalIndexes
-    ) external virtual onlyGlobalExitRootRemover {
+    ) external onlyGlobalExitRootRemover {
         for (uint256 i = 0; i < globalIndexes.length; i++) {
             uint256 globalIndex = globalIndexes[i];
 
@@ -692,7 +680,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      */
     function setMultipleClaims(
         uint256[] memory globalIndexes
-    ) external virtual onlyGlobalExitRootRemover {
+    ) external onlyGlobalExitRootRemover {
         for (uint256 i = 0; i < globalIndexes.length; i++) {
             uint256 globalIndex = globalIndexes[i];
 
@@ -707,7 +695,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             // Set the claim
             _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
 
-            emit SetClaim(bytes32(globalIndex));
+            emit SetClaim(leafIndex, sourceBridgeNetwork);
         }
     }
 
@@ -734,7 +722,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata newFrontier,
         bytes32 nextLeaf,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata proof
-    ) external virtual onlyGlobalExitRootRemover ifEmergencyState {
+    ) external onlyGlobalExitRootRemover ifEmergencyState {
         // Validate that new deposit count is less than current
         if (newDepositCount >= depositCount) {
             revert InvalidDepositCount();
@@ -797,7 +785,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function forwardLET(
         LeafData[] calldata newLeaves,
         bytes32 expectedLER
-    ) external virtual onlyGlobalExitRootRemover ifEmergencyState {
+    ) external onlyGlobalExitRootRemover ifEmergencyState {
         // Validate that newLeaves array is not empty
         if (newLeaves.length == 0) {
             revert InvalidLeavesLength();
@@ -851,36 +839,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     }
 
     /**
-     * @notice Force emit detailed claim events for already processed claims
-     * @dev This function is useful for replaying historical claims to emit DetailedClaimEvent.
-     * It does not verify the information, call parameters must be checked offchain
-     * @dev Only callable by GlobalExitRootRemover role for security
-     * @param claims Array of claim data to emit events for
-     */
-    function forceEmitDetailedClaimEvent(
-        ClaimData[] calldata claims
-    ) external virtual onlyGlobalExitRootRemover {
-        for (uint256 i = 0; i < claims.length; ++i) {
-            ClaimData calldata claim = claims[i];
-
-            emit DetailedClaimEvent(
-                claim.smtProofLocalExitRoot,
-                claim.smtProofRollupExitRoot,
-                claim.globalIndex,
-                claim.mainnetExitRoot,
-                claim.rollupExitRoot,
-                claim.leafType,
-                claim.originNetwork,
-                claim.originAddress,
-                claim.destinationNetwork,
-                claim.destinationAddress,
-                claim.amount,
-                claim.metadata
-            );
-        }
-    }
-
-    /**
      * @notice Set local balance tree leaves to specific amounts
      * @dev Permissioned function by the GlobalExitRootRemover role
      * @param originNetwork The origin network of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
@@ -892,7 +850,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint32[] memory originNetwork,
         address[] memory originTokenAddress,
         uint256[] memory amount
-    ) external virtual onlyGlobalExitRootRemover ifEmergencyState {
+    ) external onlyGlobalExitRootRemover ifEmergencyState {
         if (
             originNetwork.length != originTokenAddress.length ||
             originNetwork.length != amount.length
@@ -934,7 +892,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint32 originNetwork,
         address originTokenAddress,
         bool isNotMintable
-    ) external virtual onlyBridgeManager {
+    ) external onlyBridgeManager {
         /// @dev Check the token is not native from this network is done at `_setSovereignTokenAddress`
 
         if (
@@ -997,7 +955,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      */
     function setBridgeManager(
         address _bridgeManager
-    ) external virtual onlyBridgeManager {
+    ) external onlyBridgeManager {
         if (_bridgeManager == address(0)) {
             revert InvalidZeroAddress();
         }
@@ -1018,7 +976,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      */
     function transferEmergencyBridgePauserRole(
         address newEmergencyBridgePauser
-    ) external virtual onlyEmergencyBridgePauser {
+    ) external onlyEmergencyBridgePauser {
         pendingEmergencyBridgePauser = newEmergencyBridgePauser;
 
         emit TransferEmergencyBridgePauserRole(
@@ -1030,7 +988,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     /**
      * @notice Allow the current pending emergencyBridgePauser to accept the emergencyBridgePauser role
      */
-    function acceptEmergencyBridgePauserRole() external virtual {
+    function acceptEmergencyBridgePauserRole() external {
         require(
             pendingEmergencyBridgePauser == msg.sender,
             OnlyPendingEmergencyBridgePauser()
@@ -1053,7 +1011,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      */
     function transferEmergencyBridgeUnpauserRole(
         address newEmergencyBridgeUnpauser
-    ) external virtual onlyEmergencyBridgeUnpauser {
+    ) external onlyEmergencyBridgeUnpauser {
         pendingEmergencyBridgeUnpauser = newEmergencyBridgeUnpauser;
 
         emit TransferEmergencyBridgeUnpauserRole(
@@ -1065,7 +1023,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     /**
      * @notice Allow the current pending emergencyBridgeUnpauser to accept the emergencyBridgeUnpauser role
      */
-    function acceptEmergencyBridgeUnpauserRole() external virtual {
+    function acceptEmergencyBridgeUnpauserRole() external {
         require(
             pendingEmergencyBridgeUnpauser == msg.sender,
             OnlyPendingEmergencyBridgeUnpauser()
@@ -1075,7 +1033,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         emergencyBridgeUnpauser = pendingEmergencyBridgeUnpauser;
         delete pendingEmergencyBridgeUnpauser;
 
-        emit AcceptEmergencyBridgeUnpauserRole(
+        emit AcceptEmergencyBridgePauserRole(
             oldEmergencyBridgeUnpauser,
             emergencyBridgeUnpauser
         );
@@ -1170,7 +1128,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function isClaimed(
         uint32 leafIndex,
         uint32 sourceBridgeNetwork
-    ) public view virtual override returns (bool) {
+    ) external view override returns (bool) {
         uint256 globalIndex = uint256(leafIndex) +
             uint256(sourceBridgeNetwork) *
             _MAX_LEAFS_PER_NETWORK;
@@ -1207,7 +1165,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     // @note This function is not used in the current implementation. We overwrite it to improve deployed bytecode size
     function activateEmergencyState()
         external
-        virtual
         override(IAgglayerBridge, AgglayerBridge)
         onlyEmergencyBridgePauser
     {
@@ -1216,110 +1173,57 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
 
     function deactivateEmergencyState()
         external
-        virtual
         override(IAgglayerBridge, AgglayerBridge)
         onlyEmergencyBridgeUnpauser
     {
         _deactivateEmergencyState();
     }
 
-    ///////////////////////////
-    //// LocalBalanceTree /////
-    ///////////////////////////
-
     /**
-     * @notice Function to claim a message from a Local Exit Root (LER)
-     * @dev This function allows users to claim messages that were sent via the bridge and recorded in a Local Exit Root.
-     *      It verifies the provided Merkle proof against the specified LER and ensures the claim has not been previously made.
-     * @dev Security Modifiers:
+     * @notice Override claimAsset to emit additional DetailedClaimEvent for rollup gas efficiency
+     * @dev This function extends the parent claimAsset functionality by emitting an additional event
+     *      with all calldata parameters. This event can be emitted on rollups because gas costs are
+     *      cheaper than on L1, providing more detailed information about the claim parameters.
+     * @dev The function inherits all security modifiers from the parent implementation:
      *      - ifNotEmergencyState: Prevents claims during emergency state
      *      - nonReentrant: Prevents reentrancy attacks during token transfers
-     * @param smtProofLocalExitRoot Smt proof to prove the leaf against the local exit root
+     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the network exit root
+     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot against the rollups exit root
      * @param globalIndex Global index is defined as:
      *        | 191 bits |    1 bit     |   32 bits   |     32 bits    |
      *        |    0     |  mainnetFlag | rollupIndex | localRootIndex |
-     * @param localExitRoot Local exit root to verify the proof against
+     * @param mainnetExitRoot Mainnet exit root
+     * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
-     * @param originTokenAddress Origin address
-     * @param destinationNetwork Destination network
-     * @param destinationAddress Destination address
-     * @param amount Amount of tokens
+     * @param originTokenAddress Origin token address
+     * @param destinationNetwork Network destination (must be this networkID)
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens to claim
      * @param metadata Abi encoded metadata if any, empty otherwise
-     * @dev Emits ClaimEvent & DetailedClaimEvent upon successful claim
+     * @dev Emits both ClaimEvent (from parent) and DetailedClaimEvent (sovereign-specific)
      */
-    function claimAssetFromLER(
+    function claimAsset(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
-        bytes32 localExitRoot,
+        bytes32 mainnetExitRoot,
+        bytes32 rollupExitRoot,
         uint32 originNetwork,
         address originTokenAddress,
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) public virtual ifNotEmergencyState nonReentrant {
-        // Validate and decode global index
-        (
-            uint32 leafIndex,
-            ,
-            uint32 sourceBridgeNetwork
-        ) = _validateAndDecodeGlobalIndex(globalIndex);
-
-        // Verify if LER exists
-        bool existLER = IAgglayerGERL2(address(globalExitRootManager)).existLER(
-            localExitRoot,
-            sourceBridgeNetwork
-        );
-
-        // check that this local exit root exists
-        if (existLER == false) {
-            revert LocalExitRootInvalid();
-        }
-
-        // build leaf data
-        bytes32 leafValue = getLeafValue(
-            _LEAF_TYPE_ASSET,
-            originNetwork,
-            originTokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            keccak256(metadata)
-        );
-
-        // Verify merkle proof against rollup exit root
-        if (
-            !verifyMerkleProof(
-                leafValue,
-                smtProofLocalExitRoot,
-                leafIndex,
-                localExitRoot
-            )
-        ) {
-            revert InvalidSmtProof();
-        }
-
-        // Set and check nullifier
-        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
-
-        // Event
-        emit ClaimEvent(
-            globalIndex,
-            originNetwork,
-            originTokenAddress,
-            destinationAddress,
-            amount
-        );
-
-        // empty proof for rollup exit root
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
-
-        emit DetailedClaimEvent(
+    ) public override(IAgglayerBridge, AgglayerBridge) {
+        // Call parent implementation with all inherited security modifiers:
+        // - ifNotEmergencyState: Only allows claims when emergency state is inactive
+        // - nonReentrant: Prevents reentrancy attacks during token operations
+        super.claimAsset(
             smtProofLocalExitRoot,
-            emptyProof,
+            smtProofRollupExitRoot,
             globalIndex,
-            bytes32(0),
-            localExitRoot,
+            mainnetExitRoot,
+            rollupExitRoot,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
@@ -1328,204 +1232,24 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             metadata
         );
 
-        // Transfer funds
-        // Check if it's gas token
-        if (
-            originTokenAddress == gasTokenAddress &&
-            gasTokenNetwork == originNetwork
-        ) {
-            // Transfer gas token
-            /* solhint-disable avoid-low-level-calls */
-            (bool success, ) = destinationAddress.call{value: amount}(
-                new bytes(0)
-            );
-            if (!success) {
-                revert EtherTransferFailed();
-            }
-        } else {
-            // Transfer tokens
-            if (originNetwork == networkID) {
-                // The token is an ERC20 from this network
-                ITokenWrappedBridgeUpgradeable(originTokenAddress).safeTransfer(
-                    destinationAddress,
-                    amount
-                );
-            } else {
-                // The tokens is not from this network
-                // Create a wrapper for the token if not exist yet
-                bytes32 tokenInfoHash = keccak256(
-                    abi.encodePacked(originNetwork, originTokenAddress)
-                );
-                address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
-
-                if (wrappedToken == address(0)) {
-                    // Get ERC20 metadata
-
-                    // Create a new wrapped erc20 using create2
-                    ITokenWrappedBridgeUpgradeable newWrappedToken = _deployWrappedToken(
-                            tokenInfoHash,
-                            metadata
-                        );
-
-                    // Mint tokens for the destination address
-                    _claimWrappedAsset(
-                        newWrappedToken,
-                        destinationAddress,
-                        amount
-                    );
-
-                    // Create mappings
-                    tokenInfoToWrappedToken[tokenInfoHash] = address(
-                        newWrappedToken
-                    );
-
-                    wrappedTokenToTokenInfo[
-                        address(newWrappedToken)
-                    ] = TokenInformation(originNetwork, originTokenAddress);
-
-                    emit NewWrappedToken(
-                        originNetwork,
-                        originTokenAddress,
-                        address(newWrappedToken),
-                        metadata
-                    );
-                } else {
-                    // Use the existing wrapped erc20
-                    _claimWrappedAsset(
-                        ITokenWrappedBridgeUpgradeable(wrappedToken),
-                        destinationAddress,
-                        amount
-                    );
-                }
-            }
-        }
-    }
-
-    /**
-     * @notice Function to claim messages from Local Exit Roots (LER)
-     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the network exit root
-     * @param globalIndex Global index is defined as:
-     *        | 191 bits |    1 bit     |   32 bits   |     32 bits    |
-     *        |    0     |  mainnetFlag | rollupIndex | localRootIndex |
-     * @param localExitRoot Local exit root
-     * @param originNetwork Origin network
-     * @param originAddress Origin address
-     * @param destinationNetwork Network destination (must be this networkID)
-     * @param destinationAddress Address destination
-     * @param amount Amount of tokens to claim
-     * @param metadata Abi encoded metadata if any, empty otherwise
-     */
-    function claimMessageFromLER(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
-        uint256 globalIndex,
-        bytes32 localExitRoot,
-        uint32 originNetwork,
-        address originAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes calldata metadata
-    ) public virtual ifNotEmergencyState nonReentrant {
-        // Validate and decode global index
-        (
-            uint32 leafIndex,
-            ,
-            uint32 sourceBridgeNetwork
-        ) = _validateAndDecodeGlobalIndex(globalIndex);
-
-        // Verify if LER exists
-        bool existLER = IAgglayerGERL2(address(globalExitRootManager)).existLER(
-            localExitRoot,
-            sourceBridgeNetwork
-        );
-
-        // check that this global exit root exists
-        if (existLER == false) {
-            revert LocalExitRootInvalid();
-        }
-
-        // build leaf data
-        bytes32 leafValue = getLeafValue(
-            _LEAF_TYPE_ASSET,
-            originNetwork,
-            originAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            keccak256(metadata)
-        );
-
-        // Verify merkle proof against rollup exit root
-        if (
-            !verifyMerkleProof(
-                leafValue,
-                smtProofLocalExitRoot,
-                leafIndex,
-                localExitRoot
-            )
-        ) {
-            revert InvalidSmtProof();
-        }
-
-        // Set and check nullifier
-        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
-
-        // Events
-        emit ClaimEvent(
-            globalIndex,
-            originNetwork,
-            originAddress,
-            destinationAddress,
-            amount
-        );
-
-        // empty proof for rollup exit root
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
-
         emit DetailedClaimEvent(
             smtProofLocalExitRoot,
-            emptyProof,
+            smtProofRollupExitRoot,
             globalIndex,
-            bytes32(0),
-            localExitRoot,
+            mainnetExitRoot,
+            rollupExitRoot,
             originNetwork,
-            originAddress,
+            originTokenAddress,
             destinationNetwork,
             destinationAddress,
             amount,
             metadata
         );
-
-        // Execute message
-        bool success;
-        if (address(WETHToken) == address(0)) {
-            // Native token is ether
-            // Transfer ether
-            /* solhint-disable avoid-low-level-calls */
-            (success, ) = destinationAddress.call{value: amount}(
-                abi.encodeCall(
-                    IBridgeMessageReceiver.onMessageReceived,
-                    (originAddress, originNetwork, metadata)
-                )
-            );
-        } else {
-            // Mint wETH tokens
-            _claimWrappedAsset(WETHToken, destinationAddress, amount);
-
-            // Execute message
-            /* solhint-disable avoid-low-level-calls */
-            (success, ) = destinationAddress.call(
-                abi.encodeCall(
-                    IBridgeMessageReceiver.onMessageReceived,
-                    (originAddress, originNetwork, metadata)
-                )
-            );
-        }
-
-        if (!success) {
-            revert MessageFailed();
-        }
     }
+
+    ///////////////////////////
+    //// LocalBalanceTree /////
+    ///////////////////////////
 
     /**
      * @notice Function to decrease the local balance tree
@@ -1650,9 +1374,9 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount message value
-     * @param metadata Raw metadata bytes
+     * @param metadataHash Hash of the metadata
      */
-    function _verifyLeafAndSetNullifier(
+    function _verifyLeafBridge(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
@@ -1664,26 +1388,8 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes memory metadata
+        bytes32 metadataHash
     ) internal override {
-        // Emit detailed claim event with all parameters for better traceability on L2
-        // This event is emitted before verification to avoid stack too deep errors
-        // It's cheaper to emit on L2 than L1, providing full claim details for indexers
-        emit DetailedClaimEvent(
-            smtProofLocalExitRoot,
-            smtProofRollupExitRoot,
-            globalIndex,
-            mainnetExitRoot,
-            rollupExitRoot,
-            leafType,
-            originNetwork,
-            originAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata
-        );
-
         bytes32 leafValue = getLeafValue(
             leafType,
             originNetwork,
@@ -1691,10 +1397,10 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             destinationNetwork,
             destinationAddress,
             amount,
-            keccak256(metadata)
+            metadataHash
         );
 
-        (uint32 leafIndex, uint32 sourceBridgeNetwork) = _verifyLeaf(
+        _verifyLeaf(
             smtProofLocalExitRoot,
             smtProofRollupExitRoot,
             globalIndex,
@@ -1702,9 +1408,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             rollupExitRoot,
             leafValue
         );
-
-        // Set and check nullifier
-        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
 
         // Update claimedGlobalIndexHashChain
         claimedGlobalIndexHashChain = Hashes.efficientKeccak256(
@@ -1730,7 +1433,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      * @notice Function to retrieve the current version of the contract.
      * @return version of the contract.
      */
-    function version() external pure virtual override returns (string memory) {
+    function version() external pure override returns (string memory) {
         return BRIDGE_SOVEREIGN_VERSION;
     }
 }

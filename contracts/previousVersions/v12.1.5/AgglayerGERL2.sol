@@ -1,26 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity 0.8.28;
-import "../LegacyAgglayerGERL2.sol";
-import "../lib/Hashes.sol";
-import "../interfaces/IAgglayerGERL2.sol";
-import "../interfaces/IVersion.sol";
-import "../interfaces/IAgglayerBridgeL2.sol";
+import "../../LegacyAgglayerGERL2.sol";
+import "../../lib/Hashes.sol";
+import "./interfaces/IAgglayerGERL2.sol";
+import "../../interfaces/IVersion.sol";
 import "@openzeppelin/contracts-upgradeable4/proxy/utils/Initializable.sol";
-import "../lib/DepositContractBase.sol";
 
 /**
  * Contract responsible for managing the exit roots for the Sovereign chains and global exit roots
  */
-contract AgglayerGERL2 is
+contract AgglayerGERL2v12 is
     LegacyAgglayerGERL2,
     IAgglayerGERL2,
     Initializable,
-    IVersion,
-    DepositContractBase
+    IVersion
 {
     // Current contract version
-    string public constant GER_SOVEREIGN_VERSION = "v1.1.0";
+    string public constant GER_SOVEREIGN_VERSION = "v1.0.0";
 
     // globalExitRootUpdater address
     address public globalExitRootUpdater;
@@ -44,15 +41,6 @@ contract AgglayerGERL2 is
     // This account will be able to accept globalExitRootRemover role
     address public pendingGlobalExitRootRemover;
 
-    // Local exiy tree mapping. H(LER # origin_network) => exist
-    mapping(bytes32 => bool) public localExitRootMap;
-
-    // Value of the local exit roots hash chain after last insertion
-    bytes32 public insertedLERHashChain;
-
-    // Value of the removed local exit roots hash chain after last removal
-    bytes32 public removedLERHashChain;
-
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
@@ -74,29 +62,6 @@ contract AgglayerGERL2 is
         bytes32 indexed removedGlobalExitRoot,
         bytes32 indexed newRemovalHashChainValue
     );
-
-    /**
-     * @dev Emitted when a new local exit root is inserted and added to the hash chain
-     */
-    event UpdateLERHashChainValue(
-        bytes32 indexed newLER,
-        uint32 indexed networkID,
-        bytes32 indexed newHashChainValue
-    );
-
-    /**
-     * @dev Emitted when the local exit root is removed and added to the removal hash chain
-     */
-    event UpdateRemovalLERHashChainValue(
-        bytes32 indexed removedLER,
-        uint32 indexed networkID,
-        bytes32 indexed newRemovalHashChainValue
-    );
-
-    /**
-     * @dev Thrown when initializing calling a function with invalid arrays length
-     */
-    error InputArraysLengthMismatch();
 
     /**
      * @dev Emitted when the GlobalExitRootUpdater starts the two-step transfer role setting a new pending GlobalExitRootUpdater.
@@ -252,149 +217,6 @@ contract AgglayerGERL2 is
         removedGERHashChain = nextRemovalHashChainValue;
     }
 
-    /**
-     * @notice Insert a new local exit root
-     * @param newLocalExitRoots array new local exit root to insert
-     * @param networkIDs array origin networks of LERs
-     */
-    function insertLERs(
-        bytes32[] calldata newLocalExitRoots,
-        uint32[] calldata networkIDs
-    ) public onlyGlobalExitRootUpdater {
-        if (newLocalExitRoots.length != networkIDs.length) {
-            revert InputArraysLengthMismatch();
-        }
-        // do not insert LER if already set
-        for (uint256 i = 0; i < newLocalExitRoots.length; i++) {
-            bytes32 keyLER = getHashLER(newLocalExitRoots[i], networkIDs[i]);
-            if (localExitRootMap[keyLER] == false) {
-                localExitRootMap[keyLER] = true;
-                // Update hash chain value
-                insertedLERHashChain = Hashes.efficientKeccak256(
-                    insertedLERHashChain,
-                    keyLER
-                );
-
-                // Emit update event
-                emit UpdateLERHashChainValue(
-                    newLocalExitRoots[i],
-                    networkIDs[i],
-                    insertedLERHashChain
-                );
-            } else {
-                revert LocalExitRootAlreadySet();
-            }
-        }
-    }
-
-    /**
-     * @notice Remove local exit root
-     * @param lersToRemove array local exit root to remove
-     * @param networkIDs array origin networks of LERs to remove
-     */
-    function removeLERs(
-        bytes32[] calldata lersToRemove,
-        uint32[] calldata networkIDs
-    ) public onlyGlobalExitRootRemover {
-        if (lersToRemove.length != networkIDs.length) {
-            revert InputArraysLengthMismatch();
-        }
-        bytes32 nextRemovalHashChainValue = removedLERHashChain;
-        for (uint256 i = 0; i < lersToRemove.length; i++) {
-            // Check if the LER exists
-            bytes32 keyLERToRemove = getHashLER(lersToRemove[i], networkIDs[i]);
-            if (localExitRootMap[keyLERToRemove] == false) {
-                revert LocalExitRootNotFound();
-            }
-            // Encode new removed LERs to generate the nextRemovalHashChainValue
-            nextRemovalHashChainValue = Hashes.efficientKeccak256(
-                nextRemovalHashChainValue,
-                keyLERToRemove
-            );
-
-            // Remove the LER from the map
-            delete localExitRootMap[keyLERToRemove];
-
-            // Emit removal event
-            emit UpdateRemovalLERHashChainValue(
-                lersToRemove[i],
-                networkIDs[i],
-                nextRemovalHashChainValue
-            );
-        }
-        // Update the removedLERHashChain
-        removedLERHashChain = nextRemovalHashChainValue;
-    }
-
-    /**
-     * @notice Get the hash of a local exit root and its origin network
-     * @param ler local exit root
-     * @param networkID origin network ID of the local exit root
-     * @return hash of the local exit root and its origin network
-     */
-    function getHashLER(
-        bytes32 ler,
-        uint32 networkID
-    ) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(ler, networkID));
-    }
-
-    /**
-     * @notice Insert multiple LERs and claim multiple assets from LERs in a single transaction
-     * @param networkIDs current network ID
-     * @param smtProofLocalExitRoots array of SMT proofs of the local exit roots
-     * @param globalIndexes array of global indexes
-     * @param localExitRoots local exit root to be used for all claims
-     * @param originNetworks array of origin networks
-     * @param originTokenAddresses array of origin token addresses
-     * @param destinationNetworks array of destination networks
-     * @param destinationAddresses array of destination addresses
-     * @param amounts array of amounts to claim
-     * @param metadatas array of metadatas for each claim
-     */
-    function insertAndClaimsAssetFromLER(
-        uint32[] calldata networkIDs,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH][] calldata smtProofLocalExitRoots,
-        uint256[] calldata globalIndexes,
-        bytes32[] calldata localExitRoots,
-        uint32[] calldata originNetworks,
-        address[] calldata originTokenAddresses,
-        uint32[] calldata destinationNetworks,
-        address[] calldata destinationAddresses,
-        uint256[] calldata amounts,
-        bytes[] calldata metadatas
-    ) public virtual {
-        if (smtProofLocalExitRoots.length != globalIndexes.length ||
-            smtProofLocalExitRoots.length != originNetworks.length ||
-            smtProofLocalExitRoots.length != originTokenAddresses.length ||
-            smtProofLocalExitRoots.length != destinationNetworks.length ||
-            smtProofLocalExitRoots.length != destinationAddresses.length ||
-            smtProofLocalExitRoots.length != amounts.length ||
-            smtProofLocalExitRoots.length != metadatas.length
-        ) {
-            revert InputArraysLengthMismatch();
-        }
-        if (localExitRoots.length != 1 || networkIDs.length != 1) {
-            revert InputArraysLengthMismatch();
-        }
-
-        insertLERs(localExitRoots, networkIDs);
-        for (uint256 i = 0; i < smtProofLocalExitRoots.length; i++) {
-            IAgglayerBridgeL2(address(bridgeAddress)).claimAssetFromLER
-             (
-                smtProofLocalExitRoots[i],
-                globalIndexes[i],
-                localExitRoots[0],
-                originNetworks[i],
-                originTokenAddresses[i],
-                destinationNetworks[i],
-                destinationAddresses[i],
-                amounts[i],
-                metadatas[i]
-            );
-        }
-    }
-
     ///////////////////////////////////
     //   Role transfer functions    //
     /////////////////////////////////
@@ -476,19 +298,5 @@ contract AgglayerGERL2 is
      */
     function version() external pure returns (string memory) {
         return GER_SOVEREIGN_VERSION;
-    }
-
-    /**
-     * @notice Function to get if a local exit root exists for a given network
-     * @param ler local exit root to check
-     * @param networkID origin network ID of the local exit root
-     * @return bool true if the local exit root exists, false otherwise
-     */
-    function existLER(
-        bytes32 ler,
-        uint32 networkID
-    ) external view returns (bool) {
-        bytes32 keyLER = keccak256(abi.encodePacked(ler, networkID));
-        return localExitRootMap[keyLER];
     }
 }
