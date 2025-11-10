@@ -1329,76 +1329,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Transfer funds
-        // Check if it's gas token
-        if (
-            originTokenAddress == gasTokenAddress &&
-            gasTokenNetwork == originNetwork
-        ) {
-            // Transfer gas token
-            /* solhint-disable avoid-low-level-calls */
-            (bool success, ) = destinationAddress.call{value: amount}(
-                new bytes(0)
-            );
-            if (!success) {
-                revert EtherTransferFailed();
-            }
-        } else {
-            // Transfer tokens
-            if (originNetwork == networkID) {
-                // The token is an ERC20 from this network
-                ITokenWrappedBridgeUpgradeable(originTokenAddress).safeTransfer(
-                    destinationAddress,
-                    amount
-                );
-            } else {
-                // The tokens is not from this network
-                // Create a wrapper for the token if not exist yet
-                bytes32 tokenInfoHash = keccak256(
-                    abi.encodePacked(originNetwork, originTokenAddress)
-                );
-                address wrappedToken = tokenInfoToWrappedToken[tokenInfoHash];
-
-                if (wrappedToken == address(0)) {
-                    // Get ERC20 metadata
-
-                    // Create a new wrapped erc20 using create2
-                    ITokenWrappedBridgeUpgradeable newWrappedToken = _deployWrappedToken(
-                            tokenInfoHash,
-                            metadata
-                        );
-
-                    // Mint tokens for the destination address
-                    _claimWrappedAsset(
-                        newWrappedToken,
-                        destinationAddress,
-                        amount
-                    );
-
-                    // Create mappings
-                    tokenInfoToWrappedToken[tokenInfoHash] = address(
-                        newWrappedToken
-                    );
-
-                    wrappedTokenToTokenInfo[
-                        address(newWrappedToken)
-                    ] = TokenInformation(originNetwork, originTokenAddress);
-
-                    emit NewWrappedToken(
-                        originNetwork,
-                        originTokenAddress,
-                        address(newWrappedToken),
-                        metadata
-                    );
-                } else {
-                    // Use the existing wrapped erc20
-                    _claimWrappedAsset(
-                        ITokenWrappedBridgeUpgradeable(wrappedToken),
-                        destinationAddress,
-                        amount
-                    );
-                }
-            }
-        }
+        _transferFundsClaim(originNetwork, originTokenAddress, destinationNetwork, destinationAddress, amount, metadata);
     }
 
     /**
@@ -1497,34 +1428,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Execute message
-        bool success;
-        if (address(WETHToken) == address(0)) {
-            // Native token is ether
-            // Transfer ether
-            /* solhint-disable avoid-low-level-calls */
-            (success, ) = destinationAddress.call{value: amount}(
-                abi.encodeCall(
-                    IBridgeMessageReceiver.onMessageReceived,
-                    (originAddress, originNetwork, metadata)
-                )
-            );
-        } else {
-            // Mint wETH tokens
-            _claimWrappedAsset(WETHToken, destinationAddress, amount);
-
-            // Execute message
-            /* solhint-disable avoid-low-level-calls */
-            (success, ) = destinationAddress.call(
-                abi.encodeCall(
-                    IBridgeMessageReceiver.onMessageReceived,
-                    (originAddress, originNetwork, metadata)
-                )
-            );
-        }
-
-        if (!success) {
-            revert MessageFailed();
-        }
+        _executeMessage(originNetwork, originAddress, destinationNetwork, destinationAddress, amount, metadata);
     }
 
     /**
