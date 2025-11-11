@@ -152,8 +152,8 @@ describe('AgglayerBridgeL2 Contract', () => {
             deployer.address,
             tokenInitialBalance,
         );
-        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.1.0');
-        expect(await sovereignChainGlobalExitRootContract.version()).to.be.equal('v1.0.0');
+        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.2.0');
+        expect(await sovereignChainGlobalExitRootContract.version()).to.be.equal('v1.1.0');
     });
 
     it('Should remap source 6 decimal token to 18 sovereign wrapped token and bridge', async () => {

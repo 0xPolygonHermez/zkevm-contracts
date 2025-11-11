@@ -44,7 +44,6 @@ describe('LERs', () => {
     const networkIDRollup2 = 2;
 
     const LEAF_TYPE_ASSET = 0;
-    const LEAF_TYPE_MESSAGE = 1;
 
     beforeEach(async () => {
         // load signers
@@ -63,26 +62,18 @@ describe('LERs', () => {
 
         // deploy global exit root manager
         const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory('AgglayerGERL2');
-        ger = (await upgrades.deployProxy(
-            GlobalExitRootManagerL2SovereignChainFactory,
-            [],
-            {
-                initializer: false,
-                constructorArgs: [bridge.target], // Constructor arguments
-                unsafeAllow: ['constructor', 'missing-initializer', 'state-variable-immutable'],
-            },
-        )) as unknown as AgglayerGERL2;
+        ger = (await upgrades.deployProxy(GlobalExitRootManagerL2SovereignChainFactory, [], {
+            initializer: false,
+            constructorArgs: [bridge.target], // Constructor arguments
+            unsafeAllow: ['constructor', 'missing-initializer', 'state-variable-immutable'],
+        })) as unknown as AgglayerGERL2;
 
-        await expect(
-            ger.initialize(ethers.ZeroAddress, globalExitRootRemover.address),
-        ).to.be.revertedWithCustomError(ger, 'InvalidZeroAddress');
-
-        await expect(
-            ger.initialize(
-                globalExitRootUpdater.address,
-                globalExitRootRemover.address,
-            ),
+        await expect(ger.initialize(ethers.ZeroAddress, globalExitRootRemover.address)).to.be.revertedWithCustomError(
+            ger,
+            'InvalidZeroAddress',
         );
+
+        await expect(ger.initialize(globalExitRootUpdater.address, globalExitRootRemover.address));
 
         // cannot initialize bridgeV2 initializer from Sovereign bridge
         await expect(
