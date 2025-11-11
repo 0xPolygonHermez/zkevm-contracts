@@ -1228,6 +1228,74 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     ///////////////////////////
 
     /**
+     * @notice Override claimAsset to emit additional DetailedClaimEvent for rollup gas efficiency
+     * @dev This function extends the parent claimAsset functionality by emitting an additional event
+     *      with all calldata parameters. This event can be emitted on rollups because gas costs are
+     *      cheaper than on L1, providing more detailed information about the claim parameters.
+     * @dev The function inherits all security modifiers from the parent implementation:
+     *      - ifNotEmergencyState: Prevents claims during emergency state
+     *      - nonReentrant: Prevents reentrancy attacks during token transfers
+     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the network exit root
+     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot against the rollups exit root
+     * @param globalIndex Global index is defined as:
+     *        | 191 bits |    1 bit     |   32 bits   |     32 bits    |
+     *        |    0     |  mainnetFlag | rollupIndex | localRootIndex |
+     * @param mainnetExitRoot Mainnet exit root
+     * @param rollupExitRoot Rollup exit root
+     * @param originNetwork Origin network
+     * @param originTokenAddress Origin token address
+     * @param destinationNetwork Network destination (must be this networkID)
+     * @param destinationAddress Address destination
+     * @param amount Amount of tokens to claim
+     * @param metadata Abi encoded metadata if any, empty otherwise
+     * @dev Emits both ClaimEvent (from parent) and DetailedClaimEvent (sovereign-specific)
+     */
+    function claimAsset(
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
+        uint256 globalIndex,
+        bytes32 mainnetExitRoot,
+        bytes32 rollupExitRoot,
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) public override(IAgglayerBridge, AgglayerBridge) {
+        // Call parent implementation with all inherited security modifiers:
+        // - ifNotEmergencyState: Only allows claims when emergency state is inactive
+        // - nonReentrant: Prevents reentrancy attacks during token operations
+        super.claimAsset(
+            smtProofLocalExitRoot,
+            smtProofRollupExitRoot,
+            globalIndex,
+            mainnetExitRoot,
+            rollupExitRoot,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
+
+        emit DetailedClaimEvent(
+            smtProofLocalExitRoot,
+            smtProofRollupExitRoot,
+            globalIndex,
+            mainnetExitRoot,
+            rollupExitRoot,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
+    }
+
+    /**
      * @notice Function to claim a message from a Local Exit Root (LER)
      * @dev This function allows users to claim messages that were sent via the bridge and recorded in a Local Exit Root.
      *      It verifies the provided Merkle proof against the specified LER and ensures the claim has not been previously made.
@@ -1299,6 +1367,20 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             revert InvalidSmtProof();
         }
 
+        // Update claimedGlobalIndexHashChain
+        claimedGlobalIndexHashChain = Hashes.efficientKeccak256(
+            claimedGlobalIndexHashChain,
+            Hashes.efficientKeccak256(bytes32(globalIndex), leafValue)
+        );
+
+        emit UpdatedClaimedGlobalIndexHashChain(
+            bytes32(globalIndex),
+            claimedGlobalIndexHashChain
+        );
+
+        // Update Local Balance Tree
+        _increaseLocalBalanceTree(originNetwork, originTokenAddress, amount);
+
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
 
@@ -1311,15 +1393,16 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             amount
         );
 
-        // empty proof for rollup exit root
+        // Empty proof and empty root to reuse DetailedClaimEvent structure
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
+        bytes32 emptyRoot;
 
         emit DetailedClaimEvent(
             smtProofLocalExitRoot,
             emptyProof,
             globalIndex,
-            bytes32(0),
             localExitRoot,
+            emptyRoot,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
@@ -1384,7 +1467,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
 
         // build leaf data
         bytes32 leafValue = getLeafValue(
-            _LEAF_TYPE_ASSET,
+            _LEAF_TYPE_MESSAGE,
             originNetwork,
             originAddress,
             destinationNetwork,
@@ -1405,6 +1488,20 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             revert InvalidSmtProof();
         }
 
+        // Update claimedGlobalIndexHashChain
+        claimedGlobalIndexHashChain = Hashes.efficientKeccak256(
+            claimedGlobalIndexHashChain,
+            Hashes.efficientKeccak256(bytes32(globalIndex), leafValue)
+        );
+
+        emit UpdatedClaimedGlobalIndexHashChain(
+            bytes32(globalIndex),
+            claimedGlobalIndexHashChain
+        );
+
+        // Update Local Balance Tree
+        _increaseLocalBalanceTree(_MAINNET_NETWORK_ID, address(0), amount);
+
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
 
@@ -1417,15 +1514,16 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             amount
         );
 
-        // empty proof for rollup exit root
+        // Empty proof and empty root to reuse DetailedClaimEvent structure
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
+        bytes32 emptyRoot;
 
         emit DetailedClaimEvent(
             smtProofLocalExitRoot,
             emptyProof,
             globalIndex,
-            bytes32(0),
             localExitRoot,
+            emptyRoot,
             originNetwork,
             originAddress,
             destinationNetwork,
@@ -1444,6 +1542,10 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             metadata
         );
     }
+
+    ///////////////////////////
+    //// LocalBalanceTree /////
+    ///////////////////////////
 
     /**
      * @notice Function to decrease the local balance tree
