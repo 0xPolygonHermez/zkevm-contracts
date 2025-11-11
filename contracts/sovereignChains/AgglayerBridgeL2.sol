@@ -1329,7 +1329,14 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Transfer funds
-        _transferFundsClaim(originNetwork, originTokenAddress, destinationNetwork, destinationAddress, amount, metadata);
+        _transferFundsClaim(
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
     }
 
     /**
@@ -1428,7 +1435,14 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Execute message
-        _executeMessage(originNetwork, originAddress, destinationNetwork, destinationAddress, amount, metadata);
+        _executeMessage(
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
     }
 
     /**

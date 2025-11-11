@@ -7,7 +7,6 @@ import "../interfaces/IAgglayerGERL2.sol";
 import "../interfaces/IVersion.sol";
 import "../interfaces/IAgglayerBridgeL2.sol";
 import "@openzeppelin/contracts-upgradeable4/proxy/utils/Initializable.sol";
-import "../lib/DepositContractBase.sol";
 
 /**
  * Contract responsible for managing the exit roots for the Sovereign chains and global exit roots
@@ -16,8 +15,7 @@ contract AgglayerGERL2 is
     LegacyAgglayerGERL2,
     IAgglayerGERL2,
     Initializable,
-    IVersion,
-    DepositContractBase
+    IVersion
 {
     // Current contract version
     string public constant GER_SOVEREIGN_VERSION = "v1.1.0";
@@ -52,6 +50,9 @@ contract AgglayerGERL2 is
 
     // Value of the removed local exit roots hash chain after last removal
     bytes32 public removedLERHashChain;
+
+    // Merkle tree levels
+    uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
@@ -364,7 +365,8 @@ contract AgglayerGERL2 is
         uint256[] calldata amounts,
         bytes[] calldata metadatas
     ) public virtual {
-        if (smtProofLocalExitRoots.length != globalIndexes.length ||
+        if (
+            smtProofLocalExitRoots.length != globalIndexes.length ||
             smtProofLocalExitRoots.length != originNetworks.length ||
             smtProofLocalExitRoots.length != originTokenAddresses.length ||
             smtProofLocalExitRoots.length != destinationNetworks.length ||
@@ -380,8 +382,7 @@ contract AgglayerGERL2 is
 
         insertLERs(localExitRoots, networkIDs);
         for (uint256 i = 0; i < smtProofLocalExitRoots.length; i++) {
-            IAgglayerBridgeL2(address(bridgeAddress)).claimAssetFromLER
-             (
+            IAgglayerBridgeL2(address(bridgeAddress)).claimAssetFromLER(
                 smtProofLocalExitRoots[i],
                 globalIndexes[i],
                 localExitRoots[0],

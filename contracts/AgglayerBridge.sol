@@ -577,7 +577,14 @@ contract AgglayerBridge is
         );
 
         // Transfer funds
-        _transferFundsClaim(originNetwork, originTokenAddress, destinationNetwork, destinationAddress, amount, metadata);
+        _transferFundsClaim(
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
     }
 
     function _transferFundsClaim(
@@ -748,7 +755,14 @@ contract AgglayerBridge is
         );
 
         // Execute message
-        _executeMessage(originNetwork, originAddress, destinationNetwork, destinationAddress, amount, metadata);
+        _executeMessage(
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
     }
 
     function _executeMessage(
