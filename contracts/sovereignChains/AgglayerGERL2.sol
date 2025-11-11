@@ -20,6 +20,11 @@ contract AgglayerGERL2 is
     // Current contract version
     string public constant GER_SOVEREIGN_VERSION = "v1.1.0";
 
+    // Used for SMT proofs of deposit contracts
+    // Merkle tree levels
+    // Used in this contract to insert the LER and make a claim to the bridge contract directly
+    uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
+
     // globalExitRootUpdater address
     address public globalExitRootUpdater;
 
@@ -42,7 +47,7 @@ contract AgglayerGERL2 is
     // This account will be able to accept globalExitRootRemover role
     address public pendingGlobalExitRootRemover;
 
-    // Local exiy tree mapping. H(LER # origin_network) => exist
+    // Local exiy tree mapping. H(LER # networkID) => exist
     mapping(bytes32 => bool) public localExitRootMap;
 
     // Value of the local exit roots hash chain after last insertion
@@ -50,9 +55,6 @@ contract AgglayerGERL2 is
 
     // Value of the removed local exit roots hash chain after last removal
     bytes32 public removedLERHashChain;
-
-    // Merkle tree levels
-    uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
@@ -265,14 +267,15 @@ contract AgglayerGERL2 is
         if (newLocalExitRoots.length != networkIDs.length) {
             revert InputArraysLengthMismatch();
         }
+        bytes32 nextInsertedLERHashChain = insertedLERHashChain;
         // do not insert LER if already set
         for (uint256 i = 0; i < newLocalExitRoots.length; i++) {
             bytes32 keyLER = getHashLER(newLocalExitRoots[i], networkIDs[i]);
             if (localExitRootMap[keyLER] == false) {
                 localExitRootMap[keyLER] = true;
                 // Update hash chain value
-                insertedLERHashChain = Hashes.efficientKeccak256(
-                    insertedLERHashChain,
+                nextInsertedLERHashChain = Hashes.efficientKeccak256(
+                    nextInsertedLERHashChain,
                     keyLER
                 );
 
@@ -280,12 +283,14 @@ contract AgglayerGERL2 is
                 emit UpdateLERHashChainValue(
                     newLocalExitRoots[i],
                     networkIDs[i],
-                    insertedLERHashChain
+                    nextInsertedLERHashChain
                 );
             } else {
                 revert LocalExitRootAlreadySet();
             }
         }
+        // Update the insertedLERHashChain
+        insertedLERHashChain = nextInsertedLERHashChain;
     }
 
     /**

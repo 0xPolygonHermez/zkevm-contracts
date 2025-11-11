@@ -1247,10 +1247,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
     }
 
-    ///////////////////////////
-    //// LocalBalanceTree /////
-    ///////////////////////////
-
     /**
      * @notice Function to claim a message from a Local Exit Root (LER)
      * @dev This function allows users to claim messages that were sent via the bridge and recorded in a Local Exit Root.
@@ -1323,6 +1319,20 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             revert InvalidSmtProof();
         }
 
+        // Update claimedGlobalIndexHashChain
+        claimedGlobalIndexHashChain = Hashes.efficientKeccak256(
+            claimedGlobalIndexHashChain,
+            Hashes.efficientKeccak256(bytes32(globalIndex), leafValue)
+        );
+
+        emit UpdatedClaimedGlobalIndexHashChain(
+            bytes32(globalIndex),
+            claimedGlobalIndexHashChain
+        );
+
+        // Update Local Balance Tree
+        _increaseLocalBalanceTree(originNetwork, originTokenAddress, amount);
+
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
 
@@ -1335,15 +1345,16 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             amount
         );
 
-        // empty proof for rollup exit root
+        // Empty proof and empty root to reuse DetailedClaimEvent structure
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
+        bytes32 emptyRoot;
 
         emit DetailedClaimEvent(
             smtProofLocalExitRoot,
             emptyProof,
             globalIndex,
-            bytes32(0),
             localExitRoot,
+            emptyRoot,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
@@ -1408,7 +1419,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
 
         // build leaf data
         bytes32 leafValue = getLeafValue(
-            _LEAF_TYPE_ASSET,
+            _LEAF_TYPE_MESSAGE,
             originNetwork,
             originAddress,
             destinationNetwork,
@@ -1429,6 +1440,20 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             revert InvalidSmtProof();
         }
 
+        // Update claimedGlobalIndexHashChain
+        claimedGlobalIndexHashChain = Hashes.efficientKeccak256(
+            claimedGlobalIndexHashChain,
+            Hashes.efficientKeccak256(bytes32(globalIndex), leafValue)
+        );
+
+        emit UpdatedClaimedGlobalIndexHashChain(
+            bytes32(globalIndex),
+            claimedGlobalIndexHashChain
+        );
+
+        // Update Local Balance Tree
+        _increaseLocalBalanceTree(_MAINNET_NETWORK_ID, address(0), amount);
+
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
 
@@ -1441,15 +1466,16 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             amount
         );
 
-        // empty proof for rollup exit root
+        // Empty proof and empty root to reuse DetailedClaimEvent structure
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
+        bytes32 emptyRoot;
 
         emit DetailedClaimEvent(
             smtProofLocalExitRoot,
             emptyProof,
             globalIndex,
-            bytes32(0),
             localExitRoot,
+            emptyRoot,
             originNetwork,
             originAddress,
             destinationNetwork,
@@ -1468,6 +1494,10 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             metadata
         );
     }
+
+    ///////////////////////////
+    //// LocalBalanceTree /////
+    ///////////////////////////
 
     /**
      * @notice Function to decrease the local balance tree
