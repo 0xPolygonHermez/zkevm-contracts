@@ -70,7 +70,7 @@
     },
     "scripts": {
         "saveDeployment:mainnet": "mkdir -p deployments/mainnet_$(date +%s) && cp -r deployment/v2/deploy_*.json deployments/mainnet_$(date +%s) && cp .openzeppelin/mainnet.json deployments/mainnet_$(date +%s) && cp deployment/v2/genesis.json deployments/mainnet_$(date +%s) && cp deployment/v2/create_rollup_output_*.json deployments/mainnet_$(date +%s)",
-        "test": "npx hardhat test test/contractsv2/*ts test/contractsv2/real-prover-sp1/*.ts test/src/*.ts",
+        "test": "npx hardhat test test/index.test.js test/contractsv2/*ts test/contractsv2/real-prover-sp1/*.ts test/src/*.ts",
         "docgen": "forge doc --out docs/contracts",
         "prepare:testnet:ZkEVM:localhost": "npx hardhat run deployment/testnet/prepareTestnet.ts --network localhost",
         "deploy:ZkEVM:localhost": "rm -f .openzeppelin/unknown-*.json && node deployment/1_createGenesis.js && npx hardhat run deployment/2_deployPolygonZKEVMDeployer.js --network localhost && npx hardhat run deployment/3_deployContracts.js --network localhost",
