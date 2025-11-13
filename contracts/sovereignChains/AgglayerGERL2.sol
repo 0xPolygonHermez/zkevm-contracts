@@ -257,13 +257,13 @@ contract AgglayerGERL2 is
 
     /**
      * @notice Insert a new local exit root
-     * @param newLocalExitRoots array new local exit root to insert
-     * @param networkIDs array origin networks of LERs
+     * @param newLocalExitRoots array of new local exit roots to insert
+     * @param networkIDs array of origin networks of LERs
      */
-    function insertLERs(
-        bytes32[] calldata newLocalExitRoots,
-        uint32[] calldata networkIDs
-    ) public onlyGlobalExitRootUpdater {
+    function _insertLERs(
+        bytes32[] memory newLocalExitRoots,
+        uint32[] memory networkIDs
+    ) internal {
         if (newLocalExitRoots.length != networkIDs.length) {
             revert InputArraysLengthMismatch();
         }
@@ -291,6 +291,35 @@ contract AgglayerGERL2 is
         }
         // Update the insertedLERHashChain
         insertedLERHashChain = nextInsertedLERHashChain;
+    }
+
+    /**
+     * @notice Insert multiple new local exit roots
+     * @param newLER array new local exit root to insert
+     * @param networkID array origin networks of LERs
+     */
+    function _insertLER(bytes32 newLER, uint32 networkID) internal {
+        // Convert calldata to memory and call internal function
+        bytes32[] memory _newLocalExitRoots = new bytes32[](1);
+        _newLocalExitRoots[0] = newLER;
+        uint32[] memory _networkIDs = new uint32[](1);
+        _networkIDs[0] = networkID;
+        _insertLERs(_newLocalExitRoots, _networkIDs);
+    }
+
+    /**
+     * @notice Insert multiple new local exit roots
+     * @param newLocalExitRoots array new local exit root to insert
+     * @param networkIDs array origin networks of LERs
+     */
+    function insertLERs(
+        bytes32[] calldata newLocalExitRoots,
+        uint32[] calldata networkIDs
+    ) public onlyGlobalExitRootUpdater {
+        // Convert calldata to memory and call internal function
+        bytes32[] memory _newLocalExitRoots = newLocalExitRoots;
+        uint32[] memory _networkIDs = networkIDs;
+        _insertLERs(_newLocalExitRoots, _networkIDs);
     }
 
     /**
@@ -347,10 +376,10 @@ contract AgglayerGERL2 is
 
     /**
      * @notice Insert multiple LERs and claim multiple assets from LERs in a single transaction
-     * @param networkIDs current network ID
+     * @param networkID current network ID
      * @param smtProofLocalExitRoots array of SMT proofs of the local exit roots
      * @param globalIndexes array of global indexes
-     * @param localExitRoots local exit root to be used for all claims
+     * @param localExitRoot local exit root to be used for all claims
      * @param originNetworks array of origin networks
      * @param originTokenAddresses array of origin token addresses
      * @param destinationNetworks array of destination networks
@@ -359,10 +388,10 @@ contract AgglayerGERL2 is
      * @param metadatas array of metadatas for each claim
      */
     function insertAndClaimsAssetFromLER(
-        uint32[] calldata networkIDs,
+        uint32 networkID,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH][] calldata smtProofLocalExitRoots,
         uint256[] calldata globalIndexes,
-        bytes32[] calldata localExitRoots,
+        bytes32 localExitRoot,
         uint32[] calldata originNetworks,
         address[] calldata originTokenAddresses,
         uint32[] calldata destinationNetworks,
@@ -381,16 +410,13 @@ contract AgglayerGERL2 is
         ) {
             revert InputArraysLengthMismatch();
         }
-        if (localExitRoots.length != 1 || networkIDs.length != 1) {
-            revert InputArraysLengthMismatch();
-        }
 
-        insertLERs(localExitRoots, networkIDs);
+        _insertLER(localExitRoot, networkID);
         for (uint256 i = 0; i < smtProofLocalExitRoots.length; i++) {
             IAgglayerBridgeL2(address(bridgeAddress)).claimAssetFromLER(
                 smtProofLocalExitRoots[i],
                 globalIndexes[i],
-                localExitRoots[0],
+                localExitRoot,
                 originNetworks[i],
                 originTokenAddresses[i],
                 destinationNetworks[i],

@@ -271,10 +271,10 @@ describe('LERs', () => {
 
         await expect(
             ger.insertAndClaimsAssetFromLER(
-                [originNetwork],
+                originNetwork,
                 [proofLocal],
                 [globalIndex],
-                [rootLocalRollup],
+                rootLocalRollup,
                 [originNetwork],
                 [tokenAddress],
                 [destinationNetwork],
