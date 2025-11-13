@@ -25,6 +25,21 @@ contract AgglayerGERL2 is
     // Used in this contract to insert the LER and make a claim to the bridge contract directly
     uint256 internal constant _DEPOSIT_CONTRACT_TREE_DEPTH = 32;
 
+    /**
+     * @dev Struct to pack claim data parameters
+     */
+    struct ClaimAssetParams {
+        uint32 networkID;
+        bytes32 localExitRoot;
+        uint256[] globalIndexes;
+        uint32[] originNetworks;
+        address[] originTokenAddresses;
+        uint32[] destinationNetworks;
+        address[] destinationAddresses;
+        uint256[] amounts;
+        bytes[] metadatas;
+    }
+
     // globalExitRootUpdater address
     address public globalExitRootUpdater;
 
@@ -376,54 +391,55 @@ contract AgglayerGERL2 is
 
     /**
      * @notice Insert multiple LERs and claim multiple assets from LERs in a single transaction
-     * @param networkID current network ID
      * @param smtProofLocalExitRoots array of SMT proofs of the local exit roots
-     * @param globalIndexes array of global indexes
-     * @param localExitRoot local exit root to be used for all claims
-     * @param originNetworks array of origin networks
-     * @param originTokenAddresses array of origin token addresses
-     * @param destinationNetworks array of destination networks
-     * @param destinationAddresses array of destination addresses
-     * @param amounts array of amounts to claim
-     * @param metadatas array of metadatas for each claim
+     * @param params ClaimAssetParams struct containing all other required arrays
+     * struct {
+     *      uint32 networkID;
+     *      uint256[] globalIndexes;
+     *      bytes32 localExitRoot;
+     *      uint32[] originNetworks;
+     *      address[] originTokenAddresses;
+     *      uint32[] destinationNetworks;
+     *      address[] destinationAddresses;
+     *      uint256[] amounts;
+     *      bytes[] metadatas;
+     *}
      */
     function insertAndClaimsAssetFromLER(
-        uint32 networkID,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH][] calldata smtProofLocalExitRoots,
-        uint256[] calldata globalIndexes,
-        bytes32 localExitRoot,
-        uint32[] calldata originNetworks,
-        address[] calldata originTokenAddresses,
-        uint32[] calldata destinationNetworks,
-        address[] calldata destinationAddresses,
-        uint256[] calldata amounts,
-        bytes[] calldata metadatas
+        ClaimAssetParams calldata params
     ) public virtual {
-        if (
-            smtProofLocalExitRoots.length != globalIndexes.length ||
-            smtProofLocalExitRoots.length != originNetworks.length ||
-            smtProofLocalExitRoots.length != originTokenAddresses.length ||
-            smtProofLocalExitRoots.length != destinationNetworks.length ||
-            smtProofLocalExitRoots.length != destinationAddresses.length ||
-            smtProofLocalExitRoots.length != amounts.length ||
-            smtProofLocalExitRoots.length != metadatas.length
-        ) {
-            revert InputArraysLengthMismatch();
-        }
-
-        _insertLER(localExitRoot, networkID);
+        _validateClaimArrays(smtProofLocalExitRoots.length, params);
+        _insertLER(params.localExitRoot, params.networkID);
         for (uint256 i = 0; i < smtProofLocalExitRoots.length; i++) {
             IAgglayerBridgeL2(address(bridgeAddress)).claimAssetFromLER(
                 smtProofLocalExitRoots[i],
-                globalIndexes[i],
-                localExitRoot,
-                originNetworks[i],
-                originTokenAddresses[i],
-                destinationNetworks[i],
-                destinationAddresses[i],
-                amounts[i],
-                metadatas[i]
+                params.globalIndexes[i],
+                params.localExitRoot,
+                params.originNetworks[i],
+                params.originTokenAddresses[i],
+                params.destinationNetworks[i],
+                params.destinationAddresses[i],
+                params.amounts[i],
+                params.metadatas[i]
             );
+        }
+    }
+
+    function _validateClaimArrays(
+        uint256 smtProofsLength,
+        ClaimAssetParams calldata params
+    ) internal pure {
+        if (
+            params.globalIndexes.length != smtProofsLength ||
+            params.originNetworks.length != smtProofsLength ||
+            params.originTokenAddresses.length != smtProofsLength ||
+            params.destinationNetworks.length != smtProofsLength ||
+            params.destinationAddresses.length != smtProofsLength ||
+            params.amounts.length != smtProofsLength ||
+            params.metadatas.length != smtProofsLength
+        ) {
+            revert InputArraysLengthMismatch();
         }
     }
 

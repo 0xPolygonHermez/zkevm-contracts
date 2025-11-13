@@ -269,20 +269,19 @@ describe('LERs', () => {
 
         expect(false).to.be.equal(await bridge.isClaimed(indexLocal, indexRollup + 1));
 
-        await expect(
-            ger.insertAndClaimsAssetFromLER(
-                originNetwork,
-                [proofLocal],
-                [globalIndex],
-                rootLocalRollup,
-                [originNetwork],
-                [tokenAddress],
-                [destinationNetwork],
-                [destinationAddress],
-                [amount],
-                [metadata],
-            ),
-        )
+        const paramsClaims = {
+            networkID: originNetwork,
+            globalIndexes: [globalIndex],
+            localExitRoot: rootLocalRollup,
+            originNetworks: [originNetwork],
+            originTokenAddresses: [tokenAddress],
+            destinationNetworks: [destinationNetwork],
+            destinationAddresses: [destinationAddress],
+            amounts: [amount],
+            metadatas: [metadata],
+        };
+
+        await expect(ger.insertAndClaimsAssetFromLER([proofLocal], paramsClaims))
             .to.emit(bridge, 'ClaimEvent')
             .withArgs(globalIndex, originNetwork, tokenAddress, destinationAddress, amount);
 
