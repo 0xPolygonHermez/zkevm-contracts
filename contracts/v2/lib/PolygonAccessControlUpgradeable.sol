@@ -3,11 +3,11 @@
 
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/access/IAccessControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable4/access/IAccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable4/utils/ContextUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable4/utils/StringsUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable4/utils/introspection/ERC165Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable4/proxy/utils/Initializable.sol";
 
 /**
  * @dev Contract AccessControlUpgradeable from Openzeppelin with the following modifications:

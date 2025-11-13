@@ -1,0 +1,7 @@
+{
+    "type": "EOA",
+    "deployerPvtKey": "",
+    "aggLayerGatewayAddress": "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
+    "defaultAggchainSelector": "0x11110001",
+    "defaultAggchainVKey": "0x1111111111111111111111111111111111111111111111111111111111111111"
+}

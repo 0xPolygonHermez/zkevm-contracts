@@ -1,14 +1,20 @@
 {
   "extends": "solhint:recommended",
   "rules": {
-    "mark-callable-contracts": "off",
-    "no-empty-blocks": "off",
-    "compiler-version": ["error", "0.8.20"],
-    "private-vars-leading-underscore": "error",
-    "bracket-align": "off",
-    "reason-string": "off",
-    "not-rely-on-time": "off",
+    "func-visibility": [
+      "warn",
+      {
+        "ignoreConstructors": true
+      }
+    ],
+    "no-global-import": "off",
+    "immutable-vars-naming": [
+      "warn",
+      {
+        "immutablesAsConstants": false
+      }
+    ],
     "no-inline-assembly": "off",
-    "check-send-result": "off"
+    "compiler-version": "off"
   }
 }

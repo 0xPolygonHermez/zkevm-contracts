@@ -1,0 +1,77 @@
+[
+  {
+    "input": {
+      "oldOutputRoot": "0x1122334455667788990011223344556677889900112233445566778899001122",
+      "newOutputRoot": "0x2233445566778899001122334455667788990011223344556677889900112233",
+      "l2BlockNumber": 0,
+      "rollupConfigHash": "0x3344556677889900112233445566778899001122334455667788990011223344",
+      "optimisticMode": false,
+      "trustedSequencer": "0x2222222222222222222222222222222222222222",
+      "rangeVkeyCommitment": "0x1122334455667788990011223344556677889900112233445566778899001122",
+      "aggregationVkey": "0x2233445566778899001122334455667788990011223344556677889900112233"
+    },
+    "output": {
+      "hashAggchainParams": "0xbaf7fdf545ae4b08c2e95d0827287a97b71f0c5787ae864c4d4aa004ba0dd5f0"
+    }
+  },
+  {
+    "input": {
+      "oldOutputRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "newOutputRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "l2BlockNumber": 0,
+      "rollupConfigHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "optimisticMode": false,
+      "trustedSequencer": "0x0000000000000000000000000000000000000000",
+      "rangeVkeyCommitment": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "aggregationVkey": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "output": {
+      "hashAggchainParams": "0xeea1b2d664c19b902ea74b63cc5166346e9ce4de1de41dd5b72dbc75709871a1"
+    }
+  },
+  {
+    "input": {
+      "oldOutputRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "newOutputRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "l2BlockNumber": 0,
+      "rollupConfigHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "optimisticMode": true,
+      "trustedSequencer": "0x0000000000000000000000000000000000000000",
+      "rangeVkeyCommitment": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "aggregationVkey": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "output": {
+      "hashAggchainParams": "0x50e0b2f65a7f1c3c8ed4f5ef19876a16c43fab4fc4d261736e7f5943f30124eb"
+    }
+  },
+  {
+    "input": {
+      "oldOutputRoot": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "newOutputRoot": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "l2BlockNumber": 0,
+      "rollupConfigHash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "optimisticMode": false,
+      "trustedSequencer": "0xffffffffffffffffffffffffffffffffffffffff",
+      "rangeVkeyCommitment": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "aggregationVkey": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "output": {
+      "hashAggchainParams": "0x8a119703d9e221b72e7a7783005cdcfa68f92e17c77850ae20fd35ef18d74202"
+    }
+  },
+  {
+    "input": {
+      "oldOutputRoot": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "newOutputRoot": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "l2BlockNumber": 0,
+      "rollupConfigHash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "optimisticMode": true,
+      "trustedSequencer": "0xffffffffffffffffffffffffffffffffffffffff",
+      "rangeVkeyCommitment": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "aggregationVkey": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "output": {
+      "hashAggchainParams": "0x3d04cd5be0e81c2393e53a7c72d072ceac65895fd765fbcb1793eb8a958930ed"
+    }
+  }
+]

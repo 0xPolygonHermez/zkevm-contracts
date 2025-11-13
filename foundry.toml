@@ -1,0 +1,7 @@
+[profile.default]
+src = 'contracts'
+# *.ignore files are added to the .gitignore file
+out = 'folder.ignore'
+libs = ['node_modules']
+optimizer = true
+via_ir = true

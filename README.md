@@ -1,4 +1,4 @@
-# zkevm-contracts
+# agglayer-contracts
 
 Smart contract implementation which will be used by the polygon zkevm
 
@@ -82,3 +82,6 @@ The smartcontract used to verify a proof, it's a generated contract from zkEVM R
 ```
 git config --local core.hooksPath .githooks/
 ```
+
+------
+License: This codebase is licensed under the GNU Affero General Public License (AGPL).  See: [LICENSE](./LICENSE).

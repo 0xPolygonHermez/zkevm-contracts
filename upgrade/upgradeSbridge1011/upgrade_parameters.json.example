@@ -1,0 +1,9 @@
+{
+    "tagSCPreviousVersion": "v1.0.0",
+    "bridgeL2SovereignChainAddress": "0x..",
+    "timelockDelay": 3600,
+    "forkParams": {
+        "rpc": "rpc url",
+        "timelockAdmin": "0x.."
+    }
+}

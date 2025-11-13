@@ -1,0 +1,11 @@
+{
+    "type": "Timelock",
+    "consensusContract": "PolygonPessimisticConsensus",
+    "consensusContractAddress": "0x18C45DD422f6587357a6d3b23307E75D42b2bc5B",
+    "polygonRollupManagerAddress": "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2",
+    "verifierAddress": "0x0459d576A6223fEeA177Fb3DF53C9c77BF84C459",
+    "description": "Type: Pessimistic, Version: v0.3.3, genesis: /ipfs/QmUXnRoPbUmZuEZCGyiHjEsoNcFVu3hLtSvhpnfBS2mAYU",
+    "forkID": 12,
+    "timelockDelay": 259200,
+    "programVKey": "0x00eff0b6998df46ec388bb305618089ae3dc74e513e7676b2e1909694f49cc30"
+}

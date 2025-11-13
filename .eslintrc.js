@@ -1,14 +1,28 @@
 module.exports = {
+    parser: '@typescript-eslint/parser',
+    parserOptions: {
+        project: './tsconfig.json',
+        sourceType: 'module',
+        ecmaVersion: 2020,
+    },
     plugins: [
         'mocha',
+        '@typescript-eslint',
+        'prettier'
     ],
     env: {
         node: true,
         mocha: true,
+        es2020: true,
     },
-    extends: 'airbnb-base',
+    extends: [
+        'airbnb-base',
+        'airbnb-typescript/base',
+        'plugin:@typescript-eslint/recommended',
+        'plugin:prettier/recommended',
+    ],
     rules: {
-        indent: ['error', 4],
+        'prettier/prettier': ['error'],
         'mocha/no-exclusive-tests': 'error',
         'max-len': ['error', {
             code: 140, comments: 200, ignoreStrings: true, ignoreTemplateLiterals: true,
@@ -24,7 +38,10 @@ module.exports = {
         'no-console': [2, { allow: ['warn', 'error'] }],
         'import/prefer-default-export': [0],
         'lines-between-class-members': ['error', 'always', { exceptAfterSingleLine: true }],
-        'multiline-comment-style': 'error',
-        'import/no-extraneous-dependencies': 'off'
+        'import/no-extraneous-dependencies': 'off',
+        'import/extensions': 'off',
+        '@typescript-eslint/no-unused-vars': ['error'],
+        '@typescript-eslint/explicit-function-return-type': 'off',
+        '@typescript-eslint/no-explicit-any': 'warn',
     },
 };

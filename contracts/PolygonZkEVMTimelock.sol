@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/governance/TimelockController.sol";
+import "@openzeppelin/contracts4/governance/TimelockController.sol";
 import "./PolygonZkEVM.sol";
 
 /**
@@ -38,7 +38,10 @@ contract PolygonZkEVMTimelock is TimelockController {
      * If Polygon ZK-EVM is on emergency state the minDelay will be 0 instead.
      */
     function getMinDelay() public view override returns (uint256 duration) {
-        if (address(polygonZkEVM) != address(0) && polygonZkEVM.isEmergencyState()) {
+        if (
+            address(polygonZkEVM) != address(0) &&
+            polygonZkEVM.isEmergencyState()
+        ) {
             return 0;
         } else {
             return super.getMinDelay();

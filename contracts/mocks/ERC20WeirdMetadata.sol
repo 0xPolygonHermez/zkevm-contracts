@@ -7,8 +7,12 @@ pragma solidity ^0.8.0;
  * @dev Implementation of the ERC20 with weird metadata.
  */
 contract ERC20WeirdMetadata {
-     event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 
     mapping(address => uint256) private _balances;
 
@@ -30,36 +34,34 @@ contract ERC20WeirdMetadata {
         _decimals = decimals_;
     }
 
-    function setDecimals(uint256 newDecimals) public  {
+    function setDecimals(uint256 newDecimals) public {
         _decimals = newDecimals;
     }
 
-    function toggleIsRevert() public  {
+    function toggleIsRevert() public {
         isRevert = !isRevert;
     }
 
     function name() public view virtual returns (bytes32) {
-        if(isRevert) {
+        if (isRevert) {
             require(false);
         }
-        return _name;  
+        return _name;
     }
 
     function symbol() public view virtual returns (bytes memory) {
-        if(isRevert) {
+        if (isRevert) {
             require(false);
         }
-        return _symbol;  
+        return _symbol;
     }
 
     function decimals() public view virtual returns (uint256) {
-        if(isRevert) {
+        if (isRevert) {
             require(false);
         }
-        return _decimals;  
+        return _decimals;
     }
-
-
 
     function mint(address account, uint256 amount) public {
         _mint(account, amount);
@@ -87,7 +89,10 @@ contract ERC20WeirdMetadata {
      * - `to` cannot be the zero address.
      * - the caller must have a balance of at least `amount`.
      */
-    function transfer(address to, uint256 amount) public virtual returns (bool) {
+    function transfer(
+        address to,
+        uint256 amount
+    ) public virtual returns (bool) {
         address owner = msg.sender;
         _transfer(owner, to, amount);
         return true;
@@ -96,7 +101,10 @@ contract ERC20WeirdMetadata {
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender) public view virtual returns (uint256) {
+    function allowance(
+        address owner,
+        address spender
+    ) public view virtual returns (uint256) {
         return _allowances[owner][spender];
     }
 
@@ -110,7 +118,10 @@ contract ERC20WeirdMetadata {
      *
      * - `spender` cannot be the zero address.
      */
-    function approve(address spender, uint256 amount) public virtual returns (bool) {
+    function approve(
+        address spender,
+        uint256 amount
+    ) public virtual returns (bool) {
         address owner = msg.sender;
         _approve(owner, spender, amount);
         return true;
@@ -155,7 +166,10 @@ contract ERC20WeirdMetadata {
      *
      * - `spender` cannot be the zero address.
      */
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+    function increaseAllowance(
+        address spender,
+        uint256 addedValue
+    ) public virtual returns (bool) {
         address owner = msg.sender;
         _approve(owner, spender, allowance(owner, spender) + addedValue);
         return true;
@@ -175,10 +189,16 @@ contract ERC20WeirdMetadata {
      * - `spender` must have allowance for the caller of at least
      * `subtractedValue`.
      */
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+    function decreaseAllowance(
+        address spender,
+        uint256 subtractedValue
+    ) public virtual returns (bool) {
         address owner = msg.sender;
         uint256 currentAllowance = allowance(owner, spender);
-        require(currentAllowance >= subtractedValue, "ERC20: decreased allowance below zero");
+        require(
+            currentAllowance >= subtractedValue,
+            "ERC20: decreased allowance below zero"
+        );
         unchecked {
             _approve(owner, spender, currentAllowance - subtractedValue);
         }
@@ -211,7 +231,10 @@ contract ERC20WeirdMetadata {
         _beforeTokenTransfer(from, to, amount);
 
         uint256 fromBalance = _balances[from];
-        require(fromBalance >= amount, "ERC20: transfer amount exceeds balance");
+        require(
+            fromBalance >= amount,
+            "ERC20: transfer amount exceeds balance"
+        );
         unchecked {
             _balances[from] = fromBalance - amount;
             // Overflow not possible: the sum of all balances is capped by totalSupply, and the sum is preserved by
@@ -317,7 +340,10 @@ contract ERC20WeirdMetadata {
     ) internal virtual {
         uint256 currentAllowance = allowance(owner, spender);
         if (currentAllowance != type(uint256).max) {
-            require(currentAllowance >= amount, "ERC20: insufficient allowance");
+            require(
+                currentAllowance >= amount,
+                "ERC20: insufficient allowance"
+            );
             unchecked {
                 _approve(owner, spender, currentAllowance - amount);
             }

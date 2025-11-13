@@ -1,0 +1,16 @@
+{
+    "initParams": {
+        "l2BlockTime": 1,
+        "rollupConfigHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "startingOutputRoot" : "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "startingBlockNumber": 100,
+        "startingTimestamp": 7000000,
+        "submissionInterval": 5,
+        "aggchainManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "optimisticModeManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    },
+    "useDefaultGateway": true,
+    "initOwnedAggchainVKey": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "initAggchainVKeyVersion": "0x1234",
+    "vKeyManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+}

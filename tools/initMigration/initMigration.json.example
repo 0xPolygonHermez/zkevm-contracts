@@ -1,0 +1,11 @@
+{
+    "type": "Timelock",
+    "polygonRollupManagerAddress": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+    "rollupID": 4,
+    "newRollupTypeID": 2,
+    "upgradeData": "0x",
+    "timelockDelay": 0,
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": ""
+}

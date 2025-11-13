@@ -1,70 +1,75 @@
 /* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if */
-/* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
-import {expect} from "chai";
-import path = require("path");
-import fs = require("fs");
+/* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved, import/extensions */
+import path = require('path');
+import fs = require('fs');
 
-import * as dotenv from "dotenv";
-dotenv.config({path: path.resolve(__dirname, "../../.env")});
-import {ethers} from "hardhat";
+import * as dotenv from 'dotenv';
+import { ethers, network } from 'hardhat';
+import { PolygonRollupManager } from '../../typechain-types';
+import { transactionTypes, genOperation } from '../utils';
+import '../../deployment/helpers/utils';
+import updateRollupsParameters from './updateRollup.json';
 
-const addRollupParameters = require("./updateRollup.json");
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const pathOutputJson = path.join(__dirname, "./updateRollupOutput.json");
-import "../../deployment/helpers/utils";
+const dateStr = new Date().toISOString();
+const pathOutputJson = path.join(__dirname, `./updateRollupOutput-${dateStr}.json`);
 
 async function main() {
-    const outputJson = {} as any;
-
     /*
-     * Check deploy parameters
+     * Check parameters
      * Check that every necessary parameter is fullfilled
      */
-    const mandatoryDeploymentParameters = [
-        "rollupAddress",
-        "newRollupTypeID",
-        "upgradeData",
-        "polygonRollupManagerAddress",
-        "timelockDelay",
-    ];
+    const mandatoryDeploymentParameters = ['type', 'polygonRollupManagerAddress'];
 
-    for (const parameterName of mandatoryDeploymentParameters) {
-        if (addRollupParameters[parameterName] === undefined || addRollupParameters[parameterName] === "") {
-            throw new Error(`Missing parameter: ${parameterName}`);
-        }
+    // check create rollup type
+    switch (updateRollupsParameters.type) {
+        case transactionTypes.EOA:
+        case transactionTypes.MULTISIG:
+            break;
+        case transactionTypes.TIMELOCK:
+            mandatoryDeploymentParameters.push('timelockDelay');
+            break;
+        default:
+            throw new Error(`Invalid type ${updateRollupsParameters.type}`);
     }
 
-    const {rollupAddress, newRollupTypeID, upgradeData, polygonRollupManagerAddress, timelockDelay} =
-        addRollupParameters;
+    mandatoryDeploymentParameters.forEach((parameterName: string) => {
+        const value = updateRollupsParameters[parameterName as keyof typeof updateRollupsParameters];
+        if (value === undefined || value === '') {
+            throw new Error(`Missing parameter: ${parameterName}`);
+        }
+    });
 
-    const salt = addRollupParameters.timelockSalt || ethers.ZeroHash;
+    console.log(`Starting script to update rollup from ${updateRollupsParameters.type}`);
 
     // Load provider
     let currentProvider = ethers.provider;
-    if (addRollupParameters.multiplierGas || addRollupParameters.maxFeePerGas) {
-        if (process.env.HARDHAT_NETWORK !== "hardhat") {
+    if (updateRollupsParameters.multiplierGas || updateRollupsParameters.maxFeePerGas) {
+        if (process.env.HARDHAT_NETWORK !== 'hardhat') {
             currentProvider = ethers.getDefaultProvider(
-                `https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`
+                `https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
             ) as any;
-            if (addRollupParameters.maxPriorityFeePerGas && addRollupParameters.maxFeePerGas) {
+            if (updateRollupsParameters.maxPriorityFeePerGas && updateRollupsParameters.maxFeePerGas) {
                 console.log(
-                    `Hardcoded gas used: MaxPriority${addRollupParameters.maxPriorityFeePerGas} gwei, MaxFee${addRollupParameters.maxFeePerGas} gwei`
+                    `Hardcoded gas used: MaxPriority${updateRollupsParameters.maxPriorityFeePerGas} gwei, MaxFee${updateRollupsParameters.maxFeePerGas} gwei`,
                 );
                 const FEE_DATA = new ethers.FeeData(
                     null,
-                    ethers.parseUnits(addRollupParameters.maxFeePerGas, "gwei"),
-                    ethers.parseUnits(addRollupParameters.maxPriorityFeePerGas, "gwei")
+                    ethers.parseUnits(updateRollupsParameters.maxFeePerGas, 'gwei'),
+                    ethers.parseUnits(updateRollupsParameters.maxPriorityFeePerGas, 'gwei'),
                 );
 
                 currentProvider.getFeeData = async () => FEE_DATA;
             } else {
-                console.log("Multiplier gas used: ", addRollupParameters.multiplierGas);
+                console.log('Multiplier gas used: ', updateRollupsParameters.multiplierGas);
                 async function overrideFeeData() {
                     const feedata = await ethers.provider.getFeeData();
                     return new ethers.FeeData(
                         null,
-                        ((feedata.maxFeePerGas as bigint) * BigInt(addRollupParameters.multiplierGas)) / 1000n,
-                        ((feedata.maxPriorityFeePerGas as bigint) * BigInt(addRollupParameters.multiplierGas)) / 1000n
+                        ((feedata.maxFeePerGas as bigint) * BigInt(updateRollupsParameters.multiplierGas)) / 1000n,
+                        ((feedata.maxPriorityFeePerGas as bigint) * BigInt(updateRollupsParameters.multiplierGas)) /
+                            1000n,
                     );
                 }
                 currentProvider.getFeeData = overrideFeeData;
@@ -74,109 +79,192 @@ async function main() {
 
     // Load deployer
     let deployer;
-    if (addRollupParameters.deployerPvtKey) {
-        deployer = new ethers.Wallet(addRollupParameters.deployerPvtKey, currentProvider);
+    if (updateRollupsParameters.deployerPvtKey) {
+        deployer = new ethers.Wallet(updateRollupsParameters.deployerPvtKey, currentProvider);
     } else if (process.env.MNEMONIC) {
         deployer = ethers.HDNodeWallet.fromMnemonic(
             ethers.Mnemonic.fromPhrase(process.env.MNEMONIC),
-            "m/44'/60'/0'/0/0"
+            "m/44'/60'/0'/0/0",
         ).connect(currentProvider);
     } else {
         [deployer] = await ethers.getSigners();
     }
 
-    console.log("Using with: ", deployer.address);
+    console.log('Using with: ', deployer.address);
 
-    // load timelock
-    const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock", deployer);
+    const { polygonRollupManagerAddress } = updateRollupsParameters;
 
     // Load Rollup manager
-    const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager", deployer);
-
-    const operation = genOperation(
+    const PolgonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager', deployer);
+    const rollupManagerContract = PolgonRollupManagerFactory.attach(
         polygonRollupManagerAddress,
-        0, // value
-        PolgonRollupManagerFactory.interface.encodeFunctionData("updateRollup", [
-            rollupAddress,
-            newRollupTypeID,
-            upgradeData,
-        ]),
-        ethers.ZeroHash, // predecesoor
-        salt // salt
-    );
+    ) as PolygonRollupManager;
 
-    // Schedule operation
-    const scheduleData = timelockContractFactory.interface.encodeFunctionData("schedule", [
-        operation.target,
-        operation.value,
-        operation.data,
-        operation.predecessor,
-        operation.salt,
-        timelockDelay,
-    ]);
-    // Execute operation
-    const executeData = timelockContractFactory.interface.encodeFunctionData("execute", [
-        operation.target,
-        operation.value,
-        operation.data,
-        operation.predecessor,
-        operation.salt,
-    ]);
+    const outputsJson = [] as any;
 
-    console.log({scheduleData});
-    console.log({executeData});
+    // Timelock vars
+    const operations = {} as any;
+    operations.target = [];
+    operations.value = [];
+    operations.data = [];
+    const predecessor = ethers.ZeroHash;
+    const salt = updateRollupsParameters.timelockSalt || ethers.ZeroHash;
 
-    outputJson.scheduleData = scheduleData;
-    outputJson.executeData = executeData;
+    if (updateRollupsParameters.rollups.length === 0) {
+        throw new Error('No rollups');
+    } else {
+        for (let i = 0; i < updateRollupsParameters.rollups.length; i++) {
+            const outputJson = {} as any;
+            const updateRollupParameters = updateRollupsParameters.rollups[i];
+            /*
+             * Check parameters
+             * Check that every necessary parameter is fullfilled
+             */
+            const mandatoryParametersRollup = ['rollupAddress', 'newRollupTypeID', 'upgradeData'];
 
-    // Decode the scheduleData for better readibility
-    const timelockTx = timelockContractFactory.interface.parseTransaction({data: scheduleData});
-    const paramsArray = timelockTx?.fragment.inputs;
-    const objectDecoded = {};
-
-    for (let i = 0; i < paramsArray?.length; i++) {
-        const currentParam = paramsArray[i];
-
-        objectDecoded[currentParam.name] = timelockTx?.args[i];
-
-        if (currentParam.name == "data") {
-            const decodedRollupManagerData = PolgonRollupManagerFactory.interface.parseTransaction({
-                data: timelockTx?.args[i],
+            mandatoryParametersRollup.forEach((parameterName: string) => {
+                const value = updateRollupParameters[parameterName as keyof typeof updateRollupParameters];
+                if (value === undefined || value === '') {
+                    throw new Error(`Missing parameter: ${parameterName}`);
+                }
             });
-            const objectDecodedData = {};
-            const paramsArrayData = decodedRollupManagerData?.fragment.inputs;
 
-            for (let j = 0; j < paramsArrayData?.length; j++) {
-                const currentParam = paramsArrayData[j];
-                objectDecodedData[currentParam.name] = decodedRollupManagerData?.args[j];
+            const { rollupAddress, newRollupTypeID, upgradeData } = updateRollupParameters;
+
+            outputJson.networkName = network.name;
+            outputJson.polygonRollupManagerAddress = polygonRollupManagerAddress;
+            outputJson.rollupAddress = rollupAddress;
+            outputJson.newRollupTypeID = newRollupTypeID;
+            outputJson.upgradeData = upgradeData;
+
+            if (updateRollupsParameters.type === transactionTypes.EOA) {
+                // Check role
+                const UPDATE_ROLLUP_ROLE = ethers.id('UPDATE_ROLLUP_ROLE');
+                if ((await rollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, deployer.address)) === false) {
+                    // log that address has no role
+                    throw new Error(`Address ${deployer.address} does not have the UPDATE_ROLLUP_ROLE role`);
+                }
+                console.log(`Updating rollup ${rollupAddress}...`);
+                try {
+                    console.log(
+                        await (
+                            await rollupManagerContract.updateRollup(rollupAddress, newRollupTypeID, upgradeData)
+                        ).wait(),
+                    );
+                    outputJson.successUpdate = true;
+                } catch (e) {
+                    outputJson.successUpdate = false;
+                    console.log(`Error updating ${rollupAddress}`);
+                    console.log(e);
+                }
+            } else if (updateRollupsParameters.type === transactionTypes.TIMELOCK) {
+                console.log(`Creating timelock txs for update rollup ${rollupAddress}...`);
+                const operation = genOperation(
+                    polygonRollupManagerAddress,
+                    0, // value
+                    PolgonRollupManagerFactory.interface.encodeFunctionData('updateRollup', [
+                        rollupAddress,
+                        newRollupTypeID,
+                        upgradeData,
+                    ]),
+                    predecessor, // predecessor
+                    salt, // salt
+                );
+                operations.target.push(operation.target);
+                operations.value.push(operation.value);
+                operations.data.push(operation.data);
+            } else {
+                console.log(`Creating calldata for update rollup from multisig ${rollupAddress}...`);
+                const txUpdateRollup = PolgonRollupManagerFactory.interface.encodeFunctionData('updateRollup', [
+                    rollupAddress,
+                    newRollupTypeID,
+                    upgradeData,
+                ]);
+                outputJson.txUpdateRollup = txUpdateRollup;
             }
-            objectDecoded["decodedData"] = objectDecodedData;
+            outputsJson.push(outputJson);
         }
+
+        // if type === Timelock --> get scheduleData & executeData
+        if (updateRollupsParameters.type === transactionTypes.TIMELOCK) {
+            console.log(`Get scheduleData & executeData...`);
+            const { timelockDelay } = updateRollupsParameters;
+            // load timelock
+            const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock', deployer);
+
+            // Schedule operation
+            const scheduleData = timelockContractFactory.interface.encodeFunctionData('scheduleBatch', [
+                operations.target,
+                operations.value,
+                operations.data,
+                predecessor,
+                salt,
+                timelockDelay,
+            ]);
+
+            // Execute operation
+            const executeData = timelockContractFactory.interface.encodeFunctionData('executeBatch', [
+                operations.target,
+                operations.value,
+                operations.data,
+                predecessor,
+                salt,
+            ]);
+
+            console.log({ scheduleData });
+            console.log({ executeData });
+
+            // Decode the scheduleData for better readibility
+            const timelockTx = timelockContractFactory.interface.parseTransaction({
+                data: scheduleData,
+            });
+            const paramsArray = timelockTx?.fragment.inputs;
+            const objectDecoded = {};
+
+            for (let i = 0; i < paramsArray?.length; i++) {
+                const currentParam = paramsArray[i];
+                objectDecoded[currentParam.name] = timelockTx?.args[i];
+
+                if (currentParam.name === 'payloads') {
+                    // for each payload
+                    const payloads = timelockTx?.args[i];
+                    for (let j = 0; j < payloads.length; j++) {
+                        const data = payloads[j];
+                        const decodedProxyAdmin = PolgonRollupManagerFactory.interface.parseTransaction({
+                            data,
+                        });
+
+                        const resultDecodeProxyAdmin = {};
+                        resultDecodeProxyAdmin.signature = decodedProxyAdmin?.signature;
+                        resultDecodeProxyAdmin.selector = decodedProxyAdmin?.selector;
+
+                        const paramsArrayData = decodedProxyAdmin?.fragment.inputs;
+
+                        for (let n = 0; n < paramsArrayData?.length; n++) {
+                            const currentParamData = paramsArrayData[n];
+                            resultDecodeProxyAdmin[currentParamData.name] = decodedProxyAdmin?.args[n];
+                        }
+                        objectDecoded[`decodePayload_${j}`] = resultDecodeProxyAdmin;
+                    }
+                }
+            }
+            const outputTimelock = {
+                rollups: outputsJson,
+                scheduleData,
+                executeData,
+                decodeScheduleData: objectDecoded,
+            };
+
+            fs.writeFileSync(pathOutputJson, JSON.stringify(outputTimelock, null, 1));
+        } else {
+            fs.writeFileSync(pathOutputJson, JSON.stringify(outputsJson, null, 1));
+        }
+
+        console.log('Finished script, output saved at: ', pathOutputJson);
     }
-
-    outputJson.decodedScheduleData = objectDecoded;
-
-    fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 1));
 }
 
 main().catch((e) => {
     console.error(e);
     process.exit(1);
 });
-
-// OZ test functions
-function genOperation(target: any, value: any, data: any, predecessor: any, salt: any) {
-    const abiEncoded = ethers.AbiCoder.defaultAbiCoder().encode(
-        ["address", "uint256", "bytes", "uint256", "bytes32"],
-        [target, value, data, predecessor, salt]
-    );
-    const id = ethers.keccak256(abiEncoded);
-    return {
-        id,
-        target,
-        value,
-        data,
-        predecessor,
-        salt,
-    };
-}

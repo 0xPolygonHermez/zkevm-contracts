@@ -1,0 +1,8 @@
+{
+    "type": "EOA",
+    "deployerPvtKey": "",
+    "aggLayerGatewayAddress": "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
+    "pessimisticVKeySelector": "0x10000001",
+    "verifier": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
+    "pessimisticVKey": "0xac51a6a2e513d02e4f39ea51d4d133cec200b940805f1054eabbb6d6412c959f"
+}

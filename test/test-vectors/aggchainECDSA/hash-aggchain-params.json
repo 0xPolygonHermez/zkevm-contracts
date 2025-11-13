@@ -1,0 +1,50 @@
+[
+  {
+    "input": {
+      "trustedSequencer": "0x2222222222222222222222222222222222222222"
+    },
+    "output": {
+      "hashAggchainParams": "0x2ab0a4443bbea3fbe4d0e1503d11ff1367842fb0c8b28a5c8550f27599a40751"
+    }
+  },
+  {
+    "input": {
+      "trustedSequencer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    },
+    "output": {
+      "hashAggchainParams": "0xe9707d0e6171f728f7473c24cc0432a9b07eaaf1efed6a137a4a8c12c79552d9"
+    }
+  },
+  {
+    "input": {
+      "trustedSequencer": "0x1111111111111111111111111111111111111111"
+    },
+    "output": {
+      "hashAggchainParams": "0xe2c07404b8c1df4c46226425cac68c28d27a766bbddce62309f36724839b22c0"
+    }
+  },
+  {
+    "input": {
+      "trustedSequencer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+    },
+    "output": {
+      "hashAggchainParams": "0x00314e565e0574cb412563df634608d76f5c59d9f817e85966100ec1d48005c0"
+    }
+  },
+  {
+    "input": {
+      "trustedSequencer": "0x0000000000000000000000000000000000000000"
+    },
+    "output": {
+      "hashAggchainParams": "0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"
+    }
+  },
+  {
+    "input": {
+      "trustedSequencer": "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+    },
+    "output": {
+      "hashAggchainParams": "0xd3b5b90cebf74d639049264c331b8cfaadb9a1b2ec320816b39e30081310200a"
+    }
+  }
+]

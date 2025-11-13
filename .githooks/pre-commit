@@ -3,43 +3,71 @@
 ## To use this hook execute in the project root:
 ## git config --local core.hooksPath .githooks/
 if npm run lint; then
+    ## force compile contracts
     npx hardhat compile --force
-    npm run docgen
-    git add docs
-    cp artifacts/contracts/PolygonZkEVMBridge.sol/PolygonZkEVMBridge.json compiled-contracts/
-    cp artifacts/contracts/PolygonZkEVMGlobalExitRoot.sol/PolygonZkEVMGlobalExitRoot.json compiled-contracts/
+
+    ## copy contracts ABI to be exposed
+    ## V1 contracts
     cp artifacts/contracts/PolygonZkEVMGlobalExitRootL2.sol/PolygonZkEVMGlobalExitRootL2.json compiled-contracts/
     cp artifacts/contracts/lib/TokenWrapped.sol/TokenWrapped.json compiled-contracts/
+    cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
+    cp artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json compiled-contracts/
+
+    ## Mocks
     cp artifacts/contracts/mocks/PolygonZkEVMBridgeMock.sol/PolygonZkEVMBridgeMock.json compiled-contracts/
     cp artifacts/contracts/mocks/ERC20PermitMock.sol/ERC20PermitMock.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZkEVMGlobalExitRootL2Mock.sol/PolygonZkEVMGlobalExitRootL2Mock.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZkEVMGlobalExitRootMock.sol/PolygonZkEVMGlobalExitRootMock.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZkEVMMock.sol/PolygonZkEVMMock.json compiled-contracts/
     cp artifacts/contracts/mocks/VerifierRollupHelperMock.sol/VerifierRollupHelperMock.json compiled-contracts/
-    cp artifacts/contracts/PolygonZkEVM.sol/PolygonZkEVM.json compiled-contracts/
-    cp artifacts/contracts/verifiers/FflonkVerifier.sol/FflonkVerifier.json compiled-contracts/
-    cp artifacts/@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json compiled-contracts/
-    cp artifacts/@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
+    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMock.sol/PolygonRollupManagerMock.json compiled-contracts/
+
+    ## Verifiers
+    cp artifacts/contracts/verifiers/FflonkVerifier_10.sol/FflonkVerifier_10.json compiled-contracts/FflonkVerifier.json
+    cp artifacts/@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json compiled-contracts/
+    cp artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
+    cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
+    cp artifacts/contracts/verifiers/v4.0.0-rc.3/SP1VerifierPlonk.sol/SP1VerifierPlonk.json compiled-contracts/SP1VerifierPlonk.json
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
     cp artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json compiled-contracts/
-    
-    cp artifacts/contracts/v2/PolygonRollupManager.sol/PolygonRollupManager.json compiled-contracts/
-    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMock.sol/PolygonRollupManagerMock.json compiled-contracts/
-    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMockInternalTest.sol/PolygonRollupManagerMockInternalTest.json compiled-contracts/
 
+    ## openzeppelin
+    cp artifacts/@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json compiled-contracts/
+    cp artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
+
+    ## V2 General
+    cp artifacts/contracts/v2/PolygonRollupManager.sol/PolygonRollupManager.json compiled-contracts/
     cp artifacts/contracts/v2/PolygonZkEVMBridgeV2.sol/PolygonZkEVMBridgeV2.json compiled-contracts/
     cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
-
     cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
+
+    ## V2 Consensus
     cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol/PolygonZkEVMEtrog.json compiled-contracts/
     cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMExistentEtrog.sol/PolygonZkEVMExistentEtrog.json compiled-contracts/
-    cp artifacts/contracts/v2/previousVersions/PolygonZkEVMEtrogPrevious.sol/PolygonZkEVMEtrogPrevious.json compiled-contracts/
-
     cp artifacts/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol/PolygonValidiumEtrog.json compiled-contracts/
     cp artifacts/contracts/v2/consensus/validium/PolygonDataCommittee.sol/PolygonDataCommittee.json compiled-contracts/
+    cp artifacts/contracts/v2/consensus/pessimistic/PolygonPessimisticConsensus.sol/PolygonPessimisticConsensus.json compiled-contracts/
 
-    cp artifacts/contracts/v2/utils/ClaimCompressor.sol/ClaimCompressor.json compiled-contracts/
+    ## V2 utils
+    cp artifacts/contracts/v2/periphery/ClaimCompressor.sol/ClaimCompressor.json compiled-contracts/
 
+    ## al-v0.3.0
+    cp artifacts/contracts/v2/sovereignChains/GlobalExitRootManagerL2SovereignChain.sol/GlobalExitRootManagerL2SovereignChain.json compiled-contracts/
+    cp artifacts/contracts/v2/sovereignChains/BridgeL2SovereignChain.sol/BridgeL2SovereignChain.json compiled-contracts/
+    cp artifacts/contracts/v2/AggLayerGateway.sol/AggLayerGateway.json compiled-contracts/
+    cp artifacts/contracts/v2/lib/AggchainBase.sol/AggchainBase.json compiled-contracts/
+    cp artifacts/contracts/v2/aggchains/AggchainECDSA.sol/AggchainECDSA.json compiled-contracts/
+    cp artifacts/contracts/v2/aggchains/AggchainFEP.sol/AggchainFEP.json compiled-contracts/
+
+    git add compiled-contracts
+
+    ## Forge nightly version should be installed to properly parse transient storage
+    ## 'foundryup --install nightly'
+    forge selectors ls > docs/selectors.txt
+    forge doc --out docs/contracts
+    sh storage-layout.sh
+
+    git add docs
     git add compiled-contracts
     exit 0
 else

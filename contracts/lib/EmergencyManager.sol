@@ -20,7 +20,8 @@ contract EmergencyManager {
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      */
-    uint256[10] private _gap;
+    /// @custom:oz-renamed-from _gap
+    uint256[10] private __gap;
 
     // Indicates whether the emergency state is active or not
     bool public isEmergencyState;

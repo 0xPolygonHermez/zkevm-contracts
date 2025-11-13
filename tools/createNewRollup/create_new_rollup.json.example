@@ -1,0 +1,32 @@
+{
+    "type":"EOA",
+    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
+    "networkName": "zkevm",
+    "trustedSequencer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "chainID": 1005,
+    "rollupAdminAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "consensusContractName": "AggchainFEP",
+    "gasTokenAddress": "0x0000000000000000000000000000000000000000",
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": "",
+    "timelockDelay": 0,
+    "timelockSalt": "",
+    "rollupManagerAddress": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+    "rollupTypeId": 1,
+    "proxiedTokensManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "isVanillaClient": true,
+    "sovereignParams": {
+        "bridgeManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "sovereignWETHAddress": "0x0000000000000000000000000000000000000000",
+        "sovereignWETHAddressIsNotMintable": false,
+        "globalExitRootUpdater": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "globalExitRootRemover": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "emergencyBridgePauser": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "emergencyBridgeUnpauser": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    },
+    "aggchainParams": {
+        "aggchainManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    }
+}

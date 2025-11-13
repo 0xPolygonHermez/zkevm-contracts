@@ -11,7 +11,7 @@ coverage
 artifacts/
 docs/interfaces
 docs/mocks
-.vscode/launch.json
+.vscode
 deploy_output.json
 deploy_parameters.json
 deployments
@@ -20,5 +20,10 @@ docker/gethData/
 *.ignore/
 typechain-types/
 create_rollup_parameters.json
+create_rollup_output_*
 
 docker/deploymentOutput
+
+.DS_Store
+
+*upgrade_output.json

@@ -1,0 +1,108 @@
+# Upgrade GlobalExitRootManagerL2SovereignChain
+
+Script to create schedule and execute transaction for upgrading GlobalExitRootManagerL2SovereignChain and BridgeL2SovereignChain
+
+## Setup
+
+- install packages
+
+```
+npm i
+```
+
+- Set env variables
+
+```
+cp .env.example .env
+```
+
+Fill `.env` with your `ETHERSCAN_API_KEY`
+
+- Copy configuration files:
+
+```
+cp ./upgrade/upgradeSovereign/upgrade_parameters.json.example ./upgrade/upgradeSovereign/upgrade_parameters.json
+```
+
+- Fill configuration file
+
+    - "network": "sepolia", -> Optional: hardhat network used if wants to verify the deployed implementation
+    - "timelockDelay": 3600, -> the timelock delay between schedule and execution transaction
+    - "timelockAdminAddress": "0x..", -> Optional: The address of the timelock admin, only used at the shallow fork tests
+    - "deployerPvtKey": "0x...", -> Optional: The private key of the wallet used to deploy the new implementation
+    - "rpc": "rpc url" -> Optional: only used for shallow fork testing, is the rpc of the node to fork
+    - "globalExitRootManagerL2SovereignChainAddress": "0x.." -> Optional: the address of the proxy to upgrade, if not set the hardcoded value used in most chains is used (0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa)
+    - "proxiedTokensManagerAddress": "0x.." -> Address of the proxied tokens manager role
+    -"emergencyBridgePauserAddress": "0x.." -> Address of the emergency bridge pauser role
+    -"emergencyBridgeUnpauserAddress": "0x.." -> Address of the emergency bridge unpauser role
+
+- Run tool:
+
+```
+npx hardhat run ./upgrade/upgradeSovereign/upgradeSovereign.ts --network sepolia
+```
+
+- OutputFile: `upgrade_output.json`
+
+```
+{
+ "scheduleData": "0x01d5062a000000000000000000000000e9e0baae3eeb4f0d1a2e8cd36ceb61ab8ad83f95000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e1000000000000000000000000000000000000000000000000000000000000000e49623609d000000000000000000000000a40d5f56745a118d0906a34e69aec8c0db1cb8fa000000000000000000000000274b87889659617c34552638f2525dc135bb126200000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044485cc95500000000000000000000000087c73cb0d636ca06e7b6fcc57b5bb8e3b32c36d300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+ "executeData": "0x134008d3000000000000000000000000e9e0baae3eeb4f0d1a2e8cd36ceb61ab8ad83f95000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e49623609d000000000000000000000000a40d5f56745a118d0906a34e69aec8c0db1cb8fa000000000000000000000000274b87889659617c34552638f2525dc135bb126200000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044485cc95500000000000000000000000087c73cb0d636ca06e7b6fcc57b5bb8e3b32c36d300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+ "timelockContractAddress": "0xb8fBBbefc6fB8CA6b97644781ebD3432020118ac",
+ "implementationDeployBlockNumber": 7789228,
+ "decodedScheduleData": {
+  "target": "0xe9E0BAAe3eEB4F0D1A2e8cd36CEB61Ab8ad83f95",
+  "value": "0",
+  "data": "0x9623609d000000000000000000000000a40d5f56745a118d0906a34e69aec8c0db1cb8fa000000000000000000000000274b87889659617c34552638f2525dc135bb126200000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044485cc95500000000000000000000000087c73cb0d636ca06e7b6fcc57b5bb8e3b32c36d3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "decodedData": {
+   "signature": "upgradeAndCall(address,address,bytes)",
+   "selector": "0x9623609d",
+   "proxy": "0xa40D5f56745a118D0906a34E69aeC8C0Db1cB8fA",
+   "implementation": "0x274B87889659617C34552638F2525dc135BB1262",
+   "data": "0x485cc95500000000000000000000000087c73cb0d636ca06e7b6fcc57b5bb8e3b32c36d30000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "predecessor": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "delay": "3600"
+ }
+}
+```
+
+This JSON file contains the parameters generated by our upgrade script. Below is a breakdown of each field:
+
+- **scheduleData**:  
+  The ABI-encoded data that represents the timelock scheduling call. It contains all parameters (target, value, data, predecessor, salt, delay) that the timelock contract will store when the upgrade operation is scheduled.
+
+- **executeData**:  
+  The ABI-encoded data for the timelock execution call. This is used later to execute the scheduled operation, triggering the proxy upgrade and any initialization.
+
+- **timelockContractAddress**:  
+  The address of the Timelock contract that will manage the delay and execution of the upgrade operation.
+
+- **implementationDeployBlockNumber**:
+  The block number where the implementation contract was deployed. It is used for testing purposes on the shallow fork test
+
+- **decodedScheduleData**:  
+  A human-readable object that decodes the contents of the scheduled operation:
+
+    - **target**:  
+      The contract address that will be called by the timelock (typically the ProxyAdmin contract).
+    - **value**:  
+      The ETH value to send with the call (usually 0).
+    - **data**:  
+      The raw encoded data representing the upgrade call (e.g., `upgradeAndCall` with proxy, new implementation, and initialization data).
+    - **decodedData**:  
+      A further breakdown of the `data` field:
+        - **signature**: The function signature being called (e.g., `"upgradeAndCall(address,address,bytes)"`).
+        - **selector**: The first 4 bytes of the ABI-encoded function call.
+        - **proxy**: The proxy contract address that will be upgraded.
+        - **implementation**: The address of the new implementation contract.
+        - **data**: The ABI-encoded initialization call for the new implementation.
+    - **predecessor**:  
+      The hash of a prior operation that must complete before this one; if none exists, this is zero.
+    - **salt**:  
+      A unique salt used to identify and secure the operation.
+    - **delay**:  
+      The timelock delay (in seconds) required before the scheduled operation can be executed (e.g., "3600" means a one-hour delay).
+
+This structure allows us to verify and audit every aspect of the upgrade operation before it is executed.

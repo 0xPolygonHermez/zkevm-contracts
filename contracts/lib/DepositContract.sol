@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable4/security/ReentrancyGuardUpgradeable.sol";
 
 /**
  * This contract will be used as a helper for all the sparse merkle tree related functions
@@ -31,7 +31,7 @@ contract DepositContract is ReentrancyGuardUpgradeable {
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      */
-    uint256[10] private _gap;
+    uint256[10] private __gap;
 
     /**
      * @notice Computes and returns the merkle root

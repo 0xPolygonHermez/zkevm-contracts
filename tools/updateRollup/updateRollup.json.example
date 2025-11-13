@@ -1,11 +1,16 @@
 {
-    "rollupAddress": "0xaddress",
-    "newRollupTypeID": 1,
-    "upgradeData": "0x",
-    "polygonRollupManagerAddress": "0xaddress",
+    "type": "EOA",
+    "polygonRollupManagerAddress": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
     "timelockDelay": 0,
     "deployerPvtKey": "",
     "maxFeePerGas": "",
     "maxPriorityFeePerGas": "",
-    "multiplierGas": ""
+    "multiplierGas": "",
+    "rollups": [
+        {
+            "rollupAddress": "0x524F04724632eED237cbA3c37272e018b3A7967e",
+            "newRollupTypeID": 2,
+            "upgradeData": "0x"
+        }
+    ]
 }

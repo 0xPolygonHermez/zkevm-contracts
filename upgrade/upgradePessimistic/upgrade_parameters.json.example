@@ -1,0 +1,9 @@
+{
+    "rollupManagerAddress": "0x00..",
+    "timelockDelay": 0,
+    "timelockSalt": "",
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": ""
+}

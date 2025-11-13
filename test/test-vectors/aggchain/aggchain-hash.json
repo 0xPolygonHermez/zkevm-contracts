@@ -1,0 +1,62 @@
+[
+  {
+    "input": {
+      "consensusType": 1,
+      "aggchainVKey": "0x6666666666666666666666666666666666666666666666666666666666666666",
+      "hashAggchainParams": "0x2ab0a4443bbea3fbe4d0e1503d11ff1367842fb0c8b28a5c8550f27599a40751"
+    },
+    "output": {
+      "aggchainHash": "0xa691f94fbadcedd6e27c79fc0e8ad216eef44da10297552d9890e77d284f1a85"
+    }
+  },
+  {
+    "input": {
+      "consensusType": 1,
+      "aggchainVKey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "hashAggchainParams": "0x1234567891234567891234567891234567891234567891234567891234567891"
+    },
+    "output": {
+      "aggchainHash": "0x62584a7761edbd8fdf7a8c8b40c0ae07d37d4d4a961aba91f3038c37c9cb2c87"
+    }
+  },
+  {
+    "input": {
+      "consensusType": 1,
+      "aggchainVKey": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      "hashAggchainParams": "0x3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "output": {
+      "aggchainHash": "0x3597ed5d1dcce7e1f5e4cc8a59786a3b1cb0868588d85c4e7cec26704b3822b0"
+    }
+  },
+  {
+    "input": {
+      "consensusType": 1,
+      "aggchainVKey": "0x1234567891234567891234567891234567891234567891234567891234567891",
+      "hashAggchainParams": "0x1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "output": {
+      "aggchainHash": "0x5b780539bfc81112e78409973934ea0f327f86fae7c30b80b055279d9157957f"
+    }
+  },
+  {
+    "input": {
+      "consensusType": 1,
+      "aggchainVKey": "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+      "hashAggchainParams": "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+    },
+    "output": {
+      "aggchainHash": "0x77b4a3e9d8da3348ad14f0b67c7317d2387520739d5b09848d33fa7ba4bbeadc"
+    }
+  },
+  {
+    "input": {
+      "consensusType": 1,
+      "aggchainVKey": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "hashAggchainParams": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "output": {
+      "aggchainHash": "0xa52bea95d270a4a72ddbaaafa2f2059dd0ee4111e21fbdec87f5cddddb8bd7e4"
+    }
+  }
+]

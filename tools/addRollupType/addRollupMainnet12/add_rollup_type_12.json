@@ -1,0 +1,9 @@
+{
+    "type": "Timelock",
+    "consensusContract": "AggchainFEP",
+    "polygonRollupManagerAddress": "0x5132a183e9f3cb7c848b0aac5ae0c4f0491b7ab2",
+    "description": "Type: aggchainFEP",
+    "forkID": 0,
+    "timelockDelay": 259200,
+    "customALGatewayAddress": "0x046Bb8bb98Db4ceCbB2929542686B74b516274b3"
+}

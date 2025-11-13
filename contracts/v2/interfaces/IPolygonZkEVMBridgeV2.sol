@@ -85,9 +85,49 @@ interface IPolygonZkEVMBridgeV2 {
     error GasTokenNetworkMustBeZeroOnEther();
 
     /**
-     * @dev Thrown when the wrapped token deployment fails
+     * @dev Thrown when the wrapped token proxy deployment fails
      */
-    error FailedTokenWrappedDeployment();
+    error FailedProxyDeployment();
+
+    /**
+     * @dev Thrown when try to set a zero address to a non valid zero address field
+     */
+    error InvalidZeroAddress();
+
+    /**
+     * @dev Thrown when sender is not the proxied tokens manager
+     */
+    error OnlyProxiedTokensManager();
+
+    /**
+     * @dev Thrown when trying to call a function that only the pending ProxiedTokensManager can call.
+     */
+    error OnlyPendingProxiedTokensManager();
+
+    /**
+     * @dev Thrown when trying to set bridgeAddress to as proxied tokens manager role.
+     */
+    error BridgeAddressNotAllowed();
+
+    /**
+     * @dev Thrown when trying to initialize the incorrect initialize function
+     */
+    error InvalidInitializeFunction();
+
+    /**
+     * @dev Thrown when failing to retrieve the owner from proxyAdmin
+     */
+    error InvalidProxyAdmin(address proxyAdmin);
+
+    /**
+     * @dev Thrown when the owner of a proxyAdmin is zero address
+     */
+    error InvalidZeroProxyAdminOwner(address proxyAdmin);
+
+    /**
+     * @dev Thrown when the global index has any unused bits set to 1
+     */
+    error InvalidGlobalIndex();
 
     function wrappedTokenToTokenInfo(
         address destinationAddress
@@ -163,4 +203,11 @@ interface IPolygonZkEVMBridgeV2 {
     function getTokenMetadata(
         address token
     ) external view returns (bytes memory);
+
+    function getWrappedTokenBridgeImplementation()
+        external
+        view
+        returns (address);
+
+    function getProxiedTokensManager() external view returns (address);
 }

@@ -1,6 +1,6 @@
-Object.defineProperty(BigInt.prototype, "toJSON", {
+/* eslint-disable no-extend-native */
+Object.defineProperty(BigInt.prototype, 'toJSON', {
     get() {
-        "use strict";
         return () => String(this);
     },
 });

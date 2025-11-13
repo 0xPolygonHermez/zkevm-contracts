@@ -1,0 +1,1 @@
+UPDATE=true npx hardhat test ../src/*.test.ts 

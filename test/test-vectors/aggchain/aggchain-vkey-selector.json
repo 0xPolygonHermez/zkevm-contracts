@@ -1,0 +1,65 @@
+[
+  {
+    "input": {
+      "aggchainType": "0x0001",
+      "aggchainVKeyVersion": "0x1234"
+    },
+    "output": {
+      "aggchainVKeySelector": "0x12340001"
+    }
+  },
+  {
+    "input": {
+      "aggchainType": "0x0001",
+      "aggchainVKeyVersion": "0x0000"
+    },
+    "output": {
+      "aggchainVKeySelector": "0x00000001"
+    }
+  },
+  {
+    "input": {
+      "aggchainType": "0x0001",
+      "aggchainVKeyVersion": "0x4444"
+    },
+    "output": {
+      "aggchainVKeySelector": "0x44440001"
+    }
+  },
+  {
+    "input": {
+      "aggchainType": "0x0001",
+      "aggchainVKeyVersion": "0x0210"
+    },
+    "output": {
+      "aggchainVKeySelector": "0x02100001"
+    }
+  },
+  {
+    "input": {
+      "aggchainType": "0x0001",
+      "aggchainVKeyVersion": "0x0001"
+    },
+    "output": {
+      "aggchainVKeySelector": "0x00010001"
+    }
+  },
+  {
+    "input": {
+      "aggchainType": "0x0000",
+      "aggchainVKeyVersion": "0x0000"
+    },
+    "output": {
+      "aggchainVKeySelector": "0x00000000"
+    }
+  },
+  {
+    "input": {
+      "aggchainType": "0xFFFF",
+      "aggchainVKeyVersion": "0xFFFF"
+    },
+    "output": {
+      "aggchainVKeySelector": "0xffffffff"
+    }
+  }
+]

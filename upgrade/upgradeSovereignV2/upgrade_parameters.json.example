@@ -1,0 +1,12 @@
+{
+    "tagSCPreviousVersion": "v1.0.0",
+    "bridgeL2SovereignChainAddress": "0x..",
+    "proxiedTokensManagerAddress": "0x..",
+    "emergencyBridgeUnpauserAddress": "0x..",
+    "deployerPvtKey": "0x...",
+    "timelockDelay": 3600,
+    "forkParams": {
+        "rpc": "rpc url",
+        "timelockAdmin": "0x.."
+    }
+}

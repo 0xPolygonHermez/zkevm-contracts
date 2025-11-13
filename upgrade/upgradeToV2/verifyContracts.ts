@@ -1,33 +1,30 @@
 /* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if */
 /* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
-import {expect} from "chai";
-import path = require("path");
-import fs = require("fs");
+import path = require('path');
 
-import * as dotenv from "dotenv";
-dotenv.config({path: path.resolve(__dirname, "../../.env")});
-import {ethers, upgrades, run} from "hardhat";
+import * as dotenv from 'dotenv';
+import { upgrades, run } from 'hardhat';
 
-const outputJson = require("./upgrade_output.json");
+import outputJson from './upgrade_output.json';
+import deployOutputParameters from './deploy_output.json';
+import upgradeParameters from './upgrade_parameters.json';
 
-const deployParameters = require("./deploy_parameters.json");
-const deployOutputParameters = require("./deploy_output.json");
-const upgradeParameters = require("./upgrade_parameters.json");
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 async function main() {
     // load deployer account
-    if (typeof process.env.ETHERSCAN_API_KEY === "undefined") {
-        throw new Error("Etherscan API KEY has not been defined");
+    if (typeof process.env.ETHERSCAN_API_KEY === 'undefined') {
+        throw new Error('Etherscan API KEY has not been defined');
     }
 
-    const {polTokenAddress} = upgradeParameters;
+    const { polTokenAddress } = upgradeParameters;
     const currentBridgeAddress = deployOutputParameters.polygonZkEVMBridgeAddress;
     const currentGlobalExitRootAddress = deployOutputParameters.polygonZkEVMGlobalExitRootAddress;
     const currentPolygonZkEVMAddress = deployOutputParameters.polygonZkEVMAddress;
 
     try {
         // verify verifier
-        await run("verify:verify", {
+        await run('verify:verify', {
             address: outputJson.verifierAddress,
         });
     } catch (error: any) {
@@ -36,7 +33,7 @@ async function main() {
 
     // Verify bridge
     try {
-        await run("verify:verify", {
+        await run('verify:verify', {
             address: currentBridgeAddress,
         });
     } catch (error: any) {
@@ -45,7 +42,7 @@ async function main() {
 
     // verify global exit root
     try {
-        await run("verify:verify", {
+        await run('verify:verify', {
             address: currentGlobalExitRootAddress,
             constructorArguments: [currentPolygonZkEVMAddress, currentBridgeAddress],
         });
@@ -56,7 +53,7 @@ async function main() {
     // verify zkEVM implementation
     const implNewZkEVM = await upgrades.erc1967.getImplementationAddress(outputJson.newPolygonZKEVM);
     try {
-        await run("verify:verify", {
+        await run('verify:verify', {
             address: implNewZkEVM,
             constructorArguments: [
                 currentGlobalExitRootAddress,
@@ -71,9 +68,9 @@ async function main() {
 
     // verify zkEVM proxy
     try {
-        await run("verify:verify", {
+        await run('verify:verify', {
             address: outputJson.newPolygonZKEVM,
-            constructorArguments: [implNewZkEVM, currentPolygonZkEVMAddress, "0x"],
+            constructorArguments: [implNewZkEVM, currentPolygonZkEVMAddress, '0x'],
         });
     } catch (error: any) {
         // expect(error.message.toLowerCase().includes("proxyadmin")).to.be.equal(true);
@@ -81,9 +78,9 @@ async function main() {
 
     // verify zkEVM proxy
     try {
-        await run("verify:verify", {
+        await run('verify:verify', {
             address: outputJson.newPolygonZKEVM,
-            constructorArguments: [implNewZkEVM, currentPolygonZkEVMAddress, "0x"],
+            constructorArguments: [implNewZkEVM, currentPolygonZkEVMAddress, '0x'],
         });
     } catch (error: any) {
         // expect(error.message.toLowerCase().includes("proxyadmin")).to.be.equal(true);
@@ -91,7 +88,7 @@ async function main() {
 
     // verify rollup manager
     try {
-        await run("verify:verify", {
+        await run('verify:verify', {
             address: currentPolygonZkEVMAddress,
             constructorArguments: [currentGlobalExitRootAddress, polTokenAddress, currentBridgeAddress],
         });

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.28;
 import "../PolygonRollupManager.sol";
 
 /**
@@ -14,24 +14,32 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
     constructor(
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager,
         IERC20Upgradeable _pol,
-        IPolygonZkEVMBridge _bridgeAddress
-    ) PolygonRollupManager(_globalExitRootManager, _pol, _bridgeAddress) {}
+        IPolygonZkEVMBridge _bridgeAddress,
+        IAggLayerGateway _aggLayerGateway
+    )
+        PolygonRollupManager(
+            _globalExitRootManager,
+            _pol,
+            _bridgeAddress,
+            _aggLayerGateway
+        )
+    {}
 
     function initializeMock(
         address trustedAggregator,
-        uint64 _pendingStateTimeout,
-        uint64 _trustedAggregatorTimeout,
+        // uint64 _pendingStateTimeout,
+        // uint64 _trustedAggregatorTimeout,
         address admin,
         address timelock,
         address emergencyCouncil
-    ) external reinitializer(2) {
-        pendingStateTimeout = _pendingStateTimeout;
-        trustedAggregatorTimeout = _trustedAggregatorTimeout;
+    ) external reinitializer(4) {
+        //pendingStateTimeout = _pendingStateTimeout;
+        //trustedAggregatorTimeout = _trustedAggregatorTimeout;
 
         // Constant deployment variables
         _batchFee = 0.1 ether; // 0.1 Matic
-        verifyBatchTimeTarget = 30 minutes;
-        multiplierBatchFee = 1002;
+        //verifyBatchTimeTarget = 30 minutes;
+        //multiplierBatchFee = 1002;
 
         // Initialize OZ contracts
         __AccessControl_init();
@@ -67,6 +75,8 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
 
         // Since it's mock, use admin for everything
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+
+        emit UpdateRollupManagerVersion(ROLLUP_MANAGER_VERSION);
     }
 
     function prepareMockCalculateRoot(bytes32[] memory localExitRoots) public {
@@ -74,8 +84,24 @@ contract PolygonRollupManagerMock is PolygonRollupManager {
 
         // Add local Exit roots;
         for (uint256 i = 0; i < localExitRoots.length; i++) {
-            rollupIDToRollupData[uint32(i + 1)]
+            _rollupIDToRollupData[uint32(i + 1)]
                 .lastLocalExitRoot = localExitRoots[i];
         }
+    }
+
+    function exposed_checkStateRootInsidePrime(
+        uint256 newStateRoot
+    ) public pure returns (bool) {
+        return _checkStateRootInsidePrime(newStateRoot);
+    }
+
+    function setRollupData(
+        uint32 rollupID,
+        bytes32 lastLocalExitRoot,
+        bytes32 lastPessimisticRoot
+    ) external {
+        RollupData storage rollup = _rollupIDToRollupData[rollupID];
+        rollup.lastLocalExitRoot = lastLocalExitRoot;
+        rollup.lastPessimisticRoot = lastPessimisticRoot;
     }
 }

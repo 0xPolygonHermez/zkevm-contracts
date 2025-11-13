@@ -1,24 +1,22 @@
 /* eslint-disable no-await-in-loop, no-use-before-define, no-lonely-if */
 /* eslint-disable no-console, no-inner-declarations, no-undef, import/no-unresolved */
-import {expect} from "chai";
-import path = require("path");
-import fs = require("fs");
+import { expect } from 'chai';
+import path = require('path');
 
-import * as dotenv from "dotenv";
-dotenv.config({path: path.resolve(__dirname, "../../../.env")});
-import {ethers, upgrades} from "hardhat";
-import {PolygonRollupManager, PolygonZkEVMTimelock} from "../../../typechain-types";
+import * as dotenv from 'dotenv';
+import { ethers } from 'hardhat';
+import { time, reset, setBalance } from '@nomicfoundation/hardhat-network-helpers';
+import { PolygonRollupManager, PolygonZkEVMTimelock } from '../../../typechain-types';
 
-import {takeSnapshot, time, reset, setBalance, setStorageAt} from "@nomicfoundation/hardhat-network-helpers";
+import deployOutputParameters from './deploy_output_mainnet.json';
+import updateOutput from './updateRollupOutput.json';
+import addRollupTypeOutput from './add_rollup_type_output.json';
 
-const deployOutputParameters = require("./deploy_output_mainnet.json");
-const updateOutput = require("./updateRollupOutput.json");
-const addRollupTypeOutput = require("./add_rollup_type_output.json");
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 async function main() {
-    const polTokenAddress = "0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6"; // mainnet address
     const deployer = (await ethers.getSigners())[0];
-    console.log("using signer: ", deployer.address);
+    console.log('using signer: ', deployer.address);
 
     // hard fork
     const rpc = `https://mainnet.infura.io/v3/${process.env.INFURA_PROJECT_ID}`;
@@ -26,22 +24,17 @@ async function main() {
     await setBalance(deployer.address, 100n ** 18n);
 
     // Get timelock multisig
-    const timelockMultisig = "0x242daE44F5d8fb54B198D03a94dA45B5a4413e21";
-    await ethers.provider.send("hardhat_impersonateAccount", [timelockMultisig]);
+    const timelockMultisig = '0x242daE44F5d8fb54B198D03a94dA45B5a4413e21';
+    await ethers.provider.send('hardhat_impersonateAccount', [timelockMultisig]);
     const multisigSigner = await ethers.getSigner(timelockMultisig as any);
     await setBalance(timelockMultisig, 100n ** 18n);
 
-    const timelockContractFactory = await ethers.getContractFactory("PolygonZkEVMTimelock");
+    const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock');
     const timelockContract = (await timelockContractFactory.attach(
-        deployOutputParameters.timelockContractAddress
+        deployOutputParameters.timelockContractAddress,
     )) as PolygonZkEVMTimelock;
 
     const timelockDelay = await timelockContract.getMinDelay();
-
-    const polygonZkEVMFactory = await ethers.getContractFactory("PolygonZkEVM");
-    const polygonZkEVMContract = (await polygonZkEVMFactory.attach(
-        deployOutputParameters.polygonZkEVMAddress
-    )) as PolygonZkEVM;
 
     const txScheduleAddType = {
         to: timelockContract.target,
@@ -74,27 +67,27 @@ async function main() {
 
     await (await multisigSigner.sendTransaction(txExecuteUpdate)).wait();
 
-    const RollupMangerFactory = await ethers.getContractFactory("PolygonRollupManager");
+    const RollupMangerFactory = await ethers.getContractFactory('PolygonRollupManager');
     const rollupManager = (await RollupMangerFactory.attach(
-        deployOutputParameters.polygonZkEVMAddress
+        deployOutputParameters.polygonZkEVMAddress,
     )) as PolygonRollupManager;
 
     expect(await rollupManager.rollupCount()).to.be.equal(2);
     expect(await rollupManager.rollupTypeCount()).to.be.equal(2);
-    console.log("Contracts upgraded");
+    console.log('Contracts upgraded');
 
     // Deploy a validium
     const verifierAddress = addRollupTypeOutput.decodedScheduleData.decodedData.verifier;
 
     const rollupDataFinal = await rollupManager.rollupIDToRollupData(1);
-    expect(rollupDataFinal.rollupContract).to.be.equal("0x519E42c24163192Dca44CD3fBDCEBF6be9130987");
+    expect(rollupDataFinal.rollupContract).to.be.equal('0x519E42c24163192Dca44CD3fBDCEBF6be9130987');
     expect(rollupDataFinal.chainID).to.be.equal(1101);
     expect(rollupDataFinal.verifier).to.be.equal(verifierAddress);
     expect(rollupDataFinal.forkID).to.be.equal(8);
     expect(rollupDataFinal.rollupTypeID).to.be.equal(2);
     expect(rollupDataFinal.rollupCompatibilityID).to.be.equal(0);
 
-    console.log("Updated zkevm Succedd");
+    console.log('Updated zkevm Succedd');
 }
 
 main().catch((e) => {

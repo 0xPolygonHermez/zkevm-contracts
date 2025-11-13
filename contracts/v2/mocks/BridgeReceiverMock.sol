@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 import "../PolygonZkEVMBridgeV2.sol";
-pragma solidity 0.8.20;
+pragma solidity 0.8.28;
 
 /**
  * Contract for compressing and decompressing claim data
@@ -59,7 +59,7 @@ contract BridgeReceiverMock {
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param originNetwork Origin network
-     * @param originTokenAddress  Origin token address, 0 address is reserved for ether
+     * @param originTokenAddress  Origin token address, 0 address is reserved for gas token address. If WETH address is zero, means this gas token is ether, else means is a custom erc20 gas token
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount Amount of tokens

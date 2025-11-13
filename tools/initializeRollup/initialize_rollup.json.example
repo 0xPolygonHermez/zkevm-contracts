@@ -1,0 +1,34 @@
+{
+    "type":"EOA",
+    "trustedSequencerURL": "http://zkevm-json-rpc:8123",
+    "networkName": "zkevm",
+    "trustedSequencer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "chainID": 1005,
+    "rollupAdminAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "consensusContractName": "AggchainFEP",
+    "gasTokenAddress": "0x0000000000000000000000000000000000000000",
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": "",
+    "timelockDelay": 0,
+    "timelockSalt": "",
+    "rollupManagerAddress": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+    "aggchainParams": {
+        "initParams": {
+            "l2BlockTime": 1,
+            "rollupConfigHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "startingOutputRoot" : "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "startingBlockNumber": 100,
+            "startingTimestamp": 7000000,
+            "submissionInterval": 5,
+            "optimisticModeManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+            "aggregationVkey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "rangeVkeyCommitment": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "useDefaultGateway": true,
+        "initOwnedAggchainVKey": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        "initAggchainVKeySelector": "0x12340001",
+        "vKeyManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    }
+}

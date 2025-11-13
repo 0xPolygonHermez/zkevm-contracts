@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Create2.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts4/access/Ownable.sol";
+import "@openzeppelin/contracts4/utils/Create2.sol";
+import "@openzeppelin/contracts4/utils/Address.sol";
 
 /**
  * Contract responsible for deploying deterministic address contracts related with the PolygonZkEVM

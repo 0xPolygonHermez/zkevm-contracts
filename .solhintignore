@@ -1,0 +1,7 @@
+contracts/verifiers/*
+contracts/v2/utils/ClaimCompressor.sol
+contracts/v2/previousVersions/*
+contracts/v2/mocks/*
+contracts/mocks/*
+contracts/v2/periphery/*
+contracts/v2/lib/LegacyZKEVMStateVariables.sol

@@ -1,0 +1,16 @@
+{
+    "consensusContract": "PolygonPessimisticConsensus",
+    "consensusContractAddress": "",
+    "polygonRollupManagerAddress": "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2",
+    "verifierAddress": "0xE00a3cBFC45241b33c0A44C78e26168CBc55EC63",
+    "description": "Type: Pessimistic, Version: v0.2.1, genesis: /ipfs/QmUXnRoPbUmZuEZCGyiHjEsoNcFVu3hLtSvhpnfBS2mAYU",
+    "forkID": 12,
+    "timelockDelay": 864000,
+    "timelockSalt": "",
+    "deployerPvtKey": "",
+    "maxFeePerGas":"",
+    "maxPriorityFeePerGas":"",
+    "multiplierGas": "",
+    "genesisRoot": "0xe3a7d8bae497945ba8ddc51c69564f60ad4c1a990b9c7bdbd27f7929bfa8f272",
+    "programVKey": "0x0062c685702e0582d900f3a19521270c92a58e2588230c4a5cf3b45103f4a512"
+}

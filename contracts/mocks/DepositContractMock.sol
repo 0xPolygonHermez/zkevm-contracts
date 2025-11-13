@@ -18,7 +18,7 @@ contract DepositContractMock is DepositContract {
      * @notice Given the leaf data returns the leaf value
      * @param leafType Leaf type
      * @param originNetwork Origin Network
-     * @param originTokenAddress Origin token address, 0 address is reserved for ether
+     * @param originTokenAddress Origin token address, 0 address is reserved for gas token address. If WETH address is zero, means this gas token is ether, else means is a custom erc20 gas token
      * @param destinationNetwork Destination network
      * @param destinationAddress Destination address
      * @param amount Amount of tokens
