@@ -1326,6 +1326,33 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint256 amount,
         bytes calldata metadata
     ) public virtual ifNotEmergencyState nonReentrant {
+        _processClaimAssetLER(
+            smtProofLocalExitRoot,
+            globalIndex,
+            localExitRoot,
+            originNetwork,
+            originTokenAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
+    }
+
+    /**
+     * @dev Internal helper to process asset claim from LER
+     */
+    function _processClaimAssetLER(
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
+        uint256 globalIndex,
+        bytes32 localExitRoot,
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) internal {
         // Validate and decode global index
         (
             uint32 leafIndex,
@@ -1344,7 +1371,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             revert LocalExitRootInvalid();
         }
 
-        // build leaf data
+        // Build leaf data
         bytes32 leafValue = getLeafValue(
             _LEAF_TYPE_ASSET,
             originNetwork,
@@ -1356,14 +1383,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Verify merkle proof against rollup exit root
-        if (
-            !verifyMerkleProof(
-                leafValue,
-                smtProofLocalExitRoot,
-                leafIndex,
-                localExitRoot
-            )
-        ) {
+        if (!verifyMerkleProof(leafValue, smtProof, leafIndex, localExitRoot)) {
             revert InvalidSmtProof();
         }
 
@@ -1393,16 +1413,11 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             amount
         );
 
-        // Empty proof and empty root to reuse DetailedClaimEvent structure
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
-        bytes32 emptyRoot;
-
-        emit DetailedClaimEvent(
-            smtProofLocalExitRoot,
-            emptyProof,
+        // Emit detailed event with empty root for asset claim
+        _emitDetailedClaimEvent(
+            smtProof,
             globalIndex,
             localExitRoot,
-            emptyRoot,
             originNetwork,
             originTokenAddress,
             destinationNetwork,
@@ -1447,6 +1462,33 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint256 amount,
         bytes calldata metadata
     ) public virtual ifNotEmergencyState nonReentrant {
+        _processClaimMessageLER(
+            smtProofLocalExitRoot,
+            globalIndex,
+            localExitRoot,
+            originNetwork,
+            originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
+    }
+
+    /**
+     * @dev Internal helper to process message claim from LER
+     */
+    function _processClaimMessageLER(
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
+        uint256 globalIndex,
+        bytes32 localExitRoot,
+        uint32 originNetwork,
+        address originAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) internal {
         // Validate and decode global index
         (
             uint32 leafIndex,
@@ -1465,7 +1507,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             revert LocalExitRootInvalid();
         }
 
-        // build leaf data
+        // Build leaf data
         bytes32 leafValue = getLeafValue(
             _LEAF_TYPE_MESSAGE,
             originNetwork,
@@ -1477,14 +1519,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Verify merkle proof against rollup exit root
-        if (
-            !verifyMerkleProof(
-                leafValue,
-                smtProofLocalExitRoot,
-                leafIndex,
-                localExitRoot
-            )
-        ) {
+        if (!verifyMerkleProof(leafValue, smtProof, leafIndex, localExitRoot)) {
             revert InvalidSmtProof();
         }
 
@@ -1514,16 +1549,11 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             amount
         );
 
-        // Empty proof and empty root to reuse DetailedClaimEvent structure
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
-        bytes32 emptyRoot;
-
-        emit DetailedClaimEvent(
-            smtProofLocalExitRoot,
-            emptyProof,
+        // Emit detailed event with empty root for message claim
+        _emitDetailedClaimEvent(
+            smtProof,
             globalIndex,
             localExitRoot,
-            emptyRoot,
             originNetwork,
             originAddress,
             destinationNetwork,
@@ -1536,6 +1566,39 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         _executeMessage(
             originNetwork,
             originAddress,
+            destinationNetwork,
+            destinationAddress,
+            amount,
+            metadata
+        );
+    }
+
+    /**
+     * @dev Helper to emit detailed claim event
+     */
+    function _emitDetailedClaimEvent(
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
+        uint256 globalIndex,
+        bytes32 localExitRoot,
+        uint32 originNetwork,
+        address originTokenAddress,
+        uint32 destinationNetwork,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) internal {
+        // Empty proof and empty root to reuse DetailedClaimEvent structure
+        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
+        bytes32 emptyRoot = bytes32(0);
+
+        emit DetailedClaimEvent(
+            smtProof,
+            emptyProof,
+            globalIndex,
+            localExitRoot,
+            emptyRoot,
+            originNetwork,
+            originTokenAddress,
             destinationNetwork,
             destinationAddress,
             amount,
