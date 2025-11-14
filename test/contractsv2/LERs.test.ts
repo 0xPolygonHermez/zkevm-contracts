@@ -271,8 +271,9 @@ describe('LERs', () => {
 
         const paramsClaims = {
             networkID: originNetwork,
-            globalIndexes: [globalIndex],
             localExitRoot: rootLocalRollup,
+            globalIndexes: [globalIndex],
+            smtProofLocalExitRoots: [proofLocal],
             originNetworks: [originNetwork],
             originTokenAddresses: [tokenAddress],
             destinationNetworks: [destinationNetwork],
@@ -281,7 +282,7 @@ describe('LERs', () => {
             metadatas: [metadata],
         };
 
-        await expect(ger.insertAndClaimsAssetFromLER([proofLocal], paramsClaims))
+        await expect(ger.insertAndClaimsAssetFromLER(paramsClaims))
             .to.emit(bridge, 'ClaimEvent')
             .withArgs(globalIndex, originNetwork, tokenAddress, destinationAddress, amount);
 

@@ -1526,7 +1526,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     }
 
     /**
-     * @dev Helper to emit detailed claim event
+     * @dev Helper to emit detailed claim event for LER claims (stack too deep helper)
      */
     function _emitDetailedClaimEvent(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
