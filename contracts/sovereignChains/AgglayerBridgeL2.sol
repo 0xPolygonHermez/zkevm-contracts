@@ -1222,6 +1222,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     {
         _deactivateEmergencyState();
     }
+    
     /**
      * @notice Function to claim a message from a Local Exit Root (LER)
      * @dev This function allows users to claim messages that were sent via the bridge and recorded in a Local Exit Root.
@@ -1253,84 +1254,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint256 amount,
         bytes calldata metadata
     ) public virtual ifNotEmergencyState nonReentrant {
-        _processClaimAssetLER(
-            smtProofLocalExitRoot,
-            globalIndex,
-            localExitRoot,
-            originNetwork,
-            originTokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata
-        );
-    }
-
-    /**
-     * @dev Internal helper to process asset claim from LER
-     */
-    function _processClaimAssetLER(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
-        uint256 globalIndex,
-        bytes32 localExitRoot,
-        uint32 originNetwork,
-        address originTokenAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes calldata metadata
-    ) internal {
-        // Validate and decode global index
-        (
-            uint32 leafIndex,
-            ,
-            uint32 sourceBridgeNetwork
-        ) = _validateAndDecodeGlobalIndex(globalIndex);
-
-        // Verify if LER exists
-        bool existLER = IAgglayerGERL2(address(globalExitRootManager)).existLER(
-            localExitRoot,
-            sourceBridgeNetwork
-        );
-
-        // check that this local exit root exists
-        if (existLER == false) {
-            revert LocalExitRootInvalid();
-        }
-
-        // Build leaf data
-        bytes32 leafValue = getLeafValue(
-            _LEAF_TYPE_ASSET,
-            originNetwork,
-            originTokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            keccak256(metadata)
-        );
-
-        // Verify merkle proof against rollup exit root
-        if (!verifyMerkleProof(leafValue, smtProof, leafIndex, localExitRoot)) {
-            revert InvalidSmtProof();
-        }
-
-        // Update claimedGlobalIndexHashChain
-        claimedGlobalIndexHashChain = Hashes.efficientKeccak256(
-            claimedGlobalIndexHashChain,
-            Hashes.efficientKeccak256(bytes32(globalIndex), leafValue)
-        );
-
-        emit UpdatedClaimedGlobalIndexHashChain(
-            bytes32(globalIndex),
-            claimedGlobalIndexHashChain
-        );
-
-        // Update Local Balance Tree
-        _increaseLocalBalanceTree(originNetwork, originTokenAddress, amount);
-
-        // Set and check nullifier
-        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
-
         LeafData memory leafData = LeafData({
             leafType: _LEAF_TYPE_ASSET,
             originNetwork: originNetwork,
@@ -1340,22 +1263,11 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             amount: amount,
             metadata: metadata
         });
-    
-        // Emit detailed event with empty root for asset claim
-        _emitClaimEvents(
-            smtProof,
+        _processClaimLER(
+            smtProofLocalExitRoot,
             globalIndex,
             localExitRoot,
-            leafData
-        );
-
-        // Transfer funds
-        _transferFundsClaim(
-            originNetwork,
-            originTokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
+            leafData,
             metadata
         );
     }
@@ -1385,31 +1297,32 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         uint256 amount,
         bytes calldata metadata
     ) public virtual ifNotEmergencyState nonReentrant {
-        _processClaimMessageLER(
+        LeafData memory leafData = LeafData({
+            leafType: _LEAF_TYPE_MESSAGE,
+            originNetwork: originNetwork,
+            originAddress: originAddress,
+            destinationNetwork: destinationNetwork,
+            destinationAddress: destinationAddress,
+            amount: amount,
+            metadata: metadata
+        });
+        _processClaimLER(
             smtProofLocalExitRoot,
             globalIndex,
             localExitRoot,
-            originNetwork,
-            originAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
+            leafData,
             metadata
         );
     }
 
     /**
-     * @dev Internal helper to process message claim from LER
+     * @dev Internal helper to process asset claim from LER
      */
-    function _processClaimMessageLER(
+    function _processClaimLER(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint256 globalIndex,
         bytes32 localExitRoot,
-        uint32 originNetwork,
-        address originAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
+        LeafData memory leafData,
         bytes calldata metadata
     ) internal {
         // Validate and decode global index
@@ -1425,21 +1338,13 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             sourceBridgeNetwork
         );
 
-        // check that this global exit root exists
+        // check that this local exit root exists
         if (existLER == false) {
             revert LocalExitRootInvalid();
         }
 
         // Build leaf data
-        bytes32 leafValue = getLeafValue(
-            _LEAF_TYPE_MESSAGE,
-            originNetwork,
-            originAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            keccak256(metadata)
-        );
+        bytes32 leafValue = _getLeafValue(leafData);
 
         // Verify merkle proof against rollup exit root
         if (!verifyMerkleProof(leafValue, smtProof, leafIndex, localExitRoot)) {
@@ -1458,20 +1363,10 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Update Local Balance Tree
-        _increaseLocalBalanceTree(_MAINNET_NETWORK_ID, address(0), amount);
+        _increaseLocalBalanceTree(leafData.originNetwork, leafData.originAddress, leafData.amount);
 
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
-
-        LeafData memory leafData = LeafData({
-            leafType: _LEAF_TYPE_MESSAGE,
-            originNetwork: originNetwork,
-            originAddress: originAddress,
-            destinationNetwork: destinationNetwork,
-            destinationAddress: destinationAddress,
-            amount: amount,
-            metadata: metadata
-        });
     
         // Emit detailed event with empty root for asset claim
         _emitClaimEvents(
@@ -1481,15 +1376,42 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             leafData
         );
 
-        // Execute message
-        _executeMessage(
-            originNetwork,
-            originAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata
-        );
+        if(leafData.leafType == _LEAF_TYPE_ASSET) {
+            // Transfer funds
+            _transferFundsClaim(
+                leafData.originNetwork,
+                leafData.originAddress,
+                leafData.destinationNetwork,
+                leafData.destinationAddress,
+                leafData.amount,
+                metadata
+            );
+        } 
+        
+        if(leafData.leafType == _LEAF_TYPE_MESSAGE) {
+            // Execute message
+            _executeMessage(
+                leafData.originNetwork,
+                leafData.originAddress,
+                leafData.destinationNetwork,
+                leafData.destinationAddress,
+                leafData.amount,
+                metadata
+            );
+        }  
+    }
+
+    function _getLeafValue(LeafData memory leafData) internal pure returns (bytes32) {
+        return
+            getLeafValue(
+                leafData.leafType,
+                leafData.originNetwork,
+                leafData.originAddress,
+                leafData.destinationNetwork,
+                leafData.destinationAddress,
+                leafData.amount,
+                keccak256(leafData.metadata)
+            );
     }
 
     /**
