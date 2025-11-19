@@ -1222,11 +1222,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     {
         _deactivateEmergencyState();
     }
-
-    ///////////////////////////
-    //// LocalBalanceTree /////
-    ///////////////////////////
-
     /**
      * @notice Function to claim a message from a Local Exit Root (LER)
      * @dev This function allows users to claim messages that were sent via the bridge and recorded in a Local Exit Root.
@@ -1336,27 +1331,22 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
 
-        // Event
-        emit ClaimEvent(
-            globalIndex,
-            originNetwork,
-            originTokenAddress,
-            destinationAddress,
-            amount
-        );
-
+        LeafData memory leafData = LeafData({
+            leafType: _LEAF_TYPE_ASSET,
+            originNetwork: originNetwork,
+            originAddress: originTokenAddress,
+            destinationNetwork: destinationNetwork,
+            destinationAddress: destinationAddress,
+            amount: amount,
+            metadata: metadata
+        });
+    
         // Emit detailed event with empty root for asset claim
-        _emitDetailedClaimEvent(
+        _emitClaimEvents(
             smtProof,
             globalIndex,
             localExitRoot,
-            _LEAF_TYPE_ASSET,
-            originNetwork,
-            originTokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata
+            leafData
         );
 
         // Transfer funds
@@ -1473,27 +1463,22 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
 
-        // Events
-        emit ClaimEvent(
-            globalIndex,
-            originNetwork,
-            originAddress,
-            destinationAddress,
-            amount
-        );
-
-        // Emit detailed event with empty root for message claim
-        _emitDetailedClaimEvent(
+        LeafData memory leafData = LeafData({
+            leafType: _LEAF_TYPE_MESSAGE,
+            originNetwork: originNetwork,
+            originAddress: originAddress,
+            destinationNetwork: destinationNetwork,
+            destinationAddress: destinationAddress,
+            amount: amount,
+            metadata: metadata
+        });
+    
+        // Emit detailed event with empty root for asset claim
+        _emitClaimEvents(
             smtProof,
             globalIndex,
             localExitRoot,
-            _LEAF_TYPE_MESSAGE,
-            originNetwork,
-            originAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata
+            leafData
         );
 
         // Execute message
@@ -1510,18 +1495,22 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     /**
      * @dev Helper to emit detailed claim event for LER claims (stack too deep helper)
      */
-    function _emitDetailedClaimEvent(
+    function _emitClaimEvents(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint256 globalIndex,
         bytes32 localExitRoot,
-        uint8 leafType,
-        uint32 originNetwork,
-        address originTokenAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes calldata metadata
+        LeafData memory leafData
     ) internal {
+
+        // Events
+        emit ClaimEvent(
+            globalIndex,
+            leafData.originNetwork,
+            leafData.originAddress,
+            leafData.destinationAddress,
+            leafData.amount
+        );
+    
         // Empty proof and empty root to reuse DetailedClaimEvent structure
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
         bytes32 emptyRoot = bytes32(0);
@@ -1532,13 +1521,13 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             globalIndex,
             localExitRoot,
             emptyRoot,
-            leafType,
-            originNetwork,
-            originTokenAddress,
-            destinationNetwork,
-            destinationAddress,
-            amount,
-            metadata
+            leafData.leafType,
+            leafData.originNetwork,
+            leafData.originAddress,
+            leafData.destinationNetwork,
+            leafData.destinationAddress,
+            leafData.amount,
+            leafData.metadata
         );
     }
 
