@@ -5,7 +5,11 @@ import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import { ERC20PermitMock, AgglayerGERL2, AgglayerBridgeL2, TokenWrapped } from '../../typechain-types';
-import { computeWrappedTokenProxyAddress, claimBeforeBridge } from './helpers/helpers-sovereign-bridge';
+import {
+    computeWrappedTokenProxyAddress,
+    claimBeforeBridge,
+    deploySovereignBridgeContract,
+} from './helpers/helpers-sovereign-bridge';
 import { valueToStorageBytes } from '../../src/utils';
 
 const MerkleTreeBridge = MTBridge;
@@ -70,11 +74,7 @@ describe('AgglayerBridgeL2 Contract', () => {
         // Set trusted sequencer as coinbase for sovereign chains
         await ethers.provider.send('hardhat_setCoinbase', [deployer.address]);
         // deploy AgglayerBridgeL2
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
-        sovereignChainBridgeContract = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as AgglayerBridgeL2;
+        sovereignChainBridgeContract = (await deploySovereignBridgeContract()) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager
         const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory('AgglayerGERL2');
@@ -152,8 +152,8 @@ describe('AgglayerBridgeL2 Contract', () => {
             deployer.address,
             tokenInitialBalance,
         );
-        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.2.0');
-        expect(await sovereignChainGlobalExitRootContract.version()).to.be.equal('v1.0.0');
+        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.3.0');
+        expect(await sovereignChainGlobalExitRootContract.version()).to.be.equal('v1.1.0');
     });
 
     it('Should remap source 6 decimal token to 18 sovereign wrapped token and bridge', async () => {
@@ -312,10 +312,7 @@ describe('AgglayerBridgeL2 Contract', () => {
         // deploy PolygonZkEVMBridge
         // eslint-disable-next-line @typescript-eslint/no-shadow
         const sovereignChainBridgeContract = await ethers.getContractFactory('AgglayerBridgeL2');
-        const bridge = await upgrades.deployProxy(sovereignChainBridgeContract, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        });
+        const bridge = await deploySovereignBridgeContract();
 
         // Gas token network should be zero if gas token address is zero
         await expect(

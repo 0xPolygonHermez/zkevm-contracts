@@ -580,7 +580,6 @@ contract AgglayerBridge is
         _transferFundsClaim(
             originNetwork,
             originTokenAddress,
-            destinationNetwork,
             destinationAddress,
             amount,
             metadata
@@ -590,7 +589,6 @@ contract AgglayerBridge is
     function _transferFundsClaim(
         uint32 originNetwork,
         address originTokenAddress,
-        uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
@@ -758,7 +756,6 @@ contract AgglayerBridge is
         _executeMessage(
             originNetwork,
             originAddress,
-            destinationNetwork,
             destinationAddress,
             amount,
             metadata
@@ -768,7 +765,6 @@ contract AgglayerBridge is
     function _executeMessage(
         uint32 originNetwork,
         address originAddress,
-        uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata

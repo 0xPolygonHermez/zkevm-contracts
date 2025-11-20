@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import { ERC20PermitMock, AgglayerGERL2, AgglayerBridgeL2 } from '../../typechain-types';
+import { deploySovereignBridgeContract } from './helpers/helpers-sovereign-bridge';
 
 const MerkleTreeBridge = MTBridge;
 const { verifyMerkleProof, getLeafValue } = mtBridgeUtils;
@@ -53,12 +54,8 @@ describe('LERs', () => {
         globalExitRootRemover = deployer;
         // Set trusted sequencer as coinbase for sovereign chains
         await ethers.provider.send('hardhat_setCoinbase', [deployer.address]);
-        // deploy AgglayerBridgeL2
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
-        bridge = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as AgglayerBridgeL2;
+
+        bridge = (await deploySovereignBridgeContract()) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager
         const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory('AgglayerGERL2');
@@ -128,7 +125,7 @@ describe('LERs', () => {
             deployer.address,
             tokenInitialBalance,
         );
-        expect(await bridge.version()).to.be.equal('v1.2.0');
+        expect(await bridge.version()).to.be.equal('v1.3.0');
         expect(await ger.version()).to.be.equal('v1.1.0');
     });
 

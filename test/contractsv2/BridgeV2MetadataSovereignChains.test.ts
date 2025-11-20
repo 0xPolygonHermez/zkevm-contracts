@@ -9,6 +9,7 @@ import {
     ifacePermitDAI,
     createPermitSignatureUniType,
 } from '../../src/permit-helper';
+import { deploySovereignBridgeContract } from './helpers/helpers-sovereign-bridge';
 
 const MerkleTreeBridge = MTBridge;
 const { verifyMerkleProof, getLeafValue } = mtBridgeUtils;
@@ -43,12 +44,8 @@ describe('SovereignBridge Contract', () => {
         // load signers
         [deployer, rollupManager, , emergencyBridgePauser, proxiedTokensManager] = await ethers.getSigners();
 
-        // deploy PolygonZkEVMBridge
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
-        sovereignChainBridgeContract = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as AgglayerBridgeL2;
+        // deploy bridge
+        sovereignChainBridgeContract = (await deploySovereignBridgeContract()) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager
         const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory('AgglayerGERL2');

@@ -10,7 +10,11 @@ import {
     TokenWrappedBridgeUpgradeable,
     TokenWrappedTransparentProxy,
 } from '../../typechain-types';
-import { claimBeforeBridge, computeWrappedTokenProxyAddress } from './helpers/helpers-sovereign-bridge';
+import {
+    claimBeforeBridge,
+    computeWrappedTokenProxyAddress,
+    deploySovereignBridgeContract,
+} from './helpers/helpers-sovereign-bridge';
 
 describe('Upgradeable Tokens', () => {
     let deployer: any;
@@ -265,11 +269,8 @@ describe('Upgradeable Tokens', () => {
 
     it('Should deploy a bridge and claim asset in different chains with different arguments and check address is the same', async () => {
         // Deploy bridge 1 with upgradeable tokens
-        const sovBridgeFactory = await ethers.getContractFactory('AgglayerBridgeL2');
-        sovereignBridgeContract = (await upgrades.deployProxy(sovBridgeFactory, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as BridgeL2SovereignChainPessimistic;
+        sovereignBridgeContract =
+            (await deploySovereignBridgeContract()) as unknown as BridgeL2SovereignChainPessimistic;
 
         // Make snapshot
         const snapshot = await takeSnapshot();
@@ -383,8 +384,15 @@ describe('Upgradeable Tokens', () => {
         );
         const wrappedTokenImplementationAddress = await sovereignBridgeContract.getWrappedTokenBridgeImplementation();
         // Upgrade proxy
+        // deploy AgglayerBridgeL2Helper
+        const sovBridgeFactory = await ethers.getContractFactory('AgglayerBridgeL2');
+        const BridgeL2HelperFactory = await ethers.getContractFactory('AgglayerBridgeL2Helper');
+        const bridgeL2Helper = await BridgeL2HelperFactory.deploy();
+
+        // deploy AgglayerBridgeL2
         sovereignBridgeContract = (await upgrades.upgradeProxy(sovereignBridgeContract.target, sovBridgeFactory, {
             unsafeAllow: ['constructor', 'missing-initializer-call', 'missing-initializer'],
+            constructorArgs: [bridgeL2Helper.target],
             redeployImplementation: 'always',
         })) as unknown as AgglayerBridgeL2;
 

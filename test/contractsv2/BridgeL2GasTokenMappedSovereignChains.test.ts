@@ -3,7 +3,11 @@ import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import { ERC20PermitMock, AgglayerGERL2, AgglayerBridgeL2, TokenWrapped } from '../../typechain-types';
-import { computeWrappedTokenProxyAddress, claimBeforeBridge } from './helpers/helpers-sovereign-bridge';
+import {
+    computeWrappedTokenProxyAddress,
+    claimBeforeBridge,
+    deploySovereignBridgeContract,
+} from './helpers/helpers-sovereign-bridge';
 
 const MerkleTreeBridge = MTBridge;
 const { verifyMerkleProof, getLeafValue } = mtBridgeUtils;
@@ -62,12 +66,8 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
 
         // Set trusted sequencer as coinbase for sovereign chains
         await ethers.provider.send('hardhat_setCoinbase', [deployer.address]);
-        // deploy PolygonZkEVMBridge
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
-        sovereignChainBridgeContract = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as AgglayerBridgeL2;
+        // deploy bridge
+        sovereignChainBridgeContract = await deploySovereignBridgeContract();
 
         // deploy global exit root manager
         const SovereignChainGlobalExitRootFactory = await ethers.getContractFactory('AgglayerGERL2');

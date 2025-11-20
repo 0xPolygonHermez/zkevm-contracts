@@ -1,283 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity 0.8.28;
-
+import "./AgglayerBridgeL2Base.sol";
 import "../interfaces/IAgglayerBridgeL2.sol";
-import "../AgglayerBridge.sol";
-import "../interfaces/IAgglayerGERL2.sol";
-
 /**
  * Sovereign chains bridge that will be deployed on all Sovereign chains
  * Contract responsible to manage the token interactions with other networks
  * This contract is not meant to replace the current zkEVM bridge contract, but deployed on sovereign networks
  */
-contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
+contract AgglayerBridgeL2 is AgglayerBridgeL2Base, IAgglayerBridgeL2 {
     using SafeERC20 for ITokenWrappedBridgeUpgradeable;
     // address used to permission the initialization of the contract
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address private immutable deployer;
-
-    // Current bridge version
-    string internal constant BRIDGE_SOVEREIGN_VERSION = "v1.2.0";
-
-    // Struct to represent leaf data for forwardLET function
-    struct LeafData {
-        uint8 leafType;
-        uint32 originNetwork;
-        address originAddress;
-        uint32 destinationNetwork;
-        address destinationAddress;
-        uint256 amount;
-        bytes metadata;
-    }
-
-    /**
-     * @notice Struct to represent claim data for forceEmitDetailedClaimEvent function
-     * @dev Contains all parameters needed to verify and emit a DetailedClaimEvent
-     */
-    struct ClaimData {
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] smtProofLocalExitRoot;
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] smtProofRollupExitRoot;
-        uint256 globalIndex;
-        bytes32 localExitRoot;
-        bytes32 rollupExitRoot;
-        uint8 leafType;
-        uint32 originNetwork;
-        address originAddress;
-        uint32 destinationNetwork;
-        address destinationAddress;
-        uint256 amount;
-        bytes metadata;
-    }
-
-    // Map to store wrappedAddresses that are not mintable
-    mapping(address wrappedAddress => bool isNotMintable)
-        public wrappedAddressIsNotMintable;
-
-    // Bridge manager address; can set custom mapping for any token. It's highly recommend to set a timelock at this address after bootstrapping phase
-    address public bridgeManager;
-
-    // Emergency bridge pauser address: can pause the bridge in case of emergency, both bridges and claims
-    address public emergencyBridgePauser;
-
-    // Claimed global index hash chain, updated for every bridge claim as follows
-    // newClaimedGlobalIndexHashChain = Keccak256(oldClaimedGlobalIndexHashChain,bytes32(claimedGlobalIndex));
-    bytes32 public claimedGlobalIndexHashChain;
-
-    // Unset global index hash chain, updated every time the bridge manager unset a claim
-    // This should be use only in edge-case/emergency circumstances
-    // newUnsetGlobalIndexHashChain = Keccak256(oldUnsetGlobalIndexHashChain,bytes32(removedGlobalIndex));
-    bytes32 public unsetGlobalIndexHashChain;
-
-    // Local balance tree mapping
-    mapping(bytes32 tokenInfoHash => uint256 amount) public localBalanceTree;
-
-    /// @dev Deprecated in favor of _initializerVersion at AgglayerBridge
-    /// @custom:oz-renamed-from _initializerVersion
-    uint8 private _initializerVersionLegacy;
-
-    //  This account will be able to accept the emergencyBridgePauser role
-    address public pendingEmergencyBridgePauser;
-
-    // Emergency bridge unpauser address: can unpause the bridge, both bridges and claims
-    address public emergencyBridgeUnpauser;
-
-    // This account will be able to accept the emergencyBridgeUnpauser role
-    address public pendingEmergencyBridgeUnpauser;
-
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     */
-    uint256[48] private __gap;
-
-    /**
-     * @dev Emitted when a bridge manager is updated
-     */
-    event SetBridgeManager(address bridgeManager);
-
-    /**
-     * @notice Emitted when the emergencyBridgePauser starts the two-step transfer role setting a new pending emergencyBridgePauser.
-     * @param currentEmergencyBridgePauser The current emergencyBridgePauser.
-     * @param newEmergencyBridgePauser The new pending emergencyBridgePauser.
-     */
-    event TransferEmergencyBridgePauserRole(
-        address currentEmergencyBridgePauser,
-        address newEmergencyBridgePauser
-    );
-
-    /**
-     * @notice Emitted when the pending emergencyBridgePauser accepts the emergencyBridgePauser role.
-     * @param oldEmergencyBridgePauser The previous emergencyBridgePauser.
-     * @param newEmergencyBridgePauser The new emergencyBridgePauser.
-     */
-    event AcceptEmergencyBridgePauserRole(
-        address oldEmergencyBridgePauser,
-        address newEmergencyBridgePauser
-    );
-
-    /**
-     * @notice Emitted when the emergencyBridgeUnpauser starts the two-step transfer role setting a new pending emergencyBridgeUnpauser.
-     * @param currentEmergencyBridgeUnpauser The current emergencyBridgeUnpauser.
-     * @param newEmergencyBridgeUnpauser The new pending emergencyBridgeUnpauser.
-     */
-    event TransferEmergencyBridgeUnpauserRole(
-        address currentEmergencyBridgeUnpauser,
-        address newEmergencyBridgeUnpauser
-    );
-
-    /**
-     * @notice Emitted when the pending emergencyBridgeUnpauser accepts the emergencyBridgeUnpauser role.
-     * @param oldEmergencyBridgeUnpauser The previous emergencyBridgeUnpauser.
-     * @param newEmergencyBridgeUnpauser The new emergencyBridgeUnpauser.
-     */
-    event AcceptEmergencyBridgeUnpauserRole(
-        address oldEmergencyBridgeUnpauser,
-        address newEmergencyBridgeUnpauser
-    );
-
-    /**
-     * @dev Emitted when a token address is remapped by a sovereign token address
-     */
-    event SetSovereignTokenAddress(
-        uint32 originNetwork,
-        address originTokenAddress,
-        address sovereignTokenAddress,
-        bool isNotMintable
-    );
-
-    /**
-     * @dev Emitted when a legacy token is migrated to a new token
-     */
-    event MigrateLegacyToken(
-        address sender,
-        address legacyTokenAddress,
-        address updatedTokenAddress,
-        uint256 amount
-    );
-
-    /**
-     * @dev Emitted when a remapped token is removed from mapping
-     */
-    event RemoveLegacySovereignTokenAddress(address sovereignTokenAddress);
-
-    /**
-     * @dev Emitted when a WETH address is remapped by a sovereign WETH address
-     */
-    event SetSovereignWETHAddress(
-        address sovereignWETHTokenAddress,
-        bool isNotMintable
-    );
-
-    /**
-     * @dev Emitted when the claimed global index hash chain is updated (new claim)
-     * @param claimedGlobalIndex Global index added to the hash chain
-     * @param newClaimedGlobalIndexHashChain New global index hash chain value
-     */
-    event UpdatedClaimedGlobalIndexHashChain(
-        bytes32 claimedGlobalIndex,
-        bytes32 newClaimedGlobalIndexHashChain
-    );
-
-    /**
-     * @dev Emitted when the unset global index hash chain is updated
-     * @param unsetGlobalIndex Global index added to the hash chain
-     * @param newUnsetGlobalIndexHashChain New global index hash chain value
-     */
-    event UpdatedUnsetGlobalIndexHashChain(
-        bytes32 unsetGlobalIndex,
-        bytes32 newUnsetGlobalIndexHashChain
-    );
-
-    /**
-     * @dev Emitted when a claim is set
-     * @param globalIndex Global index set
-     */
-    event SetClaim(bytes32 globalIndex);
-
-    /**
-     * @dev Emitted when local exit tree is moved backward
-     * @param previousDepositCount The deposit count before moving backward
-     * @param previousRoot The root of the local exit tree before moving backward
-     * @param newDepositCount The resulting deposit count after moving backward
-     * @param newRoot The resulting root of the local exit tree after moving backward
-     */
-    event BackwardLET(
-        uint256 previousDepositCount,
-        bytes32 previousRoot,
-        uint256 newDepositCount,
-        bytes32 newRoot
-    );
-
-    /**
-     * @dev Emitted when local exit tree is moved forward
-     * @param previousDepositCount The deposit count before moving forward
-     * @param previousRoot The root of the local exit tree before moving forward
-     * @param newDepositCount The resulting deposit count after moving forward
-     * @param newRoot The resulting root of the local exit tree after moving forward
-     * @param newLeaves The raw bytes of all new leaves added
-     */
-    event ForwardLET(
-        uint256 previousDepositCount,
-        bytes32 previousRoot,
-        uint256 newDepositCount,
-        bytes32 newRoot,
-        bytes newLeaves
-    );
-
-    /**
-     * @dev Emitted when local balance tree is updated
-     * @param originNetwork The origin network of the set leaf
-     * @param originTokenAddress The origin token address of the set leaf
-     * @param newAmount The new amount set for this token
-     */
-    event SetLocalBalanceTree(
-        uint32 indexed originNetwork,
-        address indexed originTokenAddress,
-        uint256 newAmount
-    );
-
-    /**
-     * @dev Emitted when a claim is processed on L2 rollups for better gas efficiency
-     * @dev This event can be emitted on rollups because gas costs are cheaper than on L1
-     * @param smtProofLocalExitRoot Smt proof to proof the leaf against the network exit root
-     * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot against the rollups exit root
-     * @param globalIndex Global index of the claim
-     * @param localExitRoot Mainnet exit root
-     * @param rollupExitRoot Rollup exit root
-     * @param originNetwork Origin network
-     * @param originTokenAddress Origin token address
-     * @param destinationNetwork Network destination
-     * @param destinationAddress Address destination
-     * @param amount Amount of tokens
-     * @param metadata Abi encoded metadata if any, empty otherwise
-     */
-    event DetailedClaimEvent(
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] smtProofLocalExitRoot,
-        bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] smtProofRollupExitRoot,
-        uint256 indexed globalIndex,
-        bytes32 localExitRoot,
-        bytes32 rollupExitRoot,
-        uint8 leafType,
-        uint32 originNetwork,
-        address originTokenAddress,
-        uint32 destinationNetwork,
-        address indexed destinationAddress,
-        uint256 amount,
-        bytes metadata
-    );
+    // address used to delegate calls to helper contract
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    address public immutable bridgeL2Helper;
 
     /**
      * Disable initializers on the implementation following the best practices
      * @dev the deployer is set to the contract creator and will be the only allowed to initialize the contract in a 2 steps process
      */
-    constructor() AgglayerBridge() {
+    constructor(address _bridgeL2Helper) AgglayerBridge() {
         deployer = msg.sender;
+        bridgeL2Helper = _bridgeL2Helper;
         _disableInitializers();
     }
 
     /**
-     * @notice Initialize the AgglayerBridgeL2 contract
+     * @dev initializer function to set the initial values of the contract when the contract is deployed for the first time
      * @param _networkID networkID
      * @param _gasTokenAddress gas token address
      * @param _gasTokenNetwork gas token network
@@ -306,7 +57,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address _emergencyBridgePauser,
         address _emergencyBridgeUnpauser,
         address _proxiedTokensManager
-    ) public virtual reinitializer(3) {
+    ) public reinitializer(3) {
         // only the deployer can initialize the contract.
         /// @dev the complexity of the initializes makes it very complex to deploy a proxy and
         /// @dev initialize the contract in an atomic transaction, so we need to permission the function to avoid frontrunning attacks
@@ -405,38 +156,33 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         revert InvalidInitializeFunction();
     }
 
-    modifier onlyBridgeManager() {
-        if (bridgeManager != msg.sender) {
-            revert OnlyBridgeManager();
+    /// @custom:oz-upgrades-unsafe-allow delegatecall
+    function _delegateToHelper() internal {
+        address helper = bridgeL2Helper;
+        assembly {
+            // copy calldata
+            calldatacopy(0, 0, calldatasize())
+
+            // delegatecall to the function implementation (bridgeL2Helper)
+            let result := delegatecall(gas(), helper, 0, calldatasize(), 0, 0)
+
+            // copy returndata
+            returndatacopy(0, 0, returndatasize())
+
+            // revert or return depending on result
+            switch result
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
         }
-        _;
     }
 
-    modifier onlyEmergencyBridgePauser() {
-        if (emergencyBridgePauser != msg.sender) {
-            revert OnlyEmergencyBridgePauser();
-        }
-        _;
-    }
-
-    modifier onlyEmergencyBridgeUnpauser() {
-        if (emergencyBridgeUnpauser != msg.sender) {
-            revert OnlyEmergencyBridgeUnpauser();
-        }
-        _;
-    }
-
-    modifier onlyGlobalExitRootRemover() {
-        // Only allowed to be called by GlobalExitRootRemover
-        if (
-            IAgglayerGERL2(address(globalExitRootManager))
-                .globalExitRootRemover() != msg.sender
-        ) {
-            revert OnlyGlobalExitRootRemover();
-        }
-        _;
-    }
-
+    //////////////////////////////////////////////////////////////////////
+    /// Functions that use the functions implemented by AgglayerBridge ///
+    //////////////////////////////////////////////////////////////////////
     /**
      * @notice Remap multiple wrapped tokens to a new sovereign token address
      * @dev This function is a "multi/batch call" to `setSovereignTokenAddress`
@@ -451,23 +197,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address[] memory sovereignTokenAddresses,
         bool[] memory isNotMintable
     ) external virtual onlyBridgeManager {
-        if (
-            originNetworks.length != originTokenAddresses.length ||
-            originNetworks.length != sovereignTokenAddresses.length ||
-            originNetworks.length != isNotMintable.length
-        ) {
-            revert InputArraysLengthMismatch();
-        }
-
-        // Make multiple calls to setSovereignTokenAddress
-        for (uint256 i = 0; i < sovereignTokenAddresses.length; i++) {
-            _setSovereignTokenAddress(
-                originNetworks[i],
-                originTokenAddresses[i],
-                sovereignTokenAddresses[i],
-                isNotMintable[i]
-            );
-        }
+        _delegateToHelper();
     }
 
     /**
@@ -491,44 +221,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address sovereignTokenAddress,
         bool isNotMintable
     ) internal {
-        // origin and sovereign token address are not 0
-        if (
-            originTokenAddress == address(0) ||
-            sovereignTokenAddress == address(0)
-        ) {
-            revert InvalidZeroAddress();
-        }
-        // originNetwork != current network, wrapped tokens are always from other networks
-        if (originNetwork == networkID) {
-            revert OriginNetworkInvalid();
-        }
-        // Check if the token is already mapped
-        if (
-            wrappedTokenToTokenInfo[sovereignTokenAddress].originTokenAddress !=
-            address(0)
-        ) {
-            revert TokenAlreadyMapped();
-        }
-
-        // Compute token info hash
-        bytes32 tokenInfoHash = keccak256(
-            abi.encodePacked(originNetwork, originTokenAddress)
-        );
-        // Set the address of the wrapper
-        tokenInfoToWrappedToken[tokenInfoHash] = sovereignTokenAddress;
-        // Set the token info mapping
-        // @note wrappedTokenToTokenInfo mapping is not overwritten while tokenInfoToWrappedToken it is
-        wrappedTokenToTokenInfo[sovereignTokenAddress] = TokenInformation(
-            originNetwork,
-            originTokenAddress
-        );
-        wrappedAddressIsNotMintable[sovereignTokenAddress] = isNotMintable;
-        emit SetSovereignTokenAddress(
-            originNetwork,
-            originTokenAddress,
-            sovereignTokenAddress,
-            isNotMintable
-        );
+        _delegateToHelper();
     }
 
     /**
@@ -540,29 +233,8 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function removeLegacySovereignTokenAddress(
         address legacySovereignTokenAddress
     ) external virtual onlyBridgeManager {
-        // Only allow to remove already remapped tokens
-        TokenInformation memory tokenInfo = wrappedTokenToTokenInfo[
-            legacySovereignTokenAddress
-        ];
-        bytes32 tokenInfoHash = keccak256(
-            abi.encodePacked(
-                tokenInfo.originNetwork,
-                tokenInfo.originTokenAddress
-            )
-        );
-
-        if (
-            tokenInfoToWrappedToken[tokenInfoHash] == address(0) ||
-            tokenInfoToWrappedToken[tokenInfoHash] ==
-            legacySovereignTokenAddress
-        ) {
-            revert TokenNotRemapped();
-        }
-        delete wrappedTokenToTokenInfo[legacySovereignTokenAddress];
-        delete wrappedAddressIsNotMintable[legacySovereignTokenAddress];
-        emit RemoveLegacySovereignTokenAddress(legacySovereignTokenAddress);
+        _delegateToHelper();
     }
-
     /**
      * @notice Set the custom wrapper for weth
      * @notice If this function is called multiple times this will override the previous calls and only keep the last WETHToken.
@@ -574,19 +246,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address sovereignWETHTokenAddress,
         bool isNotMintable
     ) external virtual onlyBridgeManager {
-        _setSovereignWETHAddress(sovereignWETHTokenAddress, isNotMintable);
-    }
-
-    function _setSovereignWETHAddress(
-        address sovereignWETHTokenAddress,
-        bool isNotMintable
-    ) internal {
-        if (gasTokenAddress == address(0)) {
-            revert WETHRemappingNotSupportedOnGasTokenNetworks();
-        }
-        WETHToken = ITokenWrappedBridgeUpgradeable(sovereignWETHTokenAddress);
-        wrappedAddressIsNotMintable[sovereignWETHTokenAddress] = isNotMintable;
-        emit SetSovereignWETHAddress(sovereignWETHTokenAddress, isNotMintable);
+        _delegateToHelper();
     }
 
     /**
@@ -656,31 +316,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function unsetMultipleClaims(
         uint256[] memory globalIndexes
     ) external virtual onlyGlobalExitRootRemover {
-        for (uint256 i = 0; i < globalIndexes.length; i++) {
-            uint256 globalIndex = globalIndexes[i];
-
-            // Validate and decode global index using shared logic
-            // second parameter: rollupIndex not used
-            (
-                uint32 leafIndex,
-                ,
-                uint32 sourceBridgeNetwork
-            ) = _validateAndDecodeGlobalIndex(globalIndex);
-
-            // Unset the claim
-            _unsetClaimedBitmap(leafIndex, sourceBridgeNetwork);
-
-            // Update globalIndexHashChain
-            unsetGlobalIndexHashChain = Hashes.efficientKeccak256(
-                unsetGlobalIndexHashChain,
-                bytes32(globalIndex)
-            );
-
-            emit UpdatedUnsetGlobalIndexHashChain(
-                bytes32(globalIndex),
-                unsetGlobalIndexHashChain
-            );
-        }
+        _delegateToHelper();
     }
 
     /**
@@ -693,22 +329,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function setMultipleClaims(
         uint256[] memory globalIndexes
     ) external virtual onlyGlobalExitRootRemover {
-        for (uint256 i = 0; i < globalIndexes.length; i++) {
-            uint256 globalIndex = globalIndexes[i];
-
-            // Validate and decode global index using shared logic
-            // second parameter: rollupIndex not used
-            (
-                uint32 leafIndex,
-                ,
-                uint32 sourceBridgeNetwork
-            ) = _validateAndDecodeGlobalIndex(globalIndex);
-
-            // Set the claim
-            _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
-
-            emit SetClaim(bytes32(globalIndex));
-        }
+        _delegateToHelper();
     }
 
     /**
@@ -860,24 +481,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function forceEmitDetailedClaimEvent(
         ClaimData[] calldata claims
     ) external virtual onlyGlobalExitRootRemover {
-        for (uint256 i = 0; i < claims.length; ++i) {
-            ClaimData calldata claim = claims[i];
-
-            emit DetailedClaimEvent(
-                claim.smtProofLocalExitRoot,
-                claim.smtProofRollupExitRoot,
-                claim.globalIndex,
-                claim.localExitRoot,
-                claim.rollupExitRoot,
-                claim.leafType,
-                claim.originNetwork,
-                claim.originAddress,
-                claim.destinationNetwork,
-                claim.destinationAddress,
-                claim.amount,
-                claim.metadata
-            );
-        }
+        _delegateToHelper();
     }
 
     /**
@@ -893,35 +497,8 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address[] memory originTokenAddress,
         uint256[] memory amount
     ) external virtual onlyGlobalExitRootRemover ifEmergencyState {
-        if (
-            originNetwork.length != originTokenAddress.length ||
-            originNetwork.length != amount.length
-        ) {
-            revert InputArraysLengthMismatch();
-        }
-
-        for (uint256 i = 0; i < originNetwork.length; i++) {
-            // Ensures that only tokens from other networks are updated in the Local Balance Tree.
-            if (originNetwork[i] == networkID) {
-                revert InvalidLBTLeaf();
-            }
-
-            // Compute token info hash
-            bytes32 tokenInfoHash = keccak256(
-                abi.encodePacked(originNetwork[i], originTokenAddress[i])
-            );
-            // Set the local balance tree
-            localBalanceTree[tokenInfoHash] = amount[i];
-
-            // Emit event
-            emit SetLocalBalanceTree(
-                originNetwork[i],
-                originTokenAddress[i],
-                amount[i]
-            );
-        }
+        _delegateToHelper();
     }
-
     /**
      * @notice Function to deploy an upgradeable wrapped token without having to claim asset. It is used to upgrade legacy tokens to the new upgradeable token. After deploying the token it is remapped to be the new functional wtoken
      * @notice This function can only be called once for each originNetwork/originTokenAddress pair because it deploys a deterministic contract with create2
@@ -935,60 +512,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         address originTokenAddress,
         bool isNotMintable
     ) external virtual onlyBridgeManager {
-        /// @dev Check the token is not native from this network is done at `_setSovereignTokenAddress`
-
-        if (
-            originTokenAddress == address(0) &&
-            originNetwork == _MAINNET_NETWORK_ID
-        ) {
-            // Deploy weth only supported for chains with gas token where weth address is not zero
-            /// @dev Check the chain is a gas token chain is done at `_setSovereignWETHAddress`
-            // Deploy the proxied weth token
-            address wrappedTokenProxy = address(
-                _deployWrappedToken(
-                    bytes32(0), // tokenInfoHash is 0 for weth
-                    abi.encode(
-                        WETHToken.name(),
-                        WETHToken.symbol(),
-                        WETHToken.decimals()
-                    )
-                )
-            );
-
-            // Remap the deployed wrapped token
-            _setSovereignWETHAddress(wrappedTokenProxy, isNotMintable);
-        } else {
-            // Compute tokenInfoHash
-            bytes32 tokenInfoHash = keccak256(
-                abi.encodePacked(originNetwork, originTokenAddress)
-            );
-            ITokenWrappedBridgeUpgradeable wrappedToken = ITokenWrappedBridgeUpgradeable(
-                    tokenInfoToWrappedToken[tokenInfoHash]
-                );
-
-            // Only allow to deploy a wrapped token if the token is mapped, meaning is a legacy (non upgradeable) wrapped token that will be updated to upgradeable version
-            require(address(wrappedToken) != address(0), TokenNotMapped());
-
-            // Deploy the wrapped token
-            address wrappedTokenProxy = address(
-                _deployWrappedToken(
-                    tokenInfoHash,
-                    abi.encode(
-                        wrappedToken.name(),
-                        wrappedToken.symbol(),
-                        wrappedToken.decimals()
-                    )
-                )
-            );
-
-            // Remap the deployed wrapped token
-            _setSovereignTokenAddress(
-                originNetwork,
-                originTokenAddress,
-                wrappedTokenProxy,
-                isNotMintable
-            );
-        }
+        _delegateToHelper();
     }
 
     /**
@@ -1019,31 +543,14 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function transferEmergencyBridgePauserRole(
         address newEmergencyBridgePauser
     ) external virtual onlyEmergencyBridgePauser {
-        pendingEmergencyBridgePauser = newEmergencyBridgePauser;
-
-        emit TransferEmergencyBridgePauserRole(
-            emergencyBridgePauser,
-            newEmergencyBridgePauser
-        );
+        _delegateToHelper();
     }
 
     /**
      * @notice Allow the current pending emergencyBridgePauser to accept the emergencyBridgePauser role
      */
     function acceptEmergencyBridgePauserRole() external virtual {
-        require(
-            pendingEmergencyBridgePauser == msg.sender,
-            OnlyPendingEmergencyBridgePauser()
-        );
-
-        address oldEmergencyBridgePauser = emergencyBridgePauser;
-        emergencyBridgePauser = pendingEmergencyBridgePauser;
-        delete pendingEmergencyBridgePauser;
-
-        emit AcceptEmergencyBridgePauserRole(
-            oldEmergencyBridgePauser,
-            emergencyBridgePauser
-        );
+        _delegateToHelper();
     }
 
     /**
@@ -1054,31 +561,14 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     function transferEmergencyBridgeUnpauserRole(
         address newEmergencyBridgeUnpauser
     ) external virtual onlyEmergencyBridgeUnpauser {
-        pendingEmergencyBridgeUnpauser = newEmergencyBridgeUnpauser;
-
-        emit TransferEmergencyBridgeUnpauserRole(
-            emergencyBridgeUnpauser,
-            newEmergencyBridgeUnpauser
-        );
+        _delegateToHelper();
     }
 
     /**
      * @notice Allow the current pending emergencyBridgeUnpauser to accept the emergencyBridgeUnpauser role
      */
     function acceptEmergencyBridgeUnpauserRole() external virtual {
-        require(
-            pendingEmergencyBridgeUnpauser == msg.sender,
-            OnlyPendingEmergencyBridgeUnpauser()
-        );
-
-        address oldEmergencyBridgeUnpauser = emergencyBridgeUnpauser;
-        emergencyBridgeUnpauser = pendingEmergencyBridgeUnpauser;
-        delete pendingEmergencyBridgeUnpauser;
-
-        emit AcceptEmergencyBridgeUnpauserRole(
-            oldEmergencyBridgeUnpauser,
-            emergencyBridgeUnpauser
-        );
+        _delegateToHelper();
     }
 
     ////////////////////////////
@@ -1136,28 +626,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         } else {
             // Claim tokens
             tokenWrapped.mint(destinationAddress, amount);
-        }
-    }
-
-    /**
-     * @notice unset a claim from the claimedBitmap
-     * @param leafIndex Index
-     * @param sourceBridgeNetwork Origin network
-     */
-    function _unsetClaimedBitmap(
-        uint32 leafIndex,
-        uint32 sourceBridgeNetwork
-    ) private {
-        uint256 globalIndex = uint256(leafIndex) +
-            uint256(sourceBridgeNetwork) *
-            _MAX_LEAFS_PER_NETWORK;
-
-        (uint256 wordPos, uint256 bitPos) = _bitmapPositions(globalIndex);
-
-        uint256 mask = 1 << bitPos;
-        uint256 flipped = claimedBitMap[wordPos] ^= mask;
-        if (flipped & mask != 0) {
-            revert ClaimNotSet();
         }
     }
 
@@ -1222,7 +690,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
     {
         _deactivateEmergencyState();
     }
-    
+
     /**
      * @notice Function to claim a message from a Local Exit Root (LER)
      * @dev This function allows users to claim messages that were sent via the bridge and recorded in a Local Exit Root.
@@ -1363,45 +831,44 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         );
 
         // Update Local Balance Tree
-        _increaseLocalBalanceTree(leafData.originNetwork, leafData.originAddress, leafData.amount);
+        _increaseLocalBalanceTree(
+            leafData.originNetwork,
+            leafData.originAddress,
+            leafData.amount
+        );
 
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
-    
-        // Emit detailed event with empty root for asset claim
-        _emitClaimEvents(
-            smtProof,
-            globalIndex,
-            localExitRoot,
-            leafData
-        );
 
-        if(leafData.leafType == _LEAF_TYPE_ASSET) {
+        // Emit detailed event with empty root for asset claim
+        _emitClaimEvents(smtProof, globalIndex, localExitRoot, leafData);
+
+        if (leafData.leafType == _LEAF_TYPE_ASSET) {
             // Transfer funds
             _transferFundsClaim(
                 leafData.originNetwork,
                 leafData.originAddress,
-                leafData.destinationNetwork,
                 leafData.destinationAddress,
                 leafData.amount,
                 metadata
             );
-        } 
-        
-        if(leafData.leafType == _LEAF_TYPE_MESSAGE) {
+        }
+
+        if (leafData.leafType == _LEAF_TYPE_MESSAGE) {
             // Execute message
             _executeMessage(
                 leafData.originNetwork,
                 leafData.originAddress,
-                leafData.destinationNetwork,
                 leafData.destinationAddress,
                 leafData.amount,
                 metadata
             );
-        }  
+        }
     }
 
-    function _getLeafValue(LeafData memory leafData) internal pure returns (bytes32) {
+    function _getLeafValue(
+        LeafData memory leafData
+    ) internal pure returns (bytes32) {
         return
             getLeafValue(
                 leafData.leafType,
@@ -1423,7 +890,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
         bytes32 localExitRoot,
         LeafData memory leafData
     ) internal {
-
         // Events
         emit ClaimEvent(
             globalIndex,
@@ -1432,7 +898,7 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             leafData.destinationAddress,
             leafData.amount
         );
-    
+
         // Empty proof and empty root to reuse DetailedClaimEvent structure
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] memory emptyProof;
         bytes32 emptyRoot = bytes32(0);

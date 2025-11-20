@@ -8,7 +8,11 @@ import {
     AgglayerBridgeL2,
     TokenWrapped,
 } from '../../typechain-types';
-import { claimBeforeBridge, computeWrappedTokenProxyAddress } from './helpers/helpers-sovereign-bridge';
+import {
+    claimBeforeBridge,
+    computeWrappedTokenProxyAddress,
+    deploySovereignBridgeContract,
+} from './helpers/helpers-sovereign-bridge';
 
 const MerkleTreeBridge = MTBridge;
 const { verifyMerkleProof, getLeafValue } = mtBridgeUtils;
@@ -65,11 +69,7 @@ describe('AgglayerBridgeL2 Contract Upgrade AL', () => {
         // Set trusted sequencer as coinbase for sovereign chains
         await ethers.provider.send('hardhat_setCoinbase', [deployer.address]);
         // deploy AgglayerBridgeL2
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
-        sovereignChainBridgeContract = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as AgglayerBridgeL2;
+        sovereignChainBridgeContract = (await deploySovereignBridgeContract()) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager pessimistic
         const GlobalExitRootManagerL2SovereignChainPessimisticFactory = await ethers.getContractFactory(
@@ -268,11 +268,7 @@ describe('AgglayerBridgeL2 Contract Upgrade AL', () => {
     it('should check the initialize function', async () => {
         // deploy PolygonZkEVMBridge
         // eslint-disable-next-line @typescript-eslint/no-shadow
-        const sovereignChainBridgeContract = await ethers.getContractFactory('AgglayerBridgeL2');
-        const bridge = await upgrades.deployProxy(sovereignChainBridgeContract, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        });
+        const bridge = await deploySovereignBridgeContract();
 
         // Gas token network should be zero if gas token address is zero
         await expect(
