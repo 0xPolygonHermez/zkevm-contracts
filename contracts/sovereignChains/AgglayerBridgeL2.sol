@@ -10,6 +10,7 @@ import "../interfaces/IAgglayerBridgeL2.sol";
  */
 contract AgglayerBridgeL2 is AgglayerBridgeL2Base, IAgglayerBridgeL2 {
     using SafeERC20 for ITokenWrappedBridgeUpgradeable;
+
     // address used to permission the initialization of the contract
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address private immutable deployer;

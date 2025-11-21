@@ -381,16 +381,16 @@ contract AgglayerGERL2 is
      *      bytes[] metadatas;
      *}
      */
-    function insertAndClaimsAssetFromLERs(
+    function insertAndClaimAssetsFromLERs(
         ClaimParams[] calldata params
     ) external virtual onlyGlobalExitRootUpdater {
         for (uint256 i = 0; i < params.length; i++) {
-            insertAndClaimsAssetFromLER(params[i]);
+            insertAndClaimAssetsFromLER(params[i]);
         }
     }
 
     /**
-     * @notice Insert multiple LERs and claim multiple assets from LERs in a single transaction
+     * @notice Insert one LER and claim multiple assets from LER in a single transaction
      * @param params ClaimParams struct containing all other required arrays
      * struct {
      *      uint32 networkID;
@@ -405,7 +405,7 @@ contract AgglayerGERL2 is
      *      bytes[] metadatas;
      *}
      */
-    function insertAndClaimsAssetFromLER(
+    function insertAndClaimAssetsFromLER(
         ClaimParams calldata params
     ) public virtual onlyGlobalExitRootUpdater {
         _validateClaimArrays(params);
@@ -430,7 +430,7 @@ contract AgglayerGERL2 is
     }
 
     /**
-     * @notice Insert multiple LERs and claim multiple assets from LERs in a single transaction
+     * @notice Insert multiple LERs and claim multiple messages from LERs in a single transaction
      * @param params array of ClaimParams struct containing all other required arrays
      * struct {
      *      uint32 networkID;
@@ -445,16 +445,16 @@ contract AgglayerGERL2 is
      *      bytes[] metadatas;
      *}
      */
-    function insertAndClaimsMessageFromLERs(
+    function insertAndClaimMessagesFromLERs(
         ClaimParams[] calldata params
     ) external virtual onlyGlobalExitRootUpdater {
         for (uint256 i = 0; i < params.length; i++) {
-            insertAndClaimsMessageFromLER(params[i]);
+            insertAndClaimMessagesFromLER(params[i]);
         }
     }
 
     /**
-     * @notice Insert multiple LERs and claim multiple assets from LERs in a single transaction
+     * @notice Insert one LER and claim multiple messages from LER in a single transaction
      * @param params ClaimParams struct containing all other required arrays
      * struct {
      *      uint32 networkID;
@@ -469,7 +469,7 @@ contract AgglayerGERL2 is
      *      bytes[] metadatas;
      *}
      */
-    function insertAndClaimsMessageFromLER(
+    function insertAndClaimMessagesFromLER(
         ClaimParams calldata params
     ) public virtual onlyGlobalExitRootUpdater {
         _validateClaimArrays(params);

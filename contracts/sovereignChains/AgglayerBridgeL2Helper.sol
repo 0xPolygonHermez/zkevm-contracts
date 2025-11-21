@@ -13,7 +13,6 @@ import "./AgglayerBridgeL2Base.sol";
  * @dev Storage variables are duplicated from AgglayerBridgeL2 to ensure proper delegatecall behavior
  * @dev This contract is deployed separately and called via fallback in AgglayerBridgeL2
  */
-
 contract AgglayerBridgeL2Helper is AgglayerBridgeL2Base {
     ///////////////////////////////////////////////////////////////
     // OVERRIDE ALL INHERITED FUNCTIONS TO REVERT - BYTECODE OPTIMIZATION
