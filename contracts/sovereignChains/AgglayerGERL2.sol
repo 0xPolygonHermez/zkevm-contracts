@@ -295,38 +295,6 @@ contract AgglayerGERL2 is
     }
 
     /**
-     * @notice Insert new local exit root
-     * @param newLER new local exit root to insert
-     * @param networkID origin network of LER
-     */
-    function _insertLER(
-        bytes32 newLER,
-        uint32 networkID,
-        bytes32 initInsertLERHashChain
-    ) internal returns (bytes32) {
-        bytes32 keyLER = getHashLER(newLER, networkID);
-        bytes32 newInsertedLERHashChain = initInsertLERHashChain;
-        // do not insert LER if already set
-        if (localExitRootMap[keyLER] == false) {
-            localExitRootMap[keyLER] = true;
-            // Update hash chain value
-            newInsertedLERHashChain = Hashes.efficientKeccak256(
-                initInsertLERHashChain,
-                keyLER
-            );
-            // Emit update event
-            emit UpdateLERHashChainValue(
-                newLER,
-                networkID,
-                newInsertedLERHashChain
-            );
-        } else {
-            revert LocalExitRootAlreadySet();
-        }
-        return newInsertedLERHashChain;
-    }
-
-    /**
      * @notice Remove local exit root
      * @param lersToRemove array local exit root to remove
      * @param networkIDs array origin networks of LERs to remove
@@ -367,7 +335,7 @@ contract AgglayerGERL2 is
 
     /**
      * @notice Insert multiple LERs and claim multiple assets from LERs in a single transaction
-     * @param params array of ClaimParams struct containing all other required arrays
+     * @param claimsParams array of ClaimParams struct containing all other required arrays
      * struct {
      *      uint32 networkID;
      *      bytes32 localExitRoot;
@@ -382,16 +350,16 @@ contract AgglayerGERL2 is
      *}
      */
     function insertAndClaimAssetsFromLERs(
-        ClaimParams[] calldata params
+        ClaimParams[] calldata claimsParams
     ) external virtual onlyGlobalExitRootUpdater {
-        for (uint256 i = 0; i < params.length; i++) {
-            insertAndClaimAssetsFromLER(params[i]);
+        for (uint256 i = 0; i < claimsParams.length; i++) {
+            insertAndClaimAssetsFromLER(claimsParams[i]);
         }
     }
 
     /**
      * @notice Insert one LER and claim multiple assets from LER in a single transaction
-     * @param params ClaimParams struct containing all other required arrays
+     * @param claimsParams ClaimParams struct containing all other required arrays
      * struct {
      *      uint32 networkID;
      *      bytes32 localExitRoot;
@@ -406,32 +374,32 @@ contract AgglayerGERL2 is
      *}
      */
     function insertAndClaimAssetsFromLER(
-        ClaimParams calldata params
+        ClaimParams calldata claimsParams
     ) public virtual onlyGlobalExitRootUpdater {
-        _validateClaimArrays(params);
+        _validateClaimArrays(claimsParams);
         _insertLER(
-            params.localExitRoot,
-            params.networkID,
+            claimsParams.localExitRoot,
+            claimsParams.networkID,
             insertedLERHashChain
         );
-        for (uint256 i = 0; i < params.smtProofLocalExitRoots.length; i++) {
+        for (uint256 i = 0; i < claimsParams.smtProofLocalExitRoots.length; i++) {
             IAgglayerBridgeL2(address(bridgeAddress)).claimAssetFromLER(
-                params.smtProofLocalExitRoots[i],
-                params.globalIndexes[i],
-                params.localExitRoot,
-                params.originNetworks[i],
-                params.originTokenAddresses[i],
-                params.destinationNetworks[i],
-                params.destinationAddresses[i],
-                params.amounts[i],
-                params.metadatas[i]
+                claimsParams.smtProofLocalExitRoots[i],
+                claimsParams.globalIndexes[i],
+                claimsParams.localExitRoot,
+                claimsParams.originNetworks[i],
+                claimsParams.originTokenAddresses[i],
+                claimsParams.destinationNetworks[i],
+                claimsParams.destinationAddresses[i],
+                claimsParams.amounts[i],
+                claimsParams.metadatas[i]
             );
         }
     }
 
     /**
      * @notice Insert multiple LERs and claim multiple messages from LERs in a single transaction
-     * @param params array of ClaimParams struct containing all other required arrays
+     * @param claimsParams array of ClaimParams struct containing all other required arrays
      * struct {
      *      uint32 networkID;
      *      bytes32 localExitRoot;
@@ -446,16 +414,16 @@ contract AgglayerGERL2 is
      *}
      */
     function insertAndClaimMessagesFromLERs(
-        ClaimParams[] calldata params
+        ClaimParams[] calldata claimsParams
     ) external virtual onlyGlobalExitRootUpdater {
-        for (uint256 i = 0; i < params.length; i++) {
-            insertAndClaimMessagesFromLER(params[i]);
+        for (uint256 i = 0; i < claimsParams.length; i++) {
+            insertAndClaimMessagesFromLER(claimsParams[i]);
         }
     }
 
     /**
      * @notice Insert one LER and claim multiple messages from LER in a single transaction
-     * @param params ClaimParams struct containing all other required arrays
+     * @param claimsParams ClaimParams struct containing all other required arrays
      * struct {
      *      uint32 networkID;
      *      bytes32 localExitRoot;
@@ -470,43 +438,75 @@ contract AgglayerGERL2 is
      *}
      */
     function insertAndClaimMessagesFromLER(
-        ClaimParams calldata params
+        ClaimParams calldata claimsParams
     ) public virtual onlyGlobalExitRootUpdater {
-        _validateClaimArrays(params);
+        _validateClaimArrays(claimsParams);
         _insertLER(
-            params.localExitRoot,
-            params.networkID,
+            claimsParams.localExitRoot,
+            claimsParams.networkID,
             insertedLERHashChain
         );
-        for (uint256 i = 0; i < params.smtProofLocalExitRoots.length; i++) {
+        for (uint256 i = 0; i < claimsParams.smtProofLocalExitRoots.length; i++) {
             IAgglayerBridgeL2(address(bridgeAddress)).claimMessageFromLER(
-                params.smtProofLocalExitRoots[i],
-                params.globalIndexes[i],
-                params.localExitRoot,
-                params.originNetworks[i],
-                params.originTokenAddresses[i],
-                params.destinationNetworks[i],
-                params.destinationAddresses[i],
-                params.amounts[i],
-                params.metadatas[i]
+                claimsParams.smtProofLocalExitRoots[i],
+                claimsParams.globalIndexes[i],
+                claimsParams.localExitRoot,
+                claimsParams.originNetworks[i],
+                claimsParams.originTokenAddresses[i],
+                claimsParams.destinationNetworks[i],
+                claimsParams.destinationAddresses[i],
+                claimsParams.amounts[i],
+                claimsParams.metadatas[i]
             );
         }
     }
 
+        /**
+     * @notice Insert new local exit root
+     * @param newLER new local exit root to insert
+     * @param networkID origin network of LER
+     */
+    function _insertLER(
+        bytes32 newLER,
+        uint32 networkID,
+        bytes32 initInsertLERHashChain
+    ) internal returns (bytes32) {
+        bytes32 keyLER = getHashLER(newLER, networkID);
+        bytes32 newInsertedLERHashChain = initInsertLERHashChain;
+        // do not insert LER if already set
+        if (localExitRootMap[keyLER] == false) {
+            localExitRootMap[keyLER] = true;
+            // Update hash chain value
+            newInsertedLERHashChain = Hashes.efficientKeccak256(
+                initInsertLERHashChain,
+                keyLER
+            );
+            // Emit update event
+            emit UpdateLERHashChainValue(
+                newLER,
+                networkID,
+                newInsertedLERHashChain
+            );
+        } else {
+            revert LocalExitRootAlreadySet();
+        }
+        return newInsertedLERHashChain;
+    }
+
     /**
      * @notice Validate that all claim arrays have the same length as the smtProofs array
-     * @param params ClaimParams struct containing all other required arrays
+     * @param claimsParams ClaimParams struct containing all other required arrays
      */
-    function _validateClaimArrays(ClaimParams calldata params) internal pure {
-        uint256 smtProofsLength = params.smtProofLocalExitRoots.length;
+    function _validateClaimArrays(ClaimParams calldata claimsParams) internal pure {
+        uint256 smtProofsLength = claimsParams.smtProofLocalExitRoots.length;
         if (
-            params.globalIndexes.length != smtProofsLength ||
-            params.originNetworks.length != smtProofsLength ||
-            params.originTokenAddresses.length != smtProofsLength ||
-            params.destinationNetworks.length != smtProofsLength ||
-            params.destinationAddresses.length != smtProofsLength ||
-            params.amounts.length != smtProofsLength ||
-            params.metadatas.length != smtProofsLength
+            claimsParams.globalIndexes.length != smtProofsLength ||
+            claimsParams.originNetworks.length != smtProofsLength ||
+            claimsParams.originTokenAddresses.length != smtProofsLength ||
+            claimsParams.destinationNetworks.length != smtProofsLength ||
+            claimsParams.destinationAddresses.length != smtProofsLength ||
+            claimsParams.amounts.length != smtProofsLength ||
+            claimsParams.metadatas.length != smtProofsLength
         ) {
             revert InputArraysLengthMismatch();
         }

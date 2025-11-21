@@ -504,6 +504,13 @@ describe('LERs', () => {
 
         const balanceDeployer = await ethers.provider.getBalance(deployer.address);
 
+        const incorrectParamsClaims = structuredClone(paramsClaims);
+        incorrectParamsClaims.globalIndexes.push(globalIndex1);
+        await expect(ger.insertAndClaimAssetsFromLER(incorrectParamsClaims)).to.be.revertedWithCustomError(
+            ger,
+            'InputArraysLengthMismatch',
+        );
+
         await expect(ger.insertAndClaimAssetsFromLER(paramsClaims))
             .to.emit(bridge, 'UpdatedClaimedGlobalIndexHashChain')
             .withArgs(globalIndex1, claimedGlobalIndexHashChainJS1)
@@ -1344,6 +1351,13 @@ describe('LERs', () => {
         await ethers.provider.send('hardhat_setBalance', [bridge.target, ethers.toBeHex(amount * 3n)]);
 
         const balanceDeployer = await ethers.provider.getBalance(deployer.address);
+
+        const incorrectParamsClaims = structuredClone(paramsClaims);
+        incorrectParamsClaims.globalIndexes.push(globalIndex1);
+        await expect(ger.insertAndClaimAssetsFromLER(incorrectParamsClaims)).to.be.revertedWithCustomError(
+            ger,
+            'InputArraysLengthMismatch',
+        );
 
         await expect(ger.insertAndClaimMessagesFromLER(paramsClaims))
             .to.emit(bridge, 'UpdatedClaimedGlobalIndexHashChain')

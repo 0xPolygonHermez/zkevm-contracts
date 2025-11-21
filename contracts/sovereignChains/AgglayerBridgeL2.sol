@@ -867,6 +867,17 @@ contract AgglayerBridgeL2 is AgglayerBridgeL2Base, IAgglayerBridgeL2 {
         }
     }
 
+    /**
+     * @notice Given the leaf data returns the leaf value (internal function)
+     * @param leafData LeafData struct:
+     *  leafType Leaf type -->  [0] transfer Ether / ERC20 tokens, [1] message
+     *  originNetwork Origin Network
+     *  originAddress [0] Origin token address, 0 address is reserved for gas token address. If WETH address is zero, means this gas token is ether, else means is a custom erc20 gas token, [1] msg.sender of the message
+     *  destinationNetwork Destination network
+     *  destinationAddress Destination address
+     *  amount [0] Amount of tokens/ether, [1] Amount of ether
+     *  metadataHash Hash of the metadata
+     */
     function _getLeafValue(
         LeafData memory leafData
     ) internal pure returns (bytes32) {
