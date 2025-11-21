@@ -794,6 +794,9 @@ contract AgglayerBridgeL2 is AgglayerBridgeL2Base, IAgglayerBridgeL2 {
         LeafData memory leafData,
         bytes calldata metadata
     ) internal {
+        // Emit detailed event with empty root for asset claim
+        _emitClaimEvents(smtProof, globalIndex, localExitRoot, leafData);
+
         // Validate and decode global index
         (
             uint32 leafIndex,
@@ -840,9 +843,6 @@ contract AgglayerBridgeL2 is AgglayerBridgeL2Base, IAgglayerBridgeL2 {
 
         // Set and check nullifier
         _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
-
-        // Emit detailed event with empty root for asset claim
-        _emitClaimEvents(smtProof, globalIndex, localExitRoot, leafData);
 
         if (leafData.leafType == _LEAF_TYPE_ASSET) {
             // Transfer funds
