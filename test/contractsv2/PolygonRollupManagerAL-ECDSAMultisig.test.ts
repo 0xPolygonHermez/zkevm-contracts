@@ -11,14 +11,12 @@ import {
     AgglayerBridge,
     AggchainECDSAMultisig,
     VerifierRollupHelperMock,
-    PolygonPessimisticConsensus,
 } from '../../typechain-types';
 
 import { VerifierType, computeRandomBytes } from '../../src/pessimistic-utils';
 import {
     CONSENSUS_TYPE,
     encodeInitAggchainManager,
-    encodeInitializeBytesLegacy,
     computeAggchainHash,
     computeSignersHash,
 } from '../../src/utils-common-aggchain';
@@ -48,7 +46,6 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
     let aggLayerGatewayContract: AgglayerGateway;
     let aggchainECDSAMultisigImplementationContract: AggchainECDSAMultisig;
     let verifierContract: VerifierRollupHelperMock;
-    let PolygonPPConsensusContract: PolygonPessimisticConsensus;
     /// CONSTANTS
     const POL_TOKEN_NAME = 'POL Token';
     const POL_TOKEN_SYMBOL = 'POL';
@@ -64,35 +61,6 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
     const randomPessimisticVKey = computeRandomBytes(32);
 
     upgrades.silenceWarnings();
-
-    async function createPessimisticRollupType() {
-        // Create rollup type for pessimistic
-        const lastRollupTypeID = await rollupManagerContract.rollupTypeCount();
-        await expect(
-            rollupManagerContract.connect(timelock).addNewRollupType(
-                PolygonPPConsensusContract.target,
-                verifierContract.target,
-                0, // fork id
-                VerifierType.Pessimistic,
-                ethers.ZeroHash, // genesis
-                '', // description
-                ethers.ZeroHash, // programVKey
-            ),
-        )
-            .to.emit(rollupManagerContract, 'AddNewRollupType')
-            .withArgs(
-                Number(lastRollupTypeID) + 1 /* rollupTypeID */,
-                PolygonPPConsensusContract.target,
-                verifierContract.target,
-                0, // fork id
-                VerifierType.Pessimistic,
-                ethers.ZeroHash, // genesis
-                '', // description
-                ethers.ZeroHash, // programVKey
-            );
-
-        return Number(lastRollupTypeID) + 1;
-    }
 
     async function createECDSAMultisigRollupType() {
         // Create rollup type for  ECDSA
@@ -309,15 +277,6 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
             polygonZkEVMBridgeContract.target,
             rollupManagerContract.target,
             aggLayerGatewayContract.target,
-        );
-
-        // Deploy pessimistic consensus contract
-        const ppConsensusFactory = await ethers.getContractFactory('PolygonPessimisticConsensus');
-        PolygonPPConsensusContract = await ppConsensusFactory.deploy(
-            polygonZkEVMGlobalExitRoot.target,
-            polTokenContract.target,
-            polygonZkEVMBridgeContract.target,
-            rollupManagerContract.target,
         );
     });
 
@@ -603,191 +562,6 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
             .to.emit(ECDSAMultisigRollupContract, 'OnVerifyPessimisticECDSAMultisig');
     });
 
-    it('should create a rollup with pessimistic consensus and upgrade it to aggchainECDSA', async () => {
-        // Deploy pessimistic consensus contract
-        const ppConsensusFactory = await ethers.getContractFactory('PolygonPessimisticConsensus');
-
-        // Create new rollup type with pessimistic consensus
-        const pessimisticRollupTypeID = await createPessimisticRollupType();
-
-        // Create new rollup with pessimistic consensus
-        const precomputedRollupAddress = ethers.getCreateAddress({
-            from: rollupManagerContract.target as string,
-            nonce: await ethers.provider.getTransactionCount(rollupManagerContract.target),
-        });
-        const pessimisticRollupContract = ppConsensusFactory.attach(
-            precomputedRollupAddress,
-        ) as PolygonPessimisticConsensus;
-        const chainID = 5;
-        const gasTokenAddress = ethers.ZeroAddress;
-        const urlSequencer = 'https://pessimistic:8545';
-        const networkName = 'testPessimistic';
-        const pessimisticRollupID = 1; // Already aggchainECDSA rollup created created
-        const initializeBytesPessimistic = encodeInitializeBytesLegacy(
-            admin.address,
-            trustedSequencer.address,
-            gasTokenAddress,
-            urlSequencer,
-            networkName,
-        );
-        await expect(
-            rollupManagerContract
-                .connect(admin)
-                .attachAggchainToAL(pessimisticRollupTypeID, chainID, initializeBytesPessimistic),
-        )
-            .to.emit(rollupManagerContract, 'CreateNewRollup')
-            .withArgs(pessimisticRollupID, pessimisticRollupTypeID, precomputedRollupAddress, chainID, gasTokenAddress);
-
-        // Verify pessimist proof with pessimistic rollup
-        // create a bridge to generate a new GER and add another value in the l1IfoRootMap
-        const tokenAddress = ethers.ZeroAddress;
-        const amount = ethers.parseEther('1');
-        await polygonZkEVMBridgeContract.bridgeAsset(
-            pessimisticRollupID,
-            polTokenContract.target,
-            amount,
-            tokenAddress,
-            true,
-            '0x',
-            {
-                value: amount,
-            },
-        );
-        // get last L1InfoTreeLeafCount
-        const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
-
-        // check JS function computeInputPessimisticBytes
-        const newLER = '0x0000000000000000000000000000000000000000000000000000000000000001';
-        const newPPRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const proofPP = '0x00';
-
-        // verify pessimistic from the created pessimistic rollup
-        await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                pessimisticRollupID,
-                lastL1InfoTreeLeafCount,
-                newLER,
-                newPPRoot,
-                proofPP,
-                '0x', // aggchainData
-            ),
-        )
-            .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
-            .withArgs(
-                pessimisticRollupID,
-                0, // numBatch
-                ethers.ZeroHash, // stateRoot
-                newLER,
-                trustedAggregator.address,
-            );
-
-        // Create rollup type ECDSA
-        const rollupTypeECDSAId = await createECDSAMultisigRollupType();
-        // Update the rollup to ECDSA and initialize the new rollup type
-        // Compute initialize upgrade data
-        const aggchainECDSAMultisigFactory = await ethers.getContractFactory('AggchainECDSAMultisig');
-
-        // For migration from PessimisticConsensus, the migrateFromLegacyConsensus function
-        // will be called automatically by the RollupManager
-        // No initialization bytes needed for migration
-
-        const upgradeData = aggchainECDSAMultisigFactory.interface.encodeFunctionData('initAggchainManager(address)', [
-            aggchainManager.address,
-        ]);
-
-        await expect(
-            rollupManagerContract
-                .connect(timelock)
-                .updateRollup(pessimisticRollupContract.target, rollupTypeECDSAId, upgradeData),
-        )
-            .to.emit(rollupManagerContract, 'UpdateRollup')
-            .withArgs(pessimisticRollupID, rollupTypeECDSAId, 0 /* lastVerifiedBatch */);
-        const ECDSAMultisigRollupContract = aggchainECDSAMultisigFactory.attach(pessimisticRollupContract.target);
-
-        const aggchainManagerSC = await ECDSAMultisigRollupContract.aggchainManager();
-        expect(aggchainManagerSC).to.be.equal(aggchainManager.address);
-
-        // migrate from PessimisticConsensus
-        // Impersonate rollup manager to call migrateFromLegacyConsensus
-        await ethers.provider.send('hardhat_impersonateAccount', [rollupManagerContract.target]);
-        const rollupManagerSigner = await ethers.getSigner(rollupManagerContract.target as any);
-        await ECDSAMultisigRollupContract.connect(rollupManagerSigner).migrateFromLegacyConsensus({ gasPrice: 0 });
-        // assert that the rollup is migrated, check the signershash is coorect, threshold 1 and trusted sequencer
-        expect(await ECDSAMultisigRollupContract.aggchainMultisigHash()).to.be.equal(
-            computeSignersHash(1, [trustedSequencer.address]),
-        );
-        // Try update rollup by rollupAdmin but trigger UpdateToOldRollupTypeID
-        // Create a new pessimistic rollup type
-        await createPessimisticRollupType();
-
-        // Check rollup data deserialized
-        const resRollupData = await rollupManagerContract.rollupIDToRollupDataDeserialized(pessimisticRollupID);
-        const expectedRollupData = [
-            ECDSAMultisigRollupContract.target,
-            chainID,
-            ethers.ZeroAddress, // newVerifier address, for ECDSA is zero because it is internally replaced by aggLayerGateway address
-            0, // newForkID
-            newLER, // lastLocalExitRoot
-            0, // lastBatchSequenced
-            0, // lastBatchVerified
-            0, // _legacyLastPendingState
-            0, // _legacyLastPendingStateConsolidated
-            0, // lastVerifiedBatchBeforeUpgrade
-            rollupTypeECDSAId,
-            VerifierType.ALGateway,
-        ];
-
-        expect(expectedRollupData).to.be.deep.equal(resRollupData);
-
-        // Check rollup data deserialized V2
-        const resRollupDataV2 = await rollupManagerContract.rollupIDToRollupDataV2Deserialized(pessimisticRollupID);
-        const expectedRollupDataV2 = [
-            ECDSAMultisigRollupContract.target,
-            chainID,
-            ethers.ZeroAddress, // newVerifier address, for ECDSA is zero because it is internally replaced by aggLayerGateway address
-            0, // newForkID
-            newLER, // lastLocalExitRoot
-            0, // lastBatchSequenced
-            0, // lastBatchVerified
-            0, // lastVerifiedBatchBeforeUpgrade
-            rollupTypeECDSAId,
-            VerifierType.ALGateway,
-            newPPRoot, // lastPessimisticRoot
-            ethers.ZeroHash, // newProgramVKey
-        ];
-
-        expect(expectedRollupDataV2).to.be.deep.equal(resRollupDataV2);
-
-        // Verify pessimist proof with the new ECDSA rollup
-        const randomNewLocalExitRoot = computeRandomBytes(32);
-        const randomNewPessimisticRoot = computeRandomBytes(32);
-        const randomProof = computeRandomBytes(128);
-        // append first 4 bytes to the proof to select the pessimistic vkey
-        const proofWithSelector = `${PESSIMISTIC_SELECTOR}${randomProof.slice(2)}`;
-
-        // Add default AggchainVKey (needed for verification)
-        const aggchainVKey = computeRandomBytes(32);
-        await expect(
-            aggLayerGatewayContract.connect(aggLayerAdmin).addDefaultAggchainVKey(AGGCHAIN_VKEY_SELECTOR, aggchainVKey),
-        )
-            .to.emit(aggLayerGatewayContract, 'AddDefaultAggchainVKey')
-            .withArgs(AGGCHAIN_VKEY_SELECTOR, aggchainVKey);
-
-        // verify pessimist proof with the new ECDSA Multisig rollup
-        await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                pessimisticRollupID, // rollupID
-                lastL1InfoTreeLeafCount, // l1InfoTreeCount
-                randomNewLocalExitRoot,
-                randomNewPessimisticRoot,
-                proofWithSelector,
-                CUSTOM_DATA_ECDSA,
-            ),
-        )
-            .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
-            .to.emit(ECDSAMultisigRollupContract, 'OnVerifyPessimisticECDSAMultisig');
-    });
-
     it('should add existing rollup to ECDSA', async () => {
         // add existing rollup
         const rollupAddress = '0xAa000000000000000000000000000000000000Bb';
@@ -873,60 +647,5 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
                 programVKey,
                 initPessimisticRoot,
             );
-    });
-
-    it('should throw reverts UpdateToOldRollupTypeID and  UpdateNotCompatible', async () => {
-        // create two pessimistic rollup types
-        const pessimisticRollupTypeID1 = await createPessimisticRollupType();
-        const pessimisticRollupTypeID2 = await createPessimisticRollupType();
-
-        const rollupManagerNonce = await ethers.provider.getTransactionCount(rollupManagerContract.target);
-        const pessimisticRollupAddress = ethers.getCreateAddress({
-            from: rollupManagerContract.target as string,
-            nonce: rollupManagerNonce,
-        });
-        // Create pessimistic rollup
-        const initializeBytesAggchain = encodeInitializeBytesLegacy(
-            admin.address,
-            trustedSequencer.address,
-            ethers.ZeroAddress,
-            '',
-            '',
-        );
-        await rollupManagerContract.connect(admin).attachAggchainToAL(
-            pessimisticRollupTypeID2,
-            2, // chainID
-            initializeBytesAggchain,
-        );
-        expect(await rollupManagerContract.rollupAddressToID(pessimisticRollupAddress)).to.be.equal(1);
-
-        // Try to upgrade from rollupType1 to rollupType2 should revert (lowest rollup typed id)
-        await expect(
-            rollupManagerContract
-                .connect(admin)
-                .updateRollupByRollupAdmin(pessimisticRollupAddress, pessimisticRollupTypeID1),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'UpdateToOldRollupTypeID');
-
-        // Try to upgrade to a rollup type with different verifier type, should revert
-        const ecdsaRollupType = await createECDSAMultisigRollupType();
-        await expect(
-            rollupManagerContract.connect(admin).updateRollupByRollupAdmin(pessimisticRollupAddress, ecdsaRollupType),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'UpdateNotCompatible');
-
-        // Try to upgrade to a pessimistic from an ecdsa rollup type, should revert
-        const [, ecdsaRollupAddress] = await createECDSAMultisigRollup(ecdsaRollupType);
-        await expect(
-            rollupManagerContract
-                .connect(timelock)
-                .updateRollup(ecdsaRollupAddress as string, pessimisticRollupTypeID1, '0x'),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'UpdateNotCompatible');
-
-        // Trigger OnlyStateTransitionChains from onSequenceBatches
-        await ethers.provider.send('hardhat_setBalance', [pessimisticRollupAddress, '0x100000000000000']);
-        await ethers.provider.send('hardhat_impersonateAccount', [pessimisticRollupAddress]);
-        const pessimisticRollupContract = await ethers.getSigner(pessimisticRollupAddress);
-        await expect(
-            rollupManagerContract.connect(pessimisticRollupContract).onSequenceBatches(3, computeRandomBytes(32)),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'OnlyStateTransitionChains');
     });
 });
