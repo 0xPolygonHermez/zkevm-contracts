@@ -382,7 +382,11 @@ contract AgglayerGERL2 is
             claimsParams.networkID,
             insertedLERHashChain
         );
-        for (uint256 i = 0; i < claimsParams.smtProofLocalExitRoots.length; i++) {
+        for (
+            uint256 i = 0;
+            i < claimsParams.smtProofLocalExitRoots.length;
+            i++
+        ) {
             IAgglayerBridgeL2(address(bridgeAddress)).claimAssetFromLER(
                 claimsParams.smtProofLocalExitRoots[i],
                 claimsParams.globalIndexes[i],
@@ -446,7 +450,11 @@ contract AgglayerGERL2 is
             claimsParams.networkID,
             insertedLERHashChain
         );
-        for (uint256 i = 0; i < claimsParams.smtProofLocalExitRoots.length; i++) {
+        for (
+            uint256 i = 0;
+            i < claimsParams.smtProofLocalExitRoots.length;
+            i++
+        ) {
             IAgglayerBridgeL2(address(bridgeAddress)).claimMessageFromLER(
                 claimsParams.smtProofLocalExitRoots[i],
                 claimsParams.globalIndexes[i],
@@ -461,7 +469,7 @@ contract AgglayerGERL2 is
         }
     }
 
-        /**
+    /**
      * @notice Insert new local exit root
      * @param newLER new local exit root to insert
      * @param networkID origin network of LER
@@ -497,7 +505,9 @@ contract AgglayerGERL2 is
      * @notice Validate that all claim arrays have the same length as the smtProofs array
      * @param claimsParams ClaimParams struct containing all other required arrays
      */
-    function _validateClaimArrays(ClaimParams calldata claimsParams) internal pure {
+    function _validateClaimArrays(
+        ClaimParams calldata claimsParams
+    ) internal pure {
         uint256 smtProofsLength = claimsParams.smtProofLocalExitRoots.length;
         if (
             claimsParams.globalIndexes.length != smtProofsLength ||

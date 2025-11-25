@@ -622,7 +622,6 @@ describe('LERs', () => {
         expect(await ethers.provider.getBalance(deployer.address)).to.be.gte(balanceDeployer);
     });
 
-
     it('Function insertAndClaimAssetsFromLERs with two LERs and multiple claims', async () => {
         const originNetwork = networkIDRollup;
         const tokenAddress = polTokenContract.target;
