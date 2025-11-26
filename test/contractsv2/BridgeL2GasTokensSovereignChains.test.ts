@@ -4,21 +4,10 @@ import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import { ERC20PermitMock, AgglayerGERL2, AgglayerBridgeL2, TokenWrapped } from '../../typechain-types';
 import { claimBeforeBridge, computeWrappedTokenProxyAddress } from './helpers/helpers-sovereign-bridge';
+import { calculateGlobalExitRoot, computeGlobalIndex } from '../../src/utils';
 
 const MerkleTreeBridge = MTBridge;
 const { verifyMerkleProof, getLeafValue } = mtBridgeUtils;
-function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
-    return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
-}
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const _GLOBAL_INDEX_MAINNET_FLAG = 2n ** 64n;
-
-function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: boolean) {
-    if (isMainnet === true) {
-        return BigInt(indexLocal) + _GLOBAL_INDEX_MAINNET_FLAG;
-    }
-    return BigInt(indexLocal) + BigInt(indexRollup) * 2n ** 32n;
-}
 
 describe('SovereignChainBridge Gas tokens tests', () => {
     upgrades.silenceWarnings();

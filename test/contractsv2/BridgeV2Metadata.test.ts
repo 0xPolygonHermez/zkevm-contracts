@@ -9,13 +9,10 @@ import {
     ifacePermitDAI,
     createPermitSignatureUniType,
 } from '../../src/permit-helper';
+import { calculateGlobalExitRoot } from '../../src/utils';
 
 const MerkleTreeBridge = MTBridge;
 const { verifyMerkleProof, getLeafValue } = mtBridgeUtils;
-
-function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
-    return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
-}
 
 describe('PolygonZkEVMBridge Contract', () => {
     upgrades.silenceWarnings();

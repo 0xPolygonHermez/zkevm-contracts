@@ -20,6 +20,7 @@ import {
 } from '../../typechain-types';
 import { computeWrappedTokenProxyAddress } from './helpers/helpers-sovereign-bridge';
 import { encodeInitializeBytesLegacy } from '../../src/utils-common-aggchain';
+import { calculateGlobalExitRoot, calculateAccInputHashetrog, computeGlobalIndex } from '../../src/utils';
 import {
     DEFAULT_ADMIN_ROLE,
     ADD_ROLLUP_TYPE_ROLE,
@@ -40,44 +41,6 @@ type BatchDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
 
 const MerkleTreeBridge = MTBridge;
 const { verifyMerkleProof, getLeafValue } = mtBridgeUtils;
-
-function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
-    return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
-}
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const _GLOBAL_INDEX_MAINNET_FLAG = 2n ** 64n;
-
-function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: boolean) {
-    if (isMainnet === true) {
-        return BigInt(indexLocal) + _GLOBAL_INDEX_MAINNET_FLAG;
-    }
-    return BigInt(indexLocal) + BigInt(indexRollup) * 2n ** 32n;
-}
-
-/**
- * Compute accumulateInputHash = Keccak256(oldAccInputHash, batchHashData, globalExitRoot, timestamp, seqAddress)
- * @param {String} oldAccInputHash - old accumulateInputHash
- * @param {String} batchHashData - Batch hash data
- * @param {String} globalExitRoot - Global Exit Root
- * @param {Number} timestamp - Block timestamp
- * @param {String} sequencerAddress - Sequencer address
- * @returns {String} - accumulateInputHash in hex encoding
- */
-function calculateAccInputHashetrog(
-    oldAccInputHash: any,
-    batchHashData: any,
-    globalExitRoot: any,
-    timestamp: any,
-    sequencerAddress: any,
-    forcedBlockHash: any,
-) {
-    const hashKeccak = ethers.solidityPackedKeccak256(
-        ['bytes32', 'bytes32', 'bytes32', 'uint64', 'address', 'bytes32'],
-        [oldAccInputHash, batchHashData, globalExitRoot, timestamp, sequencerAddress, forcedBlockHash],
-    );
-
-    return hashKeccak;
-}
 
 const SIGNATURE_BYTES = 32 + 32 + 1;
 const EFFECTIVE_PERCENTAGE_BYTES = 1;

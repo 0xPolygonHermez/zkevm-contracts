@@ -3,19 +3,10 @@ import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge } from '@0xpolygonhermez/zkevm-commonjs';
 import { PolygonZkEVMGlobalExitRoot, AgglayerGER } from '../../typechain-types';
+import { calculateGlobalExitRoot, calculateGlobalExitRootLeaf } from '../../src/utils';
 
 const MerkleTreeBridge = MTBridge;
 
-function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
-    return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
-}
-
-function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any, timestamp: any) {
-    return ethers.solidityPackedKeccak256(
-        ['bytes32', 'bytes32', 'uint64'],
-        [newGlobalExitRoot, lastBlockHash, timestamp],
-    );
-}
 describe('Polygon Global exit root v2', () => {
     let rollupManager: any;
     let bridge: any;
