@@ -86,7 +86,6 @@
         "prettier:contracts:fix": "npx prettier --write 'contracts/**/*.sol'",
         "compile": "npx hardhat compile",
         "docker:contracts": "./docker/scripts/v2/deploy-docker.sh",
-        "dockerv2:contracts": "./docker/scripts/v2/deploy-dockerv2.sh",
         "dockerv2:contracts:all": "./docker/scripts/v2/deploy-dockerv2-all.sh",
         "docker:tests": "./docker/scripts/v2/tests-docker.sh",
         "push:docker:contracts": "docker push hermeznetwork/geth-zkevm-contracts",
