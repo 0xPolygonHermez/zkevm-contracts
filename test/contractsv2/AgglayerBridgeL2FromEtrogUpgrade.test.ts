@@ -102,12 +102,10 @@ describe('PolygonZkEVMBridgeV2Pessimistic upgrade -> AgglayerBridgeL2FromEtrog',
 
         // checks bridge
         expect(await bridgeContract.getProxiedTokensManager()).to.be.equal(proxiedTokensManager.address);
-        expect(await bridgeContract.wrappedTokenBytecodeStorer()).to.not.be.equal(ethers.ZeroAddress);
         expect(await bridgeContract.getWrappedTokenBridgeImplementation()).to.not.be.equal(ethers.ZeroAddress);
-        expect(await bridgeContract.BRIDGE_SOVEREIGN_VERSION()).to.equal(BRIDGE_VERSION);
+        expect(await bridgeContract.version()).to.equal(BRIDGE_VERSION);
         expect(await bridgeContract.globalExitRootManager()).to.equal(gerContract.target);
         expect(await bridgeContract.polygonRollupManager()).to.equal(rollupManager);
-        expect(await bridgeContract.proxiedTokensManager()).to.equal(proxiedTokensManager.address);
         expect(await bridgeContract.emergencyBridgePauser()).to.equal(emergencyBridgePauser.address);
         expect(await bridgeContract.emergencyBridgeUnpauser()).to.equal(emergencyBridgeUnpauser.address);
 

@@ -888,6 +888,26 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
      * @dev The key is generated as keccak256(abi.encodePacked(originNetwork, originTokenAddress))
      * @param amountArray The amount to set for the local balance tree leaf
      */
+    function setLocalBalanceTree(
+        uint32[] memory originNetworkArray,
+        address[] memory originTokenAddressArray,
+        uint256[] memory amountArray
+    ) external virtual onlyGlobalExitRootRemover ifEmergencyState {
+        _setLocalBalanceTree(
+            originNetworkArray,
+            originTokenAddressArray,
+            amountArray
+        );
+    }
+
+    /**
+     * @notice Set local balance tree leaves to specific amounts
+     * @dev Permissioned function by the GlobalExitRootRemover role
+     * @param originNetworkArray The origin network of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
+     * @param originTokenAddressArray The origin address of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
+     * @dev The key is generated as keccak256(abi.encodePacked(originNetwork, originTokenAddress))
+     * @param amountArray The amount to set for the local balance tree leaf
+     */
     function _setLocalBalanceTree(
         uint32[] memory originNetworkArray,
         address[] memory originTokenAddressArray,
@@ -923,26 +943,6 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
                 amountArray[i]
             );
         }
-    }
-
-    /**
-     * @notice Set local balance tree leaves to specific amounts
-     * @dev Permissioned function by the GlobalExitRootRemover role
-     * @param originNetworkArray The origin network of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
-     * @param originTokenAddressArray The origin address of the token, involved in the tokenInfoHash to generate the key to be set at localBalanceTree
-     * @dev The key is generated as keccak256(abi.encodePacked(originNetwork, originTokenAddress))
-     * @param amountArray The amount to set for the local balance tree leaf
-     */
-    function setLocalBalanceTree(
-        uint32[] memory originNetworkArray,
-        address[] memory originTokenAddressArray,
-        uint256[] memory amountArray
-    ) external virtual onlyGlobalExitRootRemover ifEmergencyState {
-        _setLocalBalanceTree(
-            originNetworkArray,
-            originTokenAddressArray,
-            amountArray
-        );
     }
 
     /**

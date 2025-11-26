@@ -152,7 +152,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 10, // should have same runs than AgglayerBridge
+                        runs: 9, // should have same runs than AgglayerBridge
                     },
                     evmVersion: 'shanghai',
                 }, // try yul optimizer
@@ -162,7 +162,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 100, // should have same runs than AgglayerBridge
+                        runs: 9, // should have same runs than AgglayerBridge
                     },
                     evmVersion: 'shanghai',
                 }, // try yul optimizer
