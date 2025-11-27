@@ -112,7 +112,7 @@ export async function fetchEventsInBatches(
         throw new Error(`concurrencyLimit must be greater than zero, received: ${concurrencyLimit}`);
     }
 
-    const totalRanges = Math.ceil(latestBlock / blockRange);
+    const totalRanges = Math.ceil((latestBlock + 1) / blockRange);
     const allResults = [];
 
     logger.info(`Fetching ${eventLabel} with concurrency limit of ${concurrencyLimit}...`);

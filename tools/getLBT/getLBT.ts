@@ -91,7 +91,7 @@ async function main() {
             event.totalSupply = totalSupply.toString();
         },
         concurrencyLimit,
-        'Collected totalSupply',
+        'Collecting totalSupply',
     );
 
     if (options?.printEvents) {
