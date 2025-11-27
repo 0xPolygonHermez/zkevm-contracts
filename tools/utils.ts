@@ -3,6 +3,7 @@
 import * as ethers from 'ethers';
 import { getGitInfo } from '../src/utils';
 import { SUPPORT_BRIDGE_PROXY } from '../src/constants';
+import { logger } from '../src/logger';
 
 export function genOperation(target, value, data, predecessor, salt) {
     const abiEncoded = ethers.AbiCoder.defaultAbiCoder().encode(
@@ -81,4 +82,99 @@ export function checkBridgeAddress(genesis, expectedBridgeAddress) {
 export function addInfoOutput(output, criticalTooling = false) {
     output.gitInfo = getGitInfo(criticalTooling);
     return output;
+}
+
+/**
+ * Fetch contract events in parallel batches
+ * @param contract - The contract instance
+ * @param eventFilter - Event filter created using contract.filters.EventName(...)
+ * @param blockRange - Size of each block range
+ * @param latestBlock - Latest block number
+ * @param concurrencyLimit - Maximum number of parallel queries
+ * @param eventLabel - Optional label for logging (e.g., "NewWrappedToken")
+ * @returns Array of all events found
+ */
+export async function fetchEventsInBatches(
+    contract: any,
+    eventFilter: any,
+    blockRange: number,
+    latestBlock: number,
+    concurrencyLimit: number,
+    eventLabel: string = 'events',
+) {
+    const totalRanges = Math.ceil(latestBlock / blockRange);
+    const allResults = [];
+
+    logger.info(`Fetching ${eventLabel} with concurrency limit of ${concurrencyLimit}...`);
+
+    for (let batchStart = 0; batchStart < totalRanges; batchStart += concurrencyLimit) {
+        const batchEnd = Math.min(batchStart + concurrencyLimit, totalRanges);
+        const batchPromises = [];
+
+        const batchFromBlock = blockRange * batchStart;
+        const batchToBlock = blockRange * batchEnd < latestBlock ? blockRange * batchEnd : latestBlock;
+
+        for (let i = batchStart; i < batchEnd; i++) {
+            const from = blockRange * i;
+            const to = blockRange * (i + 1) < latestBlock ? blockRange * (i + 1) : latestBlock;
+
+            batchPromises.push(
+                contract.queryFilter(eventFilter, from, to).then((events: any) => ({
+                    from,
+                    to,
+                    events,
+                })),
+            );
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        const batchResults = await Promise.all(batchPromises);
+        allResults.push(...batchResults);
+
+        const percentage = ((batchEnd / totalRanges) * 100).toFixed(2);
+        const batchNumber = Math.floor(batchStart / concurrencyLimit) + 1;
+        const totalBatches = Math.ceil(totalRanges / concurrencyLimit);
+        logger.info(
+            `Fetched batch ${batchNumber}/${totalBatches} [${percentage}%] (blocks ${batchFromBlock}-${batchToBlock})`,
+        );
+    }
+
+    return allResults;
+}
+
+/**
+ * Execute tasks in parallel batches
+ * @param items - Array of items to process
+ * @param taskFn - Function that processes each item
+ * @param concurrencyLimit - Maximum number of parallel tasks
+ * @param progressLabel - Label for progress logging
+ * @returns Array of results
+ */
+export async function executeInBatches<T, R>(
+    items: T[],
+    taskFn: (item: T) => Promise<R>,
+    concurrencyLimit: number,
+    progressLabel: string,
+): Promise<R[]> {
+    const allResults: R[] = [];
+    const totalBatches = Math.ceil(items.length / concurrencyLimit);
+
+    for (let batchStart = 0; batchStart < items.length; batchStart += concurrencyLimit) {
+        const batchEnd = Math.min(batchStart + concurrencyLimit, items.length);
+        const batchPromises: Promise<R>[] = [];
+
+        for (let i = batchStart; i < batchEnd; i++) {
+            batchPromises.push(taskFn(items[i]));
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        const batchResults = await Promise.all(batchPromises);
+        allResults.push(...batchResults);
+
+        const percentage = ((batchEnd / items.length) * 100).toFixed(2);
+        const batchNumber = Math.floor(batchStart / concurrencyLimit) + 1;
+        logger.info(`${progressLabel} batch ${batchNumber}/${totalBatches} [${percentage}%]`);
+    }
+
+    return allResults;
 }

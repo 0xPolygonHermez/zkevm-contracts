@@ -4,42 +4,66 @@ import path from 'path';
 import parameters from './parameters.json';
 import { logger } from '../../src/logger';
 import { checkParams } from '../../src/utils';
+import { fetchEventsInBatches, executeInBatches } from '../utils';
+import { AgglayerBridge } from '../../typechain-types';
+
+const DEFAULT_BLOCK_RANGE = 100000;
+const DEFAULT_CONCURRENCY_LIMIT = 10;
 
 async function main() {
     /*
      * Check  parameters
      * Check that every necessary parameter is fulfilled
      */
-    const mandatoryParameters = ['contractAddress', 'contractName'];
+    const mandatoryParameters = ['agglayerBridgeAddress'];
     checkParams(parameters, mandatoryParameters);
 
-    const { contractName, contractAddress } = parameters;
+    const { agglayerBridgeAddress, options } = parameters;
     const dateStr = new Date().toISOString();
 
-    const contract = await ethers.getContractAt(contractName, contractAddress);
+    // Get bridge instance
+    const bridgeFactory = await ethers.getContractFactory('AgglayerBridge');
+    const contract = bridgeFactory.attach(agglayerBridgeAddress) as AgglayerBridge;
+
     const latest = await ethers.provider.getBlockNumber();
 
     // //////////////////////////////
     //  Get events NewWrappedToken //
     // //////////////////////////////
-    const blockRange = parameters.blockRange || 100000;
+    const blockRange = options?.blockRange || DEFAULT_BLOCK_RANGE;
     const loops = latest / blockRange;
     const events = [];
-    logger.info(`Contract address: ${contractAddress}`);
+    logger.info(`Bridge address: ${agglayerBridgeAddress}`);
 
-    if (parameters.getEventsFromFile) {
+    if (options?.getEventsFromFile) {
         logger.info(`Getting events from file events.json`);
         const eventsFile = fs.readFileSync(path.join(__dirname, `events.json`), 'utf-8');
         const eventsJson = JSON.parse(eventsFile);
         events.push(...eventsJson);
     } else {
         logger.info(`Events fetching from block 0 to ${latest} in ${Math.ceil(loops)} loops`);
-        for (let i = 0; i < loops; i++) {
-            const to = blockRange * (i + 1) < latest ? blockRange * (i + 1) : latest;
-            const from = blockRange * i;
-            logger.info(`Processing blocks from ${from} to ${to}`);
-            // eslint-disable-next-line no-await-in-loop
-            const eventsFilter = await contract.queryFilter('NewWrappedToken', from, to);
+
+        const concurrencyLimit = options?.concurrencyLimit || DEFAULT_CONCURRENCY_LIMIT;
+
+        // Create event filter
+        const newWrappedTokenFilter = contract.filters.NewWrappedToken();
+
+        // Fetch events in parallel batches
+        const allResults = await fetchEventsInBatches(
+            contract,
+            newWrappedTokenFilter,
+            blockRange,
+            latest,
+            concurrencyLimit,
+            'NewWrappedToken events',
+        );
+
+        logger.info(`Processing fetched events...`);
+        // Process results in order
+        // eslint-disable-next-line no-restricted-syntax
+        for (const result of allResults) {
+            const { events: eventsFilter } = result;
+
             if (eventsFilter.length > 0) {
                 // eslint-disable-next-line no-restricted-syntax
                 for (const event of eventsFilter) {
@@ -52,26 +76,30 @@ async function main() {
                     logger.info(
                         `Block number: ${event.blockNumber.toString()} - wrappedTokenAddress: ${event.args[2]}`,
                     );
-                    if (parameters.printEvents) {
-                        logger.info(`events.json file updated`);
-                        fs.writeFileSync(path.join(__dirname, `events.json`), JSON.stringify(events, null, 2));
-                    }
                 }
             }
         }
     }
 
-    logger.info(`Collecting totalSupply of every wrapped token...`);
-    // eslint-disable-next-line no-restricted-syntax
-    for (const event of events) {
-        const { wrappedTokenAddress } = event;
-        // eslint-disable-next-line no-await-in-loop
-        const contractToken = await ethers.getContractAt('TokenWrapped', wrappedTokenAddress);
-        // eslint-disable-next-line no-await-in-loop
-        const totalSupply = await contractToken.totalSupply();
-        event.totalSupply = totalSupply.toString();
-    }
-    if (parameters.printEvents) {
+    logger.info(`Collecting totalSupply of every wrapped token (${events.length} tokens)...`);
+
+    const concurrencyLimit = options?.concurrencyLimit || DEFAULT_CONCURRENCY_LIMIT;
+
+    // Fetch totalSupply in parallel batches
+    await executeInBatches(
+        events,
+        async (event) => {
+            const { wrappedTokenAddress } = event;
+            const contractToken = await ethers.getContractAt('TokenWrapped', wrappedTokenAddress);
+            const totalSupply = await contractToken.totalSupply();
+            event.totalSupply = totalSupply.toString();
+            return { wrappedTokenAddress, totalSupply: totalSupply.toString() };
+        },
+        concurrencyLimit,
+        'Collected totalSupply',
+    );
+
+    if (options?.printEvents) {
         await fs.writeFileSync(path.join(__dirname, `events-${dateStr}.json`), JSON.stringify(events, null, 2));
     }
 

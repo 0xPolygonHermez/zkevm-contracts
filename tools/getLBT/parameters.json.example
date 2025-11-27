@@ -1,7 +1,9 @@
 {
-    "blockRange": 1000,
-    "contractName": "PolygonZkEVMBridgeV2Pessimistic",
-    "contractAddress": "0x..",
-    "printEvents": true,
-    "getEventsFromFile": false
+    "agglayerBridgeAddress": "0x..",
+    "options": {
+        "blockRange": 1000,
+        "printEvents": true,
+        "getEventsFromFile": false,
+        "concurrencyLimit": 100
+    }
 }
