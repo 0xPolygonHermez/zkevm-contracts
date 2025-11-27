@@ -36,7 +36,7 @@ cp ./tools/getLBT/parameters.json.example ./tools/getLBT/parameters.json
     - `options`: Optional configuration object containing:
         - `blockRange`: Number of blocks per query batch. Default: 100000.
         - `concurrencyLimit`: Maximum number of parallel RPC requests. Default: 10. Increase for faster fetching, decrease if you encounter network errors.
-        - `printEvents`: boolean. If true, writes intermediate event data to events.
+        - `printEvents`: boolean. If true, writes event data with totalSupply to `events-{timestamp}.json`.
         - `getEventsFromFile`: boolean. If true, reads events from events.json instead of fetching from the chain.
 
 -  Run tool:

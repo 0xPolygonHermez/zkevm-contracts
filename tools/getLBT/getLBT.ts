@@ -31,6 +31,7 @@ async function main() {
     //  Get events NewWrappedToken //
     // //////////////////////////////
     const blockRange = options?.blockRange || DEFAULT_BLOCK_RANGE;
+    const concurrencyLimit = options?.concurrencyLimit || DEFAULT_CONCURRENCY_LIMIT;
     const loops = latest / blockRange;
     const events = [];
     logger.info(`Bridge address: ${agglayerBridgeAddress}`);
@@ -42,8 +43,6 @@ async function main() {
         events.push(...eventsJson);
     } else {
         logger.info(`Events fetching from block 0 to ${latest} in ${Math.ceil(loops)} loops`);
-
-        const concurrencyLimit = options?.concurrencyLimit || DEFAULT_CONCURRENCY_LIMIT;
 
         // Create event filter
         const newWrappedTokenFilter = contract.filters.NewWrappedToken();
@@ -62,11 +61,11 @@ async function main() {
         // Process results in order
         // eslint-disable-next-line no-restricted-syntax
         for (const result of allResults) {
-            const { events: eventsFilter } = result;
+            const { events: fetchedEvents } = result;
 
-            if (eventsFilter.length > 0) {
+            if (fetchedEvents.length > 0) {
                 // eslint-disable-next-line no-restricted-syntax
-                for (const event of eventsFilter) {
+                for (const event of fetchedEvents) {
                     events.push({
                         blockNumber: event.blockNumber.toString(),
                         originNetwork: event.args[0].toString(),
@@ -83,8 +82,6 @@ async function main() {
 
     logger.info(`Collecting totalSupply of every wrapped token (${events.length} tokens)...`);
 
-    const concurrencyLimit = options?.concurrencyLimit || DEFAULT_CONCURRENCY_LIMIT;
-
     // Fetch totalSupply in parallel batches
     await executeInBatches(
         events,
@@ -93,7 +90,6 @@ async function main() {
             const contractToken = await ethers.getContractAt('TokenWrapped', wrappedTokenAddress);
             const totalSupply = await contractToken.totalSupply();
             event.totalSupply = totalSupply.toString();
-            return { wrappedTokenAddress, totalSupply: totalSupply.toString() };
         },
         concurrencyLimit,
         'Collected totalSupply',

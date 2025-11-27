@@ -102,6 +102,13 @@ export async function fetchEventsInBatches(
     concurrencyLimit: number,
     eventLabel: string = 'events',
 ) {
+    if (blockRange <= 0) {
+        throw new Error(`blockRange must be greater than zero, received: ${blockRange}`);
+    }
+    if (concurrencyLimit <= 0) {
+        throw new Error(`concurrencyLimit must be greater than zero, received: ${concurrencyLimit}`);
+    }
+
     const totalRanges = Math.ceil(latestBlock / blockRange);
     const allResults = [];
 
@@ -112,11 +119,11 @@ export async function fetchEventsInBatches(
         const batchPromises = [];
 
         const batchFromBlock = blockRange * batchStart;
-        const batchToBlock = blockRange * batchEnd < latestBlock ? blockRange * batchEnd : latestBlock;
+        const batchToBlock = Math.min(blockRange * batchEnd - 1, latestBlock);
 
         for (let i = batchStart; i < batchEnd; i++) {
             const from = blockRange * i;
-            const to = blockRange * (i + 1) < latestBlock ? blockRange * (i + 1) : latestBlock;
+            const to = Math.min(blockRange * (i + 1) - 1, latestBlock);
 
             batchPromises.push(
                 contract.queryFilter(eventFilter, from, to).then((events: any) => ({
@@ -156,6 +163,10 @@ export async function executeInBatches<T, R>(
     concurrencyLimit: number,
     progressLabel: string,
 ): Promise<R[]> {
+    if (concurrencyLimit <= 0) {
+        throw new Error(`concurrencyLimit must be greater than zero, received: ${concurrencyLimit}`);
+    }
+
     const allResults: R[] = [];
     const totalBatches = Math.ceil(items.length / concurrencyLimit);
 
