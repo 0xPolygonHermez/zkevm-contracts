@@ -105,6 +105,9 @@ export async function fetchEventsInBatches(
     if (blockRange <= 0) {
         throw new Error(`blockRange must be greater than zero, received: ${blockRange}`);
     }
+    if (latestBlock < 0) {
+        throw new Error(`latestBlock must be non-negative, received: ${latestBlock}`);
+    }
     if (concurrencyLimit <= 0) {
         throw new Error(`concurrencyLimit must be greater than zero, received: ${concurrencyLimit}`);
     }

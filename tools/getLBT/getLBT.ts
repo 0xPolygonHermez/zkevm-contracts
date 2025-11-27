@@ -12,7 +12,7 @@ const DEFAULT_CONCURRENCY_LIMIT = 10;
 
 async function main() {
     /*
-     * Check  parameters
+     * Check parameters
      * Check that every necessary parameter is fulfilled
      */
     const mandatoryParameters = ['agglayerBridgeAddress'];
@@ -32,7 +32,6 @@ async function main() {
     // //////////////////////////////
     const blockRange = options?.blockRange || DEFAULT_BLOCK_RANGE;
     const concurrencyLimit = options?.concurrencyLimit || DEFAULT_CONCURRENCY_LIMIT;
-    const loops = latest / blockRange;
     const events = [];
     logger.info(`Bridge address: ${agglayerBridgeAddress}`);
 
@@ -42,7 +41,7 @@ async function main() {
         const eventsJson = JSON.parse(eventsFile);
         events.push(...eventsJson);
     } else {
-        logger.info(`Events fetching from block 0 to ${latest} in ${Math.ceil(loops)} loops`);
+        logger.info(`Events fetching from block 0 to ${latest} with blockRange ${blockRange} and concurrencyLimit ${concurrencyLimit}`);
 
         // Create event filter
         const newWrappedTokenFilter = contract.filters.NewWrappedToken();
@@ -96,7 +95,7 @@ async function main() {
     );
 
     if (options?.printEvents) {
-        await fs.writeFileSync(path.join(__dirname, `events-${dateStr}.json`), JSON.stringify(events, null, 2));
+        fs.writeFileSync(path.join(__dirname, `events-${dateStr}.json`), JSON.stringify(events, null, 2));
     }
 
     const objectInitialize = {
@@ -112,7 +111,7 @@ async function main() {
         objectInitialize.totalSupply.push(event.totalSupply);
     }
 
-    await fs.writeFileSync(
+    fs.writeFileSync(
         path.join(__dirname, `initializeLBT-${dateStr}.json`),
         JSON.stringify(objectInitialize, null, 2),
     );
