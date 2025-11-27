@@ -252,7 +252,7 @@ contract AgglayerManager is
         keccak256("EMERGENCY_COUNCIL_ADMIN");
 
     // Current rollup manager version
-    string public constant ROLLUP_MANAGER_VERSION = "v1.0.0";
+    string public constant ROLLUP_MANAGER_VERSION = "v2.0.0";
 
     // Hardcoded address used to indicate that this address triggered in an event should not be considered as valid.
     address private constant _NO_ADDRESS =
