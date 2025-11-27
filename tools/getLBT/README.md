@@ -32,12 +32,12 @@ cp ./tools/getLBT/parameters.json.example ./tools/getLBT/parameters.json
 
 -  Set your parameters -> parameters.json:
 
-    - `contractName`: Name of the contract to interact with (e.g. PolygonZkEVMBridgeV2Pessimistic).
-    - `contractAddress`: Bridge contract address.
-Optional:
-    - `blockRange`: Number of blocks per query batch. Default: 100000.
-    - `printEvents`: boolean. If true, writes intermediate event data to events.
-    - `getEventsFromFile`: boolean. If true, reads events from events.json instead of fetching from the chain.
+    - `agglayerBridgeAddress`: Bridge contract address (AgglayerBridge).
+    - `options`: Optional configuration object containing:
+        - `blockRange`: Number of blocks per query batch. Default: 100000.
+        - `concurrencyLimit`: Maximum number of parallel RPC requests. Default: 10. Increase for faster fetching, decrease if you encounter network errors.
+        - `printEvents`: boolean. If true, writes intermediate event data to events.
+        - `getEventsFromFile`: boolean. If true, reads events from events.json instead of fetching from the chain.
 
 -  Run tool:
 ```
