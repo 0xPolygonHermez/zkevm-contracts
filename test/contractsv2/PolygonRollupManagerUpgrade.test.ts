@@ -98,7 +98,7 @@ describe('Polygon Rollup manager upgraded', () => {
     let polygonZkEVMGlobalExitRoot: AgglayerGER;
     let rollupManagerContract: AgglayerManagerMock;
 
-    const latestVersionRollupManager = 'v1.0.0';
+    const latestVersionRollupManager = 'v2.0.0';
     const polTokenName = 'POL Token';
     const polTokenSymbol = 'POL';
     const polTokenInitialBalance = ethers.parseEther('20000000');
