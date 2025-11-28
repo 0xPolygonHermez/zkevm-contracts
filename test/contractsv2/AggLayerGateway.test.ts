@@ -35,7 +35,8 @@ describe('AgglayerGateway tests', () => {
 
     beforeEach('Deploy contracts', async () => {
         // load signers
-        [deployer, defaultAdmin, aggLayerAdmin, aggchainVKey, addAggregationRoute, freezeAggregationRoute] = await ethers.getSigners();
+        [deployer, defaultAdmin, aggLayerAdmin, aggchainVKey, addAggregationRoute, freezeAggregationRoute] =
+            await ethers.getSigners();
 
         // deploy AgglayerGateway
         const AgglayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway');
@@ -179,7 +180,11 @@ describe('AgglayerGateway tests', () => {
 
         // check onlyRole
         await expect(
-            aggLayerGatewayContract.addProofAggregationVKeyRoute(selector, verifierContract.target, proofAggregationVKey),
+            aggLayerGatewayContract.addProofAggregationVKeyRoute(
+                selector,
+                verifierContract.target,
+                proofAggregationVKey,
+            ),
         )
             .to.be.revertedWithCustomError(aggLayerGatewayContract, 'AccessControlUnauthorizedAccount')
             .withArgs(deployer.address, AL_ADD_PP_ROUTE_ROLE);
@@ -407,10 +412,7 @@ describe('AgglayerGateway tests', () => {
 
         // check RouteNotFound
         await expect(
-            aggLayerGatewayContract.verifyAggregatedProof(
-                input['public-values'],
-                `${selector}${input.proof.slice(2)}`,
-            ),
+            aggLayerGatewayContract.verifyAggregatedProof(input['public-values'], `${selector}${input.proof.slice(2)}`),
         )
             .to.be.revertedWithCustomError(aggLayerGatewayContract, 'RouteNotFound')
             .withArgs(selector);
@@ -453,10 +455,7 @@ describe('AgglayerGateway tests', () => {
 
         // check RouteIsFrozen
         await expect(
-            aggLayerGatewayContract.verifyAggregatedProof(
-                input['public-values'],
-                `${selector}${input.proof.slice(2)}`,
-            ),
+            aggLayerGatewayContract.verifyAggregatedProof(input['public-values'], `${selector}${input.proof.slice(2)}`),
         )
             .to.be.revertedWithCustomError(aggLayerGatewayContract, 'RouteIsFrozen')
             .withArgs(selector);

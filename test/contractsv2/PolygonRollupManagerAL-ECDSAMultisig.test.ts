@@ -35,8 +35,8 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
     let aggLayerAdmin: any;
     let tester: any;
     let aggchainVKey: any;
-    let addPPRoute: any;
-    let freezePPRoute: any;
+    let addProofAggregationRoute: any;
+    let freezeProofAggregationRoute: any;
 
     // CONTRACTS
     let polygonZkEVMBridgeContract: AgglayerBridge;
@@ -53,12 +53,12 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
     // BRIDGE CONSTANTS
     const NETWORK_ID_MAINNET = 0;
     // AGGLAYER CONSTANTS
-    const PESSIMISTIC_SELECTOR = '0x00000001';
+    const PROOF_AGGREGATION_SELECTOR = '0x00000001';
     // AGGCHAIN CONSTANTS
     // bytes2(version)=0x0001 | bytes2(type)=0x0002 => selector 0x00010002
     const AGGCHAIN_VKEY_SELECTOR = '0x00010002';
     const CUSTOM_DATA_ECDSA = '0x'; // ECDSA Multisig expects empty aggchainData
-    const randomPessimisticVKey = computeRandomBytes(32);
+    const proofAggregationVKey = '0x1000000000000000000000000000000000000000000000000000000000000000';
 
     upgrades.silenceWarnings();
 
@@ -159,8 +159,8 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
             aggLayerAdmin,
             tester,
             aggchainVKey,
-            addPPRoute,
-            freezePPRoute,
+            addProofAggregationRoute,
+            freezeProofAggregationRoute,
         ] = await ethers.getSigners();
 
         // Deploy L1 contracts
@@ -195,11 +195,11 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
         await aggLayerGatewayContract.initialize(
             admin.address,
             aggchainVKey.address,
-            addPPRoute.address,
-            freezePPRoute.address,
-            PESSIMISTIC_SELECTOR,
+            addProofAggregationRoute.address,
+            freezeProofAggregationRoute.address,
+            PROOF_AGGREGATION_SELECTOR,
             verifierContract.target,
-            randomPessimisticVKey,
+            proofAggregationVKey,
             admin.address, // multisigRole
             [], // signersToAdd
             0, // newThreshold
@@ -285,11 +285,11 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
             aggLayerGatewayContract.initialize(
                 timelock.address,
                 aggchainVKey.address,
-                addPPRoute.address,
-                freezePPRoute.address,
-                PESSIMISTIC_SELECTOR,
+                addProofAggregationRoute.address,
+                freezeProofAggregationRoute.address,
+                PROOF_AGGREGATION_SELECTOR,
                 verifierContract.target,
-                randomPessimisticVKey,
+                proofAggregationVKey,
                 admin.address, // multisigRole
                 [], // signersToAdd
                 0, // newThreshold
@@ -510,7 +510,7 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
         );
     });
 
-    it('should verify a pessimistic proof for a ECDSA aggchain', async () => {
+    it('should verify an aggregated proof of a single ECDSA aggchain', async () => {
         // Create ECDSA aggchain
         const rollupTypeIdECDSAMultisig = await createECDSAMultisigRollupType();
         const [aggchainECDSAMultisigId] = await createECDSAMultisigRollup(rollupTypeIdECDSAMultisig);
@@ -526,40 +526,63 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
 
         expect(await polygonZkEVMBridgeContract.depositCount()).to.be.equal(1);
 
-        // call rollup manager verify function
-        // Compute random values for proof generation
-        const randomNewLocalExitRoot = computeRandomBytes(32);
-        const randomNewPessimisticRoot = computeRandomBytes(32);
-        const randomProof = computeRandomBytes(128);
+        const prevLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const newLocalExitRoot = '0xa000000000000000000000000000000000000000000000000000000000000000';
+
+        const prevPessimisticRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const newPessimisticRoot = '0xb000000000000000000000000000000000000000000000000000000000000000';
+
+        const verifierAddress = '0x1000000000000000000000000000000000000000';
+        const l1InfoRoot = '0x1100000000000000000000000000000000000000000000000000000000000000';
+        const newArer = '0x2200000000000000000000000000000000000000000000000000000000000000';
+
+        const proof = `0x${''.padEnd(128 * 2, '0')}`;
         // append first 4 bytes to the proof to select the pessimistic vkey
-        const proofWithSelector = `${PESSIMISTIC_SELECTOR}${randomProof.slice(2)}`;
+        const proofWithSelector = `${PROOF_AGGREGATION_SELECTOR}${proof.slice(2)}`;
 
-        // Add default AggchainVKey
-        const aggchainVKey = computeRandomBytes(32);
+        // Add default proof aggregation vkey route
+        await aggLayerGatewayContract
+            .connect(addProofAggregationRoute)
+            .addProofAggregationVKeyRoute(AGGCHAIN_VKEY_SELECTOR, verifierAddress, proofAggregationVKey);
 
-        await expect(
-            aggLayerGatewayContract.connect(aggLayerAdmin).addDefaultAggchainVKey(AGGCHAIN_VKEY_SELECTOR, aggchainVKey),
-        )
-            .to.emit(aggLayerGatewayContract, 'AddDefaultAggchainVKey')
-            .withArgs(AGGCHAIN_VKEY_SELECTOR, aggchainVKey);
-
-        // verify pessimist proof with the new ECDSA Multisig rollup
+        // verify an aggregated proof of a single ECDSA aggchain
         const rollupECDSAMultisigData = await rollupManagerContract.rollupIDToRollupData(aggchainECDSAMultisigId);
         const aggchainECDSAMultisigFactory = await ethers.getContractFactory('AggchainECDSAMultisig');
         const ECDSAMultisigRollupContract = await aggchainECDSAMultisigFactory.attach(rollupECDSAMultisigData[0]);
 
         await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                aggchainECDSAMultisigId, // rollupID
-                1, // l1InfoTreeCount
-                randomNewLocalExitRoot,
-                randomNewPessimisticRoot,
-                proofWithSelector,
-                CUSTOM_DATA_ECDSA,
+            rollupManagerContract.connect(trustedAggregator).verifyAggregatedProofTrusted(
+                [
+                    {
+                        rollupID: aggchainECDSAMultisigId,
+                        newLocalExitRoot,
+                        newPessimisticRoot,
+                        aggchainData: CUSTOM_DATA_ECDSA,
+                    },
+                ],
+                l1InfoRoot, // rollupID
+                newArer, // l1InfoTreeCount
+                proofWithSelector, // proofBytes
             ),
         )
             .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
-            .to.emit(ECDSAMultisigRollupContract, 'OnVerifyPessimisticECDSAMultisig');
+            .to.emit(ECDSAMultisigRollupContract, 'OnVerifyPessimisticECDSAMultisig')
+            .to.emit(rollupManagerContract, 'VerifyAggregatedProof')
+            .withArgs(ethers.ZeroHash, newArer)
+            .to.emit(rollupManagerContract, 'VerifyPessimisticStateTransition')
+            .withArgs(
+                aggchainECDSAMultisigId,
+                prevPessimisticRoot,
+                newPessimisticRoot,
+                prevLocalExitRoot,
+                newLocalExitRoot,
+                l1InfoRoot,
+                trustedAggregator.address,
+            );
+    });
+
+    it('should verify an aggregated proof for multiple ECDSA aggchains', async () => {
+        // TODO: Implement this test
     });
 
     it('should add existing rollup to ECDSA', async () => {

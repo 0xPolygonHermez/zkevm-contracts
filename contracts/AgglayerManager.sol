@@ -333,6 +333,7 @@ contract AgglayerManager is
     mapping(uint32 rollupID => bool) public isRollupMigrating;
 
     // Last Agglayer Rollup Exit Root
+    // TODO: Check if this shall be initialized to some value
     bytes32 public lastAgglayerRollupExitRoot;
 
     /**
@@ -1313,6 +1314,7 @@ contract AgglayerManager is
      */
     function verifyAggregatedProofTrusted(
         PessimisticProofInput[] calldata pessimisticProofInputs,
+        // TODO: Use count instead
         bytes32 l1InfoRoot,
         bytes32 newArer,
         bytes calldata proofBytes
@@ -1372,7 +1374,7 @@ contract AgglayerManager is
         PessimisticProofInput[] calldata pessimisticProofInputs,
         bytes32 l1InfoRoot,
         bytes32 newArer
-    ) internal nonReentrant {
+    ) internal {
         // Update aggregation parameters
         lastAggregationTimestamp = uint64(block.timestamp);
 
@@ -1394,7 +1396,7 @@ contract AgglayerManager is
     function _consolidateSingle(
         PessimisticProofInput calldata proofData,
         bytes32 l1InfoRoot
-    ) internal nonReentrant {
+    ) internal {
         uint32 rollupID = proofData.rollupID;
         bytes32 newLocalExitRoot = proofData.newLocalExitRoot;
         RollupData storage rollup = _rollupIDToRollupData[rollupID];
