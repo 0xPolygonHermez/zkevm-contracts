@@ -169,18 +169,8 @@ async function main() {
         overrideGasLimit,
     );
 
-    // Retrieve wrappedTokenBytecodeStorer contract to add it to the genesis, necessary for token wrapped deployments from the bridge
+    // Retrieve bridge contract instance
     const bridgeContract = polygonZkEVMBridgeFactory.attach(bridgeImplementationAddress) as AgglayerBridge;
-    const wrappedTokenBytecodeStorer = await bridgeContract.wrappedTokenBytecodeStorer();
-
-    const bytecodeStorerInfo = await getAddressInfo(wrappedTokenBytecodeStorer as string);
-    genesis.push({
-        contractName: GENESIS_CONTRACT_NAMES.BYTECODE_STORER,
-        balance: '0',
-        nonce: bytecodeStorerInfo.nonce.toString(),
-        address: wrappedTokenBytecodeStorer,
-        bytecode: bytecodeStorerInfo.bytecode,
-    });
 
     if (isMainnet === false) {
         finalBridgeImplAddress = bridgeImplementationAddress;

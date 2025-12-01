@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity ^0.8.20;
-import "./IBaseLegacyAgglayerGER.sol";
+import "../../../interfaces/IBaseLegacyAgglayerGER.sol";
 
 /**
  * @title IAgglayerGERL2
@@ -61,15 +61,4 @@ interface IAgglayerGERL2 is IBaseLegacyAgglayerGER {
      * @return The current hash chain value
      */
     function insertedGERHashChain() external view returns (bytes32);
-
-    /**
-     * @notice Get if a local exit root exists for a given network
-     * @param ler local exit root to check
-     * @param networkID origin network ID of the local exit root
-     * @return True if the local exit root exists, false otherwise
-     */
-    function existLER(
-        bytes32 ler,
-        uint32 networkID
-    ) external view returns (bool);
 }

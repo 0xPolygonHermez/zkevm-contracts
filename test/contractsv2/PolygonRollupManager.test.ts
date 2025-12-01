@@ -917,14 +917,6 @@ describe('Polygon Rollup Manager', () => {
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
 
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
-
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
         // create2 parameters
@@ -1763,14 +1755,6 @@ describe('Polygon Rollup Manager', () => {
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
 
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
-
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
 
@@ -2329,14 +2313,6 @@ describe('Polygon Rollup Manager', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
 
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
@@ -3391,14 +3367,6 @@ describe('Polygon Rollup Manager', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
 
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');

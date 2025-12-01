@@ -709,14 +709,6 @@ describe('PolygonZkEVMEtrog', () => {
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
 
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
-
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
 

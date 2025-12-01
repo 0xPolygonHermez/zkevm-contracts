@@ -831,19 +831,6 @@ describe('Polygon Rollup manager upgraded', () => {
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeafRollup, rootRollups)).to.be.equal(true);
 
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(
-                newLocalExitRoot,
-                proofRollups,
-                indexLeafRollup,
-                rootRollups,
-            ),
-        ).to.be.equal(true);
-
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
         // create2 parameters

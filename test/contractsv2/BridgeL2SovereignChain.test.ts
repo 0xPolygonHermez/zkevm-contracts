@@ -5,7 +5,11 @@ import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import { ERC20PermitMock, AgglayerGERL2, AgglayerBridgeL2, TokenWrapped } from '../../typechain-types';
-import { computeWrappedTokenProxyAddress, claimBeforeBridge } from './helpers/helpers-sovereign-bridge';
+import {
+    computeWrappedTokenProxyAddress,
+    claimBeforeBridge,
+    deploySovereignBridgeContract,
+} from './helpers/helpers-sovereign-bridge';
 import { valueToStorageBytes } from '../../src/utils';
 
 const MerkleTreeBridge = MTBridge;
@@ -70,11 +74,7 @@ describe('AgglayerBridgeL2 Contract', () => {
         // Set trusted sequencer as coinbase for sovereign chains
         await ethers.provider.send('hardhat_setCoinbase', [deployer.address]);
         // deploy AgglayerBridgeL2
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
-        sovereignChainBridgeContract = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as AgglayerBridgeL2;
+        sovereignChainBridgeContract = (await deploySovereignBridgeContract()) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager
         const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory('AgglayerGERL2');
@@ -152,8 +152,8 @@ describe('AgglayerBridgeL2 Contract', () => {
             deployer.address,
             tokenInitialBalance,
         );
-        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.1.0');
-        expect(await sovereignChainGlobalExitRootContract.version()).to.be.equal('v1.0.0');
+        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.3.0');
+        expect(await sovereignChainGlobalExitRootContract.version()).to.be.equal('v1.1.0');
     });
 
     it('Should remap source 6 decimal token to 18 sovereign wrapped token and bridge', async () => {
@@ -271,9 +271,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         await expect(
             sovereignChainBridgeContract.claimAsset(
@@ -315,10 +312,7 @@ describe('AgglayerBridgeL2 Contract', () => {
         // deploy PolygonZkEVMBridge
         // eslint-disable-next-line @typescript-eslint/no-shadow
         const sovereignChainBridgeContract = await ethers.getContractFactory('AgglayerBridgeL2');
-        const bridge = await upgrades.deployProxy(sovereignChainBridgeContract, [], {
-            initializer: false,
-            unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        });
+        const bridge = await deploySovereignBridgeContract();
 
         // Gas token network should be zero if gas token address is zero
         await expect(
@@ -591,9 +585,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
 
@@ -921,9 +912,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
@@ -1069,9 +1057,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
@@ -1159,9 +1144,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
@@ -1420,9 +1402,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup),
-        ).to.be.equal(true);
         const globalIndex = computeGlobalIndex(indexLocal, indexRollup, false);
         let claimedGlobalIndexHashChainJS = ethers.ZeroHash;
         claimedGlobalIndexHashChainJS = newHashChainValue(
@@ -1573,9 +1552,6 @@ describe('AgglayerBridgeL2 Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, indexLocal, rootLocalRollup)).to.be.equal(true);
         expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup),
-        ).to.be.equal(true);
         const globalIndex = computeGlobalIndex(indexLocal, indexRollup, false);
 
         let claimedGlobalIndexHashChainJS = ethers.ZeroHash;
@@ -1742,17 +1718,6 @@ describe('AgglayerBridgeL2 Contract', () => {
             amount,
             metadataHashMainnet,
         );
-        const leafValueMainnetSC = await sovereignChainBridgeContract.getLeafValue(
-            LEAF_TYPE_ASSET,
-            originNetwork,
-            originTokenAddress,
-            newDestinationNetwork,
-            destinationAddress,
-            amount,
-            metadataHashMainnet,
-        );
-
-        expect(leafValueMainnet).to.be.equal(leafValueMainnetSC);
         merkleTreeMainnet.add(leafValueMainnet);
         const rootJSMainnet = merkleTreeMainnet.getRoot();
 
@@ -1797,14 +1762,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValueMainnet, proofMainnet, indexMainnet, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(
-                leafValueMainnet,
-                proofMainnet,
-                indexMainnet,
-                rootSCMainnet,
-            ),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot2 = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
@@ -1934,9 +1891,6 @@ describe('AgglayerBridgeL2 Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, indexLocal, rootLocalRollup)).to.be.equal(true);
         expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup),
-        ).to.be.equal(true);
 
         expect(false).to.be.equal(await sovereignChainBridgeContract.isClaimed(indexLocal, indexRollup + 1));
 
@@ -2148,9 +2102,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         const globalIndex = computeGlobalIndex(index, index, false);
         let claimedGlobalIndexHashChainJS = ethers.ZeroHash;
@@ -2390,9 +2341,6 @@ describe('AgglayerBridgeL2 Contract', () => {
         );
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         /*
          * claim
@@ -2545,9 +2493,6 @@ describe('AgglayerBridgeL2 Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         /*
          * claim
@@ -2955,9 +2900,9 @@ describe('AgglayerBridgeL2 Contract', () => {
         // Test successful setting of multiple claims
         await expect(sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims(globalIndexes))
             .to.emit(sovereignChainBridgeContract, 'SetClaim')
-            .withArgs(indexLocal1, indexRollup + 1)
+            .withArgs(globalIndexes[0])
             .to.emit(sovereignChainBridgeContract, 'SetClaim')
-            .withArgs(indexLocal2, indexRollup + 1);
+            .withArgs(globalIndexes[1]);
 
         // Verify claims are now set
         expect(await sovereignChainBridgeContract.isClaimed(indexLocal1, indexRollup + 1)).to.be.equal(true);
@@ -2974,7 +2919,7 @@ describe('AgglayerBridgeL2 Contract', () => {
             sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims([mainnetGlobalIndex]),
         )
             .to.emit(sovereignChainBridgeContract, 'SetClaim')
-            .withArgs(7, 0);
+            .withArgs(mainnetGlobalIndex);
 
         // Verify mainnet claim is set
         expect(await sovereignChainBridgeContract.isClaimed(7, 0)).to.be.equal(true);

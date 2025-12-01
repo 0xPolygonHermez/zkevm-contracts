@@ -141,53 +141,12 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     oldBridge.nonce = Number(bridgeInfo.nonce);
 
     /// ///////////////////////
-    // BytecodeStorer contract
-    /// ///////////////////////
-    // Compute the address of the BytecodeStorer contract deployed by the deployed sovereign bridge
-    const precalculatedAddressBytecodeStorer = ethers.getCreateAddress({
-        from: sovereignBridgeAddress,
-        nonce: 1,
-    });
-
-    const bytecodeStorerDeployedBytecode = `0x${await zkEVMDB.getBytecode(precalculatedAddressBytecodeStorer)}`;
-    const bytecodeStorerState = await zkEVMDB.getCurrentAccountState(precalculatedAddressBytecodeStorer);
-    const bytecodeStorerObjectNew = {
-        contractName: GENESIS_CONTRACT_NAMES.BYTECODE_STORER,
-        balance: bytecodeStorerState.balance.toString(),
-        nonce: bytecodeStorerState.nonce.toString(),
-        address: precalculatedAddressBytecodeStorer,
-        bytecode: bytecodeStorerDeployedBytecode,
-    };
-
-    bytecodeStorerObjectNew.storage = await zkEVMDB.dumpStorage(precalculatedAddressBytecodeStorer);
-    bytecodeStorerObjectNew.storage = Object.entries(bytecodeStorerObjectNew.storage).reduce((acc, [key, value]) => {
-        acc[key] = padTo32Bytes(value);
-        return acc;
-    }, {});
-
-    // Check if the genesis contains BytecodeStorer contract
-    let bytecodeStorerObject = genesis.genesis.find(function (obj) {
-        return obj.contractName === GENESIS_CONTRACT_NAMES.BYTECODE_STORER;
-    });
-
-    // Replace it with deployed bytecodeStorer contract or push it to the genesis if it does not exist
-    if (typeof bytecodeStorerObject === 'undefined') {
-        bytecodeStorerObject = bytecodeStorerObjectNew;
-        genesis.genesis.push(bytecodeStorerObject);
-    } else {
-        // modify the reference in genesis.genesis
-        Object.assign(bytecodeStorerObject, bytecodeStorerObjectNew);
-        // Check bytecode of the BytecodeStorer contract is the same as the one in the genesis
-        expect(bytecodeStorerObject.bytecode).to.equal(bytecodeStorerDeployedBytecode);
-    }
-
-    /// ///////////////////////
     // TokenWrappedImplementation contract
     /// ///////////////////////
-    // Compute the address of the wrappedTokenImplementation contract deployed by the deployed sovereign bridge with nonce 2
+    // Compute the address of the wrappedTokenImplementation contract deployed by the deployed sovereign bridge with nonce 1
     const precalculatedAddressTokenWrappedImplementation = ethers.getCreateAddress({
         from: sovereignBridgeAddress,
-        nonce: 2,
+        nonce: 1,
     });
 
     const tokenWrappedImplementationDeployedBytecode = `0x${await zkEVMDB.getBytecode(precalculatedAddressTokenWrappedImplementation)}`;
@@ -232,15 +191,15 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     /// ///////////////////////
     // BridgeLib contract
     /// ///////////////////////
-    // Compute the address of the bridgeLib contract deployed by the deployed sovereign bridge with nonce 3
+    // Compute the address of the bridgeLib contract deployed by the deployed sovereign bridge with nonce 2
     const precalculatedAddressBridgeLib = ethers.getCreateAddress({
         from: sovereignBridgeAddress,
-        nonce: 3,
+        nonce: 2,
     });
 
     // Check nonce is 4
     const bridgeState = await zkEVMDB.getCurrentAccountState(sovereignBridgeAddress);
-    expect(Number(bridgeState.nonce)).to.equal(4);
+    expect(Number(bridgeState.nonce)).to.equal(3);
 
     // Replace it with deployed bridgeLib contract
     const bridgeLibImplementationDeployedBytecode = `0x${await zkEVMDB.getBytecode(precalculatedAddressBridgeLib)}`;
@@ -610,9 +569,6 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     expect(bridgeProxy.storage['0x0000000000000000000000000000000000000000000000000000000000000068']).to.include(
         gerProxy.address.toLowerCase().slice(2),
     );
-
-    // Check bridge implementation bytecode contains bytecodeStorer contract address
-    expect(oldBridge.bytecode).to.include(precalculatedAddressBytecodeStorer.toLowerCase().slice(2));
 
     // Check bridge implementation bytecode contains tokenWrappedImplementation contract address
     expect(oldBridge.bytecode).to.include(precalculatedAddressTokenWrappedImplementation.toLowerCase().slice(2));

@@ -167,9 +167,6 @@ describe('PolygonZkEVMBridge Contract claimMessage reentrancy', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, indexDeployer, rootLocalRollup)).to.be.equal(true);
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofLocal, indexDeployer, rootLocalRollup),
-        ).to.be.equal(true);
 
         // This is used just to pay ether to the SovereignChainBridge smart contract and be able to claim it afterwards
         await ethers.provider.send('hardhat_setBalance', [
@@ -355,9 +352,6 @@ describe('PolygonZkEVMBridge Contract claimMessage reentrancy', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, indexDeployer1, rootLocalRollup)).to.be.equal(true);
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofLocal, indexDeployer1, rootLocalRollup),
-        ).to.be.equal(true);
 
         // update reentrancy contract with parameters for claim 2 (destinationAddress == deployer)
         await expect(

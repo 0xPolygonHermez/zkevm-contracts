@@ -27,7 +27,7 @@ contract DepositContractV2 is ReentrancyGuardUpgradeable, DepositContractBase {
         address destinationAddress,
         uint256 amount,
         bytes32 metadataHash
-    ) public pure returns (bytes32) {
+    ) internal pure virtual returns (bytes32) {
         return
             keccak256(
                 abi.encodePacked(

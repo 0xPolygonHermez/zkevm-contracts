@@ -9,7 +9,6 @@ import "./interfaces/IBridgeMessageReceiver.sol";
 import "./interfaces/IAgglayerBridge.sol";
 import "./lib/EmergencyManager.sol";
 import "./lib/GlobalExitRootLib.sol";
-import "./lib/BytecodeStorer.sol";
 import {BridgeLib} from "./lib/BridgeLib.sol";
 import {ITokenWrappedBridgeUpgradeable, TokenWrappedBridgeUpgradeable} from "./lib/TokenWrappedBridgeUpgradeable.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts5/proxy/ERC1967/ERC1967Utils.sol";
@@ -34,12 +33,9 @@ contract AgglayerBridge is
         address originTokenAddress;
     }
 
-    // Address of the contract that contains the bytecode to deploy wrapped tokens, upgradeable tokens and the code of the transparent proxy
-    /// @dev the constant has been exported to a separate contract to improve this bytecode length.
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IBytecodeStorer public immutable wrappedTokenBytecodeStorer;
-
     /// Instance of the BridgeLib contract deployed for bytecode optimization
+    /// Also contains the bytecode to deploy wrapped tokens, upgradeable tokens and the code of the transparent proxy
+    /// @dev those functions been exported to a separate contract to improve this bytecode length.
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     BridgeLib public immutable bridgeLib;
 
@@ -66,7 +62,7 @@ contract AgglayerBridge is
     uint256 internal constant _GLOBAL_INDEX_MAINNET_FLAG = 2 ** 64;
 
     // Current bridge version
-    string public constant BRIDGE_VERSION = "v1.1.0";
+    string internal constant BRIDGE_VERSION = "v1.1.0";
 
     // Network identifier
     uint32 public networkID;
@@ -105,7 +101,7 @@ contract AgglayerBridge is
     ITokenWrappedBridgeUpgradeable public WETHToken;
 
     // Address of the proxied tokens manager, is the admin of proxied wrapped tokens
-    address public proxiedTokensManager;
+    address internal proxiedTokensManager;
 
     //  This account will be able to accept the proxiedTokensManager role
     address public pendingProxiedTokensManager;
@@ -184,10 +180,6 @@ contract AgglayerBridge is
     }
 
     constructor() {
-        // Deploy the wrapped token contract
-        /// @dev this contract is used to store the bytecode of the wrapped token contract, previously stored in the bridge contract but moved to a separate contract to reduce the bytecode size.
-        wrappedTokenBytecodeStorer = new BytecodeStorer();
-
         // Deploy the implementation of the wrapped token contract
         /// @dev its the address where proxy wrapped tokens with deterministic address will point
         wrappedTokenBridgeImplementation = address(
@@ -254,23 +246,6 @@ contract AgglayerBridge is
 
         // Initialize OZ contracts
         __ReentrancyGuard_init();
-    }
-
-    /**
-     * @notice initializer to set PolygonTimelock as proxiedTokensManager
-     */
-    function initialize()
-        public
-        virtual
-        getInitializedVersion
-        reinitializer(2)
-    {
-        if (_initializerVersion == 0) {
-            revert InvalidInitializeFunction();
-        }
-
-        // Set PolygonTimelock contract address as proxied tokens manager, the owner of current proxy contract
-        _setProxiedTokensManagerFromProxy();
     }
 
     modifier onlyRollupManager() {
@@ -444,7 +419,7 @@ contract AgglayerBridge is
         address destinationAddress,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
-    ) external payable ifNotEmergencyState {
+    ) external payable virtual ifNotEmergencyState {
         // If exist a gas token, only allow call this function without value
         if (msg.value != 0 && address(WETHToken) != address(0)) {
             revert NoValueInMessagesOnGasTokenNetworks();
@@ -474,7 +449,7 @@ contract AgglayerBridge is
         uint256 amountWETH,
         bool forceUpdateGlobalExitRoot,
         bytes calldata metadata
-    ) external ifNotEmergencyState {
+    ) external virtual ifNotEmergencyState {
         // If native token is ether, disable this function
         if (address(WETHToken) == address(0)) {
             revert NativeTokenIsEther();
@@ -578,7 +553,7 @@ contract AgglayerBridge is
         }
 
         // Verify leaf exist and it does not have been claimed
-        _verifyLeafBridge(
+        _verifyLeafAndSetNullifier(
             smtProofLocalExitRoot,
             smtProofRollupExitRoot,
             globalIndex,
@@ -590,7 +565,7 @@ contract AgglayerBridge is
             destinationNetwork,
             destinationAddress,
             amount,
-            keccak256(metadata)
+            metadata
         );
 
         emit ClaimEvent(
@@ -602,6 +577,22 @@ contract AgglayerBridge is
         );
 
         // Transfer funds
+        _transferFundsClaim(
+            originNetwork,
+            originTokenAddress,
+            destinationAddress,
+            amount,
+            metadata
+        );
+    }
+
+    function _transferFundsClaim(
+        uint32 originNetwork,
+        address originTokenAddress,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) internal {
         if (
             originTokenAddress == address(0) &&
             originNetwork == _MAINNET_NETWORK_ID
@@ -731,14 +722,14 @@ contract AgglayerBridge is
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) external ifNotEmergencyState {
+    ) external virtual ifNotEmergencyState {
         // Destination network must be this networkID
         if (destinationNetwork != networkID) {
             revert DestinationNetworkInvalid();
         }
 
         // Verify leaf exist and it does not have been claimed
-        _verifyLeafBridge(
+        _verifyLeafAndSetNullifier(
             smtProofLocalExitRoot,
             smtProofRollupExitRoot,
             globalIndex,
@@ -750,7 +741,7 @@ contract AgglayerBridge is
             destinationNetwork,
             destinationAddress,
             amount,
-            keccak256(metadata)
+            metadata
         );
 
         emit ClaimEvent(
@@ -762,6 +753,22 @@ contract AgglayerBridge is
         );
 
         // Execute message
+        _executeMessage(
+            originNetwork,
+            originAddress,
+            destinationAddress,
+            amount,
+            metadata
+        );
+    }
+
+    function _executeMessage(
+        uint32 originNetwork,
+        address originAddress,
+        address destinationAddress,
+        uint256 amount,
+        bytes calldata metadata
+    ) internal {
         bool success;
         if (address(WETHToken) == address(0)) {
             // Native token is ether
@@ -793,7 +800,10 @@ contract AgglayerBridge is
     }
 
     /**
-     * @notice Get leaf value and verify the merkle proof
+     * @notice Verify leaf merkle proof and mark the claim as processed (set nullifier)
+     * @dev This function combines leaf verification with nullifier setting to prevent double-claiming
+     * The metadata parameter is provided as raw bytes instead of pre-hashed to allow child contracts
+     * to emit it in events (particularly useful in AgglayerBridgeL2 for DetailedClaimEvent)
      * @param smtProofLocalExitRoot Smt proof to proof the leaf against the exit root
      * @param smtProofRollupExitRoot Smt proof to proof the rollupLocalExitRoot against the rollups exit root
      * @param globalIndex Global index
@@ -805,9 +815,9 @@ contract AgglayerBridge is
      * @param destinationNetwork Network destination
      * @param destinationAddress Address destination
      * @param amount message value
-     * @param metadataHash Hash of the metadata
+     * @param metadata Raw metadata bytes (will be hashed for leaf value computation)
      */
-    function _verifyLeafBridge(
+    function _verifyLeafAndSetNullifier(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofRollupExitRoot,
         uint256 globalIndex,
@@ -819,9 +829,9 @@ contract AgglayerBridge is
         uint32 destinationNetwork,
         address destinationAddress,
         uint256 amount,
-        bytes32 metadataHash
+        bytes memory metadata
     ) internal virtual {
-        _verifyLeaf(
+        (uint32 leafIndex, uint32 sourceBridgeNetwork) = _verifyLeaf(
             smtProofLocalExitRoot,
             smtProofRollupExitRoot,
             globalIndex,
@@ -834,9 +844,12 @@ contract AgglayerBridge is
                 destinationNetwork,
                 destinationAddress,
                 amount,
-                metadataHash
+                keccak256(metadata)
             )
         );
+
+        // Set and check nullifier
+        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
     }
 
     /**
@@ -847,7 +860,7 @@ contract AgglayerBridge is
     function getTokenWrappedAddress(
         uint32 originNetwork,
         address originTokenAddress
-    ) external view returns (address) {
+    ) external view virtual returns (address) {
         return
             tokenInfoToWrappedToken[
                 keccak256(abi.encodePacked(originNetwork, originTokenAddress))
@@ -903,13 +916,16 @@ contract AgglayerBridge is
     }
 
     /**
-     * @notice Verify leaf and checks that it has not been claimed
+     * @notice Verify leaf and extract source network information
+     * @dev This function verifies the merkle proofs but does NOT set the claimed nullifier
      * @param smtProofLocalExitRoot Smt proof
      * @param smtProofRollupExitRoot Smt proof
      * @param globalIndex Index of the leaf
      * @param mainnetExitRoot Mainnet exit root
      * @param rollupExitRoot Rollup exit root
      * @param leafValue leaf value
+     * @return leafIndex The index of the leaf in the local exit root
+     * @return sourceBridgeNetwork The source network identifier extracted from globalIndex
      */
     function _verifyLeaf(
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProofLocalExitRoot,
@@ -918,7 +934,7 @@ contract AgglayerBridge is
         bytes32 mainnetExitRoot,
         bytes32 rollupExitRoot,
         bytes32 leafValue
-    ) internal virtual {
+    ) internal virtual returns (uint32, uint32) {
         // Check blockhash where the global exit root was set
         // Note that previous timestamps were set, since in only checked if != 0 it's ok
         uint256 blockHashGlobalExitRoot = globalExitRootManager
@@ -967,9 +983,7 @@ contract AgglayerBridge is
                 revert InvalidSmtProof();
             }
         }
-
-        // Set and check nullifier
-        _setAndCheckClaimed(leafIndex, sourceBridgeNetwork);
+        return (leafIndex, sourceBridgeNetwork);
     }
 
     /**
@@ -980,7 +994,7 @@ contract AgglayerBridge is
     function isClaimed(
         uint32 leafIndex,
         uint32 sourceBridgeNetwork
-    ) external view virtual returns (bool) {
+    ) public view virtual returns (bool) {
         uint256 globalIndex;
 
         // For consistency with the previous set nullifiers
@@ -1042,7 +1056,7 @@ contract AgglayerBridge is
      */
     function transferProxiedTokensManagerRole(
         address newProxiedTokensManager
-    ) external {
+    ) external virtual {
         require(msg.sender == proxiedTokensManager, OnlyProxiedTokensManager());
 
         pendingProxiedTokensManager = newProxiedTokensManager;
@@ -1056,7 +1070,7 @@ contract AgglayerBridge is
     /**
      * @notice Allow the current pending ProxiedTokensManager to accept the ProxiedTokensManager role
      */
-    function acceptProxiedTokensManagerRole() external {
+    function acceptProxiedTokensManagerRole() external virtual {
         require(
             msg.sender == pendingProxiedTokensManager,
             OnlyPendingProxiedTokensManager()
@@ -1075,7 +1089,7 @@ contract AgglayerBridge is
     /**
      * @notice Function to update the globalExitRoot if the last deposit is not submitted
      */
-    function updateGlobalExitRoot() external {
+    function updateGlobalExitRoot() external virtual {
         if (lastUpdatedDepositCount < depositCount) {
             _updateGlobalExitRoot();
         }
@@ -1141,6 +1155,11 @@ contract AgglayerBridge is
      * @return leafIndex The leaf index extracted from global index
      * @return indexRollup The rollup index extracted from global index (0 for mainnet)
      * @return sourceBridgeNetwork The source bridge network (0 for mainnet, indexRollup + 1 for rollups)
+     * | network  |  indexRollup | sourceBridgeNetwork (networkID) |
+     * | mainnet  | 0 (non-used) |         0           |
+     * | rollup 1 |       0      |         1           |
+     * | rollup 2 |       1      |         2           |
+     * ....
      */
     function _validateAndDecodeGlobalIndex(
         uint256 globalIndex
@@ -1208,13 +1227,10 @@ contract AgglayerBridge is
         /// @dev A bytecode stored on chain is used to deploy the proxy in a way that ALWAYS it's used the same
         /// bytecode, therefore the proxy addresses are the same in all chains as they are deployed deterministically with same init bytecode
         /// @dev there is no constructor args as the implementation address + owner of the proxied are set at constructor level and taken from the bridge itself
-        bytes memory proxyInitBytecode = abi.encodePacked(
-            INIT_BYTECODE_TRANSPARENT_PROXY()
-        );
+        bytes memory proxyInitBytecode = INIT_BYTECODE_TRANSPARENT_PROXY();
 
         // Deploy wrapped token proxy
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             newWrappedTokenProxy := create2(
                 0,
                 add(proxyInitBytecode, 0x20),
@@ -1237,7 +1253,7 @@ contract AgglayerBridge is
     /**
      * @notice Returns internal proxiedTokensManager address
      */
-    function getProxiedTokensManager() external view returns (address) {
+    function getProxiedTokensManager() external view virtual returns (address) {
         return proxiedTokensManager;
     }
 
@@ -1245,6 +1261,7 @@ contract AgglayerBridge is
     function getWrappedTokenBridgeImplementation()
         external
         view
+        virtual
         returns (address)
     {
         return wrappedTokenBridgeImplementation;
@@ -1262,24 +1279,20 @@ contract AgglayerBridge is
      */
     function getTokenMetadata(
         address token
-    ) external view returns (bytes memory) {
+    ) external view virtual returns (bytes memory) {
         return bridgeLib.getTokenMetadata(token);
     }
 
     /**
-     * @notice Returns the INIT_BYTECODE_TRANSPARENT_PROXY from the BytecodeStorer
-     * @dev BytecodeStorer is a contract that contains PolygonTransparentProxy as constant, it has done this way to have more bytecode available.
-     *  Using the on chain bytecode, we assure that transparent proxy is always deployed with the exact same bytecode, necessary to have all deployed wrapped token
-     *  with the same address on all the chains.
+     * @notice Returns the INIT_BYTECODE_TRANSPARENT_PROXY from the BridgeLib
      */
     function INIT_BYTECODE_TRANSPARENT_PROXY()
         public
         view
+        virtual
         returns (bytes memory)
     {
-        return
-            IBytecodeStorer(wrappedTokenBytecodeStorer)
-                .INIT_BYTECODE_TRANSPARENT_PROXY();
+        return bridgeLib.INIT_BYTECODE_TRANSPARENT_PROXY();
     }
 
     /**
@@ -1290,7 +1303,7 @@ contract AgglayerBridge is
     function computeTokenProxyAddress(
         uint32 originNetwork,
         address originTokenAddress
-    ) public view returns (address) {
+    ) public view virtual returns (address) {
         bytes32 salt = keccak256(
             abi.encodePacked(originNetwork, originTokenAddress)
         );
@@ -1300,7 +1313,7 @@ contract AgglayerBridge is
                 bytes1(0xff),
                 address(this),
                 salt,
-                keccak256(abi.encodePacked(INIT_BYTECODE_TRANSPARENT_PROXY()))
+                keccak256(INIT_BYTECODE_TRANSPARENT_PROXY())
             )
         );
 

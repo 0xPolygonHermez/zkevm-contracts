@@ -113,7 +113,6 @@ async function main() {
     );
     outputJson.bridgeL2SovereignChainAddress = sovereignBridge.proxy;
     outputJson.bridgeL2SovereignChainImplementation = sovereignBridge.implementation;
-    outputJson.wrappedTokenBytecodeStorer = sovereignBridge.wrappedTokenBytecodeStorer;
     outputJson.wrappedTokenBridgeImplementation = sovereignBridge.wrappedTokenBridgeImplementation;
     outputJson.bridgeLib = sovereignBridge.bridgeLib;
     outputJson.WETH = sovereignBridge.WETH;
@@ -316,7 +315,6 @@ async function deployBridgeL2SovereignChain(
 ): Promise<{
     proxy: string;
     implementation: string;
-    wrappedTokenBytecodeStorer: string;
     wrappedTokenBridgeImplementation: string;
     bridgeLib: string;
     WETH: string;
@@ -435,7 +433,6 @@ async function deployBridgeL2SovereignChain(
         timelockAddress, // proxiedTokensManager set to timelock address (governance)
     );
     await initializeTx?.wait(5);
-    const wrappedTokenBytecodeStorer = await bridge.wrappedTokenBytecodeStorer();
     const wrappedTokenBridgeImplementation = await bridge.getWrappedTokenBridgeImplementation();
     const bridgeLib = await bridge.bridgeLib();
     const WETH = await bridge.WETHToken();
@@ -452,7 +449,6 @@ async function deployBridgeL2SovereignChain(
     return {
         proxy: bridgeProxy.target as string,
         implementation: bridgeImplementation.target as string,
-        wrappedTokenBytecodeStorer,
         wrappedTokenBridgeImplementation,
         bridgeLib,
         WETH,
@@ -982,20 +978,6 @@ async function verifyBridgeContract(deployConfig: any, outputJson: any) {
         );
     }
     logger.info(`✅ Bridge -> GER Manager: ${bridgeGERManager}`);
-
-    // Verify immutable variables and their bytecode
-    const wrappedTokenBytecodeStorer = await bridge.wrappedTokenBytecodeStorer();
-    if (wrappedTokenBytecodeStorer.toLowerCase() !== outputJson.wrappedTokenBytecodeStorer.toLowerCase()) {
-        throw new Error(
-            `Wrapped token bytecode storer mismatch. Expected: ${outputJson.wrappedTokenBytecodeStorer}, Got: ${wrappedTokenBytecodeStorer}`,
-        );
-    }
-    // Verify bytecode exists
-    const storerCode = await ethers.provider.getCode(wrappedTokenBytecodeStorer);
-    if (storerCode === '0x') {
-        throw new Error(`WrappedTokenBytecodeStorer at ${wrappedTokenBytecodeStorer} has no bytecode`);
-    }
-    logger.info(`✅ Bridge wrappedTokenBytecodeStorer: ${wrappedTokenBytecodeStorer} (bytecode confirmed)`);
 
     const wrappedTokenImplementation = await bridge.getWrappedTokenBridgeImplementation();
     if (wrappedTokenImplementation.toLowerCase() !== outputJson.wrappedTokenBridgeImplementation.toLowerCase()) {

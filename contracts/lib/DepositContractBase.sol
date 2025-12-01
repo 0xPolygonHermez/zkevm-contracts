@@ -116,7 +116,7 @@ contract DepositContractBase {
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index,
         bytes32 root
-    ) public pure returns (bool) {
+    ) internal pure virtual returns (bool) {
         return calculateRoot(leafHash, smtProof, index) == root;
     }
 
@@ -130,7 +130,7 @@ contract DepositContractBase {
         bytes32 leafHash,
         bytes32[_DEPOSIT_CONTRACT_TREE_DEPTH] calldata smtProof,
         uint32 index
-    ) public pure returns (bytes32) {
+    ) internal pure virtual returns (bytes32) {
         bytes32 node = leafHash;
 
         // Compute root

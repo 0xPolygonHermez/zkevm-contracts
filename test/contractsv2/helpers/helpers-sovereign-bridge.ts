@@ -1,4 +1,4 @@
-import { ethers } from 'hardhat';
+import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 
 const { getLeafValue } = mtBridgeUtils;
@@ -7,6 +7,20 @@ const MerkleTreeBridge = MTBridge;
 // Constants
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _GLOBAL_INDEX_MAINNET_FLAG = 2n ** 64n;
+
+export async function deploySovereignBridgeContract() {
+    // deploy AgglayerBridgeL2Helper
+    const BridgeL2HelperFactory = await ethers.getContractFactory('AgglayerBridgeL2Helper');
+    const bridgeL2Helper = await BridgeL2HelperFactory.deploy();
+    // deploy AgglayerBridgeL2
+    const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
+    const bridge = await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
+        initializer: false,
+        constructorArgs: [bridgeL2Helper.target], // Constructor arguments
+        unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call', 'delegatecall'],
+    });
+    return bridge;
+}
 
 export function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: boolean) {
     if (isMainnet === true) {
