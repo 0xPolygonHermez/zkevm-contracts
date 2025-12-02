@@ -1307,18 +1307,26 @@ contract AgglayerManager is
      * @notice Allows a trusted aggregator to verify an aggregated proof, which validates the state transition
      * of multiple aggchains at once.
      * @param pessimisticProofInputs Array of pessimistic proof inputs verified by the proof
-     * @param l1InfoRoot L1 info tree root
+     * @param l1InfoTreeLeafCount Count of the L1InfoTree leaf that will be used to verify imported bridge exits
      * @param newArer New Agglayer Rollup Exit Root
      * @param proofBytes Aggregated proof containing a SP1 proof (Plonk) validating the state transition of multiple
      * aggchains at once. The first 4 bytes of the proofBytes are the selector.
      */
     function verifyAggregatedProofTrusted(
         PessimisticProofInput[] calldata pessimisticProofInputs,
-        // TODO: Use count instead
-        bytes32 l1InfoRoot,
+        uint32 l1InfoTreeLeafCount,
         bytes32 newArer,
         bytes calldata proofBytes
     ) external onlyRole(_TRUSTED_AGGREGATOR_ROLE) nonReentrant {
+        // Get the L1 info tree root by its count
+        bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
+            l1InfoTreeLeafCount
+        );
+
+        if (l1InfoRoot == bytes32(0)) {
+            revert L1InfoTreeLeafCountInvalid();
+        }
+
         bytes32 hashChainLeafPubValues = bytes32(0);
 
         for (uint256 i = 0; i < pessimisticProofInputs.length; i++) {
