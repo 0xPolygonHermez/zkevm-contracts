@@ -550,6 +550,9 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
         const aggchainECDSAMultisigFactory = await ethers.getContractFactory('AggchainECDSAMultisig');
         const ECDSAMultisigRollupContract = await aggchainECDSAMultisigFactory.attach(rollupECDSAMultisigData[0]);
 
+        // Check initial value of lastAgglayerRollupExitRoot (should be zero)
+        expect(await rollupManagerContract.lastAgglayerRollupExitRoot()).to.be.equal(ethers.ZeroHash);
+
         await expect(
             rollupManagerContract.connect(trustedAggregator).verifyAggregatedProofTrusted(
                 [
@@ -560,9 +563,9 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
                         aggchainData: CUSTOM_DATA_ECDSA,
                     },
                 ],
-                l1InfoRoot, // rollupID
-                newArer, // l1InfoTreeCount
-                proofWithSelector, // proofBytes
+                l1InfoRoot,
+                newArer,
+                proofWithSelector,
             ),
         )
             .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
@@ -579,6 +582,14 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
                 l1InfoRoot,
                 trustedAggregator.address,
             );
+
+        // Assert that lastAgglayerRollupExitRoot is updated to newArer
+        expect(await rollupManagerContract.lastAgglayerRollupExitRoot()).to.be.equal(newArer);
+        
+        // Assert that rollup's lastLocalExitRoot and lastPessimisticRoot are updated
+        const rollupDataAfter = await rollupManagerContract.rollupIDToRollupDataV2(aggchainECDSAMultisigId);
+        expect(rollupDataAfter.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataAfter.lastPessimisticRoot).to.be.equal(newPessimisticRoot);
     });
 
     it('should verify an aggregated proof for multiple ECDSA aggchains', async () => {

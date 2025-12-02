@@ -573,6 +573,9 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
         const aggchainFEPFactory = await ethers.getContractFactory('AggchainFEP');
         const FEPRollupContract = await aggchainFEPFactory.attach(rollupFEPData[0]);
 
+        // Check initial value of lastAgglayerRollupExitRoot (should be zero)
+        expect(await rollupManagerContract.lastAgglayerRollupExitRoot()).to.be.equal(ethers.ZeroHash);
+
         const tx = await rollupManagerContract.connect(trustedAggregator).verifyAggregatedProofTrusted(
             [
                 {
@@ -588,8 +591,19 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
         );
 
         const receipt = await tx.wait();
+        
+        // Assert that lastAgglayerRollupExitRoot is updated to newArer
+        expect(await rollupManagerContract.lastAgglayerRollupExitRoot()).to.be.equal(newArer);
+        
+        // Assert that rollup's lastLocalExitRoot and lastPessimisticRoot are updated
+        const rollupDataAfter = await rollupManagerContract.rollupIDToRollupDataV2(aggchainFEPId);
+        expect(rollupDataAfter.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataAfter.lastPessimisticRoot).to.be.equal(newPessimisticRoot);
+        
         const block = await ethers.provider.getBlock(receipt?.blockNumber || 0);
         const blockDataTimestamp = block?.timestamp;
+
+        
 
         await expect(tx)
             .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
