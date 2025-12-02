@@ -438,13 +438,18 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyPessimisticTrustedAggregator(
-                    newCreatedRollupID,
-                    lastL1InfoTreeLeafCount,
-                    newWrongLER,
-                    newPPRoot,
+                .verifyAggregatedProofTrusted(
+                    [
+                        {
+                            rollupID: newCreatedRollupID,
+                            newLocalExitRoot: newWrongLER,
+                            newPessimisticRoot: newPPRoot,
+                            aggchainData: CUSTOM_DATA_ECDSA,
+                        },
+                    ],
+                    await polygonZkEVMGlobalExitRoot.l1InfoRootMap(lastL1InfoTreeLeafCount),
+                    ethers.ZeroHash,
                     proofWithSelector,
-                    CUSTOM_DATA_ECDSA,
                 ),
         ).to.be.revertedWithCustomError(rollupManagerContract, 'InvalidNewLocalExitRoot');
 
@@ -457,13 +462,18 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyPessimisticTrustedAggregator(
-                    newCreatedRollupID,
-                    lastL1InfoTreeLeafCount,
-                    lastLER,
-                    newPPRoot,
+                .verifyAggregatedProofTrusted(
+                    [
+                        {
+                            rollupID: newCreatedRollupID,
+                            newLocalExitRoot: lastLER,
+                            newPessimisticRoot: newPPRoot,
+                            aggchainData: CUSTOM_DATA_ECDSA,
+                        },
+                    ],
+                    lastL1InfoTreeRoot,
+                    ethers.ZeroHash,
                     proofWithSelector,
-                    CUSTOM_DATA_ECDSA,
                 ),
         )
             .to.emit(rollupManagerContract, 'CompletedMigration')
