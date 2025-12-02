@@ -533,7 +533,9 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
         const newPessimisticRoot = '0xb000000000000000000000000000000000000000000000000000000000000000';
 
         const verifierAddress = '0x1000000000000000000000000000000000000000';
-        const l1InfoRoot = '0x1100000000000000000000000000000000000000000000000000000000000000';
+        
+        const l1InfoTreeLeafCount = 1;
+        const l1InfoRoot = await polygonZkEVMGlobalExitRoot.l1InfoRootMap(l1InfoTreeLeafCount);
         const newArer = '0x2200000000000000000000000000000000000000000000000000000000000000';
 
         const proof = `0x${''.padEnd(128 * 2, '0')}`;
@@ -563,7 +565,7 @@ describe('Polygon rollup manager aggregation layer v3: ECDSA Multisig', () => {
                         aggchainData: CUSTOM_DATA_ECDSA,
                     },
                 ],
-                l1InfoRoot,
+                l1InfoTreeLeafCount,
                 newArer,
                 proofWithSelector,
             ),

@@ -427,8 +427,10 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
 
         expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(true);
 
+        const l1InfoRoot = await polygonZkEVMGlobalExitRoot.l1InfoRootMap(l1InfoTreeLeafCount);
+
         // Verify PP with mock "bootstrapBatch"
-        const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
+        
         const newWrongLER = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const lastLER = rollupData[4];
         const newPPRoot = computeRandomBytes(32);
@@ -447,7 +449,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                             aggchainData: CUSTOM_DATA_ECDSA,
                         },
                     ],
-                    await polygonZkEVMGlobalExitRoot.l1InfoRootMap(lastL1InfoTreeLeafCount),
+                    l1InfoTreeLeafCount,
                     ethers.ZeroHash,
                     proofWithSelector,
                 ),
@@ -458,7 +460,6 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
 
         const prevPP = ethers.ZeroHash;
         const prevLER = ethers.ZeroHash;
-        const lastL1InfoTreeRoot = await polygonZkEVMGlobalExitRoot.l1InfoRootMap(lastL1InfoTreeLeafCount);
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
@@ -471,7 +472,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                             aggchainData: CUSTOM_DATA_ECDSA,
                         },
                     ],
-                    lastL1InfoTreeRoot,
+                    l1InfoTreeLeafCount,
                     ethers.ZeroHash,
                     proofWithSelector,
                 ),
@@ -487,7 +488,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                 newPPRoot,
                 prevLER,
                 lastLER,
-                lastL1InfoTreeRoot,
+                l1InfoRoot,
                 trustedAggregator.address,
             );
 
