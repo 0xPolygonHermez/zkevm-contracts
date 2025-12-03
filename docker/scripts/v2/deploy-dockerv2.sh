@@ -15,6 +15,9 @@ rm -rf docker/gethData/geth_data
 export DOCKER_UID=$(id -u)
 export DOCKER_GID=$(id -g)
 
+# Create the data directory before starting container (will be owned by current user)
+mkdir -p docker/gethData/geth_data
+
 DEV_PERIOD=1 docker compose -f docker/docker-compose.yml up -d geth
 sleep 5
 node docker/scripts/fund-accounts.ts
