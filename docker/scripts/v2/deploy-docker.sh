@@ -11,8 +11,8 @@ trap cleanup ERR
 rm -rf docker/gethData/geth_data
 
 # Set UID/GID so container runs as current user, not root
-export UID=$(id -u)
-export GID=$(id -g)
+export DOCKER_UID=$(id -u)
+export DOCKER_GID=$(id -g)
 
 DEV_PERIOD=1 docker-compose -f docker/docker-compose.yml up -d geth
 sleep 5

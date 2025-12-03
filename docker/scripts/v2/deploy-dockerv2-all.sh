@@ -12,8 +12,8 @@ rm -rf docker/gethData/geth_data
 [ -f deployment/v2/create_rollup_output_* ] && rm ./deployment/v2/create_rollup_output_*
 
 # Set UID/GID so container runs as current user, not root
-export UID=$(id -u)
-export GID=$(id -g)
+export DOCKER_UID=$(id -u)
+export DOCKER_GID=$(id -g)
 
 # start geth
 DEV_PERIOD=1 docker compose -f docker/docker-compose.yml up -d geth
