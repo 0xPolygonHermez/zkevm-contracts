@@ -10,6 +10,11 @@ cleanup() {
 trap cleanup ERR
 
 rm -rf docker/gethData/geth_data
+
+# Set UID/GID so container runs as current user, not root
+export UID=$(id -u)
+export GID=$(id -g)
+
 DEV_PERIOD=1 docker compose -f docker/docker-compose.yml up -d geth
 sleep 5
 node docker/scripts/fund-accounts.ts
@@ -24,5 +29,3 @@ mv deployment/v2/genesis.json docker/deploymentOutput
 mv deployment/v2/create_rollup_output_* docker/deploymentOutput/create_rollup_output.json
 DEV_PERIOD=1 docker compose -f docker/docker-compose.yml down
 docker build -t hermeznetwork/geth-zkevm-contracts -f docker/Dockerfile .
-# Let it readable for the multiplatform build coming later!
-chmod -R go+rxw docker/gethData

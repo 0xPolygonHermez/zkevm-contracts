@@ -10,6 +10,11 @@ trap cleanup ERR
 # remove old data
 rm -rf docker/gethData/geth_data
 [ -f deployment/v2/create_rollup_output_* ] && rm ./deployment/v2/create_rollup_output_*
+
+# Set UID/GID so container runs as current user, not root
+export UID=$(id -u)
+export GID=$(id -g)
+
 # start geth
 DEV_PERIOD=1 docker compose -f docker/docker-compose.yml up -d geth
 sleep 5
@@ -56,5 +61,3 @@ mv deployment/v2/genesis.json docker/deploymentOutput
 [ -f deployment/v2/genesis_sovereign.json ] && mv deployment/v2/genesis_sovereign.json docker/deploymentOutput
 DEV_PERIOD=1 docker compose -f docker/docker-compose.yml down
 docker build -t hermeznetwork/geth-zkevm-contracts -f docker/Dockerfile .
-# Let it readable for the multiplatform build coming later!
-chmod -R go+rxw docker/gethData
