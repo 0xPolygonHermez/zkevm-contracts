@@ -1,5 +1,4 @@
 #!/bin/bash
-# TODO: Remove just to force CI trigger
 # Set the -e option to stop the script if any command fails
 set -e
 # Define cleanup function
