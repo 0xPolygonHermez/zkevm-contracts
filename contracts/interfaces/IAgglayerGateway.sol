@@ -169,6 +169,28 @@ interface IAgglayerGateway is
         bytes calldata proofBytes
     ) external view;
 
+    /// @notice Function to add a proof aggregation verification key route
+    /// @dev Only callable by the owner. The owner is responsible for ensuring that the specified
+    /// verifier is correct with a valid VERIFIER_HASH. Once a route to a verifier is added, it
+    /// cannot be removed.
+    /// @param proofAggregationVKeySelector The verifier selector to add.
+    /// @param verifier The address of the verifier contract. This verifier MUST implement the
+    /// ISP1VerifierWithHash interface.
+    /// @param proofAggregationVKey New proof aggregation verification key
+    function addProofAggregationVKeyRoute(
+        bytes4 proofAggregationVKeySelector,
+        address verifier,
+        bytes32 proofAggregationVKey
+    ) external;
+
+    /// @notice Function to freeze a proof aggregation verification key route
+    /// @dev Only callable by the owner. Once a route to a verifier is frozen, it cannot be
+    /// unfrozen.
+    /// @param proofAggregationVKeySelector The 4 bytes selector to freeze the proof aggregation verification key route.
+    function freezeProofAggregationVKeyRoute(
+        bytes4 proofAggregationVKeySelector
+    ) external;
+
     ////////////////////////////////////////////////////////////
     //                  Multisig Functions                    //
     ////////////////////////////////////////////////////////////
