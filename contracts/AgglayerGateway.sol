@@ -285,8 +285,6 @@ contract AgglayerGateway is
 
         route.frozen = true;
 
-        // TODO: Unsure if reuse old event RouteFrozen or create new one
-        // ProofAggregationRouteFrozen.
         emit ProofAggregationRouteFrozen(
             proofAggregationVKeySelector,
             route.verifier,

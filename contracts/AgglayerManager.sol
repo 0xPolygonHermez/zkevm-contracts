@@ -1356,8 +1356,6 @@ contract AgglayerManager is
             hashChainLeafPubValues = keccak256(abi.encodePacked(hashChainLeafPubValues, ppOutputDigest));
         }
 
-        // TODO: Check that l1InfoRoot is in the contract? Otherwise its a free input?
-
         // TODO: Remove this TODO: when agglayer removes the ppvkey from the input. Right now the ppvkey
         // is part of the public input in agglayer, but that will be removed.
         // TODO: Once agglayer releases, point to this instead of the sandbox branch
