@@ -427,8 +427,10 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
 
         expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(true);
 
+        const l1InfoRoot = await polygonZkEVMGlobalExitRoot.l1InfoRootMap(l1InfoTreeLeafCount);
+
         // Verify PP with mock "bootstrapBatch"
-        const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
+        
         const newWrongLER = '0x0000000000000000000000000000000000000000000000000000000000000001';
         const lastLER = rollupData[4];
         const newPPRoot = computeRandomBytes(32);
@@ -438,13 +440,18 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyPessimisticTrustedAggregator(
-                    newCreatedRollupID,
-                    lastL1InfoTreeLeafCount,
-                    newWrongLER,
-                    newPPRoot,
+                .verifyAggregatedProofTrusted(
+                    [
+                        {
+                            rollupID: newCreatedRollupID,
+                            newLocalExitRoot: newWrongLER,
+                            newPessimisticRoot: newPPRoot,
+                            aggchainData: CUSTOM_DATA_ECDSA,
+                        },
+                    ],
+                    l1InfoTreeLeafCount,
+                    ethers.ZeroHash,
                     proofWithSelector,
-                    CUSTOM_DATA_ECDSA,
                 ),
         ).to.be.revertedWithCustomError(rollupManagerContract, 'InvalidNewLocalExitRoot');
 
@@ -453,17 +460,21 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
 
         const prevPP = ethers.ZeroHash;
         const prevLER = ethers.ZeroHash;
-        const lastL1InfoTreeRoot = await polygonZkEVMGlobalExitRoot.l1InfoRootMap(lastL1InfoTreeLeafCount);
         await expect(
             rollupManagerContract
                 .connect(trustedAggregator)
-                .verifyPessimisticTrustedAggregator(
-                    newCreatedRollupID,
-                    lastL1InfoTreeLeafCount,
-                    lastLER,
-                    newPPRoot,
+                .verifyAggregatedProofTrusted(
+                    [
+                        {
+                            rollupID: newCreatedRollupID,
+                            newLocalExitRoot: lastLER,
+                            newPessimisticRoot: newPPRoot,
+                            aggchainData: CUSTOM_DATA_ECDSA,
+                        },
+                    ],
+                    l1InfoTreeLeafCount,
+                    ethers.ZeroHash,
                     proofWithSelector,
-                    CUSTOM_DATA_ECDSA,
                 ),
         )
             .to.emit(rollupManagerContract, 'CompletedMigration')
@@ -477,7 +488,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                 newPPRoot,
                 prevLER,
                 lastLER,
-                lastL1InfoTreeRoot,
+                l1InfoRoot,
                 trustedAggregator.address,
             );
 

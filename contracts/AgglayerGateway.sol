@@ -28,12 +28,16 @@ contract AgglayerGateway is
     bytes32 internal constant AGGCHAIN_DEFAULT_VKEY_ROLE =
         keccak256("AGGCHAIN_DEFAULT_VKEY_ROLE");
 
-    // Can add a route to a pessimistic verification key.
+    // Can add a route to a pessimistic verification key and an aggregation verification key.
+    // @notice Notice the naming. It's named PP since this role was initially defined for the pessimistic
+    // routes. Later on, the aggregation route was introduced, but we keep the old name to avoid breaking changes.
     // @dev value 0x0fdc2a718b96bc741c7544001e3dd7c26730802c54781668fa78a120e622629b
     bytes32 internal constant AL_ADD_PP_ROUTE_ROLE =
         keccak256("AL_ADD_PP_ROUTE_ROLE");
 
-    // Can freeze a route to a pessimistic verification key.
+    // Can add a route to a pessimistic verification key and an aggregation verification key.
+    // @notice Notice the naming. It's named PP since this role was initially defined for the pessimistic
+    // routes. Later on, the aggregation route was introduced, but we keep the old name to avoid breaking changes.
     // @dev value 0xca75ae4228cde6195f9fa3dbde8dc352fb30aa63780717a378ccfc50274355dd
     bytes32 internal constant AL_FREEZE_PP_ROUTE_ROLE =
         keccak256("AL_FREEZE_PP_ROUTE_ROLE");
@@ -43,7 +47,7 @@ contract AgglayerGateway is
     bytes32 internal constant AL_MULTISIG_ROLE = keccak256("AL_MULTISIG_ROLE");
 
     // Current AgglayerGateway version
-    string public constant AGGLAYER_GATEWAY_VERSION = "v1.1.0";
+    string public constant AGGLAYER_GATEWAY_VERSION = "v2.0.0";
 
     // Maximum number of aggchain signers supported
     uint256 public constant MAX_AGGCHAIN_SIGNERS = 255;
@@ -62,9 +66,11 @@ contract AgglayerGateway is
     mapping(bytes4 defaultAggchainSelector => bytes32 defaultAggchainVKey)
         public defaultAggchainVKeys;
 
-    // Mapping with the pessimistic verification key routes
-    mapping(bytes4 pessimisticVKeySelector => AggLayerVerifierRoute)
-        public pessimisticVKeyRoutes;
+    // Mapping with the aggregation verification key routes. This storage slot was used for the PP
+    // routes in the previous version, but since that's deprecated, we reuse it for the aggregation routes.
+    /// @custom:oz-renamed-from pessimisticVKeyRoutes
+    mapping(bytes4 selector => AggLayerVerifierRoute)
+        public aggregationVKeySelector;
 
     ////////////////////////////////////////////////////////////
     //                      Multisig                          //
@@ -121,9 +127,9 @@ contract AgglayerGateway is
      * @param aggchainDefaultVKeyRole The address that can manage the aggchain verification keys.
      * @param addRouteRole The address that can add a route to a pessimistic verification key.
      * @param freezeRouteRole The address that can freeze a route to a pessimistic verification key.
-     * @param pessimisticVKeySelector The 4 bytes selector to add to the pessimistic verification keys.
+     * @param proofAggregationVKeySelector The 4 bytes selector to add to the proof aggregation verification keys.
      * @param verifier The address of the verifier contract.
-     * @param pessimisticVKey New pessimistic program verification key.
+     * @param proofAggregationVKey New proof aggregation verification key.
      * @param multisigRole The address that can manage multisig signers and threshold.
      * @param signersToAdd Array of signers to add with their URLs
      * @param newThreshold New threshold value
@@ -133,9 +139,9 @@ contract AgglayerGateway is
         address aggchainDefaultVKeyRole,
         address addRouteRole,
         address freezeRouteRole,
-        bytes4 pessimisticVKeySelector,
+        bytes4 proofAggregationVKeySelector,
         address verifier,
-        bytes32 pessimisticVKey,
+        bytes32 proofAggregationVKey,
         address multisigRole,
         SignerInfo[] memory signersToAdd,
         uint256 newThreshold
@@ -160,10 +166,10 @@ contract AgglayerGateway is
         _grantRole(AL_FREEZE_PP_ROUTE_ROLE, freezeRouteRole);
         _grantRole(AL_MULTISIG_ROLE, multisigRole);
 
-        _addPessimisticVKeyRoute(
-            pessimisticVKeySelector,
+        _addProofAggregationVKeyRoute(
+            proofAggregationVKeySelector,
             verifier,
-            pessimisticVKey
+            proofAggregationVKey
         );
 
         // Add the signers to the contract
@@ -174,49 +180,22 @@ contract AgglayerGateway is
         );
     }
 
-    /**
-     * @notice Upgrade initializer to add multisig functionality to existing deployment.
-     * @param multisigRole The address of the multisig role. Can manage multisig signers and threshold.
-     * @param signersToAdd Array of signers to add with their URLs
-     * @param newThreshold New threshold value
-     */
-    function initialize(
-        address multisigRole,
-        SignerInfo[] memory signersToAdd,
-        uint256 newThreshold
-    ) external getInitializedVersion reinitializer(2) {
-        if (_initializerVersion != 1) {
-            revert InvalidInitializer();
-        }
-
-        if (multisigRole == address(0)) {
-            revert InvalidZeroAddress();
-        }
-
-        _grantRole(AL_MULTISIG_ROLE, multisigRole);
-
-        // Add the signers to the contract
-        _updateSignersAndThreshold(
-            new RemoveSignerInfo[](0), // No signers to remove
-            signersToAdd,
-            newThreshold
-        );
-    }
 
     ////////////////////////////////////////////////////////////
-    //        Functions: AgglayerGateway (pessimistic)        //
+    //        Functions: AgglayerGateway (aggregation)        //
     ////////////////////////////////////////////////////////////
+
     /**
-     * @notice Function to verify the pessimistic proof.
-     * @param publicValues Public values of the proof.
-     * @param proofBytes Proof for the pessimistic verification.
-     * @dev First 4 bytes of the pessimistic proof are the pp selector.
-     * proof[0:4]: 4 bytes selector pp
+     * @notice Function to verify an aggregated proof.
+     * @param aggregationPublicValues The aggregation public values encoded as bytes.
+     * @param proofBytes Proof for the pessimistic verification. The first 4 bytes of
+     * proofBytes are the selector.
+     * proof[0:4]: 4 bytes selector for the aggregation vkey
      * proof[4:8]: 4 bytes selector SP1 verifier
      * proof[8:]: proof
      */
-    function verifyPessimisticProof(
-        bytes calldata publicValues,
+    function verifyAggregatedProof(
+        bytes calldata aggregationPublicValues,
         bytes calldata proofBytes
     ) external view {
         /// @dev By protocol the proof should at least have the 4 bytes selector, the other bytes are not part of our protocol
@@ -224,98 +203,93 @@ contract AgglayerGateway is
             revert InvalidProofBytesLength();
         }
 
-        bytes4 ppSelector = bytes4(proofBytes[:4]);
+        bytes4 proofAggregationVKeySelector = bytes4(proofBytes[:4]);
 
-        AggLayerVerifierRoute memory route = pessimisticVKeyRoutes[ppSelector];
+        AggLayerVerifierRoute memory route = aggregationVKeySelector[proofAggregationVKeySelector];
         if (route.verifier == address(0)) {
-            revert RouteNotFound(ppSelector);
+            revert RouteNotFound(proofAggregationVKeySelector);
         } else if (route.frozen) {
-            revert RouteIsFrozen(ppSelector);
+            revert RouteIsFrozen(proofAggregationVKeySelector);
         }
 
         ISP1Verifier(route.verifier).verifyProof(
-            route.pessimisticVKey,
-            publicValues,
+            route.aggregationVKey,
+            aggregationPublicValues,
             proofBytes[4:]
         );
     }
 
     /**
-     * @notice Internal function to add a pessimistic verification key route
-     * @param pessimisticVKeySelector The 4 bytes selector to add to the pessimistic verification keys.
+     * @notice Internal function to add a proof aggregation verification key route
+     * @param proofAggregationVKeySelector The 4 bytes selector to add to the proof aggregation verification keys.
      * @param verifier The address of the verifier contract.
-     * @param pessimisticVKey New pessimistic program verification key
+     * @param proofAggregationVKey New proof aggregation verification key
      */
-    function _addPessimisticVKeyRoute(
-        bytes4 pessimisticVKeySelector,
+    function _addProofAggregationVKeyRoute(
+        bytes4 proofAggregationVKeySelector,
         address verifier,
-        bytes32 pessimisticVKey
+        bytes32 proofAggregationVKey
     ) internal {
         if (verifier == address(0)) {
             revert InvalidZeroAddress();
         }
 
-        if (pessimisticVKeySelector == bytes4(0)) {
-            revert PPSelectorCannotBeZero();
+        if (proofAggregationVKeySelector == bytes4(0)) {
+            revert ProofAggregationVKeySelectorCannotBeZero();
         }
-        if (pessimisticVKey == bytes32(0)) {
+        if (proofAggregationVKey == bytes32(0)) {
             revert VKeyCannotBeZero();
         }
 
-        AggLayerVerifierRoute storage route = pessimisticVKeyRoutes[
-            pessimisticVKeySelector
-        ];
+        AggLayerVerifierRoute storage route = aggregationVKeySelector[proofAggregationVKeySelector];
         if (route.verifier != address(0)) {
-            revert RouteAlreadyExists(pessimisticVKeySelector, route.verifier);
+            revert RouteAlreadyExists(proofAggregationVKeySelector, route.verifier);
         }
 
         route.verifier = verifier;
-        route.pessimisticVKey = pessimisticVKey;
-        emit RouteAdded(pessimisticVKeySelector, verifier, pessimisticVKey);
+        route.aggregationVKey = proofAggregationVKey;
+        emit ProofAggregationRouteAdded(proofAggregationVKeySelector, verifier, proofAggregationVKey);
     }
 
     /**
-     * @notice Function to add a pessimistic verification key route
-     * @param pessimisticVKeySelector The 4 bytes selector to add to the pessimistic verification keys.
+     * @notice Function to add a proof aggregation verification key route
+     * @param proofAggregationVKeySelector The 4 bytes selector to add to the proof aggregation verification keys.
      * @param verifier The address of the verifier contract.
-     * @param pessimisticVKey New pessimistic program verification key
+     * @param proofAggregationVKey New proof aggregation verification key
      */
-    function addPessimisticVKeyRoute(
-        bytes4 pessimisticVKeySelector,
+    function addProofAggregationVKeyRoute(
+        bytes4 proofAggregationVKeySelector,
         address verifier,
-        bytes32 pessimisticVKey
+        bytes32 proofAggregationVKey
     ) external onlyRole(AL_ADD_PP_ROUTE_ROLE) {
-        _addPessimisticVKeyRoute(
-            pessimisticVKeySelector,
+        _addProofAggregationVKeyRoute(
+            proofAggregationVKeySelector,
             verifier,
-            pessimisticVKey
-        );
+            proofAggregationVKey);
     }
 
     /**
-     * @notice Function to freeze a pessimistic verification key route
-     * @param pessimisticVKeySelector The 4 bytes selector to freeze the pessimistic verification key route.
+     * @notice Function to freeze a proof aggregation verification key route
+     * @param proofAggregationVKeySelector The 4 bytes selector to freeze the proof aggregation verification key route.
      */
-    function freezePessimisticVKeyRoute(
-        bytes4 pessimisticVKeySelector
+    function freezeProofAggregationVKeyRoute(
+        bytes4 proofAggregationVKeySelector
     ) external onlyRole(AL_FREEZE_PP_ROUTE_ROLE) {
-        AggLayerVerifierRoute storage route = pessimisticVKeyRoutes[
-            pessimisticVKeySelector
-        ];
+        AggLayerVerifierRoute storage route = aggregationVKeySelector[proofAggregationVKeySelector];
         if (route.verifier == address(0)) {
-            revert RouteNotFound(pessimisticVKeySelector);
+            revert RouteNotFound(proofAggregationVKeySelector);
         }
         if (route.frozen) {
-            revert RouteIsAlreadyFrozen(pessimisticVKeySelector);
+            revert RouteIsAlreadyFrozen(proofAggregationVKeySelector);
         }
 
         route.frozen = true;
 
-        emit RouteFrozen(
-            pessimisticVKeySelector,
+        emit ProofAggregationRouteFrozen(
+            proofAggregationVKeySelector,
             route.verifier,
-            route.pessimisticVKey
-        );
+            route.aggregationVKey
+            );
     }
 
     ////////////////////////////////////////////////////////////

@@ -315,25 +315,26 @@ describe('Polygon Rollup Manager with zkevm etrog migration to ECDSA Multisig wi
 
         // Verify migration completed successfully for ECDSA Multisig
         // For ECDSA Multisig, verification is simpler - just verify the migration completed
-        const currentDepositCount = await polygonZkEVMGlobalExitRoot.depositCount();
-        const l1InfoTreeLeafCount = Number(currentDepositCount) + 1;
+        const l1InfoTreeLeafCount = 1;
+        const l1InfoRoot = await polygonZkEVMGlobalExitRoot.l1InfoRootMap(l1InfoTreeLeafCount);
         const newLER = ethers.ZeroHash; // For ECDSA multisig with no bridges
         const newPPRoot = inputZkevmMigration.pp_inputs.new_pessimistic_root;
         const proofPP = inputZkevmMigration.proof;
-        const l1InfoRoot = inputZkevmMigration.pp_inputs.l1_info_root;
 
-        // Mock selected GER for the migration
-        await polygonZkEVMGlobalExitRoot.injectGER(l1InfoRoot, l1InfoTreeLeafCount);
-
-        // Finalize the migration with verifyPessimisticTrustedAggregator (no bridges)
+        // Finalize the migration with verifyAggregatedProofTrusted (no bridges)
         await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                newCreatedRollupID,
+            rollupManagerContract.connect(trustedAggregator).verifyAggregatedProofTrusted(
+                [
+                    {
+                        rollupID: newCreatedRollupID,
+                        newLocalExitRoot: newLER,
+                        newPessimisticRoot: newPPRoot,
+                        aggchainData: '0x', // aggchainData is empty for ECDSA multisig
+                    },
+                ],
                 l1InfoTreeLeafCount,
-                newLER,
-                newPPRoot,
+                ethers.ZeroHash,
                 proofPP,
-                '0x', // aggchainData is empty for ECDSA multisig
             ),
         )
             .to.emit(rollupManagerContract, 'CompletedMigration')

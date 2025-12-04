@@ -252,7 +252,7 @@ describe('Polygon Rollup Manager', () => {
         expect(await rollupManagerContract.hasRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncil.address)).to.be.equal(
             true,
         );
-        expect(await rollupManagerContract.version()).to.be.equal('v1.0.0');
+        expect(await rollupManagerContract.version()).to.be.equal('v2.0.0');
     });
 
     it('should check the emergency state', async () => {

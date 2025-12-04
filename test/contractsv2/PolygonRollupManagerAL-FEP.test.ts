@@ -53,13 +53,13 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
     // BRIDGE CONSTANTS
     const NETWORK_ID_MAINNET = 0;
     // AGGLAYER CONSTANTS
-    const PESSIMISTIC_SELECTOR = '0x00000001';
+    const PROOF_AGGREGATION_SELECTOR = '0x00000001';
     // calculate aggchainHash
     const newStateRoot = ethers.id('newStateRoot');
     const newl2BlockNumber = 1200;
     const aggchainVKeySelector = '0x12340001';
     const CUSTOM_DATA_FEP = encodeAggchainDataFEP(aggchainVKeySelector, newStateRoot, newl2BlockNumber);
-    const randomPessimisticVKey = computeRandomBytes(32);
+    const proofAggregationVKey = '0x1000000000000000000000000000000000000000000000000000000000000000';
     let initParams;
 
     upgrades.silenceWarnings();
@@ -206,9 +206,9 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
             aggLayerAdmin.address,
             aggLayerAdmin.address,
             aggLayerAdmin.address,
-            PESSIMISTIC_SELECTOR,
+            PROOF_AGGREGATION_SELECTOR,
             verifierContract.target,
-            randomPessimisticVKey,
+            proofAggregationVKey,
             admin.address, // multisigRole
             [], // signersToAdd
             0, // newThreshold
@@ -296,9 +296,9 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
                 aggLayerAdmin.address,
                 aggLayerAdmin.address,
                 aggLayerAdmin.address,
-                PESSIMISTIC_SELECTOR,
+                PROOF_AGGREGATION_SELECTOR,
                 verifierContract.target,
-                randomPessimisticVKey,
+                proofAggregationVKey,
                 admin.address, // multisigRole
                 [], // signersToAdd
                 0, // newThreshold
@@ -517,7 +517,7 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
         expect(await aggchainFEPContract.getAggchainHash(CUSTOM_DATA_FEP)).to.be.equal(aggchainHashJS);
     });
 
-    it('should verify a pessimistic proof for a FEP aggchain', async () => {
+    it('should verify an aggregated proof of a single FEP aggchain', async () => {
         // Create FEP aggchain
         const rollupTypeIdFEP = await createFEPRollupType();
         const [aggchainFEPId, aggchainFEPAddress] = await createFEPRollup(rollupTypeIdFEP);
@@ -541,24 +541,22 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
 
         expect(await polygonZkEVMBridgeContract.depositCount()).to.be.equal(1);
 
-        // call rollup manager verify function
-        // Compute random values for proof generation
-        const randomNewLocalExitRoot = computeRandomBytes(32);
-        const randomNewPessimisticRoot = computeRandomBytes(32);
-        const randomProof = computeRandomBytes(128);
-        // append first 4 bytes to the proof to select the pessimistic vkey
-        const proofWithSelector = `${PESSIMISTIC_SELECTOR}${randomProof.slice(2)}`;
-        // expect to revert due to missing vkey (signers are already initialized in createFEPRollup)
-        await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                aggchainFEPId, // rollupID
-                1, // l1InfoTreeCount
-                randomNewLocalExitRoot,
-                randomNewPessimisticRoot,
-                proofWithSelector,
-                CUSTOM_DATA_FEP,
-            ),
-        ).to.be.revertedWithCustomError(aggLayerGatewayContract, 'AggchainVKeyNotFound');
+        const prevLocalExitRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const newLocalExitRoot = '0xa000000000000000000000000000000000000000000000000000000000000000';
+
+        const prevPessimisticRoot = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const newPessimisticRoot = '0xb000000000000000000000000000000000000000000000000000000000000000';
+
+        const verifierAddress = '0x1000000000000000000000000000000000000000';
+        
+        const l1InfoTreeLeafCount = 1;
+        const l1InfoRoot = await polygonZkEVMGlobalExitRoot.l1InfoRootMap(l1InfoTreeLeafCount);
+        const newArer = '0x2200000000000000000000000000000000000000000000000000000000000000';
+
+        const proof = `0x${''.padEnd(128 * 2, '0')}`;
+        // append first 4 bytes to the proof to select the proof aggregation vkey
+        const proofWithSelector = `${PROOF_AGGREGATION_SELECTOR}${proof.slice(2)}`;
+
         // Add default AggchainVKey
         const aggchainVKey = computeRandomBytes(32);
         await expect(
@@ -567,29 +565,64 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
             .to.emit(aggLayerGatewayContract, 'AddDefaultAggchainVKey')
             .withArgs(aggchainVKeySelector, aggchainVKey);
 
-        // verify pessimist proof with the new FEP rollup
-        const onVerifyPessimisticTx = await rollupManagerContract
-            .connect(trustedAggregator)
-            .verifyPessimisticTrustedAggregator(
-                aggchainFEPId, // rollupID
-                1, // l1InfoTreeCount
-                randomNewLocalExitRoot,
-                randomNewPessimisticRoot,
-                proofWithSelector,
-                CUSTOM_DATA_FEP,
-            );
+        // Add default proof aggregation vkey route
+        await aggLayerGatewayContract
+            .connect(aggLayerAdmin)
+            .addProofAggregationVKeyRoute(aggchainVKeySelector, verifierAddress, proofAggregationVKey);
 
-        const lastBlock = await ethers.provider.getBlock('latest');
-        const blockDataTimestamp = lastBlock?.timestamp;
-
+        // verify an aggregated proof of a single FEP aggchain
         const rollupFEPData = await rollupManagerContract.rollupIDToRollupData(aggchainFEPId);
         const aggchainFEPFactory = await ethers.getContractFactory('AggchainFEP');
         const FEPRollupContract = await aggchainFEPFactory.attach(rollupFEPData[0]);
 
-        await expect(onVerifyPessimisticTx)
+        // Check initial value of lastAgglayerRollupExitRoot (should be zero)
+        expect(await rollupManagerContract.lastAgglayerRollupExitRoot()).to.be.equal(ethers.ZeroHash);
+
+        const tx = await rollupManagerContract.connect(trustedAggregator).verifyAggregatedProofTrusted(
+            [
+                {
+                    rollupID: aggchainFEPId,
+                    newLocalExitRoot,
+                    newPessimisticRoot,
+                    aggchainData: CUSTOM_DATA_FEP,
+                },
+            ],
+            l1InfoTreeLeafCount,
+            newArer,
+            proofWithSelector,
+        );
+
+        const receipt = await tx.wait();
+        
+        // Assert that lastAgglayerRollupExitRoot is updated to newArer
+        expect(await rollupManagerContract.lastAgglayerRollupExitRoot()).to.be.equal(newArer);
+        
+        // Assert that rollup's lastLocalExitRoot and lastPessimisticRoot are updated
+        const rollupDataAfter = await rollupManagerContract.rollupIDToRollupDataV2(aggchainFEPId);
+        expect(rollupDataAfter.lastLocalExitRoot).to.be.equal(newLocalExitRoot);
+        expect(rollupDataAfter.lastPessimisticRoot).to.be.equal(newPessimisticRoot);
+        
+        const block = await ethers.provider.getBlock(receipt?.blockNumber || 0);
+        const blockDataTimestamp = block?.timestamp;
+
+        
+
+        await expect(tx)
             .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
             .to.emit(FEPRollupContract, 'OutputProposed')
-            .withArgs(newStateRoot, 1, newl2BlockNumber, blockDataTimestamp);
+            .withArgs(newStateRoot, 1, newl2BlockNumber, blockDataTimestamp)
+            .to.emit(rollupManagerContract, 'VerifyAggregatedProof')
+            .withArgs(ethers.ZeroHash, newArer)
+            .to.emit(rollupManagerContract, 'VerifyPessimisticStateTransition')
+            .withArgs(
+                aggchainFEPId,
+                prevPessimisticRoot,
+                newPessimisticRoot,
+                prevLocalExitRoot,
+                newLocalExitRoot,
+                l1InfoRoot,
+                trustedAggregator.address,
+            );
     });
 
     it('should add existing rollup to FEP', async () => {

@@ -6,23 +6,28 @@ import "./IAggchainSigners.sol";
 // based on: https://github.com/succinctlabs/sp1-contracts/blob/main/contracts/src/ISP1VerifierGateway.sol
 
 interface IAgglayerGatewayEvents {
-    /// @notice Emitted when a verifier route is added.
-    /// @param selector The verifier selector that was added.
-    /// @param verifier The address of the verifier contract.
-    /// @param pessimisticVKey The verification key
-    event RouteAdded(
+    /**
+     * Emitted when a proof aggregation verifier route is added.
+     * @param selector The proof aggregation verifier selector that was added.
+     * @param verifier The address of the verifier contract.
+     * @param proofAggregationVKey The proof aggregation verification key
+     */
+    event ProofAggregationRouteAdded(
         bytes4 selector,
         address verifier,
-        bytes32 pessimisticVKey
+        bytes32 proofAggregationVKey
     );
 
-    /// @notice Emitted when a verifier route is frozen.
-    /// @param selector The verifier selector that was frozen.
-    /// @param verifier The address of the verifier contract.
-    event RouteFrozen(
+    /**
+     * Emitted when a proof aggregation verifier route is frozen.
+     * @param selector The proof aggregation verifier selector that was frozen.
+     * @param verifier The address of the verifier contract.
+     * @param proofAggregationVKey The proof aggregation verification key
+     */
+    event ProofAggregationRouteFrozen(
         bytes4 selector,
         address verifier,
-        bytes32 pessimisticVKey
+        bytes32 proofAggregationVKey
     );
 
     /**
@@ -73,6 +78,9 @@ interface IAgglayerGatewayErrors {
     /// @notice Thrown when adding a verifier route and the selector returned by the verifier is
     /// zero.
     error PPSelectorCannotBeZero();
+
+    /// @notice Thrown when adding a proof aggregation verifier route and the selector is zero.
+    error ProofAggregationVKeySelectorCannotBeZero();
 
     /// @notice Thrown when adding a verifier key with value zero
     error VKeyCannotBeZero();
@@ -134,12 +142,12 @@ interface IAgglayerGateway is
     /**
      * Struct that defines a verifier route
      * @param verifier The address of the verifier contract.
-     * @param pessimisticVKey The verification key to be used for verifying pessimistic proofs.
+     * @param aggregationVKey The verification key to be used for verifying an aggregated proof.
      * @param frozen Whether the route is frozen.
      */
     struct AggLayerVerifierRoute {
         address verifier; // SP1 Verifier. It contains sanity check SP1 version with the 4 first bytes of the proof. proof[4:]
-        bytes32 pessimisticVKey;
+        bytes32 aggregationVKey;
         bool frozen;
     }
 
@@ -152,36 +160,35 @@ interface IAgglayerGateway is
         bytes4 defaultAggchainSelector
     ) external view returns (bytes32);
 
-    /// @notice Verifies a pessimistic proof with given public values and proof.
-    /// @dev It is expected that the first 4 bytes of proofBytes must match the first 4 bytes of
-    /// target verifier's VERIFIER_HASH.
-    /// @param publicValues The public values encoded as bytes.
-    /// @param proofBytes The proof of the program execution the SP1 zkVM encoded as bytes.
-    function verifyPessimisticProof(
-        bytes calldata publicValues,
+    /// @notice Verifies an aggregated proof with given public values and proof.
+    /// @param aggregationPublicValues The aggregation public values encoded as bytes.
+    /// @param proofBytes The proof of the program execution the SP1 zkVM encoded as bytes with the
+    /// first 4 bytes being the selector.
+    function verifyAggregatedProof(
+        bytes calldata aggregationPublicValues,
         bytes calldata proofBytes
     ) external view;
 
-    /// @notice Adds a verifier route. This enable proofs to be routed to this verifier.
+    /// @notice Function to add a proof aggregation verification key route
     /// @dev Only callable by the owner. The owner is responsible for ensuring that the specified
     /// verifier is correct with a valid VERIFIER_HASH. Once a route to a verifier is added, it
     /// cannot be removed.
-    /// @param pessimisticVKeySelector The verifier selector to add.
+    /// @param proofAggregationVKeySelector The verifier selector to add.
     /// @param verifier The address of the verifier contract. This verifier MUST implement the
     /// ISP1VerifierWithHash interface.
-    /// @param pessimisticVKey The verification key to be used for verifying pessimistic proofs.
-    function addPessimisticVKeyRoute(
-        bytes4 pessimisticVKeySelector,
+    /// @param proofAggregationVKey New proof aggregation verification key
+    function addProofAggregationVKeyRoute(
+        bytes4 proofAggregationVKeySelector,
         address verifier,
-        bytes32 pessimisticVKey
+        bytes32 proofAggregationVKey
     ) external;
 
-    /// @notice Freezes a verifier route. This prevents proofs from being routed to this verifier.
+    /// @notice Function to freeze a proof aggregation verification key route
     /// @dev Only callable by the owner. Once a route to a verifier is frozen, it cannot be
     /// unfrozen.
-    /// @param pessimisticVKeySelector The verifier selector to freeze.
-    function freezePessimisticVKeyRoute(
-        bytes4 pessimisticVKeySelector
+    /// @param proofAggregationVKeySelector The 4 bytes selector to freeze the proof aggregation verification key route.
+    function freezeProofAggregationVKeyRoute(
+        bytes4 proofAggregationVKeySelector
     ) external;
 
     ////////////////////////////////////////////////////////////
