@@ -51,12 +51,6 @@ npm run deploy:ZkEVM:hardhat
 npm run docker:contracts
 ```
 
-Or if using new docker-compose version
-
-```
-npm run dockerv2:contracts
-```
-
 A new docker `hermeznetwork/geth-zkevm-contracts` will be created
 This docker will contain a geth node with the deployed contracts
 The deployment output can be found in: `docker/deploymentOutput/deploy_output.json`

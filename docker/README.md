@@ -86,13 +86,6 @@ npm i
 npm run docker:contracts
 ```
 
-or
-
-```
-npm i
-npm run dockerv2:contracts
-```
-
 A new docker `geth-zkevm-contracts:latest` will be created
 This docker will contain a geth node with the deployed contracts
 The deployment output can be found in:
