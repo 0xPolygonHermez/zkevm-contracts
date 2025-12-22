@@ -12,6 +12,8 @@ export const SUPPORTED_GER_MANAGERS = [
     GENESIS_CONTRACT_NAMES.GER_L2_IMPLEMENTATION,
 ];
 
+export const SUPPORTED_GER_MANAGERS_PROXY = [GENESIS_CONTRACT_NAMES.GER_L2_PROXY, 'PolygonZkEVMGlobalExitRootL2 proxy'];
+
 export const SUPPORTED_BRIDGE_CONTRACTS = ['PolygonZkEVMBridge implementation', 'AgglayerBridge implementation'];
 
 export const SUPPORTED_BRIDGE_CONTRACTS_PROXY = ['AgglayerBridge proxy', 'PolygonZkEVMBridge proxy'];

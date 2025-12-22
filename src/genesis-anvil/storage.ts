@@ -1,8 +1,25 @@
+export const storageNames = {
+    PolygonZkEVMTimelock: 'PolygonZkEVMTimelock',
+    ProxyAdmin: 'ProxyAdmin',
+    AgglayerBridgeL2: 'AgglayerBridgeL2',
+    AgglayerBridgeL2_Implementation: 'AgglayerBridgeL2_Implementation',
+    AgglayerBridgeL2_Initialization: 'AgglayerBridgeL2_Initialization',
+    TokenWrappedBridgeUpgradeable: 'TokenWrappedBridgeUpgradeable',
+    TokenWrappedBridgeUpgradeable_Implementation: 'TokenWrappedBridgeUpgradeable_Implementation',
+    AggOracleCommittee: 'AggOracleCommittee',
+    AggOracleCommittee_Implementation: 'AggOracleCommittee_Implementation',
+    AggOracleCommittee_Initialization: 'AggOracleCommittee_Initialization',
+    AgglayerGERL2: 'AgglayerGERL2',
+    AgglayerGERL2_Implementation: 'AgglayerGERL2_Implementation',
+    AgglayerGERL2_Initialization: 'AgglayerGERL2_Initialization',
+    BridgeLib: 'BridgeLib',
+};
+
 /// ///////////////////////////////
 ///   TIMELOCK STORAGE   /////////
 /// //////////////////////////////
 
-const TIMELOCK = {
+export const TIMELOCK = {
     // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.8.2/contracts/governance/TimelockController.sol#L27
     // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.8.2/contracts/access/AccessControl.sol#L55
     ROLES_MAPPING: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -37,8 +54,9 @@ export const TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE = {
     WETH_DECIMALS_BRIDGE_ADDRESS: '0x863b064fe9383d75d38f584f64f1aaba4520e9ebc98515fa15bdeae8c4274d00',
     WETH_EIP712_NAME: '0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d102',
     WETH_EIP712_VERSION: '0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d103',
-    WETH_EIP712_HASHEDNAME: '0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d101',
-    WETH_EIP712_HASHEDVERSION: '0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d100',
+    // It’s always 0, that’s why it doesn’t appear in the storage diff
+    // WETH_EIP712_HASHEDNAME: '0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d101',
+    // WETH_EIP712_HASHEDVERSION: '0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d100',
 };
 
 export const STORAGE_BRIDGE_SOVEREIGN = {
@@ -47,7 +65,8 @@ export const STORAGE_BRIDGE_SOVEREIGN = {
     STATUS: '0x0000000000000000000000000000000000000000000000000000000000000001',
     // lastUpdatedDepositCount (offset = 25) | globalExitRootManager (offset = 5) | networkID (offset = 1) | isEmergencyState
     DEPOSIT_GER_NETWORK_EMERGENCY: '0x0000000000000000000000000000000000000000000000000000000000000068',
-    POLYGON_ROLLUP_MANAGER: '0x000000000000000000000000000000000000000000000000000000000000006c',
+    // It’s always 0, that’s why it doesn’t appear in the storage diff
+    // POLYGON_ROLLUP_MANAGER: '0x000000000000000000000000000000000000000000000000000000000000006c',
     TOKEN_WETH: '0x000000000000000000000000000000000000000000000000000000000000006f',
     BRIDGE_MANAGER: '0x00000000000000000000000000000000000000000000000000000000000000a3',
     EMERGENCY_BRIDGE_PAUSER: '0x00000000000000000000000000000000000000000000000000000000000000a4',

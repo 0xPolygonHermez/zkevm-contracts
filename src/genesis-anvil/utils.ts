@@ -1,14 +1,15 @@
 /* eslint-disable no-await-in-loop */
 import { ethers, upgrades } from 'hardhat';
+import { JsonRpcProvider } from 'ethers';
 import {
     SUPPORTED_BRIDGE_CONTRACTS,
     SUPPORTED_BRIDGE_CONTRACTS_PROXY,
     GENESIS_CONTRACT_NAMES,
     SUPPORTED_GER_MANAGERS,
+    SUPPORTED_GER_MANAGERS_PROXY,
 } from './constants';
 import { STORAGE_GENESIS } from './storage';
 import { logger } from '../logger';
-import { getTraceStorageWrites } from '../utils';
 
 /**
  * Get the addresses of the genesis base contracts
@@ -33,7 +34,7 @@ export async function getAddressesGenesisBase(genesisBase: any) {
 
     // get the bridge proxy address
     const gerManagerProxyAddress = genesisBase.find((account: any) =>
-        SUPPORTED_GER_MANAGERS.includes(account.contractName),
+        SUPPORTED_GER_MANAGERS_PROXY.includes(account.contractName),
     ).address;
 
     // get the bridge proxy implementation address
@@ -202,18 +203,44 @@ export async function deployAggOracleCommittee(proxyAdmin: any, deployer: any, g
 }
 
 /**
+ * Get the admin address of an ERC1967 proxy contract
+ * @param {JsonRpcProvider} provider - RPC provider instance
+ * @param {String} proxyAddress - address of the proxy contract
+ * @returns {String} - admin address of the proxy
+ */
+export async function getErc1967Admin(provider: JsonRpcProvider, proxyAddress: string): Promise<string> {
+    const ERC1967_ADMIN_SLOT = '0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103';
+    const raw = await provider.getStorage(proxyAddress, ERC1967_ADMIN_SLOT);
+    const admin = `0x${raw.slice(26)}`;
+    return admin;
+}
+
+/**
+ * Get the implementation address of an ERC1967 proxy contract
+ * @param {JsonRpcProvider} provider - RPC provider instance
+ * @param {String} proxyAddress - address of the proxy contract
+ * @returns {String} - implementation address of the proxy
+ */
+export async function getErc1967Implementation(provider: JsonRpcProvider, proxyAddress: string): Promise<string> {
+    const ERC1967_IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';
+    const raw = await provider.getStorage(proxyAddress, ERC1967_IMPLEMENTATION_SLOT);
+    const implementation = `0x${raw.slice(26)}`;
+    return implementation;
+}
+
+/**
  * Get the expected storage of the proxy contract
  * @param {String} addressProxy - address of the proxy contract
  * @returns {Object} - expected storage of the proxy contract
  */
-export async function getExpectedStorageProxy(addressProxy) {
+export async function getExpectedStorageProxy(addressProxy: any, anvilProvider: any) {
     return {
         [STORAGE_GENESIS.STORAGE_PROXY.ADMIN]: ethers.zeroPadValue(
-            await upgrades.erc1967.getAdminAddress(addressProxy as string),
+            await getErc1967Admin(anvilProvider, addressProxy as string),
             32,
         ),
         [STORAGE_GENESIS.STORAGE_PROXY.IMPLEMENTATION]: ethers.zeroPadValue(
-            await upgrades.erc1967.getImplementationAddress(addressProxy as string),
+            await getErc1967Implementation(anvilProvider, addressProxy as string),
             32,
         ),
     };
@@ -256,7 +283,8 @@ export function getExpectedStorageBridge(initParams, GERManager) {
             getStorage104(0, GERManager, initParams.rollupID, 0),
             32,
         ),
-        [STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.POLYGON_ROLLUP_MANAGER]: ethers.zeroPadValue('0x00', 32),
+        // It’s always 0, that’s why it doesn’t appear in the storage diff
+        // [STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.POLYGON_ROLLUP_MANAGER]: ethers.zeroPadValue('0x00', 32),
         [STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.BRIDGE_MANAGER]: ethers.zeroPadValue(initParams.bridgeManager, 32),
         [STORAGE_GENESIS.STORAGE_BRIDGE_SOVEREIGN.EMERGENCY_BRIDGE_PAUSER]: ethers.zeroPadValue(
             initParams.emergencyBridgePauser,
@@ -387,6 +415,7 @@ export function getExpectedStoragePolygonZkEVMTimelock(minDelay, timelockContrac
 export async function getExpectedStorageTokenWrappedBridgeUpgradeable(
     sovereignChainBridgeContract,
     tokenWrappedAddress,
+    provider: JsonRpcProvider,
 ) {
     // Add proxy WETH
     const wethAddressProxy = await sovereignChainBridgeContract.WETHToken();
@@ -395,7 +424,7 @@ export async function getExpectedStorageTokenWrappedBridgeUpgradeable(
         tokenWrappedAddress,
         32,
     );
-    const adminWethProxy = await upgrades.erc1967.getAdminAddress(wethAddressProxy as string);
+    const adminWethProxy = await getErc1967Admin(provider, wethAddressProxy);
     tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.STORAGE_PROXY.ADMIN] = ethers.zeroPadValue(adminWethProxy, 32);
     // proxy storage init
     tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.INITIALIZER] =
@@ -407,11 +436,12 @@ export async function getExpectedStorageTokenWrappedBridgeUpgradeable(
         wethNameEncoded;
     tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_SYMBOL] =
         wehtSymbolEncoded;
-    tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDNAME] =
-        ethers.zeroPadValue('0x', 32);
-    tokenWrappedBridgeUpgradeableInit[
-        STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDVERSION
-    ] = ethers.zeroPadValue('0x', 32);
+    // It’s always 0, that’s why it doesn’t appear in the storage diff
+    // tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDNAME] =
+    //     ethers.zeroPadValue('0x', 32);
+    // tokenWrappedBridgeUpgradeableInit[
+    //     STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_HASHEDVERSION
+    // ] = ethers.zeroPadValue('0x', 32);
     tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_NAME] =
         wethNameEncoded;
     tokenWrappedBridgeUpgradeableInit[STORAGE_GENESIS.TOKEN_WRAPPED_BRIDGE_UPGRADEABLE_STORAGE.WETH_EIP712_VERSION] =
@@ -473,12 +503,12 @@ export async function getExpectedStorageAggOracleCommittee(initParams, aggOracle
  * @param {String} modificationsStorage - modifications storage object
  * @returns {Object} - actual storage
  */
-export async function getActualStorage(modificationsStorage, address) {
+export async function getActualStorage(modificationsStorage, address, provider: JsonRpcProvider) {
     const actualStorage: { [key: string]: any } = {};
     // eslint-disable-next-line no-restricted-syntax, guard-for-in
     for (const key in modificationsStorage) {
         // eslint-disable-next-line no-await-in-loop
-        actualStorage[key] = await ethers.provider.getStorage(address, key);
+        actualStorage[key] = await provider.getStorage(address, key);
     }
     return actualStorage;
 }
@@ -489,18 +519,19 @@ export async function getActualStorage(modificationsStorage, address) {
  * @param genesisInfo Object containing all the information required to update newGenesis
  *                    { contractName, address, storage, genesisObject, deployedInside }
  */
-export async function buildGenesis(genesisInfo: any[]) {
+export async function buildGenesis(genesisInfo: any[], provider: JsonRpcProvider) {
     const newGenesis = [];
     for (let i = 0; i < genesisInfo.length; i++) {
         const contract = genesisInfo[i];
-        contract.bytecode = await ethers.provider.getCode(contract.address);
-        contract.nonce = await ethers.provider.getTransactionCount(contract.address);
+        contract.bytecode = await provider.getCode(contract.address);
+        contract.nonce = await provider.getTransactionCount(contract.address);
         if (contract.isProxy) {
             contract.address = contract.genesisContract.address;
             contract.balance = contract.genesisContract.balance;
         } else {
-            contract.balance = await ethers.provider.getBalance(contract.address);
+            contract.balance = await provider.getBalance(contract.address);
         }
+        logger.info(`Genesis contract deployed: ${contract.contractName} at ${contract.address}`);
         newGenesis.push(contract);
     }
     return newGenesis;
@@ -522,8 +553,8 @@ export function deepEqual(a, b) {
     const keysB = Object.keys(b);
     if (keysA.length !== keysB.length) {
         logger.error(`Length mismatch: a: ${keysA.length}, b: ${keysB.length}`);
-        logger.error(`Keys: ${keysA}`);
-        logger.error(`Keys: ${keysB}`);
+        const diff = [...keysA.filter((k) => !keysB.includes(k)), ...keysB.filter((k) => !keysA.includes(k))];
+        logger.error(`Key mismatch: ${JSON.stringify(diff)}`);
         return false;
     }
     // eslint-disable-next-line no-restricted-syntax
@@ -542,9 +573,56 @@ export function deepEqual(a, b) {
  * @param {Object} txHash - transaction hash
  * @param {Object} expectedLength - expected storage writes length
  */
-export async function checkExpectedStorageLength(txHash, expectedLength) {
-    const lengthStorage = Object.keys(await getTraceStorageWrites(txHash)).length;
-    if (lengthStorage !== expectedLength) {
-        throw new Error('Storage not expected');
+export async function checkExpectedStorageLength(trace: { [key: string]: any }, expectedLength: number) {
+    if (Object.entries(trace).length !== expectedLength) {
+        throw new Error(`Storage not expected: ${Object.entries(trace).length} vs ${expectedLength}`);
     }
+}
+
+/**
+ * Get the storage diff for a transaction using the prestate tracer
+ * @param {String} txHash - transaction hash to trace
+ * @param {JsonRpcProvider} anvilProvider - RPC provider instance
+ * @returns {Object} - storage changes mapped by contract address
+ */
+export async function getTxDiffStorage(txHash: string, anvilProvider: ethers.JsonRpcProvider) {
+    const trace = await anvilProvider.send('debug_traceTransaction', [
+        txHash,
+        {
+            tracer: 'prestateTracer',
+            tracerConfig: { diffMode: true },
+        },
+    ]);
+    const traceWithStorage: { [key: string]: any } = {};
+    Object.entries(trace.post).forEach(([key, value]: [string, any]) => {
+        if (value.storage) {
+            traceWithStorage[key] = value.storage;
+        }
+    });
+    return traceWithStorage;
+}
+
+/**
+ * Wait for Anvil server to be ready and responding to RPC calls
+ * @param {String} url - RPC endpoint URL, defaults to http://127.0.0.1:8545
+ * @param {Number} retries - maximum number of retry attempts, defaults to 50
+ * @param {Number} delayMs - delay between retries in milliseconds, defaults to 200
+ * @throws {Error} - if Anvil does not start within the retry limit
+ */
+export async function waitForAnvil(url = 'http://127.0.0.1:8545', retries = 50, delayMs = 200) {
+    const provider = new ethers.JsonRpcProvider(url);
+
+    for (let i = 0; i < retries; i++) {
+        try {
+            await provider.getBlockNumber();
+            logger.info('Anvil is ready');
+            return;
+        } catch {
+            await new Promise((r) => {
+                setTimeout(r, delayMs);
+            });
+        }
+    }
+
+    throw new Error('Anvil did not start in time');
 }

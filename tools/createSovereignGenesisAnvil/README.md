@@ -15,6 +15,8 @@ The script does the following:
 npm i
 ```
 
+- It is a requirement to have Anvil installed (version higher than 1.4.0).
+
 - Set env variables
 ````
 cp .env.example .env
@@ -24,12 +26,12 @@ Fill `.env` with your `INFURA_PROJECT_ID` and `ETHERSCAN_API_KEY`
 
 - Copy configuration files:
 ```
-cp ./tools/createSovereignGenesisHardhat/create-genesis-sovereign-params.json.example ./tools/createSovereignGenesisHardhat/create-genesis-sovereign-params.json
+cp ./tools/createSovereignGenesisAnvil/create-genesis-sovereign-params.json.example ./tools/createSovereignGenesisAnvil/create-genesis-sovereign-params.json
 ```
 
 - Copy genesis base file:
 ```
-cp ./tools/createSovereignGenesisHardhat/genesis-base.json.example ./tools/createSovereignGenesisHardhat/genesis-base.json
+cp ./tools/createSovereignGenesisAnvil/genesis-base.json.example ./tools/createSovereignGenesisAnvil/genesis-base.json
 ```
 
 -  Set your parameters
@@ -62,7 +64,7 @@ cp ./tools/createSovereignGenesisHardhat/genesis-base.json.example ./tools/creat
 
 -  Run tool:
 ```
-npx hardhat run ./tools/createSovereignGenesisHardhat/create-sovereign-genesis-hardhat.ts --network sepolia
+npx hardhat run ./tools/createSovereignGenesisAnvil/create-sovereign-genesis-anvil.ts --network sepolia
 ```
 
 ### More Info
@@ -70,7 +72,7 @@ npx hardhat run ./tools/createSovereignGenesisHardhat/create-sovereign-genesis-h
 - The output files are:
   - `genesis-rollupID-${rollupID}__${timestamp}`: genesis file
   - `output-rollupID-${rollupID}__${timestamp}`: input parameters, gastokenAddress information and network used
-- outputs are saved in the tool folder: `./tools/createSovereignGenesisHardhat`
+- outputs are saved in the tool folder: `./tools/createSovereignGenesisAnvil`
 
 ## Changes vs updateVanilla
 
@@ -101,11 +103,9 @@ We will outline some of the changes identified in the following lines:
   - Storage (slot 0): `PolygonZkEVMTimelock` address
 
 - BridgeL2SovereignChain implementation bytecode: constructor addressess
-  - BytecodeStorer
   - TokenWrapped implementation
 
 - BridgeL2SovereignChain proxy storage:
-  - `0x6c`: Previously, this slot didn’t show up because its value was 0. Now it shows up because, even though it’s 0, we perform an SSTORE in a transaction.
   - `0x6f`: Weth proxy
   - Implementation address slot (`0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`) & admin address slot(`0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103`): diferent addresses
 
@@ -115,7 +115,6 @@ We will outline some of the changes identified in the following lines:
   
 - Weth proxy storage:
   - `0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`: TokenWrapped implementation address
-  - `0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d100` & `0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d101`: Previously, this slot didn’t show up because its value was 0. Now it shows up because, even though it’s 0, we perform an SSTORE in a transaction.
 
 - AggOracleCommittee proxy storage:
   - New impl address

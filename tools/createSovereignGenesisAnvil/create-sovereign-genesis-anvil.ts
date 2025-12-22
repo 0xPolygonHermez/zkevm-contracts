@@ -16,7 +16,7 @@ import { logger } from '../../src/logger';
 import { formatGenesis } from './helpers';
 import { checkBridgeAddress } from '../utils';
 import { GENESIS_CONTRACT_NAMES } from '../../src/utils-common-aggchain';
-import { createGenesisHardhat } from '../../src/genesis-hardhat/create-genesis-hardhat';
+import { createGenesisAnvil } from '../../src/genesis-anvil/create-genesis-anvil';
 
 // read files
 import genesisBase from './genesis-base.json';
@@ -230,7 +230,7 @@ async function main() {
     const config = {
         debug: typeof createGenesisSovereignParams.debug !== 'undefined' ? createGenesisSovereignParams.debug : false,
     };
-    finalGenesis = await createGenesisHardhat(genesisBase, initializeParams, config);
+    finalGenesis = await createGenesisAnvil(genesisBase, initializeParams, config);
 
     // Add weth address to deployment output if gas token address is provided and sovereignWETHAddress is not provided
     let outWETHAddress;
