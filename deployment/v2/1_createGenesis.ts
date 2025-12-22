@@ -327,7 +327,7 @@ async function main() {
         nonce: bridgeImplementationInfo.nonce.toString(),
         address: finalBridgeImplAddress,
         bytecode: bridgeImplementationInfo.bytecode,
-        storage: bridgeImplementationInfo.storage, // _initialized = type(uint8).max;
+        // storage: bridgeImplementationInfo.storage, implementation do not have storage
     });
 
     // Bridge proxy
@@ -361,7 +361,7 @@ async function main() {
         nonce: implGlobalExitRootL2Info.nonce.toString(),
         address: finalGlobalExitRootL2ImplAddress,
         bytecode: implGlobalExitRootL2Info.bytecode,
-        storage: implGlobalExitRootL2Info.storage, // should be empty
+        // storage: implGlobalExitRootL2Info.storage, , implementation do not have storage
     });
 
     // polygonZkEVMGlobalExitRootL2 proxy
