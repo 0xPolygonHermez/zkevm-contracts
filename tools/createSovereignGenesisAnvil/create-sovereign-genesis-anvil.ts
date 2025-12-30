@@ -15,7 +15,6 @@ import { checkParams, getGitInfo } from '../../src/utils';
 import { logger } from '../../src/logger';
 import { formatGenesis } from './helpers';
 import { checkBridgeAddress } from '../utils';
-import { GENESIS_CONTRACT_NAMES } from '../../src/utils-common-aggchain';
 import { createGenesisAnvil } from '../../src/genesis-anvil/create-genesis-anvil';
 
 // read files
@@ -176,9 +175,6 @@ async function main() {
     ///    FINAL GENESIS CREATION    ///
     /// /////////////////////////////////
 
-    // start final genesis creation
-    let finalGenesis = genesisBase;
-
     // initialize sovereign bridge parameters
     const initializeParams: {
         rollupID: number;
@@ -230,7 +226,7 @@ async function main() {
     const config = {
         debug: typeof createGenesisSovereignParams.debug !== 'undefined' ? createGenesisSovereignParams.debug : false,
     };
-    finalGenesis = await createGenesisAnvil(genesisBase, initializeParams, config);
+    const finalGenesis = await createGenesisAnvil(genesisBase, initializeParams, config);
 
     // Add weth address to deployment output if gas token address is provided and sovereignWETHAddress is not provided
     let outWETHAddress;
@@ -240,11 +236,7 @@ async function main() {
         (createGenesisSovereignParams.sovereignWETHAddress === ethers.ZeroAddress ||
             !ethers.isAddress(createGenesisSovereignParams.sovereignWETHAddress))
     ) {
-        console.log('Rollup with custom gas token, adding WETH address to deployment output...');
-        const wethObject = finalGenesis.genesis.find(function (obj: { contractName: string }) {
-            return obj.contractName === GENESIS_CONTRACT_NAMES.WETH_PROXY;
-        });
-        outWETHAddress = wethObject.address;
+        outWETHAddress = finalGenesis.outputAddresses.WETHToken;
     }
 
     // set preMintAccounts
@@ -257,10 +249,7 @@ async function main() {
             const preMintAccount = createGenesisSovereignParams.preMintAccounts[i];
 
             // check if preMintAccount is in the current genesis
-            const preMintAccountExist = finalGenesis.genesis.find(function (obj) {
-                return obj.address.toLowerCase() === preMintAccount.address.toLowerCase();
-            });
-
+            const preMintAccountExist = finalGenesis.genesis[preMintAccount.address];
             if (typeof preMintAccountExist !== 'undefined') {
                 // check if preMintAccount has code
                 if (preMintAccountExist.bytecode !== undefined) {
@@ -270,11 +259,9 @@ async function main() {
                 preMintAccountExist.balance = BigInt(preMintAccount.balance).toString();
             } else {
                 // add preMintAccount.address & preMintAccount.balance
-                finalGenesis.genesis.push({
-                    accountName: `preMintAccount_${i}`,
+                finalGenesis.genesis[preMintAccount.address] = {
                     balance: BigInt(preMintAccount.balance).toString(),
-                    address: preMintAccount.address,
-                });
+                };
             }
 
             totalPreMintedAmount += BigInt(preMintAccount.balance);
@@ -284,31 +271,19 @@ async function main() {
     // set timelock storage
     if (createGenesisSovereignParams.setTimelockParameters === true) {
         logger.info('Add timelockParameters');
-        const timelockContractInfo = finalGenesis.genesis.find(function (obj) {
-            return obj.contractName === GENESIS_CONTRACT_NAMES.POLYGON_TIMELOCK;
-        });
-
         const storageTimelock = initializeTimelockStorage(
             createGenesisSovereignParams.timelockParameters.minDelay,
             createGenesisSovereignParams.timelockParameters.adminAddress,
-            timelockContractInfo.address,
+            finalGenesis.outputAddresses.timelock,
         );
 
-        timelockContractInfo.storage = storageTimelock;
+        finalGenesis.genesis[finalGenesis.outputAddresses.timelock].storage = storageTimelock;
     }
-
-    // extract all [names <--> address] from genesis
-    const genesisSCNames = finalGenesis.genesis.reduce((acc: any, obj: any) => {
-        if (obj.bytecode !== undefined) {
-            acc[obj.contractName] = obj.address;
-        }
-        return acc;
-    }, {});
 
     // format genesis
     if (createGenesisSovereignParams.formatGenesis !== undefined) {
         logger.info(`Formatting genesis output to: ${createGenesisSovereignParams.formatGenesis}`);
-        finalGenesis = formatGenesis(finalGenesis, createGenesisSovereignParams.formatGenesis);
+        finalGenesis.genesis = formatGenesis(finalGenesis.genesis, createGenesisSovereignParams.formatGenesis);
     }
 
     // get L1 information
@@ -341,7 +316,6 @@ async function main() {
     outputJson.emergencyBridgePauser = createGenesisSovereignParams.emergencyBridgePauser;
     outputJson.emergencyBridgeUnpauser = createGenesisSovereignParams.emergencyBridgeUnpauser;
     outputJson.proxiedTokensManager = createGenesisSovereignParams.proxiedTokensManager;
-    outputJson.genesisSCNames = genesisSCNames;
 
     if (createGenesisSovereignParams.setPreMintAccounts === true) {
         outputJson.preMintAccounts = createGenesisSovereignParams.preMintAccounts;
@@ -385,7 +359,7 @@ async function main() {
         : path.join(__dirname, `./output-rollupID-${createGenesisSovereignParams.rollupID}__${dateStr}.json`);
 
     // write files
-    fs.writeFileSync(pathOutputGenesisJson, JSON.stringify(finalGenesis, null, 2));
+    fs.writeFileSync(pathOutputGenesisJson, JSON.stringify(finalGenesis.genesis, null, 2));
     fs.writeFileSync(pathOutputJson, JSON.stringify(outputJson, null, 2));
 
     logger.info('Output saved at:');

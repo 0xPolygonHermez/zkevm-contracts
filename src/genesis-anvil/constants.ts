@@ -16,6 +16,13 @@ export const SUPPORTED_GER_MANAGERS_PROXY = [GENESIS_CONTRACT_NAMES.GER_L2_PROXY
 
 export const SUPPORTED_BRIDGE_CONTRACTS = ['PolygonZkEVMBridge implementation', 'AgglayerBridge implementation'];
 
+export const SUPPORTED_TIMELOCKS = [GENESIS_CONTRACT_NAMES.POLYGON_TIMELOCK, GENESIS_CONTRACT_NAMES.AGGLAYER_TIMELOCK];
+
 export const SUPPORTED_BRIDGE_CONTRACTS_PROXY = ['AgglayerBridge proxy', 'PolygonZkEVMBridge proxy'];
 
 export { GENESIS_CONTRACT_NAMES };
+
+export const TIMELOCK_ADMIN_ROLE = ethers.id('TIMELOCK_ADMIN_ROLE');
+export const EXECUTOR_ROLE = ethers.id('EXECUTOR_ROLE');
+export const PROPOSER_ROLE = ethers.id('PROPOSER_ROLE');
+export const CANCELLER_ROLE = ethers.id('CANCELLER_ROLE');

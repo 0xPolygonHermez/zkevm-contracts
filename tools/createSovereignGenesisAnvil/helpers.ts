@@ -6,28 +6,17 @@ import { execSync } from 'child_process';
  * @param genesis legacy genesis file
  * @returns Geth genesis format
  */
-function _formatGeth(genesis: { genesis: any[] }) {
-    return genesis.genesis.reduce((acc, contract) => {
-        acc[contract.address] = {};
-
-        if (contract.bytecode !== undefined) {
-            acc[contract.address].code = contract.bytecode;
-        }
-
-        if (contract.storage !== undefined) {
-            acc[contract.address].storage = contract.storage;
-        }
-
+function _formatGeth(genesis: any) {
+    Object.keys(genesis).forEach((key) => {
+        const contract = genesis[key];
         if (contract.balance !== undefined) {
-            acc[contract.address].balance = `0x${BigInt(contract.balance).toString(16)}`;
+            contract.balance = `0x${BigInt(contract.balance).toString(16)}`;
         }
-
         if (contract.nonce !== undefined) {
-            acc[contract.address].nonce = `0x${BigInt(contract.nonce).toString(16)}`;
+            contract.nonce = `0x${BigInt(contract.nonce).toString(16)}`;
         }
-
-        return acc;
-    }, {});
+    });
+    return genesis;
 }
 
 /**

@@ -34,6 +34,7 @@ export const GENESIS_CONTRACT_NAMES = {
     GER_L2_PROXY: 'LegacyAgglayerGERL2 proxy',
     PROXY_ADMIN: 'ProxyAdmin',
     POLYGON_TIMELOCK: 'PolygonZkEVMTimelock',
+    AGGLAYER_TIMELOCK: 'AgglayerTimelock',
     POLYGON_DEPLOYER: 'PolygonZkEVMDeployer',
     BRIDGE_LIB: `BridgeLib`,
     AGG_ORACLE: 'AggOracleCommittee',
