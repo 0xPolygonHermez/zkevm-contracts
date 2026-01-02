@@ -56,10 +56,7 @@ async function main() {
 
     // check preMintedAccounts parameters
     if (createGenesisSovereignParams.setPreMintAccounts === true) {
-        if (
-            createGenesisSovereignParams.preMintAccounts === undefined ||
-            createGenesisSovereignParams.preMintAccounts === ''
-        ) {
+        if (createGenesisSovereignParams.preMintAccounts === undefined) {
             logger.error('setPreMintAccounts is set to true but missing parameter preMintAccounts');
             process.exit(1);
         }
@@ -75,12 +72,20 @@ async function main() {
         });
     }
 
+    // check anvilPort
+    const config: {
+        anvilPort: number;
+        timelock?: any;
+    } = {
+        anvilPort:
+            typeof createGenesisSovereignParams.anvilPort !== 'undefined'
+                ? createGenesisSovereignParams.anvilPort
+                : 8545,
+    };
+
     // check timelock parameters
     if (createGenesisSovereignParams.setTimelockParameters === true) {
-        if (
-            createGenesisSovereignParams.timelockParameters === undefined ||
-            createGenesisSovereignParams.timelockParameters === ''
-        ) {
+        if (createGenesisSovereignParams.timelockParameters === undefined) {
             logger.error('setTimelockParameters is set to true but missing parameter timelockParameters');
             process.exit(1);
         }
@@ -88,6 +93,7 @@ async function main() {
         const paramsTimelockParameters = ['adminAddress', 'minDelay'];
 
         checkParams(createGenesisSovereignParams.timelockParameters, paramsTimelockParameters);
+        config.timelock = createGenesisSovereignParams.timelockParameters;
     }
 
     /// //////////////////////////////////////////
@@ -194,7 +200,7 @@ async function main() {
         aggOracleCommittee?: string[];
         quorum?: number;
         aggOracleOwner?: string;
-        debug?: boolean;
+        anvilPort?: number;
     } = {
         rollupID: createGenesisSovereignParams.rollupID,
         gasTokenAddress,
@@ -223,9 +229,6 @@ async function main() {
     }
     logger.info('Update genesis-base to the SovereignContracts');
 
-    const config = {
-        debug: typeof createGenesisSovereignParams.debug !== 'undefined' ? createGenesisSovereignParams.debug : false,
-    };
     const finalGenesis = await createGenesisAnvil(genesisBase, initializeParams, config);
 
     // Add weth address to deployment output if gas token address is provided and sovereignWETHAddress is not provided
@@ -316,6 +319,7 @@ async function main() {
     outputJson.emergencyBridgePauser = createGenesisSovereignParams.emergencyBridgePauser;
     outputJson.emergencyBridgeUnpauser = createGenesisSovereignParams.emergencyBridgeUnpauser;
     outputJson.proxiedTokensManager = createGenesisSovereignParams.proxiedTokensManager;
+    outputJson.outputAddresses = finalGenesis.outputAddresses;
 
     if (createGenesisSovereignParams.setPreMintAccounts === true) {
         outputJson.preMintAccounts = createGenesisSovereignParams.preMintAccounts;

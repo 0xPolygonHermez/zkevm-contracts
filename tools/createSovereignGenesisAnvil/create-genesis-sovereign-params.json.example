@@ -31,5 +31,5 @@
     "quorum": 1,
     "aggOracleOwner": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
     "formatGenesis": "geth",
-    "debug": true
+    "anvilPort": 8546
 }

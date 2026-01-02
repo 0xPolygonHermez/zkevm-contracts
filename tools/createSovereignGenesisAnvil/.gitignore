@@ -2,6 +2,4 @@ genesis-rollupID-*.json
 output-rollupID-*.json
 genesis-base.json
 create-genesis-sovereign-params.json
-expectedStorageModifications.json
-storageModifications.json
-actualStorage.json
+state.json

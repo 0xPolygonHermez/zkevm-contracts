@@ -18,6 +18,7 @@ import {
     getErc1967Admin,
     getErc1967Implementation,
     getMinDelayTimelock,
+    getBalanceBridge,
 } from './utils';
 import { checkParams } from '../utils';
 import { logger } from '../logger';
@@ -84,7 +85,7 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
 
     await checkAnvilVersion();
 
-    const port = 8545;
+    const port = config.anvilPort ? config.anvilPort : 8545;
     // start anvil
     const anvil = startAnvil(port);
     logger.info(`Anvil started with PID: ${anvil.pid}`, anvil.pid?.toString());
@@ -152,7 +153,7 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
 
     // Deploy proxyAdmin
     logger.info('Deploying ProxyAdmin contract...');
-    const proxyAdmin = await deployProxyAdmin(deployer);
+    const proxyAdmin = await deployProxyAdmin(deployer, timelockContract.address);
     logger.info(`ProxyAdmin deployed at address: ${proxyAdmin.address}`);
     returnObject.outputAddresses.proxyAdmin = proxyAdmin.address;
 
@@ -294,6 +295,9 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
     state.accounts[genesisBaseAddresses.bridgeProxyAddress] = state.accounts[bridgeDeploymentResult.proxyAddress];
     delete state.accounts[bridgeDeploymentResult.proxyAddress];
 
+    // set old balance bridge
+    state.accounts[genesisBaseAddresses.bridgeProxyAddress].balance = getBalanceBridge(genesisBase);
+
     // set old proxy bridge address in WETH
     expect(
         state.accounts[returnObject.outputAddresses.WETHToken.toLocaleLowerCase()].storage[
@@ -304,11 +308,20 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
         '0x863b064fe9383d75d38f584f64f1aaba4520e9ebc98515fa15bdeae8c4274d00'
     ] = state.accounts[returnObject.outputAddresses.WETHToken.toLocaleLowerCase()].storage[
         '0x863b064fe9383d75d38f584f64f1aaba4520e9ebc98515fa15bdeae8c4274d00'
-    ].replace(bridgeProxyAddress.slice(2), returnObject.outputAddresses.agglayerBridgeL2Proxy.slice(2));
+    ].replace(
+        bridgeProxyAddress.slice(2),
+        returnObject.outputAddresses.agglayerBridgeL2Proxy.slice(2).toLocaleLowerCase(),
+    );
 
     // set old proxy ger address
     state.accounts[genesisBaseAddresses.gerManagerProxyAddress] = state.accounts[gerDeploymentResult.proxyAddress];
-    delete state.accounts[bridgeDeploymentResult.proxyAddress];
+    delete state.accounts[gerDeploymentResult.proxyAddress];
+
+    // delete create2 deployer deterministic anvil
+    delete state.accounts['0x4e59b44847b379578588920ca78fbf26c0b4956c'];
+
+    // unset balance timelockOwner
+    state.accounts[timelockOwner.toLocaleLowerCase()].balance = '0x0';
 
     await fs.writeFileSync(
         path.join(__dirname, '../../tools/createSovereignGenesisAnvil/state.json'),
@@ -342,9 +355,9 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
     logger.info('Sanity checks ProxyAdmin...');
     // ProxyAdmin contract
     const newProxyAdmin = new ethers.Contract(proxyAdmin.address, artifactProxyAdmin.abi, newAnvilProvider);
-    expect((await newProxyAdmin.owner()).toLocaleLowerCase()).to.be.equal(deployer.address.toLocaleLowerCase());
+    expect((await newProxyAdmin.owner()).toLocaleLowerCase()).to.be.equal(timelockContract.address.toLocaleLowerCase());
 
-    logger.info('Sanity checks AgglyaerBridgeL2...');
+    logger.info('Sanity checks AgglayerBridgeL2...');
     // AgglayerBridgeL2 contract
     const newAgglayerBridgeL2 = new ethers.Contract(
         returnObject.outputAddresses.agglayerBridgeL2Proxy,

@@ -11,7 +11,7 @@ import {
 } from './constants';
 import { logger } from '../logger';
 import artifactTimelock from '../../artifacts/contracts/AgglayerTimelock.sol/AgglayerTimelock.json';
-import artifactProxyAdmin from '../../artifacts/@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json';
+import artifactProxyAdmin from '../../artifacts/@openzeppelin/contracts5/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json';
 import artifactTransparentUpgradeableProxy from '../../artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json';
 import artifactAgglayerBridgeL2 from '../../artifacts/contracts/sovereignChains/AgglayerBridgeL2.sol/AgglayerBridgeL2.json';
 import artifactAgglayerGERL2 from '../../artifacts/contracts/sovereignChains/AgglayerGERL2.sol/AgglayerGERL2.json';
@@ -71,6 +71,16 @@ export async function getAddressesGenesisBase(genesisBase: any) {
 }
 
 /**
+ * Get the balance of the bridge proxy contract from genesis base
+ * @param {Array} genesisBase - array of genesis base contracts
+ * @returns {String} - balance of the bridge proxy contract
+ */
+export function getBalanceBridge(genesisBase: any) {
+    // get the bridge proxy address
+    return genesisBase.find((account: any) => SUPPORTED_BRIDGE_CONTRACTS_PROXY.includes(account.contractName)).balance;
+}
+
+/**
  * Get the minDelay of the timelock from the genesis base (timelock storage)
  * @param {Array} genesisBase - array of genesis base contracts
  * @returns value of the minDelay in storage
@@ -85,6 +95,12 @@ export async function getMinDelayTimelock(genesisBase: any) {
     return timelock.storage[STORAGE_MINDELAY];
 }
 
+/**
+ * Deploy timelock contract
+ * @param {ethers.Signer} deployer - signer to deploy the contract
+ * @param {number} timelockMinDelay - minimum delay in seconds for the timelock
+ * @returns {Object} - contract instance and address of the deployed timelock
+ */
 export async function deployTimelock(deployer: ethers.Signer, timelockMinDelay: number) {
     const timelockContractFactory = new ethers.ContractFactory(
         artifactTimelock.abi,
@@ -102,9 +118,18 @@ export async function deployTimelock(deployer: ethers.Signer, timelockMinDelay: 
     return { contract: timelock, address: timelock.target.toString().toLowerCase() };
 }
 
-export async function deployProxyAdmin(deployer: ethers.Signer) {
+/**
+ * Deploy proxy admin contract
+ * @param {ethers.Signer} deployer - signer to deploy the contract
+ * @param {String} timelockAddress - timelock address to set as owner
+ * @returns {Object} - contract instance and address of the deployed proxy admin
+ */
+export async function deployProxyAdmin(deployer: ethers.Signer, timelockAddress: string) {
     const proxyAdminFactory = new ethers.ContractFactory(artifactProxyAdmin.abi, artifactProxyAdmin.bytecode, deployer);
-    const proxyAdmin = await proxyAdminFactory.deploy();
+    // TODO: Check proxyAdmin version
+    // ProxyAdmin contracts4 --> transferOwnership
+    // ProxyAdmin contracts5 --> deploy(timelockAddress)
+    const proxyAdmin = await proxyAdminFactory.deploy(timelockAddress);
     await proxyAdmin.deploymentTransaction();
     return { contract: proxyAdmin, address: proxyAdmin.target.toString().toLowerCase() };
 }
@@ -252,6 +277,10 @@ export async function getErc1967Implementation(provider: JsonRpcProvider, proxyA
     return implementation;
 }
 
+/**
+ * Check if Anvil is installed and has a supported version
+ * @throws {Error} - if Anvil is not installed or version is lower than 1.4.0
+ */
 export async function checkAnvilVersion() {
     // check anvil version: 1.5.1-nightly
     const r = spawnSync('anvil', ['--version'], { encoding: 'utf8' });
@@ -268,11 +297,21 @@ export async function checkAnvilVersion() {
     }
 }
 
+/**
+ * Start Anvil process on the specified port
+ * @param {number} port - port number to run Anvil on
+ * @returns {ChildProcess} - spawned Anvil process
+ */
 export function startAnvil(port: number) {
     logger.warn(`Make sure port ${port.toString()} is free for anvil.`);
-    return spawn('anvil', ['--port', port.toString()], { stdio: 'inherit' });
+    return spawn('anvil', ['--port', port.toString(), '--accounts', '0'], { stdio: 'inherit' });
 }
 
+/**
+ * Load state into Anvil instance
+ * @param {JsonRpcProvider} provider - RPC provider instance
+ * @param {any} stateJson - state JSON object to load
+ */
 export async function loadState(provider: JsonRpcProvider, stateJson: any) {
     const json = JSON.stringify(stateJson);
     const gz = zlib.gzipSync(Buffer.from(json, 'utf8'));

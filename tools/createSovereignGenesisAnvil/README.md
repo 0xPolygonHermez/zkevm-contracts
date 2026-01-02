@@ -49,7 +49,8 @@ cp ./tools/createSovereignGenesisAnvil/genesis-base.json.example ./tools/createS
   - `setPreMintAccount`: indicates if a preMint accounts going to be added
     - `preMintAccount.address`: ethereum address to receive an initial balance
     - `preMintAccount.balance`: balance credited to the preminted address
-  - `setTimelockParameters`: indicates if the timelock parameters are going to be changed
+  - `setTimelockParameters`: `true/false`. Indicates if the timelock parameters are going to be changed
+  - if `setTimelockParameters == true`:
     - `timelockParameters.adminAddress`: address that will have all timelocks roles (ADMIN, PROPOSER, CANCELLER, EXECUTOR)
     - `timelockParameters.minDelay`: minimum delay set in the timelock smart contract
   - `useAggOracleCommittee`: `true/false`. Indicates if use aggOracleCommittee
@@ -60,7 +61,7 @@ cp ./tools/createSovereignGenesisAnvil/genesis-base.json.example ./tools/createS
 
 - Optional parameters
   - `format`: choose genesis output format. Supported ones: `geth`
-  - `debug`: to print more info
+  - `anvilPort`: It is necessary to have a port for Anvil in order to create the new genesis (`default = 8545`).
 
 -  Run tool:
 ```
@@ -106,6 +107,7 @@ We will outline some of the changes identified in the following lines:
   - TokenWrapped implementation
 
 - BridgeL2SovereignChain proxy storage:
+   - `0x6c`: Previously, this slot didn’t show up because its value was 0. Now it shows up because, even though it’s 0, we perform an SSTORE in a transaction.
   - `0x6f`: Weth proxy
   - Implementation address slot (`0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`) & admin address slot(`0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103`): diferent addresses
 
@@ -115,8 +117,10 @@ We will outline some of the changes identified in the following lines:
   
 - Weth proxy storage:
   - `0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`: TokenWrapped implementation address
+  - `0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d100` & `0xa16a46d94261c7517cc8ff89f61c0ce93598e3c849801011dee649a6a557d101`: Previously, this slot didn’t show up because its value was 0. Now it shows up because, even though it’s 0, we perform an SSTORE in a transaction.
 
 - AggOracleCommittee proxy storage:
-  - New impl address
-  - New admin address
+  - Implementation address slot (`0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`) & admin address slot(`0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103`): diferent addresses
 
+- Accounts `deployer / keyless Deployer` have been removed. They can be added as `PreMintAccount`.
+- + Account timelockOwner
