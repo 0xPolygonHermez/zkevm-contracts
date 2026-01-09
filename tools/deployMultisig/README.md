@@ -1,14 +1,18 @@
-# Deploy Safe stack + create multisig (via Deterministic Deployment Proxy)
+# Deploy Safe contracts and create multisig (via Deterministic Deployment Proxy)
 
-Script to (1) ensure the **Deterministic Deployment Proxy (DDP)** is deployed, (2) deploy the **Gnosis Safe Singleton** and **Safe Proxy Factory** (if missing), and (3) **create a Safe multisig** at a predefined expected address.
+This setup is split into **two scripts**:
 
-It is designed to be idempotent: if a component is already deployed, it will skip deployment and continue.
+1) **Safe contracts deploy**: ensures the **Deterministic Deployment Proxy (DDP)** is deployed, and deploys the **Gnosis Safe Singleton** + **Safe Proxy Factory** (if missing).  
+2) **Multisig deploy**: creates a **Gnosis Safe multisig** at a predefined expected address (requires the Safe stack to exist first).
+
+Both scripts are designed to be **idempotent**: they check `getCode(address)` and skip steps if already deployed.
 
 ---
 
 ## What this does
 
-On the selected network, the script:
+### Script 1 — Deploy Safe stack
+On the selected network, the Safe stack script:
 
 1. **Checks DDP** at `0x4e59...956c`
    - If not deployed, it:
@@ -24,14 +28,23 @@ On the selected network, the script:
    - If missing, deploys it **via DDP** using precomputed calldata
    - Verifies code exists at the proxy factory address
 
-4. **Creates the multisig Safe**
-   - Expected Safe address: `0x242d...3e21`
-   - If missing, calls the proxy factory with precomputed calldata to deploy the Safe
-   - Verifies code exists at the expected Safe address
-
-5. Writes a JSON file with `hashes/addresses/network` to:
+4. Writes a JSON file with `hashes/addresses/network` to:
    - `deploy_output_<DATE>.json` (in the same folder as the script)
 
+### Script 2 — Deploy multisig
+
+If you want the predefined Safe multisig, run the second script **after** the Safe contracts are deployed.
+
+The multisig script:
+
+1. **Sanity-checks** if code already exists at the expected Safe address
+
+2. If not, calls the **Safe Proxy Factory** to create the Safe (using precomputed calldata)
+
+3. Verifies the Safe is created at the expected address
+
+4. Writes a JSON file with `hashes/addresses/network`
+   - `multisig_output_<DATE>.json` (in the same folder as the script)
 ---
 
 ## Setup
@@ -71,10 +84,31 @@ One-time deployer used only for DDP raw tx funding: `0x3fab184622dc19b6109349b94
 
 ## Usage
 
+### 1. Deploy Safe contracts
+
+```
+npx hardhat run tools/deployMultisig/deploySafe.ts --network <network>
+```
+
 Example:
+
 ```
-npx hardhat run ./tools/safeDeploy/deploySafeStack.ts --network sepolia
+npx hardhat run tools/deployMultisig/deploySafe.ts --network sepolia
 ```
+
+### 2. Deploy multisig Safe (requires step 1)
+
+```
+npx hardhat run ./tools/deployMultisig/deployMultisig.ts --network <network>
+```
+
+Example:
+
+```
+npx hardhat run ./tools/deployMultisig/deployMultisig.ts --network sepolia
+```
+
+If the Safe already exists at the expected address, the multisig script will log that and exit without redeploying.
 
 ## Multisig configuration
 
