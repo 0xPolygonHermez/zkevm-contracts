@@ -53,7 +53,7 @@ cp ./tools/createSovereignGenesis/genesis-base.json.example ./tools/createSovere
     - `aggOracleMembers`: Array of addresses that will act as initial oracle members
     - `quorum`: Number of oracle members that must agree on a GER for it to be consolidated (must be <= aggOracleMembers.length and > 0)
 - Optional parameters
-  - `format`: choose genesis output format. Supported ones: `geth`
+  - `formatGenesis`: choose genesis output format. Supported ones: `geth`
 
 -  Run tool:
 ```

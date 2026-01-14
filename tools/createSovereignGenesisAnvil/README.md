@@ -5,7 +5,6 @@
 Script to generate the genesis file for a rollup with `SovereignContracts`. This genesis is aimed to be used for chains that are run with vanilla clients.
 This script should be run after the rollup is created, so its `rollupID` and the bridge initialization parameters are known.
 The script does the following:
-- read base genesis file
 - deploy sovereign contracts
 - initialize them
 
@@ -29,39 +28,37 @@ Fill `.env` with your `INFURA_PROJECT_ID` and `ETHERSCAN_API_KEY`
 cp ./tools/createSovereignGenesisAnvil/create-genesis-sovereign-params.json.example ./tools/createSovereignGenesisAnvil/create-genesis-sovereign-params.json
 ```
 
-- Copy genesis base file:
-```
-cp ./tools/createSovereignGenesisAnvil/genesis-base.json.example ./tools/createSovereignGenesisAnvil/genesis-base.json
-```
-
 -  Set your parameters
+  - **network**
+    - `rollupID`: Rollup identifier. Assigned to a rollup when it is created in the contracts
   - `rollupManagerAddress`: `polygonRollupManager` smart contract address
-  - `rollupID`: Rollup identifier. Assigned to a rollup when it is created in the contracts
-  - `chainID`: ChainID of the rollup
-  - `gasTokenAddress`: Address of the native gas token of the rollup, zero if ether
-  - `bridgeManager`: bridge manager address
-  - `sovereignWETHAddress`: sovereign WETH address
-  - `sovereignWETHAddressIsNotMintable`: Flag to indicate if the wrapped ETH is not mintable
-  - `globalExitRootUpdater`: Address of globalExitRootUpdater for sovereign chains (if `useAggOracleCommittee == false`)
-  - `globalExitRootRemover`: Address of globalExitRootRemover for sovereign chains
-  - `emergencyBridgePauser`: emergency bridge pauser address, can stop the bridge, recommended to be a multisig
-  - `emergencyBridgeUnpauser`: emergency bridge unpauser address, can unpause the bridge, recommended to be a multisig
-  - `setPreMintAccount`: indicates if a preMint accounts going to be added
-    - `preMintAccount.address`: ethereum address to receive an initial balance
-    - `preMintAccount.balance`: balance credited to the preminted address
-  - `setTimelockParameters`: `true/false`. Indicates if the timelock parameters are going to be changed
-  - if `setTimelockParameters == true`:
-    - `timelockParameters.adminAddress`: address that will have all timelocks roles (ADMIN, PROPOSER, CANCELLER, EXECUTOR)
-    - `timelockParameters.minDelay`: minimum delay set in the timelock smart contract
-  - `useAggOracleCommittee`: `true/false`. Indicates if use aggOracleCommittee
-  - if `useAggOracleCommittee == true`:
+  - **globalExitRoot**
+    - `globalExitRootUpdater`: Address of globalExitRootUpdater for sovereign chains (if `useAggOracleCommittee == false`)
+    - `globalExitRootRemover`: Address of globalExitRootRemover for sovereign chains
+  - **bridge**
+    - `gasTokenAddress`: Address of the native gas token of the rollup, zero if ether
+    - `bridgeManager`: bridge manager address
+    - `sovereignWETHAddress`: sovereign WETH address
+    - `sovereignWETHAddressIsNotMintable`: Flag to indicate if the wrapped ETH is not mintable
+    - `emergencyBridgePauser`: emergency bridge pauser address, can stop the bridge, recommended to be a multisig
+    - `emergencyBridgeUnpauser`: emergency bridge unpauser address, can unpause the bridge, recommended to be a multisig
+    - `proxiedTokensManager`: address that will manage proxied tokens
+  - **preMintAccounts**
+    - `setPreMintAccounts`: indicates if preMint accounts going to be added
+    - `accounts`: Array of premint accounts
+      - `address`: ethereum address to receive an initial balance
+      - `balance`: balance credited to the preminted address
+  - **timelock**
+    - `adminAddress`: address that will have all timelocks roles (ADMIN, PROPOSER, CANCELLER, EXECUTOR)
+    - `minDelay`: minimum delay set in the timelock smart contract
+  - **aggOracleCommittee**
+    - `useAggOracleCommittee`: `true/false`. Indicates if use aggOracleCommittee
     - `aggOracleOwner`: Address that will own the AggOracleCommittee contract (typically a timelock contract)
-    - `aggOracleCommittee`: Array of addresses that will act as initial oracle members
+    - `aggOracleMembers`: Array of addresses that will act as initial oracle members
     - `quorum`: Number of oracle members that must agree on a GER for it to be consolidated (must be <= aggOracleMembers.length and > 0)
 
 - Optional parameters
-  - `format`: choose genesis output format. Supported ones: `geth`
-  - `anvilPort`: It is necessary to have a port for Anvil in order to create the new genesis (`default = 8545`).
+  - `anvilPort`: It is necessary to have a port for Anvil in order to create the new genesis (`default = 8546`).
 
 -  Run tool:
 ```
@@ -124,3 +121,4 @@ We will outline some of the changes identified in the following lines:
 
 - Accounts `deployer / keyless Deployer` have been removed. They can be added as `PreMintAccount`.
 - + Account timelockOwner
+- + Deterministic deployer contract: `0x4e59b44847b379578588920ca78fbf26c0b4956c`

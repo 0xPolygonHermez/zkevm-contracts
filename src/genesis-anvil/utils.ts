@@ -11,12 +11,13 @@ import {
 } from './constants';
 import { logger } from '../logger';
 import artifactTimelock from '../../artifacts/contracts/AgglayerTimelock.sol/AgglayerTimelock.json';
-import artifactProxyAdmin from '../../artifacts/@openzeppelin/contracts5/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json';
+import artifactProxyAdmin from '../../artifacts/@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json';
 import artifactTransparentUpgradeableProxy from '../../artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json';
 import artifactAgglayerBridgeL2 from '../../artifacts/contracts/sovereignChains/AgglayerBridgeL2.sol/AgglayerBridgeL2.json';
 import artifactAgglayerGERL2 from '../../artifacts/contracts/sovereignChains/AgglayerGERL2.sol/AgglayerGERL2.json';
 import artifactAggOracleCommittee from '../../artifacts/contracts/sovereignChains/AggOracleCommittee.sol/AggOracleCommittee.json';
 import { AgglayerBridgeL2, AgglayerGERL2, AggOracleCommittee } from '../../typechain-types';
+import { ProxyAdmin } from '../../typechain-types/@openzeppelin/contracts4/proxy/transparent';
 
 /**
  * Get the addresses of the genesis base contracts
@@ -126,11 +127,9 @@ export async function deployTimelock(deployer: ethers.Signer, timelockMinDelay: 
  */
 export async function deployProxyAdmin(deployer: ethers.Signer, timelockAddress: string) {
     const proxyAdminFactory = new ethers.ContractFactory(artifactProxyAdmin.abi, artifactProxyAdmin.bytecode, deployer);
-    // TODO: Check proxyAdmin version
-    // ProxyAdmin contracts4 --> transferOwnership
-    // ProxyAdmin contracts5 --> deploy(timelockAddress)
-    const proxyAdmin = await proxyAdminFactory.deploy(timelockAddress);
+    const proxyAdmin = (await proxyAdminFactory.deploy()) as ProxyAdmin;
     await proxyAdmin.deploymentTransaction();
+    await proxyAdmin.transferOwnership(timelockAddress);
     return { contract: proxyAdmin, address: proxyAdmin.target.toString().toLowerCase() };
 }
 
@@ -342,4 +341,28 @@ export async function waitForAnvil(port = 8545, retries = 50, delayMs = 200) {
     }
 
     throw new Error('Anvil did not start in time');
+}
+
+/**
+ * Dump and decompress the current state from Anvil instance
+ * @param {JsonRpcProvider} provider - RPC provider instance
+ * @returns {Object} - parsed state object from Anvil
+ */
+export async function getStateObject(provider: JsonRpcProvider) {
+    const hex = await provider.send('anvil_dumpState', []);
+    const buf = Buffer.from(hex.slice(2), 'hex');
+    const json = zlib.gunzipSync(buf).toString('utf8');
+    const state = JSON.parse(json);
+    return state;
+}
+
+/**
+ * Get account data from the Anvil state by address
+ * @param {JsonRpcProvider} provider - RPC provider instance
+ * @param {String} address - account address to retrieve
+ * @returns {Object} - account state data from Anvil
+ */
+export async function getAccountFromState(provider: JsonRpcProvider, address: string) {
+    const state = await getStateObject(provider);
+    return state.accounts[address.toLocaleLowerCase()];
 }

@@ -1,11 +1,9 @@
 import path = require('path');
 import fs = require('fs');
-import zlib from 'zlib';
 import { ethers } from 'ethers';
 import { expect } from 'chai';
 import { GENESIS_CONTRACT_NAMES, TIMELOCK_ADMIN_ROLE, EXECUTOR_ROLE, PROPOSER_ROLE, CANCELLER_ROLE } from './constants';
 import {
-    getAddressesGenesisBase,
     deployAgglayerBridgeL2,
     deployAgglayerGERL2,
     deployAggOracleCommittee,
@@ -17,8 +15,8 @@ import {
     loadState,
     getErc1967Admin,
     getErc1967Implementation,
-    getMinDelayTimelock,
-    getBalanceBridge,
+    getStateObject,
+    getAccountFromState,
 } from './utils';
 import { checkParams } from '../utils';
 import { logger } from '../logger';
@@ -37,7 +35,7 @@ import artifactTokenWrapped from '../../artifacts/contracts/lib/TokenWrappedBrid
  * @param config - The configuration object
  * @returns The genesis file
  */
-export async function createGenesisAnvil(_genesisBase: any, initializeParams: any, config: any) {
+export async function createGenesisAnvil(initializeParams: any) {
     logger.info('Start createGenesisAnvil tool');
 
     /// //////////////////////////
@@ -59,37 +57,26 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
         'emergencyBridgeUnpauser',
         'proxiedTokensManager',
         'useAggOracleCommittee',
+        'timelockOwner',
+        'timelockMinDelay',
+        'bridgeContractAddress',
+        'bridgeBalance',
+        'gerManagerAddress',
+        'anvilPort',
     ];
     checkParams(initializeParams, mandatoryParameters);
 
+    const { anvilPort, timelockOwner, timelockMinDelay, bridgeContractAddress, bridgeBalance, gerManagerAddress } =
+        initializeParams;
+
     const returnObject = { genesis: {} as any, outputAddresses: {} as any };
-
-    /// ///////////////////////////////////
-    ///   GET ADDRESSES BASE GENESIS   ///
-    /// ///////////////////////////////////
-    logger.info('Get addresses from genesis base');
-
-    // get genesis from genesisBase (skip the root)
-    let genesisBase = _genesisBase.genesis;
-
-    // Remove BYTECODE_STORER contract if present
-    genesisBase = genesisBase.filter(function (obj) {
-        return obj.contractName !== GENESIS_CONTRACT_NAMES.BYTECODE_STORER;
-    });
-
-    // get addresses from genesis base
-    const genesisBaseAddresses = await getAddressesGenesisBase(genesisBase);
-
-    // get default minDelay from the timelock
-    const defaultMinDelayTimelock = Number(await getMinDelayTimelock(genesisBase));
 
     await checkAnvilVersion();
 
-    const port = config.anvilPort ? config.anvilPort : 8545;
     // start anvil
-    const anvil = startAnvil(port);
+    const anvil = startAnvil(anvilPort);
     logger.info(`Anvil started with PID: ${anvil.pid}`, anvil.pid?.toString());
-    const anvilProvider = await waitForAnvil(port);
+    const anvilProvider = await waitForAnvil(anvilPort);
 
     /// /////////////////////////
     ///   SET CONFIG VALUES  ///
@@ -97,40 +84,19 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
     logger.info('Set parameters values');
 
     // TIMELOCK_MINDELAY
-    let timelockMinDelay;
-    // Set the default minDelay from the timelock
-    if (config.timelock === undefined || config.timelock.minDelay === undefined) {
-        timelockMinDelay = defaultMinDelayTimelock;
-    } else {
-        // Check if the minDelay is a number
-        if (typeof config.timelock.minDelay !== 'number') {
-            throw new Error('minDelay must be a number');
-        }
-        // Check if the minDelay is greater than 0
-        if (config.timelock.minDelay <= 0) {
-            throw new Error('minDelay must be greater than 0');
-        }
-        // Check if the minDelay is less than the default minDelay
-        if (config.timelock.minDelay < defaultMinDelayTimelock) {
-            logger.warn(
-                `minDelay is less than the default minDelay (${defaultMinDelayTimelock}). This can cause issues with the timelock.`,
-            );
-        }
-
-        timelockMinDelay = config.timelock.minDelay;
+    // Check if the minDelay is a number
+    if (typeof timelockMinDelay !== 'number') {
+        throw new Error('minDelay must be a number');
+    }
+    // Check if the minDelay is greater than 0
+    if (timelockMinDelay <= 0) {
+        throw new Error('minDelay must be greater than 0');
     }
 
     // TIMELOCK_OWNER
-    let timelockOwner;
-    // Set the default owner from the genesis base
-    if (config.timelock === undefined || config.timelock.owner === undefined) {
-        timelockOwner = genesisBaseAddresses.deployerAddress;
-    } else {
-        // Check if the owner is a valid address
-        if (!ethers.isAddress(config.timelock.owner)) {
-            throw new Error('timelock owner must be a valid address');
-        }
-        timelockOwner = config.timelock.owner;
+    // Check if the owner is a valid address
+    if (!ethers.isAddress(timelockOwner)) {
+        throw new Error('timelock owner must be a valid address');
     }
 
     /// ///////////////////////////////////
@@ -149,44 +115,91 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
     logger.info('Deploying Timelock contract...');
     const timelockContract = await deployTimelock(deployer, timelockMinDelay);
     logger.info(`Timelock deployed at address: ${timelockContract.address}`);
-    returnObject.outputAddresses.timelock = timelockContract.address;
+    returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.POLYGON_TIMELOCK] = timelockContract.address;
 
     // Deploy proxyAdmin
     logger.info('Deploying ProxyAdmin contract...');
     const proxyAdmin = await deployProxyAdmin(deployer, timelockContract.address);
     logger.info(`ProxyAdmin deployed at address: ${proxyAdmin.address}`);
-    returnObject.outputAddresses.proxyAdmin = proxyAdmin.address;
+    returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.PROXY_ADMIN] = proxyAdmin.address;
 
     // deploy AgglayerBridgeL2
     logger.info('Deploying AgglayerBridgeL2 contract...');
     const bridgeDeploymentResult = await deployAgglayerBridgeL2(proxyAdmin.contract, deployer);
     // Get addresses from bridge deployment
-    const bridgeProxyAddress = bridgeDeploymentResult.proxyAddress;
+    const bridgeProxyAddressNew = bridgeDeploymentResult.proxyAddress;
     const bridgeImplAddress = bridgeDeploymentResult.implementationAddress;
-    logger.info(`AgglayerBridgeL2 deployed at proxy address: ${bridgeProxyAddress}`);
+    logger.info(`AgglayerBridgeL2 deployed at proxy address: ${bridgeContractAddress}`);
     logger.info(`AgglayerBridgeL2 deployed at implementation address: ${bridgeImplAddress}`);
-    // Warn: the bridge proxy address is the same as genesis base
-    returnObject.outputAddresses.agglayerBridgeL2Proxy = genesisBaseAddresses.bridgeProxyAddress;
-    returnObject.outputAddresses.agglayerBridgeL2Impl = bridgeImplAddress;
-    returnObject.outputAddresses.bridgeLib = await bridgeDeploymentResult.contract.bridgeLib();
-    returnObject.outputAddresses.wrappedTokenBridgeImpl =
-        await bridgeDeploymentResult.contract.getWrappedTokenBridgeImplementation();
+
+    logger.info(
+        `Change address bridge proxy to original address: ${bridgeProxyAddressNew} to ${bridgeContractAddress}`,
+    );
+    // get code, nonce and storage of deployed bridge proxy and set to original address
+    const codeBridgeProxy = await anvilProvider.getCode(bridgeProxyAddressNew);
+    const nonceBridgeProxy = await anvilProvider.getTransactionCount(bridgeProxyAddressNew, 'latest');
+    await anvilProvider.send('anvil_setCode', [bridgeContractAddress, codeBridgeProxy]);
+    await anvilProvider.send('anvil_setCode', [bridgeProxyAddressNew, '0x']);
+    await anvilProvider.send('anvil_setNonce', [bridgeContractAddress, nonceBridgeProxy]);
+    await anvilProvider.send('anvil_setNonce', [bridgeProxyAddressNew, 0]);
+    const storageBridge = (await getAccountFromState(anvilProvider, bridgeProxyAddressNew)).storage;
+    // eslint-disable-next-line no-restricted-syntax, guard-for-in
+    for (const slot in storageBridge) {
+        logger.info(`Migrating storage slot ${slot} from ${bridgeProxyAddressNew} to ${bridgeContractAddress}`);
+        // eslint-disable-next-line no-await-in-loop
+        const value = await anvilProvider.getStorage(bridgeProxyAddressNew, slot);
+        // eslint-disable-next-line no-await-in-loop
+        await anvilProvider.send('anvil_setStorageAt', [bridgeContractAddress, slot, value]);
+        // eslint-disable-next-line no-await-in-loop
+        await anvilProvider.send('anvil_setStorageAt', [bridgeProxyAddressNew, slot, ethers.ZeroHash]);
+    }
+
+    const bridgeL2Contract = new ethers.Contract(bridgeContractAddress, artifactAgglayerBridgeL2.abi, deployer);
+    returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY] = bridgeContractAddress;
+    returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_IMPLEMENTATION] = bridgeImplAddress;
+    returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.BRIDGE_LIB] = await bridgeL2Contract.bridgeLib();
+    returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION] =
+        await bridgeL2Contract.getWrappedTokenBridgeImplementation();
 
     // deploy AgglayerGERL2
     logger.info('Deploying AgglayerGERL2 contract...');
     const gerDeploymentResult = await deployAgglayerGERL2(
         proxyAdmin.contract,
         deployer,
-        genesisBaseAddresses.bridgeProxyAddress, // Constructor arguments
+        bridgeContractAddress, // Constructor arguments
     );
+
     // Get addresses from ger deployment
-    const gerProxyAddress = gerDeploymentResult.proxyAddress;
+    const gerProxyAddressNew = gerDeploymentResult.proxyAddress;
     const gerImplAddress = gerDeploymentResult.implementationAddress;
-    logger.info(`AgglayerGERL2 deployed at proxy address: ${gerProxyAddress}`);
+    logger.info(`AgglayerGERL2 deployed at proxy address: ${gerProxyAddressNew}`);
     logger.info(`AgglayerGERL2 deployed at implementation address: ${gerImplAddress}`);
-    // Warn: the ger proxy address is the same as genesis base
-    returnObject.outputAddresses.agglayerGERL2Proxy = genesisBaseAddresses.gerManagerProxyAddress;
-    returnObject.outputAddresses.agglayerGERL2Impl = gerImplAddress;
+
+    logger.info(`Change address ger proxy to original address: ${gerProxyAddressNew} to ${gerManagerAddress}`);
+
+    // get code, nonce and storage of deployed ger proxy and set to original address
+    const codeGerProxy = await anvilProvider.getCode(gerProxyAddressNew);
+    const nonceGerProxy = await anvilProvider.getTransactionCount(gerProxyAddressNew, 'latest');
+    await anvilProvider.send('anvil_setCode', [gerManagerAddress, codeGerProxy]);
+    await anvilProvider.send('anvil_setCode', [gerProxyAddressNew, '0x']);
+    await anvilProvider.send('anvil_setNonce', [gerManagerAddress, nonceGerProxy]);
+    await anvilProvider.send('anvil_setNonce', [gerProxyAddressNew, 0]);
+    const storageGer = (await getAccountFromState(anvilProvider, gerProxyAddressNew)).storage;
+    // eslint-disable-next-line no-restricted-syntax, guard-for-in
+    for (const slot in storageGer) {
+        logger.info(`Migrating storage slot ${slot} from ${gerProxyAddressNew} to ${gerManagerAddress}`);
+        // eslint-disable-next-line no-await-in-loop
+        const value = await anvilProvider.getStorage(gerProxyAddressNew, slot);
+        // eslint-disable-next-line no-await-in-loop
+        await anvilProvider.send('anvil_setStorageAt', [gerManagerAddress, slot, value]);
+        // eslint-disable-next-line no-await-in-loop
+        await anvilProvider.send('anvil_setStorageAt', [gerProxyAddressNew, slot, ethers.ZeroHash]);
+    }
+
+    const gerL2Contract = new ethers.Contract(gerManagerAddress, artifactAgglayerGERL2.abi, deployer);
+
+    returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY] = gerManagerAddress;
+    returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_IMPLEMENTATION] = gerImplAddress;
 
     /// ///////////////////////////////////
     ///   DEPLOY AGGORACLE COMMITTEE   ////
@@ -197,20 +210,20 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
     let aggOracleCommitteeDeploymentResult;
 
     if (initializeParams.useAggOracleCommittee === true) {
-        checkParams(initializeParams, ['aggOracleCommittee', 'quorum', 'aggOracleOwner']);
+        checkParams(initializeParams, ['aggOracleMembers', 'quorum', 'aggOracleOwner']);
         // deploy AggOracleCommittee
         logger.info('Deploying AggOracleCommittee contract...');
         aggOracleCommitteeDeploymentResult = await deployAggOracleCommittee(
             proxyAdmin.contract,
             deployer,
-            returnObject.outputAddresses.agglayerGERL2Proxy,
+            returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY],
         );
         aggOracleCommitteeAddress = aggOracleCommitteeDeploymentResult.proxyAddress;
         aggOracleImplementationAddress = aggOracleCommitteeDeploymentResult.implementationAddress;
         logger.info(`AggOracleCommittee deployed at proxy address: ${aggOracleCommitteeAddress}`);
         logger.info(`AggOracleCommittee deployed at implementation address: ${aggOracleImplementationAddress}`);
-        returnObject.outputAddresses.aggOracleCommittee = aggOracleCommitteeAddress;
-        returnObject.outputAddresses.aggOracleCommitteeImpl = aggOracleImplementationAddress;
+        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.AGG_ORACLE_PROXY] = aggOracleCommitteeAddress;
+        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.AGG_ORACLE_IMPL] = aggOracleImplementationAddress;
 
         initializeParams.globalExitRootUpdater = aggOracleCommitteeAddress;
         globalExitRootUpdater = aggOracleCommitteeAddress;
@@ -221,7 +234,7 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
         logger.info('initializing AggOracleCommittee contract...');
         await aggOracleCommitteeDeploymentResult.contract.initialize(
             initializeParams.aggOracleOwner,
-            initializeParams.aggOracleCommittee,
+            initializeParams.aggOracleMembers,
             initializeParams.quorum,
         );
     } else {
@@ -249,11 +262,11 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
         proxiedTokensManager,
     } = initializeParams;
 
-    await bridgeDeploymentResult.contract.initialize(
+    await bridgeL2Contract.initialize(
         rollupID,
         gasTokenAddress,
         gasTokenNetwork,
-        genesisBaseAddresses.gerManagerProxyAddress, // Global exit root manager address from base genesis
+        gerManagerAddress, // Global exit root manager address from base genesis
         ethers.ZeroAddress, // Polygon rollup manager address always zero for sovereign chains
         gasTokenMetadata,
         bridgeManager,
@@ -274,51 +287,26 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
         (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress))
     ) {
         logger.info('Rollup with custom gas token, adding WETH address to output...');
-        returnObject.outputAddresses.WETHToken = await bridgeDeploymentResult.contract.WETHToken();
+        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.WETH_PROXY] = await bridgeL2Contract.WETHToken();
         [name, symbol, decimals] = ethers.AbiCoder.defaultAbiCoder().decode(
             ['string', 'string', 'uint8'],
-            await bridgeDeploymentResult.contract.gasTokenMetadata(),
+            await bridgeL2Contract.gasTokenMetadata(),
         );
     }
 
     logger.info('Initializing AgglayerGERL2 contract...');
 
     // Initialize the AgglayerGERL2 contract
-    await gerDeploymentResult.contract.initialize(globalExitRootUpdater, globalExitRootRemover);
+    await gerL2Contract.initialize(globalExitRootUpdater, globalExitRootRemover);
 
-    const hex = await anvilProvider.send('anvil_dumpState', []);
-    const buf = Buffer.from(hex.slice(2), 'hex');
-    const json = zlib.gunzipSync(buf).toString('utf8');
+    /// ///////////////////////////////
+    ///       GET STATE ANVIL       ///
+    /// ///////////////////////////////
 
-    const state = JSON.parse(json);
-    // set old proxy bridge address
-    state.accounts[genesisBaseAddresses.bridgeProxyAddress] = state.accounts[bridgeDeploymentResult.proxyAddress];
-    delete state.accounts[bridgeDeploymentResult.proxyAddress];
+    const state = await getStateObject(anvilProvider);
 
     // set old balance bridge
-    state.accounts[genesisBaseAddresses.bridgeProxyAddress].balance = getBalanceBridge(genesisBase);
-
-    // set old proxy bridge address in WETH
-    expect(
-        state.accounts[returnObject.outputAddresses.WETHToken.toLocaleLowerCase()].storage[
-            '0x863b064fe9383d75d38f584f64f1aaba4520e9ebc98515fa15bdeae8c4274d00'
-        ].slice(24, 64),
-    ).to.be.equal(bridgeProxyAddress.slice(2));
-    state.accounts[returnObject.outputAddresses.WETHToken.toLocaleLowerCase()].storage[
-        '0x863b064fe9383d75d38f584f64f1aaba4520e9ebc98515fa15bdeae8c4274d00'
-    ] = state.accounts[returnObject.outputAddresses.WETHToken.toLocaleLowerCase()].storage[
-        '0x863b064fe9383d75d38f584f64f1aaba4520e9ebc98515fa15bdeae8c4274d00'
-    ].replace(
-        bridgeProxyAddress.slice(2),
-        returnObject.outputAddresses.agglayerBridgeL2Proxy.slice(2).toLocaleLowerCase(),
-    );
-
-    // set old proxy ger address
-    state.accounts[genesisBaseAddresses.gerManagerProxyAddress] = state.accounts[gerDeploymentResult.proxyAddress];
-    delete state.accounts[gerDeploymentResult.proxyAddress];
-
-    // delete create2 deployer deterministic anvil
-    delete state.accounts['0x4e59b44847b379578588920ca78fbf26c0b4956c'];
+    state.accounts[bridgeContractAddress.toLocaleLowerCase()].balance = bridgeBalance;
 
     // unset balance timelockOwner
     state.accounts[timelockOwner.toLocaleLowerCase()].balance = '0x0';
@@ -333,9 +321,9 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
     await anvil.kill('SIGINT');
     await anvilProvider.destroy();
 
-    const newAnvil = startAnvil(port);
+    const newAnvil = startAnvil(anvilPort);
     logger.info(`Anvil started with PID: ${newAnvil.pid}`, newAnvil.pid?.toString());
-    const newAnvilProvider = await waitForAnvil(port);
+    const newAnvilProvider = await waitForAnvil(anvilPort);
     await loadState(newAnvilProvider, state);
 
     /// /////////////////////////
@@ -360,31 +348,39 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
     logger.info('Sanity checks AgglayerBridgeL2...');
     // AgglayerBridgeL2 contract
     const newAgglayerBridgeL2 = new ethers.Contract(
-        returnObject.outputAddresses.agglayerBridgeL2Proxy,
+        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY],
         artifactAgglayerBridgeL2.abi,
         newAnvilProvider,
     );
 
     expect(
         (
-            await getErc1967Admin(newAnvilProvider, returnObject.outputAddresses.agglayerBridgeL2Proxy)
+            await getErc1967Admin(
+                newAnvilProvider,
+                returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY],
+            )
         ).toLocaleLowerCase(),
     ).to.be.equal(proxyAdmin.address.toLocaleLowerCase());
     expect(
         (
-            await getErc1967Implementation(newAnvilProvider, returnObject.outputAddresses.agglayerBridgeL2Proxy)
+            await getErc1967Implementation(
+                newAnvilProvider,
+                returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY],
+            )
         ).toLocaleLowerCase(),
     ).to.be.equal(bridgeImplAddress.toLocaleLowerCase());
     expect((await newAgglayerBridgeL2.getWrappedTokenBridgeImplementation()).toLocaleLowerCase()).to.be.equal(
-        returnObject.outputAddresses.wrappedTokenBridgeImpl.toLocaleLowerCase(),
+        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION].toLocaleLowerCase(),
     );
-    expect(await newAgglayerBridgeL2.bridgeLib()).to.be.equal(returnObject.outputAddresses.bridgeLib);
+    expect(await newAgglayerBridgeL2.bridgeLib()).to.be.equal(
+        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.BRIDGE_LIB],
+    );
     expect(await newAgglayerBridgeL2.networkID()).to.be.equal(rollupID);
     expect((await newAgglayerBridgeL2.bridgeManager()).toLocaleLowerCase()).to.be.equal(
         bridgeManager.toLocaleLowerCase(),
     );
     expect((await newAgglayerBridgeL2.globalExitRootManager()).toLocaleLowerCase()).to.be.equal(
-        returnObject.outputAddresses.agglayerGERL2Proxy.toLocaleLowerCase(),
+        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY].toLocaleLowerCase(),
     );
     expect(await newAgglayerBridgeL2.polygonRollupManager()).to.be.equal(ethers.ZeroAddress);
     expect((await newAgglayerBridgeL2.emergencyBridgePauser()).toLocaleLowerCase()).to.be.equal(
@@ -415,25 +411,37 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
         expect(decimalsNew).to.be.equal(decimals);
         if (sovereignWETHAddress === ethers.ZeroAddress || !ethers.isAddress(sovereignWETHAddress)) {
             logger.info('Sanity check WETH token...');
-            expect(await newAgglayerBridgeL2.WETHToken()).to.be.equal(returnObject.outputAddresses.WETHToken);
+            expect(await newAgglayerBridgeL2.WETHToken()).to.be.equal(
+                returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.WETH_PROXY],
+            );
             const newWETH = new ethers.Contract(
-                returnObject.outputAddresses.WETHToken,
+                returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.WETH_PROXY],
                 artifactTokenWrapped.abi,
                 newAnvilProvider,
             );
             expect(
-                (await getErc1967Admin(newAnvilProvider, returnObject.outputAddresses.WETHToken)).toLocaleLowerCase(),
+                (
+                    await getErc1967Admin(
+                        newAnvilProvider,
+                        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.WETH_PROXY],
+                    )
+                ).toLocaleLowerCase(),
             ).to.be.equal(proxiedTokensManager.toLocaleLowerCase());
             expect(
                 (
-                    await getErc1967Implementation(newAnvilProvider, returnObject.outputAddresses.WETHToken)
+                    await getErc1967Implementation(
+                        newAnvilProvider,
+                        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.WETH_PROXY],
+                    )
                 ).toLocaleLowerCase(),
-            ).to.be.equal(returnObject.outputAddresses.wrappedTokenBridgeImpl.toLocaleLowerCase());
+            ).to.be.equal(
+                returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION].toLocaleLowerCase(),
+            );
             expect(await newWETH.name()).to.be.equal('Wrapped Ether');
             expect(await newWETH.symbol()).to.be.equal('WETH');
             expect(await newWETH.decimals()).to.be.equal(18);
             expect((await newWETH.bridgeAddress()).toLocaleLowerCase()).to.be.equal(
-                returnObject.outputAddresses.agglayerBridgeL2Proxy.toLocaleLowerCase(),
+                returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY].toLocaleLowerCase(),
             );
         } else {
             logger.info('Sanity check sovereignWETHAddress...');
@@ -444,17 +452,25 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
     logger.info('Sanity checks AgglayerGERL2...');
     // AgglayerGERL2 contract
     const newAgglayerGERL2 = new ethers.Contract(
-        returnObject.outputAddresses.agglayerGERL2Proxy,
+        returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY],
         artifactAgglayerGERL2.abi,
         newAnvilProvider,
     );
 
     expect(
-        (await getErc1967Admin(newAnvilProvider, returnObject.outputAddresses.agglayerGERL2Proxy)).toLocaleLowerCase(),
+        (
+            await getErc1967Admin(
+                newAnvilProvider,
+                returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY],
+            )
+        ).toLocaleLowerCase(),
     ).to.be.equal(proxyAdmin.address.toLocaleLowerCase());
     expect(
         (
-            await getErc1967Implementation(newAnvilProvider, returnObject.outputAddresses.agglayerGERL2Proxy)
+            await getErc1967Implementation(
+                newAnvilProvider,
+                returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY],
+            )
         ).toLocaleLowerCase(),
     ).to.be.equal(gerImplAddress.toLocaleLowerCase());
 
@@ -480,13 +496,13 @@ export async function createGenesisAnvil(_genesisBase: any, initializeParams: an
             (await getErc1967Implementation(newAnvilProvider, aggOracleCommitteeAddress)).toLocaleLowerCase(),
         ).to.be.equal(aggOracleImplementationAddress.toLocaleLowerCase());
         expect((await newAggOracleCommittee.globalExitRootManagerL2Sovereign()).toLocaleLowerCase()).to.be.equal(
-            returnObject.outputAddresses.agglayerGERL2Proxy.toLocaleLowerCase(),
+            returnObject.outputAddresses[GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_PROXY].toLocaleLowerCase(),
         );
         expect(await newAggOracleCommittee.quorum()).to.be.equal(initializeParams.quorum);
         expect(await newAggOracleCommittee.owner()).to.be.equal(initializeParams.aggOracleOwner);
-        for (let i = 0; i < initializeParams.aggOracleCommittee.length; i++) {
+        for (let i = 0; i < initializeParams.aggOracleMembers.length; i++) {
             // eslint-disable-next-line no-await-in-loop
-            expect(await newAggOracleCommittee.aggOracleMembers(i)).to.be.equal(initializeParams.aggOracleCommittee[i]);
+            expect(await newAggOracleCommittee.aggOracleMembers(i)).to.be.equal(initializeParams.aggOracleMembers[i]);
         }
     }
 

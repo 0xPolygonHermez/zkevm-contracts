@@ -10,15 +10,12 @@ import { ethers, hardhatArguments } from 'hardhat';
 // internal dependencies
 import { AgglayerManager, AgglayerBridge } from '../../typechain-types';
 import '../../deployment/helpers/utils';
-import { initializeTimelockStorage } from '../../src/genesis/genesis-helpers';
 import { checkParams, getGitInfo } from '../../src/utils';
 import { logger } from '../../src/logger';
 import { formatGenesis } from './helpers';
-import { checkBridgeAddress } from '../utils';
 import { createGenesisAnvil } from '../../src/genesis-anvil/create-genesis-anvil';
 
 // read files
-import genesisBase from './genesis-base.json';
 import createGenesisSovereignParams from './create-genesis-sovereign-params.json';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -37,32 +34,38 @@ async function main() {
 
     const mandatoryParameters = [
         'rollupManagerAddress',
-        'rollupID',
-        'bridgeManager',
-        'gasTokenAddress',
-        'sovereignWETHAddress',
-        'sovereignWETHAddressIsNotMintable',
-        'globalExitRootRemover',
-        'emergencyBridgePauser',
-        'emergencyBridgeUnpauser',
-        'proxiedTokensManager',
-        'setPreMintAccounts',
-        'setTimelockParameters',
-        'useAggOracleCommittee',
+        'network.rollupID',
+        'bridge.bridgeManager',
+        'bridge.gasTokenAddress',
+        'bridge.sovereignWETHAddress',
+        'bridge.sovereignWETHAddressIsNotMintable',
+        'globalExitRoot.globalExitRootRemover',
+        'bridge.emergencyBridgePauser',
+        'bridge.emergencyBridgeUnpauser',
+        'bridge.proxiedTokensManager',
+        'preMintAccounts.setPreMintAccounts',
+        'timelock.adminAddress',
+        'timelock.minDelay',
+        'aggOracleCommittee.useAggOracleCommittee',
     ];
 
     // check global parameters
     checkParams(createGenesisSovereignParams, mandatoryParameters);
 
+    // get parameters to easier access
+    const { preMintAccounts, network, timelock, rollupManagerAddress, globalExitRoot, bridge, aggOracleCommittee } =
+        createGenesisSovereignParams;
+
     // check preMintedAccounts parameters
-    if (createGenesisSovereignParams.setPreMintAccounts === true) {
-        if (createGenesisSovereignParams.preMintAccounts === undefined) {
+    if (preMintAccounts.setPreMintAccounts === true) {
+        const { accounts } = preMintAccounts;
+        if (accounts === undefined) {
             logger.error('setPreMintAccounts is set to true but missing parameter preMintAccounts');
             process.exit(1);
         }
 
         // Check all preMintAccounts parameters
-        createGenesisSovereignParams.preMintAccounts.forEach((preMintAccount) => {
+        accounts.forEach((preMintAccount) => {
             const paramsPreMintAccount = ['balance', 'address'];
             checkParams(preMintAccount, paramsPreMintAccount);
             if (ethers.isAddress(preMintAccount.address) === false) {
@@ -72,29 +75,8 @@ async function main() {
         });
     }
 
-    // check anvilPort
-    const config: {
-        anvilPort: number;
-        timelock?: any;
-    } = {
-        anvilPort:
-            typeof createGenesisSovereignParams.anvilPort !== 'undefined'
-                ? createGenesisSovereignParams.anvilPort
-                : 8545,
-    };
-
-    // check timelock parameters
-    if (createGenesisSovereignParams.setTimelockParameters === true) {
-        if (createGenesisSovereignParams.timelockParameters === undefined) {
-            logger.error('setTimelockParameters is set to true but missing parameter timelockParameters');
-            process.exit(1);
-        }
-
-        const paramsTimelockParameters = ['adminAddress', 'minDelay'];
-
-        checkParams(createGenesisSovereignParams.timelockParameters, paramsTimelockParameters);
-        config.timelock = createGenesisSovereignParams.timelockParameters;
-    }
+    const anvilPort =
+        typeof createGenesisSovereignParams.anvilPort !== 'undefined' ? createGenesisSovereignParams.anvilPort : 8546; // default anvil port
 
     /// //////////////////////////////////////////
     ///    CHECK SC PARAMS & ON-CHAIN DATA    ///
@@ -103,16 +85,14 @@ async function main() {
 
     // Load Rollup manager
     const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager');
-    const rollupManagerContract = PolygonRollupManagerFactory.attach(
-        createGenesisSovereignParams.rollupManagerAddress,
-    ) as AgglayerManager;
+    const rollupManagerContract = PolygonRollupManagerFactory.attach(rollupManagerAddress) as AgglayerManager;
 
     // Checks like in bridge contract
     if (
-        ethers.isAddress(createGenesisSovereignParams.gasTokenAddress) &&
-        createGenesisSovereignParams.gasTokenAddress !== ethers.ZeroAddress &&
-        createGenesisSovereignParams.sovereignWETHAddress === ethers.ZeroAddress &&
-        createGenesisSovereignParams.sovereignWETHAddressIsNotMintable === true
+        ethers.isAddress(bridge.gasTokenAddress) &&
+        bridge.gasTokenAddress !== ethers.ZeroAddress &&
+        bridge.sovereignWETHAddress === ethers.ZeroAddress &&
+        bridge.sovereignWETHAddressIsNotMintable === true
     ) {
         throw new Error(
             'InvalidSovereignWETHAddressParams: if gasTokenAddress is not 0x0, and sovereignWETHAddress is 0x0, sovereignWETHAddressIsNotMintable must be false',
@@ -120,9 +100,8 @@ async function main() {
     }
 
     if (
-        createGenesisSovereignParams.gasTokenAddress === ethers.ZeroAddress &&
-        (createGenesisSovereignParams.sovereignWETHAddress !== ethers.ZeroAddress ||
-            createGenesisSovereignParams.sovereignWETHAddressIsNotMintable === true)
+        bridge.gasTokenAddress === ethers.ZeroAddress &&
+        (bridge.sovereignWETHAddress !== ethers.ZeroAddress || bridge.sovereignWETHAddressIsNotMintable === true)
     ) {
         throw new Error(
             'InvalidSovereignWETHAddressParams: If gasTokenAddress is 0x0, sovereignWETHAddress must be 0x0 and sovereignWETHAddressIsNotMintable must be false',
@@ -140,35 +119,29 @@ async function main() {
     // Get bridge instance
     const bridgeFactory = await ethers.getContractFactory('AgglayerBridge');
     const bridgeContractAddress = await rollupManagerContract.bridgeAddress();
+    const bridgeBalance = await ethers.provider.getBalance(bridgeContractAddress);
     const rollupBridgeContract = bridgeFactory.attach(bridgeContractAddress) as AgglayerBridge;
+    const gerManagerAddress = await rollupManagerContract.globalExitRootManager();
 
-    // check bridge address is the same in genesisBase and on-chain
-    checkBridgeAddress(genesisBase, bridgeContractAddress);
-
-    if (
-        ethers.isAddress(createGenesisSovereignParams.gasTokenAddress) &&
-        createGenesisSovereignParams.gasTokenAddress !== ethers.ZeroAddress
-    ) {
+    if (ethers.isAddress(bridge.gasTokenAddress) && bridge.gasTokenAddress !== ethers.ZeroAddress) {
         logger.info('Getting data from the gasTokenAddress');
         // Get token metadata
-        gasTokenMetadata = await rollupBridgeContract.getTokenMetadata(createGenesisSovereignParams.gasTokenAddress);
+        gasTokenMetadata = await rollupBridgeContract.getTokenMetadata(bridge.gasTokenAddress);
         outputJson.gasTokenMetadata = gasTokenMetadata;
         // If gas token metadata includes `0x124e4f545f56414c49445f454e434f44494e47 (NOT_VALID_ENCODING)` means there is no erc20 token deployed at the selected gas token network
         if (gasTokenMetadata.includes('124e4f545f56414c49445f454e434f44494e47')) {
             throw new Error(
-                `Invalid gas token address, no ERC20 token deployed at the selected gas token network ${createGenesisSovereignParams.gasTokenAddress}`,
+                `Invalid gas token address, no ERC20 token deployed at the selected gas token network ${bridge.gasTokenAddress}`,
             );
         }
-        const wrappedData = await rollupBridgeContract.wrappedTokenToTokenInfo(
-            createGenesisSovereignParams.gasTokenAddress,
-        );
+        const wrappedData = await rollupBridgeContract.wrappedTokenToTokenInfo(bridge.gasTokenAddress);
         if (wrappedData.originNetwork !== 0n) {
             // Wrapped token
             gasTokenAddress = wrappedData.originTokenAddress;
             gasTokenNetwork = wrappedData.originNetwork;
         } else {
             // Mainnet token
-            gasTokenAddress = createGenesisSovereignParams.gasTokenAddress;
+            gasTokenAddress = bridge.gasTokenAddress;
             gasTokenNetwork = 0n;
         }
     } else {
@@ -197,59 +170,59 @@ async function main() {
         proxiedTokensManager: string;
         useAggOracleCommittee: boolean;
         globalExitRootUpdater?: string;
-        aggOracleCommittee?: string[];
+        aggOracleMembers?: string[];
         quorum?: number;
         aggOracleOwner?: string;
-        anvilPort?: number;
+        timelockOwner: string;
+        timelockMinDelay: number;
+        anvilPort: number;
+        bridgeContractAddress: string;
+        bridgeBalance: bigint;
+        gerManagerAddress: string;
     } = {
-        rollupID: createGenesisSovereignParams.rollupID,
+        rollupID: network.rollupID,
         gasTokenAddress,
         gasTokenNetwork,
         polygonRollupManager: ethers.ZeroAddress,
         gasTokenMetadata,
-        bridgeManager: createGenesisSovereignParams.bridgeManager,
-        sovereignWETHAddress: createGenesisSovereignParams.sovereignWETHAddress,
-        sovereignWETHAddressIsNotMintable: createGenesisSovereignParams.sovereignWETHAddressIsNotMintable,
-        globalExitRootRemover: createGenesisSovereignParams.globalExitRootRemover,
-        emergencyBridgePauser: createGenesisSovereignParams.emergencyBridgePauser,
-        emergencyBridgeUnpauser: createGenesisSovereignParams.emergencyBridgeUnpauser,
-        proxiedTokensManager: createGenesisSovereignParams.proxiedTokensManager,
-        useAggOracleCommittee: createGenesisSovereignParams.useAggOracleCommittee,
+        bridgeManager: bridge.bridgeManager,
+        sovereignWETHAddress: bridge.sovereignWETHAddress,
+        sovereignWETHAddressIsNotMintable: bridge.sovereignWETHAddressIsNotMintable,
+        globalExitRootRemover: globalExitRoot.globalExitRootRemover,
+        emergencyBridgePauser: bridge.emergencyBridgePauser,
+        emergencyBridgeUnpauser: bridge.emergencyBridgeUnpauser,
+        proxiedTokensManager: bridge.proxiedTokensManager,
+        useAggOracleCommittee: aggOracleCommittee.useAggOracleCommittee,
+        timelockOwner: timelock.adminAddress,
+        timelockMinDelay: timelock.minDelay,
+        bridgeContractAddress,
+        bridgeBalance,
+        gerManagerAddress,
+        anvilPort,
     };
 
-    if (createGenesisSovereignParams.useAggOracleCommittee === false) {
-        checkParams(createGenesisSovereignParams, ['globalExitRootUpdater']);
-        initializeParams.globalExitRootUpdater = createGenesisSovereignParams.globalExitRootUpdater;
+    if (aggOracleCommittee.useAggOracleCommittee === false) {
+        checkParams(globalExitRoot, ['globalExitRootUpdater']);
+        initializeParams.globalExitRootUpdater = globalExitRoot.globalExitRootUpdater;
     } else {
         // AggOracleCommittee parameters
-        checkParams(createGenesisSovereignParams, ['aggOracleCommittee', 'quorum', 'aggOracleOwner']);
-        initializeParams.aggOracleCommittee = createGenesisSovereignParams.aggOracleCommittee;
-        initializeParams.quorum = createGenesisSovereignParams.quorum;
-        initializeParams.aggOracleOwner = createGenesisSovereignParams.aggOracleOwner;
+        checkParams(aggOracleCommittee, ['aggOracleMembers', 'quorum', 'aggOracleOwner']);
+        initializeParams.aggOracleMembers = aggOracleCommittee.aggOracleMembers;
+        initializeParams.quorum = aggOracleCommittee.quorum;
+        initializeParams.aggOracleOwner = aggOracleCommittee.aggOracleOwner;
     }
     logger.info('Update genesis-base to the SovereignContracts');
 
-    const finalGenesis = await createGenesisAnvil(genesisBase, initializeParams, config);
-
-    // Add weth address to deployment output if gas token address is provided and sovereignWETHAddress is not provided
-    let outWETHAddress;
-    if (
-        gasTokenAddress !== ethers.ZeroAddress &&
-        ethers.isAddress(gasTokenAddress) &&
-        (createGenesisSovereignParams.sovereignWETHAddress === ethers.ZeroAddress ||
-            !ethers.isAddress(createGenesisSovereignParams.sovereignWETHAddress))
-    ) {
-        outWETHAddress = finalGenesis.outputAddresses.WETHToken;
-    }
+    const finalGenesis = await createGenesisAnvil(initializeParams);
 
     // set preMintAccounts
     let totalPreMintedAmount = BigInt(0);
-    if (createGenesisSovereignParams.setPreMintAccounts === true) {
+    if (preMintAccounts.setPreMintAccounts === true) {
         logger.info('Add preMintAccounts');
 
         // iterate over all premintAccounts
-        for (let i = 0; i < createGenesisSovereignParams.preMintAccounts.length; i++) {
-            const preMintAccount = createGenesisSovereignParams.preMintAccounts[i];
+        for (let i = 0; i < preMintAccounts.accounts.length; i++) {
+            const preMintAccount = preMintAccounts.accounts[i];
 
             // check if preMintAccount is in the current genesis
             const preMintAccountExist = finalGenesis.genesis[preMintAccount.address];
@@ -271,35 +244,20 @@ async function main() {
         }
     }
 
-    // set timelock storage
-    if (createGenesisSovereignParams.setTimelockParameters === true) {
-        logger.info('Add timelockParameters');
-        const storageTimelock = initializeTimelockStorage(
-            createGenesisSovereignParams.timelockParameters.minDelay,
-            createGenesisSovereignParams.timelockParameters.adminAddress,
-            finalGenesis.outputAddresses.timelock,
-        );
-
-        finalGenesis.genesis[finalGenesis.outputAddresses.timelock].storage = storageTimelock;
-    }
-
     // format genesis
-    if (createGenesisSovereignParams.formatGenesis !== undefined) {
-        logger.info(`Formatting genesis output to: ${createGenesisSovereignParams.formatGenesis}`);
-        finalGenesis.genesis = formatGenesis(finalGenesis.genesis, createGenesisSovereignParams.formatGenesis);
-    }
+    finalGenesis.genesis = formatGenesis(finalGenesis.genesis, 'geth');
 
     // get L1 information
     logger.info(`Getting L1 information`);
     const RollupManagerInfo = {} as any;
 
-    const rollupData = await rollupManagerContract.rollupIDToRollupData(createGenesisSovereignParams.rollupID);
+    const rollupData = await rollupManagerContract.rollupIDToRollupData(network.rollupID);
 
     RollupManagerInfo.bridgeAddress = await rollupManagerContract.bridgeAddress();
     RollupManagerInfo.globalExitRootManager = await rollupManagerContract.globalExitRootManager();
     RollupManagerInfo.pol = await rollupManagerContract.pol();
     RollupManagerInfo.rollupData = {
-        rollupID: createGenesisSovereignParams.rollupID,
+        rollupID: network.rollupID,
         rollupAddress: rollupData[0],
     };
 
@@ -307,45 +265,46 @@ async function main() {
     const gitInfo = getGitInfo();
     outputJson.gitInfo = gitInfo;
     outputJson.network = hardhatArguments.network;
-    outputJson.rollupManagerAddress = createGenesisSovereignParams.rollupManagerAddress;
+    outputJson.rollupManagerAddress = rollupManagerAddress;
     outputJson.RollupManagerInfo = RollupManagerInfo;
-    outputJson.gasTokenAddress = gasTokenAddress;
-    outputJson.gasTokenNetwork = gasTokenNetwork;
-    outputJson.gasTokenMetadata = gasTokenMetadata;
-    outputJson.bridgeManager = createGenesisSovereignParams.bridgeManager;
-    outputJson.sovereignWETHAddress = createGenesisSovereignParams.sovereignWETHAddress;
-    outputJson.sovereignWETHAddressIsNotMintable = createGenesisSovereignParams.sovereignWETHAddressIsNotMintable;
-    outputJson.globalExitRootRemover = createGenesisSovereignParams.globalExitRootRemover;
-    outputJson.emergencyBridgePauser = createGenesisSovereignParams.emergencyBridgePauser;
-    outputJson.emergencyBridgeUnpauser = createGenesisSovereignParams.emergencyBridgeUnpauser;
-    outputJson.proxiedTokensManager = createGenesisSovereignParams.proxiedTokensManager;
+    outputJson.bridge = {
+        gasTokenAddress,
+        gasTokenNetwork,
+        gasTokenMetadata,
+        bridgeManager: bridge.bridgeManager,
+        sovereignWETHAddress: bridge.sovereignWETHAddress,
+        sovereignWETHAddressIsNotMintable: bridge.sovereignWETHAddressIsNotMintable,
+        emergencyBridgePauser: bridge.emergencyBridgePauser,
+        emergencyBridgeUnpauser: bridge.emergencyBridgeUnpauser,
+        proxiedTokensManager: bridge.proxiedTokensManager,
+    };
+    outputJson.globalExitRoot = {
+        globalExitRootRemover: globalExitRoot.globalExitRootRemover,
+    };
     outputJson.outputAddresses = finalGenesis.outputAddresses;
 
-    if (createGenesisSovereignParams.setPreMintAccounts === true) {
-        outputJson.preMintAccounts = createGenesisSovereignParams.preMintAccounts;
-        outputJson.totalPreMintedAmount = totalPreMintedAmount.toString();
+    if (preMintAccounts.setPreMintAccounts === true) {
+        outputJson.preMintAccounts = {
+            accounts: preMintAccounts.accounts,
+            totalPreMintedAmount: totalPreMintedAmount.toString(),
+        };
     }
+    outputJson.timelockParameters = timelock;
 
-    if (createGenesisSovereignParams.setTimelockParameters === true) {
-        outputJson.timelockParameters = createGenesisSovereignParams.timelockParameters;
-    }
-
-    if (createGenesisSovereignParams.useAggOracleCommittee === true) {
-        outputJson.useAggOracleCommittee = true;
-        outputJson.aggOracleCommittee = createGenesisSovereignParams.aggOracleCommittee;
-        outputJson.quorum = createGenesisSovereignParams.quorum;
-        outputJson.aggOracleOwner = createGenesisSovereignParams.aggOracleOwner;
+    if (aggOracleCommittee.useAggOracleCommittee === true) {
+        outputJson.aggOracleCommittee = {
+            useAggOracleCommittee: true,
+            aggOracleMembers: aggOracleCommittee.aggOracleMembers,
+            quorum: aggOracleCommittee.quorum,
+            aggOracleOwner: aggOracleCommittee.aggOracleOwner,
+        };
     } else {
-        outputJson.useAggOracleCommittee = false;
-        outputJson.globalExitRootUpdater = createGenesisSovereignParams.globalExitRootUpdater;
+        outputJson.aggOracleCommittee.useAggOracleCommittee = false;
+        outputJson.globalExitRoot.globalExitRootUpdater = globalExitRoot.globalExitRootUpdater;
     }
 
-    if (typeof outWETHAddress !== 'undefined') {
-        outputJson.WETHAddress = outWETHAddress;
-    }
-
-    if (createGenesisSovereignParams.formatGenesis !== undefined) {
-        outputJson.formatGenesis = createGenesisSovereignParams.formatGenesis;
+    if (typeof finalGenesis.outputAddresses.WETHToken !== 'undefined') {
+        outputJson.WETHAddress = finalGenesis.outputAddresses.WETHToken;
     }
 
     /// ////////////////////////////////
@@ -356,11 +315,11 @@ async function main() {
     // path output genesis
     const pathOutputGenesisJson = createGenesisSovereignParams.outputGenesisPath
         ? path.join(__dirname, createGenesisSovereignParams.outputGenesisPath)
-        : path.join(__dirname, `./genesis-rollupID-${createGenesisSovereignParams.rollupID}__${dateStr}.json`);
+        : path.join(__dirname, `./genesis-rollupID-${network.rollupID}__${dateStr}.json`);
 
     const pathOutputJson = createGenesisSovereignParams.outputPath
         ? path.join(__dirname, createGenesisSovereignParams.outputPath)
-        : path.join(__dirname, `./output-rollupID-${createGenesisSovereignParams.rollupID}__${dateStr}.json`);
+        : path.join(__dirname, `./output-rollupID-${network.rollupID}__${dateStr}.json`);
 
     // write files
     fs.writeFileSync(pathOutputGenesisJson, JSON.stringify(finalGenesis.genesis, null, 2));
