@@ -3,84 +3,89 @@ import path from 'path';
 import fs from 'fs';
 import { logger } from '../../src/logger';
 import { getDeployerFromParameters, getProviderAdjustingMultiplierGas } from '../../src/utils';
-
-const OUTPUT_INFO_PATH = path.join(__dirname, 'multisig_output.json');
+import {
+    SAFE_SINGLETON_ADDRESS,
+    GNOSIS_SAFE_PROXY_FACTORY_ADDRESS,
+    FALLBACK_HANDLER_ADDRESS,
+    SAFE_SETUP_ABI,
+    SAFE_PROXY_FACTORY_ABI,
+} from './constants';
 
 async function main() {
-    const outputInfo: { [key: string]: string } = {};
+    // Parse and validate inputs
+    const ownersInput = process.env.SAFE_OWNERS;
+    const thresholdInput = process.env.SAFE_THRESHOLD;
+    const saltNonceInput = process.env.SALT_NONCE;
 
-    // Load deployment parameters from env or hardhat config
-    const filePath = path.join(__dirname, 'deploy_parameters.json');
-    let deployParameters = {};
-    if (fs.existsSync(filePath)) {
-        deployParameters = fs.readFileSync(filePath, 'utf8');
+    if (!ownersInput || !thresholdInput) {
+        logger.error('Usage: SAFE_OWNERS=0xAddr1,0xAddr2 SAFE_THRESHOLD=2 [SALT_NONCE=123] npx hardhat run tools/deployMultisig/deployMultisig.ts --network <network>');
+        process.exit(1);
     }
 
-    // Setup provider and deployer
-    const currentProvider = getProviderAdjustingMultiplierGas(deployParameters, ethers);
+    const owners = ownersInput.split(',').map((addr) => addr.trim());
+    const threshold = parseInt(thresholdInput);
+    const saltNonce = saltNonceInput ? parseInt(saltNonceInput) : Date.now();
+
+    if (owners.length === 0 || !owners.every(ethers.isAddress)) {
+        logger.error('❌ Invalid owner addresses');
+        process.exit(1);
+    }
+
+    if (threshold < 1 || threshold > owners.length) {
+        logger.error(`❌ Invalid threshold. Must be between 1 and ${owners.length}`);
+        process.exit(1);
+    }
+
+    logger.info(`Owners: ${owners.length}, Threshold: ${threshold}, Salt: ${saltNonce}`);
+
+    // Setup
+    const parametersPath = path.join(__dirname, 'deploy_parameters.json');
+    const deployParameters = fs.existsSync(parametersPath) ? fs.readFileSync(parametersPath, 'utf8') : {};
+    const provider = getProviderAdjustingMultiplierGas(deployParameters, ethers);
     const network = await ethers.provider.getNetwork();
-    outputInfo.network = network.name;
-    const deployer = await getDeployerFromParameters(currentProvider, deployParameters, ethers);
+    const deployer = await getDeployerFromParameters(provider, deployParameters, ethers);
 
-    // Create mulitisig
-    const EXPECTED_SAFE = '0x242daE44F5d8fb54B198D03a94dA45B5a4413e21';
-    const GNOSIS_SAFE_PROXY_FACTORY_ADDRESS = '0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2';
+    // Encode Safe setup
+    const setupData = new ethers.Interface(SAFE_SETUP_ABI).encodeFunctionData('setup', [
+        owners,
+        threshold,
+        ethers.ZeroAddress,
+        '0x',
+        FALLBACK_HANDLER_ADDRESS,
+        ethers.ZeroAddress,
+        0,
+        ethers.ZeroAddress,
+    ]);
 
-    // sanity: avoid redeploying if already exists
-    const codeMultisig = await currentProvider.getCode(EXPECTED_SAFE);
+    const factory = new ethers.Contract(GNOSIS_SAFE_PROXY_FACTORY_ADDRESS, SAFE_PROXY_FACTORY_ABI, deployer);
 
-    if (codeMultisig !== '0x') {
-        logger.info(`Safe already exists at ${EXPECTED_SAFE}`);
-    } else {
-        logger.info('Deploying Safe (multisig)...');
-
-        const INPUT_DATA_MULTISIG =
-            '0x1688f0b9000000000000000000000000d9db270c1b5e3bd161e8c8503c55ceabee709552000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000186e99e2e0800000000000000000000000000000000000000000000000000000000000001a4b63e800d0000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000180000000000000000000000000f48f2b2d2a534e402487b3ee7c18c33aec0fe5e400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030000000000000000000000004c1665d6651ecefa59b9b3041951608468b18891000000000000000000000000a0b02b28920812324f1cc3255bd8840867d3f227000000000000000000000000ead77b01ea770839f7f576cd1516ff6a298d9db2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
-
-        /* Gnosis Safe Proxy Factory
-        Call: createProxyWithNonce(
-           singleton: 0xD9dB270c1B5E3bd161e8c8503C55cEaBee709552,   // Safe mastercopy
-           initializer: Safe.setup(
-             owners: [
-               0x4C1665d6651ECefa59B9B3041951608468B18891,
-               0xA0b02b28920812324F1cC3255Bd8840867d3F227,
-               0xEAD77b01EA770839F7F576cD1516ff6a298D9DB2
-             ],
-             threshold: 2,                                       // 2 of 3 signatures required
-             to: address(0),                                     // No extra call
-             data: "",                                           // Empty data
-             fallbackHandler: 0xF48f2B2D2a534E402487b3Ee7C18C33Aec0FE5e4,
-             paymentToken: address(0),
-             payment: 0,
-             paymentReceiver: address(0)
-           ),
-           saltNonce: 1678956703240                               // CREATE2 nonce
-        ) */
-
-        const txMultisig = await deployer.sendTransaction({
-            to: GNOSIS_SAFE_PROXY_FACTORY_ADDRESS,
-            data: INPUT_DATA_MULTISIG,
-            value: 0,
-        });
-
-        await txMultisig.wait();
-        outputInfo.multisigDeployTx = txMultisig.hash;
-        logger.info(`Hash: ${txMultisig.hash}`);
-
-        const codeAfterMultisig = await currentProvider.getCode(EXPECTED_SAFE);
-
-        if (!codeAfterMultisig || codeAfterMultisig === '0x') {
-            throw new Error('❌ Safe not created');
-        } else {
-            logger.info(`✅ Safe created: ${EXPECTED_SAFE}`);
-        }
+    // Get expected Safe address
+    const safeAddress = await factory.createProxyWithNonce.staticCall(SAFE_SINGLETON_ADDRESS, setupData, saltNonce);
+    
+    // Check if Safe already exists
+    const existingCode = await provider.getCode(safeAddress);
+    if (existingCode && existingCode !== '0x') {
+        throw new Error(`❌ Safe already exists at ${safeAddress}. Use a different SALT_NONCE.`);
     }
 
-    outputInfo.MULTISIG_ADDRESS = EXPECTED_SAFE;
+    // Deploy Safe
+    const tx = await factory.createProxyWithNonce(SAFE_SINGLETON_ADDRESS, setupData, saltNonce);
+    await tx.wait();
+    logger.info(`✅ Safe deployed: ${safeAddress}`);
 
-    // Save output info
-    const dateStr = new Date().toISOString();
-    fs.writeFileSync(OUTPUT_INFO_PATH.replace('.json', `_${dateStr}.json`), JSON.stringify(outputInfo, null, 2));
+    // Save output
+    const output = {
+        network: network.name,
+        MULTISIG_ADDRESS: safeAddress,
+        owners: owners.join(','),
+        threshold: threshold.toString(),
+        saltNonce: saltNonce.toString(),
+        txHash: tx.hash,
+    };
+
+    const outputPath = path.join(__dirname, `multisig_output_${new Date().toISOString()}.json`);
+    fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
+    logger.info(`📄 ${outputPath}`);
 }
 
 main().catch((e) => {
