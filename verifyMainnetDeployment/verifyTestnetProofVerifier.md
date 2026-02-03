@@ -13,7 +13,7 @@ sudo apt update
 sudo apt install -y tmux git curl jq
 ```
 
-## Tweeking the OS to accept high amount of memory.
+## Tweaking the OS to accept high amount of memory.
 
 ```bash
 echo "vm.max_map_count=655300" | sudo tee -a /etc/sysctl.conf
@@ -104,7 +104,7 @@ npm install hardhat
 mkdir -p contracts/verifiers
 ```
 
-To generate the same bycode it's important recover exactlly same options used during compilation, we found this information with contract information on etherscan (Settings).
+To generate the same bytecode it's important to recover exactly the same options used during compilation, we found this information with contract information on etherscan (Settings).
 Copy this information inside the file ~/contract/settings.json, as follows:
 
 ```bash
@@ -212,7 +212,7 @@ To download bytecode of deployed smartcontract, need the address of smart contra
 
 Go to Etherscan or Beaconcha to get transaction bytecode.
 
-Associated with address _0x8d0aAd785905c5c9f942CB18a3AC1e50c4F52786_ found the transacction _0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837_.
+Associated with address _0x8d0aAd785905c5c9f942CB18a3AC1e50c4F52786_ found the transaction _0xed0f103dc5e5f5bb8aa5df90a2bfb1949ad41dec8b04e5acc0747dbc1c26e837_.
 
 -   ### Etherscan (https://sepolia.etherscan.io)
 
