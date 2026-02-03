@@ -65,7 +65,7 @@ async function main() {
     console.log('Path file: ', path.join(__dirname, pathTransparentProxy));
     console.log();
 
-    // The other 3 contracts are immutables, therefore we will deploy them locally and check the btyecode against the deployed one
+    // The other 3 contracts are immutables, therefore we will deploy them locally and check the bytecode against the deployed one
 
     // PolygonZkEVMTimelock
     const PolygonZkEVMTimelockFactory = await ethers.getContractFactory('PolygonZkEVMTimelock');
