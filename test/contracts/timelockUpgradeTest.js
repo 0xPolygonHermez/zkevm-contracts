@@ -286,7 +286,7 @@ describe('Polygon ZK-EVM', () => {
         )).to.be.revertedWith('TimelockController: underlying transaction reverted');
     });
 
-    it('Should reprocude L2 enviromanet and check upgradability', async () => {
+    it('Should reproduce L2 environment and check upgradability', async () => {
         const timelockContractFactory = await ethers.getContractFactory('PolygonZkEVMTimelock');
         const proposers = [deployer.address];
         const executors = [deployer.address];
