@@ -43,7 +43,7 @@ async function main() {
 
     /*
      * Check deploy parameters
-     * Check that every necessary parameter is fullfilled
+     * Check that every necessary parameter is fulfilled
      */
     const mandatoryDeploymentParameters = [
         'trustedSequencerURL',

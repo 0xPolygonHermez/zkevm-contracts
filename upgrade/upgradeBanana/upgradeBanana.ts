@@ -36,7 +36,7 @@ async function main() {
 
     /*
      * Check upgrade parameters
-     * Check that every necessary parameter is fullfilled
+     * Check that every necessary parameter is fulfilled
      */
     const mandatoryUpgradeParameters = ['rollupManagerAddress', 'timelockDelay'];
 

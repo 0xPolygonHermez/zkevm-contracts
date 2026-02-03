@@ -38,7 +38,7 @@ async function main() {
 
     /*
      * Check upgrade parameters
-     * Check that every necessary parameter is fullfilled
+     * Check that every necessary parameter is fulfilled
      */
     const mandatoryUpgradeParameters = ['realVerifier', 'newForkID', 'timelockDelay', 'polTokenAddress'];
 
@@ -54,7 +54,7 @@ async function main() {
 
     /*
      * Check output parameters
-     * Check that every necessary parameter is fullfilled
+     * Check that every necessary parameter is fulfilled
      */
     const mandatoryOutputParameters = [
         'polygonZkEVMBridgeAddress',

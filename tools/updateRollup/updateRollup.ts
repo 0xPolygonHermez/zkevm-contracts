@@ -18,7 +18,7 @@ const pathOutputJson = path.join(__dirname, `./updateRollupOutput-${dateStr}.jso
 async function main() {
     /*
      * Check parameters
-     * Check that every necessary parameter is fullfilled
+     * Check that every necessary parameter is fulfilled
      */
     const mandatoryDeploymentParameters = ['type', 'polygonRollupManagerAddress'];
 
@@ -118,7 +118,7 @@ async function main() {
             const updateRollupParameters = updateRollupsParameters.rollups[i];
             /*
              * Check parameters
-             * Check that every necessary parameter is fullfilled
+             * Check that every necessary parameter is fulfilled
              */
             const mandatoryParametersRollup = ['rollupAddress', 'newRollupTypeID', 'upgradeData'];
 
