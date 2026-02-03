@@ -1,6 +1,6 @@
 # Verify Deployment mainnet
 
-This document ins a guide in order to verify the mainnet smart contract deploymet of the zkEVM
+This document is a guide in order to verify the mainnet smart contract deployment of the zkEVM
 
 ## Basic OS preparation
 
@@ -16,7 +16,7 @@ node -v
 
 ## Download zkevm contracts repository
 
-DOwnload and install the zkevm-contracts repository and go to the specific commit
+Download and install the zkevm-contracts repository and go to the specific commit
 
 ```bash
 git clone https://github.com/0xPolygonHermez/zkevm-contracts
@@ -55,7 +55,7 @@ This script verifies the deployed bytecode of the address provided in `deploymen
 
 At the end of the previous script we also verify that the genesis provided in the`deploymentMainnet.json` matches the one in the `polygonZkEVM`
 
-In order to verify the genesis, you can the script to generate it. The script in a very similar behaviour of the last script, deploy locally the contracts and then copy the deployed btyecode into the corresponding address.
+In order to verify the genesis, you can use the script to generate it. The script has a very similar behaviour to the last script, deploying locally the contracts and then copying the deployed bytecode into the corresponding address.
 
 ```bash=
 node deployment/1_createGenesis.js --input ../verifyMainnetDeployment/mainnetDeployParameters.json --out ../verifyMainnetDeployment/genesis.json
