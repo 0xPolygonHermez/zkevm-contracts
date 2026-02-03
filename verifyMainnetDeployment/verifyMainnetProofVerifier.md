@@ -130,7 +130,7 @@ npm install --save-dev prettier@3.2.4 prettier-plugin-solidity@1.3.1
 mkdir -p contracts/verifiers
 ```
 
-To generate the same bycode it's important recover exactlly same options used during compilation, we found this information with contract information on etherscan (Settings).
+To generate the same bytecode it's important to recover exactly the same options used during compilation, we found this information with contract information on etherscan (Settings).
 Copy this information inside the file ~/contract/settings.json, as follows:
 
 ```bash
@@ -243,7 +243,7 @@ To download bytecode of deployed smartcontract, need the address of smart contra
 
 Go to Etherscan or Beaconcha to get transaction bytecode.
 
-Associated with address 0x9B9671dB83CfcB4508bF361942488C5cA2b1286D found the transacction 0x47ce4fb6fc1bc6ac737dd54b33b5618a50e644dd24ff32a72fabfb2fdc0f3f33.
+Associated with address 0x9B9671dB83CfcB4508bF361942488C5cA2b1286D found the transaction 0x47ce4fb6fc1bc6ac737dd54b33b5618a50e644dd24ff32a72fabfb2fdc0f3f33.
 
 -   ### Etherscan (https://etherscan.io)
     https://etherscan.io/address/0x9B9671dB83CfcB4508bF361942488C5cA2b1286D
