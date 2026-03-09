@@ -54,7 +54,7 @@ const mainnetZkEVMBridgeProxyAddress = baseGenesisInfo.find(
 ).address;
 
 const mainnetGlobalExitRootL2ImplementationAddress = baseGenesisInfo.find(
-    (account: any) => account.contractName === 'PolygonZkEVMGlobalExitRootL2 implementation',
+    (account: any) => account.contractName === 'LegacyAgglayerGERL2 implementation',
 ).address;
 
 const keylessDeployerMainnet = baseGenesisInfo.find(
@@ -122,7 +122,7 @@ async function main() {
     );
 
     // Deploy implementation PolygonZkEVMBridge
-    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2', deployer);
+    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge', deployer);
     const deployTransactionBridge = (await polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
     const overrideGasLimit = BigInt(10500000);
@@ -169,10 +169,7 @@ async function main() {
     /*
      *Deployment Global exit root manager
      */
-    const PolygonZkEVMGlobalExitRootL2Factory = await ethers.getContractFactory(
-        'PolygonZkEVMGlobalExitRootL2',
-        deployer,
-    );
+    const PolygonZkEVMGlobalExitRootL2Factory = await ethers.getContractFactory('LegacyAgglayerGERL2', deployer);
     let polygonZkEVMGlobalExitRootL2;
     for (let i = 0; i < attemptsDeployProxy; i++) {
         try {
@@ -270,7 +267,7 @@ async function main() {
     const implGlobalExitRootL2Info = await getAddressInfo(implGlobalExitRootL2);
 
     genesis.push({
-        contractName: 'PolygonZkEVMGlobalExitRootL2 implementation',
+        contractName: 'LegacyAgglayerGERL2 implementation',
         balance: '0',
         nonce: implGlobalExitRootL2Info.nonce.toString(),
         address: finalGlobalExitRootL2ImplAddress,
@@ -288,7 +285,7 @@ async function main() {
     );
 
     genesis.push({
-        contractName: 'PolygonZkEVMGlobalExitRootL2 proxy',
+        contractName: 'LegacyAgglayerGERL2 proxy',
         balance: '0',
         nonce: proxyGlobalExitRootL2Info.nonce.toString(),
         address: finalGlobalExitRootL2ProxyAddress,

@@ -7,9 +7,9 @@ import { processorUtils, contractUtils, MTBridge, mtBridgeUtils, utils } from '@
 import {
     VerifierRollupHelperMock,
     ERC20PermitMock,
-    PolygonRollupManagerMock,
-    PolygonZkEVMGlobalExitRootV2,
-    PolygonZkEVMBridgeV2,
+    AgglayerManagerMock,
+    AgglayerGER,
+    AgglayerBridge,
     PolygonZkEVMEtrog,
     PolygonRollupBaseEtrog,
     TokenWrapped,
@@ -19,6 +19,21 @@ import {
 import { computeWrappedTokenProxyAddress } from './helpers/helpers-sovereign-bridge';
 import { computeRandomBytes } from '../../src/pessimistic-utils';
 import { encodeInitializeBytesLegacy } from '../../src/utils-common-aggchain';
+import {
+    DEFAULT_ADMIN_ROLE,
+    ADD_ROLLUP_TYPE_ROLE,
+    OBSOLETE_ROLLUP_TYPE_ROLE,
+    CREATE_ROLLUP_ROLE,
+    ADD_EXISTING_ROLLUP_ROLE,
+    UPDATE_ROLLUP_ROLE,
+    TRUSTED_AGGREGATOR_ROLE,
+    TRUSTED_AGGREGATOR_ROLE_ADMIN,
+    TWEAK_PARAMETERS_ROLE,
+    SET_FEE_ROLE,
+    STOP_EMERGENCY_ROLE,
+    EMERGENCY_COUNCIL_ROLE,
+    EMERGENCY_COUNCIL_ADMIN,
+} from '../../src/constants';
 
 type BatchDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
 
@@ -71,10 +86,10 @@ describe('Polygon Rollup Manager', () => {
     let beneficiary: any;
 
     let verifierContract: VerifierRollupHelperMock;
-    let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
+    let polygonZkEVMBridgeContract: AgglayerBridge;
     let polTokenContract: ERC20PermitMock;
-    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2;
-    let rollupManagerContract: PolygonRollupManagerMock;
+    let polygonZkEVMGlobalExitRoot: AgglayerGER;
+    let rollupManagerContract: AgglayerManagerMock;
 
     const polTokenName = 'POL Token';
     const polTokenSymbol = 'POL';
@@ -92,21 +107,6 @@ describe('Polygon Rollup Manager', () => {
     const globalExitRootL2Address = '0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa' as unknown as Address;
 
     let firstDeployment = true;
-
-    // roles
-    const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
-    const ADD_ROLLUP_TYPE_ROLE = ethers.id('ADD_ROLLUP_TYPE_ROLE');
-    const OBSOLETE_ROLLUP_TYPE_ROLE = ethers.id('OBSOLETE_ROLLUP_TYPE_ROLE');
-    const CREATE_ROLLUP_ROLE = ethers.id('CREATE_ROLLUP_ROLE');
-    const ADD_EXISTING_ROLLUP_ROLE = ethers.id('ADD_EXISTING_ROLLUP_ROLE');
-    const UPDATE_ROLLUP_ROLE = ethers.id('UPDATE_ROLLUP_ROLE');
-    const TRUSTED_AGGREGATOR_ROLE = ethers.id('TRUSTED_AGGREGATOR_ROLE');
-    const TRUSTED_AGGREGATOR_ROLE_ADMIN = ethers.id('TRUSTED_AGGREGATOR_ROLE_ADMIN');
-    const TWEAK_PARAMETERS_ROLE = ethers.id('TWEAK_PARAMETERS_ROLE');
-    const SET_FEE_ROLE = ethers.id('SET_FEE_ROLE');
-    const STOP_EMERGENCY_ROLE = ethers.id('STOP_EMERGENCY_ROLE');
-    const EMERGENCY_COUNCIL_ROLE = ethers.id('EMERGENCY_COUNCIL_ROLE');
-    const EMERGENCY_COUNCIL_ADMIN = ethers.id('EMERGENCY_COUNCIL_ADMIN');
 
     const SIGNATURE_BYTES = 32 + 32 + 1;
     const EFFECTIVE_PERCENTAGE_BYTES = 1;
@@ -141,9 +141,9 @@ describe('Polygon Rollup Manager', () => {
             firstDeployment = false;
         }
 
-        // deploy AggLayerGateway
-        const AggLayerGatewayFactory = await ethers.getContractFactory('AggLayerGateway');
-        const aggLayerGatewayContract = await upgrades.deployProxy(AggLayerGatewayFactory, [], {
+        // deploy AgglayerGateway
+        const AgglayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway');
+        const aggLayerGatewayContract = await upgrades.deployProxy(AgglayerGatewayFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor'],
         });
@@ -164,21 +164,21 @@ describe('Polygon Rollup Manager', () => {
         firstDeployment = false;
 
         // deploy globalExitRoot
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2');
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('AgglayerGER');
         polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             constructorArgs: [precalculateRollupManagerAddress, precalculateBridgeAddress],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
         // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge');
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
         });
 
-        // deploy PolygonRollupManager
-        const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManagerMock');
+        // deploy AgglayerManager
+        const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManagerMock');
 
         rollupManagerContract = (await upgrades.deployProxy(PolygonRollupManagerFactory, [], {
             initializer: false,
@@ -189,7 +189,7 @@ describe('Polygon Rollup Manager', () => {
                 aggLayerGatewayContract.target,
             ],
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call', 'state-variable-immutable'],
-        })) as unknown as PolygonRollupManagerMock;
+        })) as unknown as AgglayerManagerMock;
 
         await rollupManagerContract.waitForDeployment();
 
@@ -252,6 +252,7 @@ describe('Polygon Rollup Manager', () => {
         expect(await rollupManagerContract.hasRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncil.address)).to.be.equal(
             true,
         );
+        expect(await rollupManagerContract.version()).to.be.equal('v1.0.0');
     });
 
     it('should check the emergency state', async () => {
@@ -522,7 +523,7 @@ describe('Polygon Rollup Manager', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -915,14 +916,6 @@ describe('Polygon Rollup Manager', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
 
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
@@ -1473,7 +1466,7 @@ describe('Polygon Rollup Manager', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -1762,14 +1755,6 @@ describe('Polygon Rollup Manager', () => {
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
 
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
-
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
 
@@ -2055,7 +2040,7 @@ describe('Polygon Rollup Manager', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -2328,14 +2313,6 @@ describe('Polygon Rollup Manager', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
 
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
@@ -2734,7 +2711,7 @@ describe('Polygon Rollup Manager', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -3390,14 +3367,6 @@ describe('Polygon Rollup Manager', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(newLocalExitRoot, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
 
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');

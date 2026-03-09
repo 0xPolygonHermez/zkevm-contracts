@@ -5,16 +5,16 @@ import { ethers, upgrades } from 'hardhat';
 import { processorUtils, MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import {
     ERC20PermitMock,
-    PolygonRollupManagerMock,
-    PolygonZkEVMGlobalExitRootV2,
-    PolygonZkEVMBridgeV2,
+    AgglayerManagerMock,
+    AgglayerGER,
+    AgglayerBridge,
     PolygonValidiumEtrog,
     PolygonRollupBaseEtrog,
     TokenWrapped,
     Address,
+    PolygonDataCommittee,
 } from '../../typechain-types';
 import { computeWrappedTokenProxyAddress } from './helpers/helpers-sovereign-bridge';
-import { PolygonDataCommittee } from '../../typechain-types/contracts/v2/consensus/dataComittee';
 
 type BatchDataStructEtrog = PolygonRollupBaseEtrog.BatchDataStruct;
 type ValidiumBatchData = PolygonValidiumEtrog.ValidiumBatchDataStruct;
@@ -58,10 +58,10 @@ describe('PolygonValidiumEtrog', () => {
     let admin: any;
     let beneficiary: any;
 
-    let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
+    let polygonZkEVMBridgeContract: AgglayerBridge;
     let polTokenContract: ERC20PermitMock;
-    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2;
-    let rollupManagerContract: PolygonRollupManagerMock;
+    let polygonZkEVMGlobalExitRoot: AgglayerGER;
+    let rollupManagerContract: AgglayerManagerMock;
     let PolygonZKEVMV2Contract: PolygonValidiumEtrog;
     let PolygonDataCommitee: PolygonDataCommittee;
 
@@ -107,19 +107,19 @@ describe('PolygonValidiumEtrog', () => {
         );
 
         // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge');
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
         });
 
         // deploy rollup manager
-        const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManagerEmptyMock');
+        const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManagerEmptyMock');
         rollupManagerContract = await PolygonRollupManagerFactory.deploy();
         await rollupManagerContract.waitForDeployment();
 
         // deploy globalExitRoot
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2');
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('AgglayerGER');
         polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             constructorArgs: [rollupManagerContract.target, polygonZkEVMBridgeContract.target],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
@@ -515,7 +515,7 @@ describe('PolygonValidiumEtrog', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -727,7 +727,7 @@ describe('PolygonValidiumEtrog', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -1005,14 +1005,6 @@ describe('PolygonValidiumEtrog', () => {
         expect(verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM)).to.be.equal(true);
         expect(verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups)).to.be.equal(true);
 
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(leafValue, proofZkEVM, indexLeaf, rootzkEVM),
-        ).to.be.equal(true);
-
-        expect(
-            await polygonZkEVMBridgeContract.verifyMerkleProof(rootzkEVM, proofRollups, indexLeaf, rootRollups),
-        ).to.be.equal(true);
-
         // claim
         const tokenWrappedFactory = await ethers.getContractFactory('TokenWrapped');
 
@@ -1097,7 +1089,7 @@ describe('PolygonValidiumEtrog', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -1167,7 +1159,7 @@ describe('PolygonValidiumEtrog', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -1343,7 +1335,7 @@ describe('PolygonValidiumEtrog', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -1459,7 +1451,7 @@ describe('PolygonValidiumEtrog', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [
@@ -1564,7 +1556,7 @@ describe('PolygonValidiumEtrog', () => {
         );
 
         // Check transaction
-        const bridgeL2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const bridgeL2Factory = await ethers.getContractFactory('AgglayerBridge');
         const encodedData = bridgeL2Factory.interface.encodeFunctionData(
             'initialize(uint32,address,uint32,address,address,bytes)',
             [

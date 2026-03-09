@@ -1,7 +1,6 @@
 import params from './parameters.json';
 import { logger } from '../../../src/logger';
 import { checkParams } from '../../../src/utils';
-import * as utilsFEP from '../../../src/utils-aggchain-FEP';
 
 async function main() {
     logger.info('Starting tool to create inititizeAggchainBytesV0');
@@ -13,7 +12,8 @@ async function main() {
 
     const mandatoryParameters = [
         'initParams',
-        'useDefaultGateway',
+        'useDefaultVkeys',
+        'useDefaultSigners',
         'initOwnedAggchainVKey',
         'initAggchainVKeyVersion',
         'vKeyManager',
@@ -28,7 +28,8 @@ async function main() {
 
     const {
         initParams,
-        useDefaultGateway,
+        useDefaultVkeys,
+        useDefaultSigners,
         initOwnedAggchainVKey,
         initAggchainVKeyVersion,
         vKeyManager,
@@ -39,9 +40,13 @@ async function main() {
         networkName,
     } = params;
 
-    const result = utilsFEP.encodeInitializeBytesAggchainFEPv0(
+    // Generate initialization parameters for FEP v0
+    const initializationParams = {
         initParams,
-        useDefaultGateway,
+        signers: [], // No signers initially
+        threshold: 0, // No threshold initially
+        useDefaultVkeys,
+        useDefaultSigners,
         initOwnedAggchainVKey,
         initAggchainVKeyVersion,
         vKeyManager,
@@ -50,9 +55,26 @@ async function main() {
         gasTokenAddress,
         trustedSequencerURL,
         networkName,
-    );
-    logger.info('InitializeBytesAggchainFEPv0:');
-    logger.info(result);
+    };
+
+    logger.info('FEP v0 Initialization Parameters:');
+    logger.info(JSON.stringify(initializationParams, null, 2));
+
+    logger.info('\nTo initialize the FEP contract, call:');
+    logger.info('aggchainContract.initialize(');
+    logger.info('  initParams,');
+    logger.info('  [], // signers');
+    logger.info('  0, // threshold');
+    logger.info('  useDefaultVkeys,');
+    logger.info('  useDefaultSigners,');
+    logger.info('  initOwnedAggchainVKey,');
+    logger.info('  initAggchainVKeyVersion,');
+    logger.info('  admin,');
+    logger.info('  trustedSequencer,');
+    logger.info('  gasTokenAddress,');
+    logger.info('  trustedSequencerURL,');
+    logger.info('  networkName');
+    logger.info(');');
 }
 main().then(
     () => {

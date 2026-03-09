@@ -1,4 +1,4 @@
-# Deploy AggLayerGateway
+# Deploy AgglayerGateway
 
 Script to deploy aggLayerGateway contract
 
@@ -21,7 +21,7 @@ Fill `.env` with your `ETHERSCAN_API_KEY` and `DEPLOYER_PRIVATE_KEY`
 - Copy configuration files:
 
 ```
-cp ./tools/deployAggLayerGateway/deploy_parameters.json.example ./tools/deployAggLayerGateway/deploy_parameters.json
+cp ./tools/deployAgglayerGateway/deploy_parameters.json.example ./tools/deployAgglayerGateway/deploy_parameters.json
 ```
 
 - Fill configuration file
@@ -31,18 +31,22 @@ cp ./tools/deployAggLayerGateway/deploy_parameters.json.example ./tools/deployAg
     - "addRouteRoleAddress": "0x.." -> The address of the AGGLAYER_ADD_ROUTE_ROLE role
     - "freezeRouteRoleAddress": "0x..." -> The address of the AGGLAYER_FREEZE_ROUTE_ROLE role
     - "verifierAddress": "0x...", -> The address of the verifier
+    - "multisigRoleAddress": "0x...", -> The address of the AL_MULTISIG_ROLE role for managing signers
+    - "signersToAdd": [] -> Array of signer objects with addr and url properties (optional, defaults to [])
+    - "newThreshold": 0 -> Threshold for multisig operations (optional, defaults to 0)
 
-- Set correct openzeppelin manifest  
+- Set correct openzeppelin manifest
 
-**Ensure `.openzeppelin` network file is properly set** with the correct admin data for the deployment environment:  
-    - [Devnet](https://github.com/agglayer/networks/blob/feature/ALV3/networks/ethereum/devnet/openzeppelin-manifest/sepolia.json)  
-    - [Testnet](https://github.com/agglayer/networks/blob/feature/ALV3/networks/ethereum/testnet/openzeppelin-manifest/sepolia.json)  
-    - [Mainnet](https://github.com/agglayer/networks/blob/feature/ALV3/networks/ethereum/mainnet/openzeppelin-manifest/mainnet.json)
+**Ensure `.openzeppelin` network file is properly set** with the correct admin data for the deployment environment:
+
+- [Devnet](https://github.com/agglayer/networks/blob/feature/ALV3/networks/ethereum/devnet/openzeppelin-manifest/sepolia.json)
+- [Testnet](https://github.com/agglayer/networks/blob/feature/ALV3/networks/ethereum/testnet/openzeppelin-manifest/sepolia.json)
+- [Mainnet](https://github.com/agglayer/networks/blob/feature/ALV3/networks/ethereum/mainnet/openzeppelin-manifest/mainnet.json)
 
 - Run tool:
 
 ```
-npx hardhat run ./tools/deployAggLayerGateway/deployAggLayerGateway.ts --network sepolia
+npx hardhat run ./tools/deployAgglayerGateway/deployAgglayerGateway.ts --network sepolia
 ```
 
 - OutputFile: `deploy_output.json`
@@ -56,34 +60,38 @@ npx hardhat run ./tools/deployAggLayerGateway/deployAggLayerGateway.ts --network
  "defaultAdminRoleAddress": "0x229A5bDBb09d8555f9214F7a6784804999BA4E0D",
  "aggchainDefaultVKeyRoleAddress": "0x229A5bDBb09d8555f9214F7a6784804999BA4E0D",
  "addRouteRoleAddress": "0x229A5bDBb09d8555f9214F7a6784804999BA4E0D",
- "freezeRouteRoleAddress": "0x229A5bDBb09d8555f9214F7a6784804999BA4E0D"
+ "freezeRouteRoleAddress": "0x229A5bDBb09d8555f9214F7a6784804999BA4E0D",
+ "multisigRoleAddress": "0x229A5bDBb09d8555f9214F7a6784804999BA4E0D",
  "verifierAddress:": "0x..."
 }
 ```
 
 - aggLayerGatewayAddress
-The address of the AggLayer Gateway contract.
+  The address of the AggLayer Gateway contract.
 
 - deployer
-The Ethereum address used to deploy the contracts. This account typically pays gas fees for deployment and may hold initial privileges before roles are assigned.
+  The Ethereum address used to deploy the contracts. This account typically pays gas fees for deployment and may hold initial privileges before roles are assigned.
 
 - proxyAdminAddress
-The address of the ProxyAdmin contract. This contract manages upgrades for your upgradeable proxies, meaning it holds the authority to change the implementation of the proxies.
+  The address of the ProxyAdmin contract. This contract manages upgrades for your upgradeable proxies, meaning it holds the authority to change the implementation of the proxies.
 
 - proxyOwnerAddress
-The owner of the ProxyAdmin contract. This account (often a multisig or timelock) controls the ProxyAdmin and, by extension, the upgrade process for all proxies managed by it.
+  The owner of the ProxyAdmin contract. This account (often a multisig or timelock) controls the ProxyAdmin and, by extension, the upgrade process for all proxies managed by it.
 
 - defaultAdminRoleAddress
-The address assigned the DEFAULT_ADMIN_ROLE in your access control system. This role is the highest-level permission and can grant or revoke other roles, making it critical for overall contract governance.
+  The address assigned the DEFAULT_ADMIN_ROLE in your access control system. This role is the highest-level permission and can grant or revoke other roles, making it critical for overall contract governance.
 
 - aggchainDefaultVKeyRoleAddress
-The address designated to manage the default aggregator chain verification key (vKey). This role is responsible for adding or updating the verification key used to validate proofs, ensuring the system can verify state transitions securely.
+  The address designated to manage the default aggregator chain verification key (vKey). This role is responsible for adding or updating the verification key used to validate proofs, ensuring the system can verify state transitions securely.
 
 - addRouteRoleAddress
-The address granted permission to add new routes.
+  The address granted permission to add new routes.
 
 - freezeRouteRoleAddress
-The address authorized to freeze existing routes. In case of detected anomalies or security concerns, this role can halt further modifications by freezing routes, thus preserving system integrity.
+  The address authorized to freeze existing routes. In case of detected anomalies or security concerns, this role can halt further modifications by freezing routes, thus preserving system integrity.
+
+- multisigRoleAddress
+  The address granted the AL_MULTISIG_ROLE, authorized to manage multisig signers and update the threshold for multisig operations.
 
 - verifierAddress
-Verifier Address
+  Verifier Address

@@ -12,15 +12,15 @@ import {
     AGGCHAIN_CONTRACT_NAMES,
     encodeInitializeBytesLegacy,
     encodeInitAggchainManager,
-    GENESIS_CONTRACT_NAMES,
 } from '../../src/utils-common-aggchain';
+import { GENESIS_CONTRACT_NAMES, DEFAULT_ADMIN_ROLE, CREATE_ROLLUP_ROLE } from '../../src/constants';
 import createRollupParameters from './create_new_rollup.json';
 import updateVanillaGenesis from '../../deployment/v2/utils/updateVanillaGenesis';
 import { logger } from '../../src/logger';
 import {
-    PolygonRollupManager,
+    AgglayerManager,
     PolygonZkEVMEtrog,
-    PolygonZkEVMBridgeV2,
+    AgglayerBridge,
     PolygonValidiumEtrog,
     PolygonPessimisticConsensus,
 } from '../../typechain-types';
@@ -151,20 +151,19 @@ async function main() {
     }
 
     // Load Rollup manager
-    const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager', deployer);
+    const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager', deployer);
     const rollupManagerContract = PolygonRollupManagerFactory.attach(
         createRollupParameters.rollupManagerAddress,
-    ) as PolygonRollupManager;
+    ) as AgglayerManager;
 
     // Load global exit root manager
-    const globalExitRootManagerFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2', deployer);
+    const globalExitRootManagerFactory = await ethers.getContractFactory('AgglayerGER', deployer);
     const globalExitRootManagerAddress = await rollupManagerContract.globalExitRootManager();
     const globalExitRootManagerContract = globalExitRootManagerFactory.attach(
         globalExitRootManagerAddress,
-    ) as PolygonRollupManager;
+    ) as AgglayerManager;
 
     // Check if the deployer has right to deploy new rollups from rollupManager contract
-    const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
     if ((await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)) === false) {
         throw new Error(
             `Deployer does not have admin role. Use the test flag on deploy_parameters if this is a test deployment`,
@@ -236,7 +235,6 @@ async function main() {
     }
 
     // Grant role CREATE_ROLLUP_ROLE to deployer
-    const CREATE_ROLLUP_ROLE = ethers.id('CREATE_ROLLUP_ROLE');
     if ((await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, deployer.address)) === false)
         await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, deployer.address);
 
@@ -425,9 +423,9 @@ async function main() {
     let gasTokenMetadata;
 
     // Get bridge instance
-    const bridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2', deployer);
+    const bridgeFactory = await ethers.getContractFactory('AgglayerBridge', deployer);
     const bridgeContractAddress = await rollupManagerContract.bridgeAddress();
-    const rollupBridgeContract = bridgeFactory.attach(bridgeContractAddress) as PolygonZkEVMBridgeV2;
+    const rollupBridgeContract = bridgeFactory.attach(bridgeContractAddress) as AgglayerBridge;
     if (
         ethers.isAddress(createRollupParameters.gasTokenAddress) &&
         createRollupParameters.gasTokenAddress !== ethers.ZeroAddress

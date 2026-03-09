@@ -2,12 +2,7 @@ import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import { setBalance } from '@nomicfoundation/hardhat-network-helpers';
-import {
-    ERC20PermitMock,
-    GlobalExitRootManagerL2SovereignChain,
-    BridgeL2SovereignChain,
-    TokenWrapped,
-} from '../../typechain-types';
+import { ERC20PermitMock, AgglayerGERL2, AgglayerBridgeL2, TokenWrapped } from '../../typechain-types';
 import { computeWrappedTokenProxyAddress, claimBeforeBridge } from './helpers/helpers-sovereign-bridge';
 
 const MerkleTreeBridge = MTBridge;
@@ -29,9 +24,9 @@ function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: boolea
 describe('SovereignChainBridge Gas tokens mapped tests', () => {
     upgrades.silenceWarnings();
 
-    let sovereignChainBridgeContract: BridgeL2SovereignChain;
+    let sovereignChainBridgeContract: AgglayerBridgeL2;
     let polTokenContract: ERC20PermitMock;
-    let sovereignChainGlobalExitRoot: GlobalExitRootManagerL2SovereignChain;
+    let sovereignChainGlobalExitRoot: AgglayerGERL2;
 
     let deployer: any;
     let rollupManager: any;
@@ -68,16 +63,14 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
         // Set trusted sequencer as coinbase for sovereign chains
         await ethers.provider.send('hardhat_setCoinbase', [deployer.address]);
         // deploy PolygonZkEVMBridge
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('BridgeL2SovereignChain');
+        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
         sovereignChainBridgeContract = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as BridgeL2SovereignChain;
+        })) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager
-        const SovereignChainGlobalExitRootFactory = await ethers.getContractFactory(
-            'GlobalExitRootManagerL2SovereignChain',
-        );
+        const SovereignChainGlobalExitRootFactory = await ethers.getContractFactory('AgglayerGERL2');
         sovereignChainGlobalExitRoot = await SovereignChainGlobalExitRootFactory.deploy(
             sovereignChainBridgeContract.target,
         );
@@ -189,9 +182,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
         // Remap weth token
         await expect(
             sovereignChainBridgeContract.connect(bridgeManager).setSovereignWETHAddress(sovereignToken.target, true),
@@ -356,9 +346,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
     });
 
     it('should PolygonZkEVMBridge message and verify merkle proof', async () => {
@@ -486,9 +473,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCSovereignChain)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCSovereignChain),
-        ).to.be.equal(true);
 
         // bridge message without value is fine
         await expect(
@@ -924,9 +908,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, indexLocal, rootLocalRollup)).to.be.equal(true);
         expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup),
-        ).to.be.equal(true);
         const globalIndex = computeGlobalIndex(indexLocal, indexRollup, false);
 
         expect(false).to.be.equal(await sovereignChainBridgeContract.isClaimed(indexLocal, indexRollup + 1));
@@ -1066,17 +1047,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
             amount,
             metadataHashMainnet,
         );
-        const leafValueMainnetSC = await sovereignChainBridgeContract.getLeafValue(
-            LEAF_TYPE_ASSET,
-            originNetwork,
-            originTokenAddress,
-            newDestinationNetwork,
-            destinationAddress,
-            amount,
-            metadataHashMainnet,
-        );
-
-        expect(leafValueMainnet).to.be.equal(leafValueMainnetSC);
         merkleTreeMainnet.add(leafValueMainnet);
 
         // Tokens are burnt
@@ -1119,14 +1089,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValueMainnet, proofMainnet, indexMainnet, rootSCSovereignChain)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(
-                leafValueMainnet,
-                proofMainnet,
-                indexMainnet,
-                rootSCSovereignChain,
-            ),
-        ).to.be.equal(true);
     });
 
     it('should PolygonZkEVMBridge and sync the current root with events', async () => {
@@ -1322,9 +1284,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         const globalIndex = computeGlobalIndex(index, index, false);
         // Can't claim without tokens
@@ -1477,9 +1436,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         // claim weth
         await expect(
@@ -1585,9 +1541,6 @@ describe('SovereignChainBridge Gas tokens mapped tests', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         /*
          * claim

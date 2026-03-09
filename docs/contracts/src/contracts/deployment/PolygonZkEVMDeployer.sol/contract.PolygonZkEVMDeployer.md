@@ -1,5 +1,5 @@
 # PolygonZkEVMDeployer
-[Git Source](https://github.com/agglayer/agglayer-contracts/blob/112a010b7c8b14335e5fe1a9bffc11bd2459df05/contracts/deployment/PolygonZkEVMDeployer.sol)
+[Git Source](https://github.com/agglayer/agglayer-contracts/blob/c0e111af46ac2964bd5177034698d7e5e691f362/contracts/deployment/PolygonZkEVMDeployer.sol)
 
 **Inherits:**
 Ownable
@@ -90,7 +90,7 @@ function predictDeterministicAddress(bytes32 salt, bytes32 bytecodeHash) public 
 
 ## Events
 ### NewDeterministicDeployment
-*Emitted when a contract is deployed*
+Emitted when a contract is deployed
 
 
 ```solidity
@@ -98,7 +98,7 @@ event NewDeterministicDeployment(address newContractAddress);
 ```
 
 ### FunctionCall
-*Emitted when a contract is called*
+Emitted when a contract is called
 
 
 ```solidity

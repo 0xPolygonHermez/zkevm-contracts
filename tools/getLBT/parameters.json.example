@@ -1,0 +1,11 @@
+{
+    "agglayerBridgeAddress": "0x..",
+    "options": {
+        "blockRange": 1000,
+        "printEvents": true,
+        "getEventsFromFile": false,
+        "concurrencyLimit": 100,
+        "printTokens": true,
+        "blockNumber": "latest",
+    }
+}

@@ -11,7 +11,7 @@ echo "📦 Dumping storage layouts for all contracts..."
 
 for solfile in $(find contracts -type f -name "*.sol"); do
     contract=$(basename "$solfile" .sol)
-    echo "🔹 $contract"
+    echo "🔹 $contract" >> "$outfile"
     forge inspect "$contract" storage >> "$outfile"
     echo "\n" >> "$outfile"
 done

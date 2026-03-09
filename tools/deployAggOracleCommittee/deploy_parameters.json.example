@@ -1,0 +1,14 @@
+{
+    "globalExitRootManagerL2SovereignAddress": "0x0000000000000000000000000000000000000000",
+    "ownerAddress": "0x0000000000000000000000000000000000000000",
+    "aggOracleMembers": [
+        "0x0000000000000000000000000000000000000001",
+        "0x0000000000000000000000000000000000000002",
+        "0x0000000000000000000000000000000000000003"
+    ],
+    "quorum": 2,
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": "",
+    "deployerPvtKey": ""
+} 

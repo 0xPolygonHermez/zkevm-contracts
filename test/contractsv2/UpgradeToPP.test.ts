@@ -8,16 +8,16 @@ import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import {
     ERC20PermitMock,
     VerifierRollupHelperMock,
-    PolygonZkEVMBridgeV2,
-    PolygonZkEVMGlobalExitRootV2,
-    PolygonRollupManagerMock,
+    AgglayerBridge,
+    AgglayerGER,
+    AgglayerManagerMock,
     PolygonValidiumEtrog,
     PolygonPessimisticConsensus,
+    AggchainECDSAMultisig,
 } from '../../typechain-types';
 import { encodeInitializeBytesLegacy } from '../../src/utils-common-aggchain';
 import { VerifierType, computeRandomBytes } from '../../src/pessimistic-utils';
-import { encodeAggchainDataFEP, encodeInitializeBytesAggchainFEPv1 } from '../../src/utils-aggchain-FEP';
-import { AggchainFEP } from '../../typechain-types/contracts/aggchains';
+import { AL_MULTISIG_ROLE } from '../../src/constants';
 
 const MerkleTreeBridge = MTBridge;
 const { getLeafValue } = mtBridgeUtils;
@@ -31,15 +31,14 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
     let admin: any;
     let beneficiary: any;
     let aggLayerAdmin: any;
-    let aggchainManager: any;
 
     let polTokenContract: ERC20PermitMock;
     let PolygonPPConsensusContract: PolygonPessimisticConsensus;
     let verifierContract: VerifierRollupHelperMock;
-    let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
-    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2;
-    let rollupManagerContract: PolygonRollupManagerMock;
-    let aggchainFEPContract: AggchainFEP;
+    let polygonZkEVMBridgeContract: AgglayerBridge;
+    let polygonZkEVMGlobalExitRoot: AgglayerGER;
+    let rollupManagerContract: AgglayerManagerMock;
+    let aggchainECDSAContract: AggchainECDSAMultisig;
 
     const networkIDMainnet = 0;
 
@@ -55,25 +54,15 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
     const PESSIMISTIC_SELECTOR = '0x00000001';
     // calculate aggchainHash
     const newStateRoot = ethers.id('newStateRoot');
-    const newl2BlockNumber = 1200;
     const aggchainVKeySelector = '0x12340001';
-    const CUSTOM_DATA_FEP = encodeAggchainDataFEP(aggchainVKeySelector, newStateRoot, newl2BlockNumber);
+    const CUSTOM_DATA_ECDSA = '0x';
 
     beforeEach('Deploy contracts & add type pp', async () => {
         upgrades.silenceWarnings();
 
         // load signers
-        [
-            deployer,
-            trustedAggregator,
-            trustedSequencer,
-            admin,
-            timelock,
-            emergencyCouncil,
-            beneficiary,
-            aggLayerAdmin,
-            aggchainManager,
-        ] = await ethers.getSigners();
+        [deployer, trustedAggregator, trustedSequencer, admin, timelock, emergencyCouncil, beneficiary, aggLayerAdmin] =
+            await ethers.getSigners();
 
         // deploy mock verifier
         const VerifierRollupHelperFactory = await ethers.getContractFactory('VerifierRollupHelperMock');
@@ -98,9 +87,9 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
             firstDeployment = false;
         }
 
-        // deploy AggLayerGateway
-        const AggLayerGatewayFactory = await ethers.getContractFactory('AggLayerGateway');
-        const aggLayerGatewayContract = await upgrades.deployProxy(AggLayerGatewayFactory, [], {
+        // deploy AgglayerGateway
+        const AgglayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway');
+        const aggLayerGatewayContract = await upgrades.deployProxy(AgglayerGatewayFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor'],
         });
@@ -121,21 +110,21 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
         firstDeployment = false;
 
         // deploy globalExitRoot
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2');
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('AgglayerGER');
         polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             constructorArgs: [precalculateRollupManagerAddress, precalculateBridgeAddress],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
         // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge');
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
         });
 
-        // deploy PolygonRollupManager
-        const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManagerMock');
+        // deploy AgglayerManager
+        const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManagerMock');
 
         rollupManagerContract = (await upgrades.deployProxy(PolygonRollupManagerFactory, [], {
             initializer: false,
@@ -146,7 +135,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                 aggLayerGatewayContract.target,
             ],
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call', 'state-variable-immutable'],
-        })) as unknown as PolygonRollupManagerMock;
+        })) as unknown as AgglayerManagerMock;
 
         await rollupManagerContract.waitForDeployment();
 
@@ -216,11 +205,20 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
             PESSIMISTIC_SELECTOR,
             verifierContract.target,
             programVKey,
+            admin.address, // multisigRole
+            [], // signersToAdd
+            0, // newThreshold
         );
 
+        // Grant AL_MULTISIG_ROLE to initialize signers
+        await aggLayerGatewayContract.connect(admin).grantRole(AL_MULTISIG_ROLE, admin.address);
+
+        // Initialize empty signers to avoid AggchainSignersHashNotInitialized error
+        await aggLayerGatewayContract.connect(admin).updateSignersAndThreshold([], [], 0);
+
         // create aggchainFEP implementation
-        const aggchainFEPFactory = await ethers.getContractFactory('AggchainFEP');
-        aggchainFEPContract = await aggchainFEPFactory.deploy(
+        const aggchainECDSAFactory = await ethers.getContractFactory('AggchainECDSAMultisig');
+        aggchainECDSAContract = await aggchainECDSAFactory.deploy(
             polygonZkEVMGlobalExitRoot.target,
             polTokenContract.target,
             polygonZkEVMBridgeContract.target,
@@ -228,11 +226,11 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
             aggLayerGatewayContract.target,
         );
 
-        await aggchainFEPContract.waitForDeployment();
+        await aggchainECDSAContract.waitForDeployment();
 
         await expect(
             rollupManagerContract.connect(timelock).addNewRollupType(
-                aggchainFEPContract.target,
+                aggchainECDSAContract.target,
                 ethers.ZeroAddress, // verifier
                 0, // fork id
                 VerifierType.ALGateway,
@@ -244,7 +242,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
             .to.emit(rollupManagerContract, 'AddNewRollupType')
             .withArgs(
                 2,
-                aggchainFEPContract.target,
+                aggchainECDSAContract.target,
                 ethers.ZeroAddress, // verifier
                 0, // fork id
                 VerifierType.ALGateway,
@@ -456,7 +454,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
             .to.emit(rollupManagerContract, 'UpdateRollup')
             .withArgs(newCreatedRollupID, rollupTypeIDPessimistic, newVerifiedBatch);
 
-        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.true;
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(true);
 
         // Verify PP with mock "bootstrapBatch"
         const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
@@ -504,7 +502,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                 trustedAggregator.address,
             );
 
-        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.false;
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(false);
     });
 
     it('should create rollup type validium & migrate to PP all checks', async () => {
@@ -741,7 +739,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
             .to.emit(rollupManagerContract, 'UpdateRollup')
             .withArgs(newCreatedRollupID, rollupTypeIDPessimistic, newVerifiedBatch);
 
-        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.true;
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(true);
 
         // Verify PP with mock "bootstrapBatch"
         const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
@@ -789,7 +787,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                 trustedAggregator.address,
             );
 
-        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.false;
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(false);
     });
 
     it('should create rollup type zkevm etrog & migrate to PP', async () => {
@@ -1079,7 +1077,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
             .to.emit(rollupManagerContract, 'UpdateRollup')
             .withArgs(newCreatedRollupID, rollupTypeIDPessimistic, newVerifiedBatch);
 
-        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.true;
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(true);
 
         // Verify PP with mock "bootstrapBatch"
         const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
@@ -1127,7 +1125,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                 trustedAggregator.address,
             );
 
-        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.false;
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(false);
     });
 
     it('should create rollup type validium & migrate to ALGateway', async () => {
@@ -1315,10 +1313,8 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
         const lastBatchVerified = rollupData[6];
         expect(lastBatchSequenced).to.be.equal(lastBatchVerified);
 
-        const aggchainFEPFactory = await ethers.getContractFactory('AggchainFEP');
-        const upgradeData = aggchainFEPFactory.interface.encodeFunctionData('initAggchainManager(address)', [
-            aggchainManager.address,
-        ]);
+        const aggchainECDSAFactory = await ethers.getContractFactory('AggchainECDSAMultisig');
+        const upgradeData = aggchainECDSAFactory.interface.encodeFunctionData('migrateFromLegacyConsensus()');
 
         await expect(
             rollupManagerContract
@@ -1330,7 +1326,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
             .to.emit(rollupManagerContract, 'UpdateRollup')
             .withArgs(newCreatedRollupID, rollupTypeIDAlGateway, newVerifiedBatch);
 
-        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.true;
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(true);
 
         // Verify PP with mock "bootstrapBatch"
         const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
@@ -1339,28 +1335,6 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
         const newPPRoot = computeRandomBytes(32);
         const proofPP = '0x00';
         const proofWithSelector = `${PESSIMISTIC_SELECTOR}${proofPP.slice(2)}`;
-
-        const initParams = {
-            l2BlockTime: 10,
-            rollupConfigHash: ethers.id('rollupConfigHash'),
-            startingOutputRoot: ethers.id('startingOutputRoot'),
-            startingBlockNumber: 100,
-            startingTimestamp: 0,
-            submissionInterval: 5,
-            optimisticModeManager: admin.address,
-            aggregationVkey: ethers.id('aggregationVkey'),
-            rangeVkeyCommitment: ethers.id('rangeVkeyCommitment'),
-        };
-
-        const initializeBytesAggchain = encodeInitializeBytesAggchainFEPv1(
-            initParams, // init params
-            true, // useDefaultGateway
-            ethers.ZeroHash, // ownedAggchainVKey
-            '0x00000001', // aggchainVkeySelector
-            admin.address,
-        );
-        const FEPRollupContract = aggchainFEPFactory.attach(rollupAddress);
-        await FEPRollupContract.connect(aggchainManager).initialize(initializeBytesAggchain);
 
         await expect(
             rollupManagerContract
@@ -1371,9 +1345,12 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                     newWrongLER,
                     newPPRoot,
                     proofWithSelector,
-                    CUSTOM_DATA_FEP,
+                    CUSTOM_DATA_ECDSA,
                 ),
         ).to.be.revertedWithCustomError(rollupManagerContract, 'InvalidNewLocalExitRoot');
+
+        // // Ensure signers hash initialized (empty)
+        // await aggchainECDSARollupContract.connect(aggchainManager).updateSignersAndThreshold([], [], 0);
 
         const prevPP = ethers.ZeroHash;
         const prevLER = ethers.ZeroHash;
@@ -1387,7 +1364,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                     lastLER,
                     newPPRoot,
                     proofWithSelector,
-                    CUSTOM_DATA_FEP,
+                    CUSTOM_DATA_ECDSA,
                 ),
         )
             .to.emit(rollupManagerContract, 'CompletedMigration')
@@ -1405,7 +1382,7 @@ describe('Upgradeable to PPV2 or ALGateway', () => {
                 trustedAggregator.address,
             );
 
-        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.false;
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(false);
     });
 
     /**

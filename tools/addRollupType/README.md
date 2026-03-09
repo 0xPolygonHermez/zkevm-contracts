@@ -23,7 +23,7 @@ Fill `.env` with your `ETHERSCAN_API_KEY` and `DEPLOYER_PRIVATE_KEY`
       - `Timelock`: If creating the rollup through a timelock, the script will output the execute and schedule data to send to the timelock contract
   - `consensusContract`: select between consensus contract. Supported: `["PolygonZkEVMEtrog", "PolygonValidiumEtrog", "PolygonPessimisticConsensus", "AggchainECDSA", "AggchainFEP"]`
   - `consensusContractAddress`: gets this address instead of deploying a new consensus implementation
-  - `polygonRollupManagerAddress`: `PolygonRollupManager.sol` smart contract address
+  - `polygonRollupManagerAddress`: `AgglayerManager.sol` smart contract address
   - `verifierAddress`: verifier address to be used. Only mandatory if `consensusContract !== Aggchain`
   - `description`: string to describe rollup type added. Example: "Type: Validium, Version: etrog, genesis: /ipfs/QmUXnRoPbUmZuEZCGyiHjEsoNcFVu3hLtSvhpnfBS2mAYU"
   - `forkID`: forkID to be used

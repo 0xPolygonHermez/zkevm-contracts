@@ -5,9 +5,9 @@ name: Run Tests
 
 on:
     push:
-        branches: [main, develop, feature/ongoing-v0.3.0]
+        branches: [main, develop, feature/v12, feature/outposts]
     pull_request:
-        branches: [main, develop, feature/ongoing-v0.3.0]
+        branches: [main, develop, feature/v12, feature/outposts]
 
 jobs:
     lint-and-test:

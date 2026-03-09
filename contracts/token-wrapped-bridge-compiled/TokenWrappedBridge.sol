@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts4/token/ERC20/ERC20.sol";
 
-// This contract contains the solidity code that compiles into the BASE_INIT_BYTECODE_WRAPPED_TOKEN constant on the PolygonZkEVMBridgeV2
+// This contract contains the solidity code that compiles into the BASE_INIT_BYTECODE_WRAPPED_TOKEN constant on the AgglayerBridge
 // This contract should remain untouched, even if it's not used directly as dependency. The main use is to verify on block explorers
 // and check the implementation.
 contract TokenWrappedBridge is ERC20 {

@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import * as ethers from 'ethers';
-import rollupManager from '../../../compiled-contracts/PolygonRollupManager.json';
+import rollupManager from '../../../compiled-contracts/AgglayerManager.json';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 require('dotenv').config();
 

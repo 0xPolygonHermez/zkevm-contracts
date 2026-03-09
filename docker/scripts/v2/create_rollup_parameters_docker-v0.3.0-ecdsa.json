@@ -6,7 +6,7 @@
     "chainID": 1002,
     "adminZkEVM": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "forkID": 0,
-    "consensusContract": "AggchainECDSA",
+    "consensusContract": "AggchainECDSAMultisig",
     "gasTokenAddress": "deploy",
     "deployerPvtKey": "",
     "maxFeePerGas": "",
@@ -26,7 +26,8 @@
     },
     "aggchainParams": {
         "aggchainManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-        "useDefaultGateway": true,
+        "useDefaultVkeys": false,
+        "useDefaultSigners": false,
         "initOwnedAggchainVKey": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
         "initAggchainVKeySelector": "0x56780000",
         "vKeyManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"

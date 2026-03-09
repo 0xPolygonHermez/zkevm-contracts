@@ -9,13 +9,13 @@ import yargs from 'yargs/yargs';
 import { getStorageAt, setCode, setNonce } from '@nomicfoundation/hardhat-network-helpers';
 import { ethers, upgrades } from 'hardhat';
 import { MemDB, ZkEVMDB, getPoseidon, smtUtils } from '@0xpolygonhermez/zkevm-commonjs';
-import { GENESIS_CONTRACT_NAMES } from '../../src/utils-common-aggchain';
+import { GENESIS_CONTRACT_NAMES } from '../../src/constants';
 import {
     deployPolygonZkEVMDeployer,
     create2Deployment,
     getAddressInfo,
 } from '../../deployment/helpers/deployment-helpers';
-import { ProxyAdmin, BridgeL2SovereignChain } from '../../typechain-types';
+import { ProxyAdmin, AgglayerBridgeL2 } from '../../typechain-types';
 import '../../deployment/helpers/utils';
 import genesisSovereign from '../../docker/deploymentOutput/genesis_sovereign.json';
 import createRollupParameters from '../../deployment/v2/create_rollup_parameters.json';
@@ -212,7 +212,7 @@ async function main() {
     // Initialize bridge
     const sovereignBridgeContract = sovereignBridgeFactory.attach(
         bridgeImplementationAddress as string,
-    ) as BridgeL2SovereignChain;
+    ) as AgglayerBridgeL2;
     let gasTokenMetadata;
     let gasTokenAddress;
     let gasTokenNetwork;
@@ -279,7 +279,7 @@ async function main() {
     ) {
         const sovereignBridgeProxyContract = sovereignBridgeFactory.attach(
             proxyBridgeAddress as string,
-        ) as BridgeL2SovereignChain;
+        ) as AgglayerBridgeL2;
         // Add deployed weth
         const wethAddress = await sovereignBridgeProxyContract.WETHToken();
         const wethBytecode = await ethers.provider.getCode(wethAddress);

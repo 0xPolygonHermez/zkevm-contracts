@@ -5,9 +5,10 @@ import fs = require('fs');
 
 import * as dotenv from 'dotenv';
 import { ethers } from 'hardhat';
-import { PolygonRollupManager } from '../../typechain-types';
+import { AgglayerManager } from '../../typechain-types';
 import { transactionTypes, genOperation } from '../utils';
 import initMigrationParams from './initMigration.json';
+import { UPDATE_ROLLUP_ROLE } from '../../src/constants';
 import { checkParams, getDeployerFromParameters, getProviderAdjustingMultiplierGas } from '../../src/utils';
 import { logger } from '../../src/logger';
 import { decodeScheduleData } from '../../upgrade/utils';
@@ -52,10 +53,8 @@ async function main() {
     const { type, polygonRollupManagerAddress, rollupID, newRollupTypeID, upgradeData } = initMigrationParams;
 
     // Load Rollup manager
-    const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager', deployer);
-    const rollupManagerContract = PolygonRollupManagerFactory.attach(
-        polygonRollupManagerAddress,
-    ) as PolygonRollupManager;
+    const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager', deployer);
+    const rollupManagerContract = PolygonRollupManagerFactory.attach(polygonRollupManagerAddress) as AgglayerManager;
 
     const outputJson = {} as any;
 
@@ -112,7 +111,6 @@ async function main() {
     } else {
         logger.info('Send tx to initMigration...');
         logger.info('Check deployer role');
-        const UPDATE_ROLLUP_ROLE = ethers.id('UPDATE_ROLLUP_ROLE');
         if ((await rollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, deployer.address)) === false) {
             logger.error(
                 'Deployer does not have admin role. Use the test flag on deploy_parameters if this is a test deployment',

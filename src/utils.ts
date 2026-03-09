@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 /* eslint-disable no-inner-declarations */
 /* eslint-disable no-console */
 import { ethers, upgrades } from 'hardhat';
@@ -10,12 +11,9 @@ import { execSync } from 'child_process';
  * @param {Object} connectedEthers current ethers instance connected to a network
  */
 export function getProviderAdjustingMultiplierGas(parameters, connectedEthers) {
-    let currentProvider = connectedEthers.provider;
+    const currentProvider = connectedEthers.provider;
     if (parameters.multiplierGas || parameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK !== 'hardhat') {
-            currentProvider = ethers.getDefaultProvider(
-                `https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
-            );
             if (parameters.maxPriorityFeePerGas && parameters.maxFeePerGas) {
                 console.log(
                     `Hardcoded gas used: MaxPriority${parameters.maxPriorityFeePerGas} gwei, MaxFee${parameters.maxFeePerGas} gwei`,
@@ -29,8 +27,10 @@ export function getProviderAdjustingMultiplierGas(parameters, connectedEthers) {
                 currentProvider.getFeeData = async () => FEE_DATA;
             } else {
                 console.log('Multiplier gas used: ', parameters.multiplierGas);
+                // Save the original getFeeData function to avoid infinite recursion
+                const originalGetFeeData = currentProvider.getFeeData.bind(currentProvider);
                 async function overrideFeeData() {
-                    const feedata = await connectedEthers.provider.getFeeData();
+                    const feedata = await originalGetFeeData();
                     return new connectedEthers.FeeData(
                         null,
                         (feedata.maxFeePerGas * BigInt(parameters.multiplierGas)) / BigInt(1000),
@@ -70,19 +70,38 @@ export async function getDeployerFromParameters(currentProvider, parameters, con
 /**
  * Check if all params are present in the expectedParams
  * @param {Object} objParams - object with parameters
- * @param {Array} expectedParams - array of expected parameters in string
+ * @param {Array} expectedParams - array of expected parameters in string (supports dot notation for nested objects)
  * @param {Boolean} checkAddresses - check if the parameter is a correct address in case has Address string in param name
  */
 export function checkParams(objParams, expectedParams, checkAddresses = false) {
     // eslint-disable-next-line no-restricted-syntax
     for (const parameterName of expectedParams) {
-        if (objParams[parameterName] === undefined || objParams[parameterName] === '') {
-            throw new Error(`Missing parameter: ${parameterName}`);
+        let value;
+        let actualParameterName = parameterName;
+
+        // Support dot notation for nested objects (e.g., 'network.chainID')
+        if (parameterName.includes('.')) {
+            const keys = parameterName.split('.');
+            value = objParams;
+            for (const key of keys) {
+                value = value?.[key];
+                if (value === undefined || value === '') {
+                    throw new Error(`Missing parameter: ${parameterName}`);
+                }
+            }
+            // For address checking, use the last part of the dot notation
+            actualParameterName = keys[keys.length - 1];
+        } else {
+            // Backward compatibility: direct parameter access
+            value = objParams[parameterName];
+            if (value === undefined || value === '') {
+                throw new Error(`Missing parameter: ${parameterName}`);
+            }
         }
 
         if (checkAddresses) {
-            // Check addresses
-            if (parameterName.includes('Address') && !ethers.isAddress(objParams[parameterName])) {
+            // Check addresses - support both direct parameter names and nested parameter names
+            if (actualParameterName.includes('Address') && !ethers.isAddress(value)) {
                 throw new Error(`Invalid parameter address: ${parameterName}`);
             }
         }
@@ -146,10 +165,11 @@ export function getStorageReadWrites(trace) {
 }
 
 /**
- * Retrieves the current Git commit hash and repository URL
+ * Retrieves the current Git commit hash, repository URL and tag
+ * @param {Boolean} criticalTooling - (optional) if true, throws an error if no tag
  * @returns An object containing the commit hash and repository URL, or null if an error occurs
  */
-export function getGitInfo(): { commit: string; repo: string } | null {
+export function getGitInfo(criticalTooling = false): { commit: string; repo: string; tag: string } {
     try {
         // Get the latest commit hash
         const commit = execSync('git rev-parse HEAD').toString().trim();
@@ -157,7 +177,16 @@ export function getGitInfo(): { commit: string; repo: string } | null {
         // Get the repository URL
         const repo = execSync('git config --get remote.origin.url').toString().trim();
 
-        return { commit, repo };
+        // Get tag if available
+        const tag = execSync('git tag --points-at HEAD').toString().trim();
+
+        if (criticalTooling && !tag) {
+            throw new Error(
+                'Error: This tool is critical. There is no tag associated with the version being used. It must be executed from a tag.',
+            );
+        }
+
+        return { commit, repo, tag };
     } catch (error) {
         throw new Error(`getGitInfo: ${error}`);
     }

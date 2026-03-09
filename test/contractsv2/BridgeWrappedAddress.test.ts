@@ -1,10 +1,10 @@
 import { ethers, upgrades } from 'hardhat';
-import { PolygonZkEVMGlobalExitRoot, PolygonZkEVMBridgeV2 } from '../../typechain-types';
+import { PolygonZkEVMGlobalExitRoot, AgglayerBridge } from '../../typechain-types';
 
 describe('PolygonZkEVMBridge Contract', () => {
     upgrades.silenceWarnings();
 
-    let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
+    let polygonZkEVMBridgeContract: AgglayerBridge;
 
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
 
@@ -17,11 +17,11 @@ describe('PolygonZkEVMBridge Contract', () => {
         [, rollupManager] = await ethers.getSigners();
 
         // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge');
         polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer'],
-        })) as unknown as PolygonZkEVMBridgeV2;
+        })) as unknown as AgglayerBridge;
 
         // deploy global exit root manager
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');

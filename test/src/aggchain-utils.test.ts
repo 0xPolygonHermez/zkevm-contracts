@@ -9,6 +9,7 @@ const pathTestvectors = path.join(__dirname, '../test-vectors/aggchain');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const aggchainHashTestVectors = require(path.join(pathTestvectors, 'aggchain-hash.json'));
 const aggchainVKeySelectorTestVectors = require(path.join(pathTestvectors, 'aggchain-vkey-selector.json'));
+const multisigHashTestVectors = require(path.join(pathTestvectors, 'multisig-hash.json'));
 
 describe('Test vectors aggchain common utils', () => {
     const update = process.env.UPDATE === 'true';
@@ -16,10 +17,12 @@ describe('Test vectors aggchain common utils', () => {
     for (let i = 0; i < aggchainHashTestVectors.length; i++) {
         it(`Check test-vectors compute aggchain hash ID=${i}`, async () => {
             const testVector = aggchainHashTestVectors[i].input;
+
             const aggchainHash = utilsCommon.computeAggchainHash(
                 testVector.consensusType,
                 testVector.aggchainVKey,
                 testVector.hashAggchainParams,
+                testVector.signersHash,
             );
             if (update) {
                 aggchainHashTestVectors[i].output = {};
@@ -43,7 +46,7 @@ describe('Test vectors aggchain common utils', () => {
                 testVector.aggchainType,
             );
             if (update) {
-                const aggchainECDSAFactory = await ethers.getContractFactory('AggchainECDSA');
+                const aggchainECDSAFactory = await ethers.getContractFactory('AggchainECDSAMultisig');
                 const aggchainContract = await upgrades.deployProxy(aggchainECDSAFactory, [], {
                     initializer: false,
                     constructorArgs: [
@@ -60,7 +63,7 @@ describe('Test vectors aggchain common utils', () => {
                 aggchainVKeySelectorTestVectors[i].output = {};
                 aggchainVKeySelectorTestVectors[i].output.aggchainVKeySelector =
                     await aggchainContract.getAggchainVKeySelector(
-                        testVector.aggchainVKeySelector,
+                        testVector.aggchainVKeyVersion,
                         testVector.aggchainType,
                     );
                 console.log(`WRITE: ${path.join(pathTestvectors, 'aggchain-vkey-selector.json')}`);
@@ -72,6 +75,26 @@ describe('Test vectors aggchain common utils', () => {
                 expect(aggchainVKeySelector.toLowerCase()).to.equal(
                     aggchainVKeySelectorTestVectors[i].output.aggchainVKeySelector.toLowerCase(),
                 );
+            }
+        });
+    }
+
+    for (let i = 0; i < multisigHashTestVectors.length; i++) {
+        it(`Check test-vectors compute multisig-hash ID=${i}`, async () => {
+            const testVector = multisigHashTestVectors[i].inputs;
+
+            const signersHash = utilsCommon.computeSignersHash(testVector.threshold, testVector.signers);
+
+            if (update) {
+                multisigHashTestVectors[i].expected_output = {};
+                multisigHashTestVectors[i].expected_output.multisig_hash = signersHash;
+                console.log(`WRITE: ${path.join(pathTestvectors, 'multisig-hash.json')}`);
+                fs.writeFileSync(
+                    path.join(pathTestvectors, 'multisig-hash.json'),
+                    JSON.stringify(multisigHashTestVectors, null, 2),
+                );
+            } else {
+                expect(signersHash).to.equal(multisigHashTestVectors[i].expected_output.multisig_hash);
             }
         });
     }

@@ -21,9 +21,15 @@ docker/gethData/
 typechain-types/
 create_rollup_parameters.json
 create_rollup_output_*
+dependencies/
+lcov.info
 
 docker/deploymentOutput
 
 .DS_Store
 
 *upgrade_output.json
+manifest-from-*
+LBT.json
+tokens.json
+import_params.json

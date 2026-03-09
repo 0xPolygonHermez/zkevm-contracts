@@ -3,12 +3,7 @@ import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { takeSnapshot } from '@nomicfoundation/hardhat-network-helpers';
 import { processorUtils, MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
-import {
-    PolygonZkEVMGlobalExitRoot,
-    PolygonZkEVMBridgeV2,
-    ClaimCompressor,
-    BridgeReceiverMock,
-} from '../../typechain-types';
+import { PolygonZkEVMGlobalExitRoot, AgglayerBridge, ClaimCompressor, BridgeReceiverMock } from '../../typechain-types';
 
 const MerkleTreeBridge = MTBridge;
 const { getLeafValue } = mtBridgeUtils;
@@ -46,7 +41,7 @@ describe('Claim Compressor Contract', () => {
 
     let claimCompressor: ClaimCompressor;
     let bridgeReceiverMock: BridgeReceiverMock;
-    let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
+    let polygonZkEVMBridgeContract: AgglayerBridge;
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
 
     const networkID = 1;
@@ -84,11 +79,11 @@ describe('Claim Compressor Contract', () => {
 
         // Deploy bridge contracts
         // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge');
         polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor'],
-        })) as unknown as PolygonZkEVMBridgeV2;
+        })) as unknown as AgglayerBridge;
 
         // deploy global exit root manager
         const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRoot');
@@ -237,7 +232,7 @@ describe('Claim Compressor Contract', () => {
     });
 
     it('should test against bridge', async () => {
-        const BridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const BridgeFactory = await ethers.getContractFactory('AgglayerBridge');
 
         const ClaimCompressorFactory = await ethers.getContractFactory('ClaimCompressor');
         const realClaimCompressor = await ClaimCompressorFactory.deploy(polygonZkEVMBridgeContract.target, networkID);
@@ -417,7 +412,7 @@ describe('Claim Compressor Contract', () => {
         }
     }).timeout(1000000);
     it('should check Compression', async () => {
-        const BridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const BridgeFactory = await ethers.getContractFactory('AgglayerBridge');
 
         const originNetwork = networkIDMainnet;
         const tokenAddress = ethers.hexlify(ethers.randomBytes(20));

@@ -8,10 +8,10 @@ import * as dotenv from 'dotenv';
 import { ethers, upgrades } from 'hardhat';
 
 import {
-    AggLayerGateway,
-    PolygonZkEVMBridgeV2,
+    AgglayerGateway,
+    AgglayerBridge,
     PolygonZkEVMDeployer,
-    PolygonZkEVMGlobalExitRootV2,
+    AgglayerGER,
     PolygonZkEVMTimelock,
     ProxyAdmin,
 } from '../../typechain-types';
@@ -20,6 +20,21 @@ import '../helpers/utils';
 
 import { create2Deployment } from '../helpers/deployment-helpers';
 import deployParameters from './deploy_parameters.json';
+import {
+    DEFAULT_ADMIN_ROLE,
+    ADD_ROLLUP_TYPE_ROLE,
+    OBSOLETE_ROLLUP_TYPE_ROLE,
+    CREATE_ROLLUP_ROLE,
+    ADD_EXISTING_ROLLUP_ROLE,
+    UPDATE_ROLLUP_ROLE,
+    TRUSTED_AGGREGATOR_ROLE,
+    TRUSTED_AGGREGATOR_ROLE_ADMIN,
+    TWEAK_PARAMETERS_ROLE,
+    SET_FEE_ROLE,
+    STOP_EMERGENCY_ROLE,
+    EMERGENCY_COUNCIL_ROLE,
+    EMERGENCY_COUNCIL_ADMIN,
+} from '../../src/constants';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -27,20 +42,6 @@ const pathOutputJson = path.join(__dirname, './deploy_output.json');
 const pathOngoingDeploymentJson = path.join(__dirname, './deploy_ongoing.json');
 
 const pathOZUpgradability = path.join(__dirname, `../../.openzeppelin/${process.env.HARDHAT_NETWORK}.json`);
-
-const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
-const ADD_ROLLUP_TYPE_ROLE = ethers.id('ADD_ROLLUP_TYPE_ROLE');
-const OBSOLETE_ROLLUP_TYPE_ROLE = ethers.id('OBSOLETE_ROLLUP_TYPE_ROLE');
-const CREATE_ROLLUP_ROLE = ethers.id('CREATE_ROLLUP_ROLE');
-const ADD_EXISTING_ROLLUP_ROLE = ethers.id('ADD_EXISTING_ROLLUP_ROLE');
-const UPDATE_ROLLUP_ROLE = ethers.id('UPDATE_ROLLUP_ROLE');
-const TRUSTED_AGGREGATOR_ROLE = ethers.id('TRUSTED_AGGREGATOR_ROLE');
-const TRUSTED_AGGREGATOR_ROLE_ADMIN = ethers.id('TRUSTED_AGGREGATOR_ROLE_ADMIN');
-const TWEAK_PARAMETERS_ROLE = ethers.id('TWEAK_PARAMETERS_ROLE');
-const SET_FEE_ROLE = ethers.id('SET_FEE_ROLE');
-const STOP_EMERGENCY_ROLE = ethers.id('STOP_EMERGENCY_ROLE');
-const EMERGENCY_COUNCIL_ROLE = ethers.id('EMERGENCY_COUNCIL_ROLE');
-const EMERGENCY_COUNCIL_ADMIN = ethers.id('EMERGENCY_COUNCIL_ADMIN');
 
 async function main() {
     // Check that there's no previous OZ deployment
@@ -203,7 +204,7 @@ async function main() {
     }
 
     // Deploy implementation PolygonZkEVMBridge
-    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2', deployer);
+    const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge', deployer);
     const deployTransactionBridge = (await polygonZkEVMBridgeFactory.getDeployTransaction()).data;
     const dataCallNull = null;
     // Mandatory to override the gasLimit since the estimation with create are mess up D:
@@ -323,7 +324,7 @@ async function main() {
         dataCallProxy,
         deployer,
     );
-    const polygonZkEVMBridgeContract = polygonZkEVMBridgeFactory.attach(proxyBridgeAddress) as PolygonZkEVMBridgeV2;
+    const polygonZkEVMBridgeContract = polygonZkEVMBridgeFactory.attach(proxyBridgeAddress) as AgglayerBridge;
 
     if (isBridgeProxyDeployed) {
         console.log('#######################\n');
@@ -351,7 +352,7 @@ async function main() {
      *Deployment Global exit root manager
      */
     let polygonZkEVMGlobalExitRoot;
-    const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2', deployer);
+    const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('AgglayerGER', deployer);
     if (!ongoingDeployment.polygonZkEVMGlobalExitRoot) {
         for (let i = 0; i < attemptsDeployProxy; i++) {
             try {
@@ -386,7 +387,7 @@ async function main() {
         // Expect the precalculate address matches de onogin deployment
         polygonZkEVMGlobalExitRoot = PolygonZkEVMGlobalExitRootFactory.attach(
             ongoingDeployment.polygonZkEVMGlobalExitRoot,
-        ) as PolygonZkEVMGlobalExitRootV2;
+        ) as AgglayerGER;
 
         console.log('#######################\n');
         console.log('polygonZkEVMGlobalExitRoot already deployed on: ', ongoingDeployment.polygonZkEVMGlobalExitRoot);
@@ -406,10 +407,10 @@ async function main() {
     const finalTimelockAddress = deployParameters.test ? deployer.address : timelockContract.target;
 
     /*
-     * Deployment AggLayerGateway
+     * Deployment AgglayerGateway
      */
     let aggLayerGatewayContract;
-    const AggLayerGatewayFactory = await ethers.getContractFactory('AggLayerGateway', deployer);
+    const AgglayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway', deployer);
 
     // deploy Verifier
     let verifierName;
@@ -429,11 +430,16 @@ async function main() {
 
     let pessimisticVKeyRouteALGateway;
 
+    // Get multisig parameters from deployment parameters with defaults
+    const multisigRoleAddress = deployParameters.multisigRoleAddress || admin;
+    const signersToAdd = deployParameters.signersToAdd || [];
+    const newThreshold = deployParameters.newThreshold || 0;
+
     if (!ongoingDeployment.aggLayerGatewayContract) {
         for (let i = 0; i < attemptsDeployProxy; i++) {
             try {
                 aggLayerGatewayContract = await upgrades.deployProxy(
-                    AggLayerGatewayFactory,
+                    AgglayerGatewayFactory,
                     [
                         // defaultAdmin: The address of the default admin. Can grant role to addresses.
                         finalTimelockAddress,
@@ -446,9 +452,16 @@ async function main() {
                         ppVKeySelector,
                         verifierContract.target,
                         ppVKey,
+                        // multisigRole: The address that can manage multisig signers and threshold
+                        multisigRoleAddress,
+                        // signersToAdd: Array of signers to add with their URLs
+                        signersToAdd,
+                        // newThreshold: Threshold for multisig operations
+                        newThreshold,
                     ],
                     {
-                        initializer: 'initialize(address,address,address,address,bytes4,address,bytes32)',
+                        initializer:
+                            'initialize(address,address,address,address,bytes4,address,bytes32,address,(address,string)[],uint256)',
                         unsafeAllow: ['constructor', 'state-variable-immutable'],
                     },
                 );
@@ -475,7 +488,7 @@ async function main() {
         console.log('aggLayerGatewayContract deployed to:', aggLayerGatewayContract?.target);
 
         console.log('#######################\n');
-        console.log(`New Pessimistic VKey Route AggLayerGateway`);
+        console.log(`New Pessimistic VKey Route AgglayerGateway`);
         console.log(`pessimisticVKeySelector: ${ppVKeySelector}`);
         console.log(`verifier: ${verifierContract.target}`);
         console.log(`pessimisticVKey: ${ppVKey}`);
@@ -487,15 +500,15 @@ async function main() {
         fs.writeFileSync(pathOngoingDeploymentJson, JSON.stringify(ongoingDeployment, null, 1));
     } else {
         // Expect the precalculate address matches de onogin deployment
-        aggLayerGatewayContract = AggLayerGatewayFactory.attach(
+        aggLayerGatewayContract = AgglayerGatewayFactory.attach(
             ongoingDeployment.aggLayerGatewayContract,
-        ) as AggLayerGateway;
+        ) as AgglayerGateway;
 
         console.log('#######################\n');
         console.log('aggLayerGatewayContract already deployed on: ', ongoingDeployment.aggLayerGatewayContract);
 
         console.log('#######################\n');
-        console.log(`Pessimistic VKey Route AggLayerGateway: ${ongoingDeployment.aggLayerGatewayContract}`);
+        console.log(`Pessimistic VKey Route AgglayerGateway: ${ongoingDeployment.aggLayerGatewayContract}`);
         console.log(
             `pessimisticVKeySelector: ${ongoingDeployment.pessimisticVKeyRouteALGateway.pessimisticVKeySelector}`,
         );
@@ -506,7 +519,7 @@ async function main() {
         // Import OZ manifest the deployed contracts, its enough to import just the proyx, the rest are imported automatically (admin/impl)
         await upgrades.forceImport(
             ongoingDeployment.aggLayerGatewayContract,
-            AggLayerGatewayFactory,
+            AgglayerGatewayFactory,
             'transparent' as any,
         );
     }
@@ -528,7 +541,7 @@ async function main() {
     console.log('timelockContract:', finalTimelockAddress);
     console.log('emergencyCouncilAddress:', emergencyCouncilAddress);
 
-    const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManagerNotUpgraded', deployer);
+    const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManagerNotUpgraded', deployer);
 
     let polygonRollupManagerContract: any;
     let deploymentBlockNumber;

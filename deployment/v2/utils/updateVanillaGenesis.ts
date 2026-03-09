@@ -3,20 +3,20 @@ import { ethers } from 'hardhat';
 
 import { MemDB, ZkEVMDB, getPoseidon, smtUtils, processorUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import { getContractAddress } from '@ethersproject/address';
-import { GENESIS_CONTRACT_NAMES } from '../../../src/utils-common-aggchain';
+import {
+    GENESIS_CONTRACT_NAMES,
+    SUPPORT_GER_MANAGER_IMPLEMENTATION,
+    SUPPORT_GER_MANAGER_PROXY,
+    SUPPORT_BRIDGE_IMPLEMENTATION,
+    SUPPORT_BRIDGE_PROXY,
+    SUPPORT_TOKEN_WRAPPED_IMPLEMENTATION,
+} from '../../../src/constants';
 import { padTo32Bytes, padTo20Bytes } from './deployment-utils';
 import { checkParams } from '../../../src/utils';
 
-// constants
-// Those contracts names came from the genesis creation:
-//  - https://github.com/0xPolygonHermez/zkevm-contracts/blob/main/deployment/v2/1_createGenesis.ts#L294
-//  - https://github.com/0xPolygonHermez/zkevm-contracts/blob/main/deployment/v2/1_createGenesis.ts#L328
-// Genesis files have been created previously and so they have old naming, as it shown in the links above
-// Those genesis are already imported on different tooling and added as a metadata on-chain. Therefore, this util aims
-// to support them too
-const supportedGERManagers = ['PolygonZkEVMGlobalExitRootL2 implementation'];
-const supportedBridgeContracts = ['PolygonZkEVMBridge implementation', 'PolygonZkEVMBridgeV2 implementation'];
-const supportedBridgeContractsProxy = ['PolygonZkEVMBridgeV2 proxy', 'PolygonZkEVMBridge proxy'];
+function toPaddedHex32(val: string | number | bigint): string {
+    return ethers.zeroPadValue(ethers.toBeHex(val), 32);
+}
 
 async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     // Check initialize params
@@ -28,13 +28,17 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         'bridgeManager',
         'sovereignWETHAddress',
         'sovereignWETHAddressIsNotMintable',
-        'globalExitRootUpdater',
         'globalExitRootRemover',
         'emergencyBridgePauser',
         'emergencyBridgeUnpauser',
         'proxiedTokensManager',
     ];
     checkParams(initializeParams, mandatoryUpgradeParameters);
+
+    // Remove BYTECODE_STORER contract if present
+    genesis.genesis = genesis.genesis.filter(function (obj) {
+        return obj.contractName !== GENESIS_CONTRACT_NAMES.BYTECODE_STORER;
+    });
 
     // Load genesis on a zkEVMDB
     const poseidon = await getPoseidon();
@@ -79,7 +83,7 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     batch.addRawTx(`0x${rawChangeL2BlockTx}`);
 
     // Create deploy bridge transaction
-    const sovereignBridgeFactory = await ethers.getContractFactory('BridgeL2SovereignChain');
+    const sovereignBridgeFactory = await ethers.getContractFactory('AgglayerBridgeL2');
     // Get deploy transaction for bridge
     const deployBridgeData = await sovereignBridgeFactory.getDeployTransaction();
     const injectedTx = {
@@ -98,6 +102,7 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         },
     };
     let txObject = ethers.Transaction.from(injectedTx);
+    const bridgeDeployer = txObject.from?.toLocaleLowerCase();
     const txDeployBridge = processorUtils.rawTxToCustomRawTx(txObject.serialized);
     // Check ecrecover
     expect(txObject.from).to.equal(ethers.recoverAddress(txObject.unsignedHash, txObject.signature as any));
@@ -108,11 +113,11 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     const gerContractName = GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN;
     const gerFactory = await ethers.getContractFactory(gerContractName);
     const oldBridge = genesis.genesis.find(function (obj) {
-        return supportedBridgeContracts.includes(obj.contractName);
+        return SUPPORT_BRIDGE_IMPLEMENTATION.includes(obj.contractName);
     });
     // Get bridge proxy address
     const bridgeProxy = genesis.genesis.find(function (obj) {
-        return supportedBridgeContractsProxy.includes(obj.contractName);
+        return SUPPORT_BRIDGE_PROXY.includes(obj.contractName);
     });
     const deployGERData = await gerFactory.getDeployTransaction(bridgeProxy.address);
     injectedTx.data = deployGERData.data;
@@ -126,6 +131,9 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     await batch.executeTxs();
     await zkEVMDB.consolidate(batch);
 
+    /// ///////////////////////
+    // Bridge contract
+    /// ///////////////////////
     // replace old bridge and ger manager by sovereign contracts bytecode, storage and nonce
     oldBridge.contractName = GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_IMPLEMENTATION;
     oldBridge.bytecode = `0x${await zkEVMDB.getBytecode(sovereignBridgeAddress)}`;
@@ -137,81 +145,108 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     const bridgeInfo = await zkEVMDB.getCurrentAccountState(sovereignBridgeAddress);
     oldBridge.nonce = Number(bridgeInfo.nonce);
 
-    // Compute the address of the BytecodeStorer contract deployed by the deployed sovereign bridge
-    const precalculatedAddressBytecodeStorer = ethers.getCreateAddress({
+    /// ///////////////////////
+    // TokenWrappedImplementation contract
+    /// ///////////////////////
+    // Compute the address of the wrappedTokenImplementation contract deployed by the deployed sovereign bridge with nonce 1
+    const precalculatedAddressTokenWrappedImplementation = ethers.getCreateAddress({
         from: sovereignBridgeAddress,
         nonce: 1,
     });
 
-    // Check if the genesis contains BytecodeStorer contract
-    const bytecodeStorerObject = genesis.genesis.find(function (obj) {
-        return obj.contractName === GENESIS_CONTRACT_NAMES.BYTECODE_STORER;
-    });
+    const tokenWrappedImplementationDeployedBytecode = `0x${await zkEVMDB.getBytecode(precalculatedAddressTokenWrappedImplementation)}`;
+    const tokenWrappedImplementationState = await zkEVMDB.getCurrentAccountState(
+        precalculatedAddressTokenWrappedImplementation,
+    );
+    const tokenWrappedImplementationObjectNew = {
+        contractName: GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION,
+        balance: tokenWrappedImplementationState.balance.toString(),
+        nonce: tokenWrappedImplementationState.nonce.toString(),
+        address: precalculatedAddressTokenWrappedImplementation,
+        bytecode: tokenWrappedImplementationDeployedBytecode,
+    };
 
-    // If its not contained add it to the genesis
-    if (typeof bytecodeStorerObject === 'undefined') {
-        const bytecodeStorerDeployedBytecode = `0x${await zkEVMDB.getBytecode(precalculatedAddressBytecodeStorer)}`;
-        const bytecodeStorerGenesis = {
-            contractName: GENESIS_CONTRACT_NAMES.BYTECODE_STORER,
-            balance: '0',
-            nonce: '1',
-            address: precalculatedAddressBytecodeStorer,
-            bytecode: bytecodeStorerDeployedBytecode,
-        };
-        genesis.genesis.push(bytecodeStorerGenesis);
-    } else {
-        bytecodeStorerObject.address = precalculatedAddressBytecodeStorer;
-        // Check bytecode of the BytecodeStorer contract is the same as the one in the genesis
-        expect(bytecodeStorerObject.bytecode).to.equal(
-            `0x${await zkEVMDB.getBytecode(precalculatedAddressBytecodeStorer)}`,
-        );
-    }
-
-    // Compute the address of the wrappedTokenImplementation contract deployed by the deployed sovereign bridge with nonce 2
-    const precalculatedAddressTokenWrappedImplementation = ethers.getCreateAddress({
-        from: sovereignBridgeAddress,
-        nonce: 2,
-    });
-    // Check nonce is 3
-    const bridgeState = await zkEVMDB.getCurrentAccountState(sovereignBridgeAddress);
-    expect(Number(bridgeState.nonce)).to.equal(3);
+    tokenWrappedImplementationObjectNew.storage = await zkEVMDB.dumpStorage(
+        precalculatedAddressTokenWrappedImplementation,
+    );
+    tokenWrappedImplementationObjectNew.storage = Object.entries(tokenWrappedImplementationObjectNew.storage).reduce(
+        (acc, [key, value]) => {
+            acc[key] = padTo32Bytes(value);
+            return acc;
+        },
+        {},
+    );
 
     // Check if the genesis contains TokenWrappedImplementation contract
     let tokenWrappedImplementationObject = genesis.genesis.find(function (obj) {
-        return obj.contractName === GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION;
+        return SUPPORT_TOKEN_WRAPPED_IMPLEMENTATION.includes(obj.contractName);
     });
 
-    // If its not contained add it to the genesis
+    // If it's not contained add it to the genesis
     if (typeof tokenWrappedImplementationObject === 'undefined') {
-        const tokenWrappedImplementationDeployedBytecode = `0x${await zkEVMDB.getBytecode(precalculatedAddressTokenWrappedImplementation)}`;
-        tokenWrappedImplementationObject = {
-            contractName: GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION,
-            balance: '0',
-            nonce: '1',
-            address: precalculatedAddressTokenWrappedImplementation,
-            bytecode: tokenWrappedImplementationDeployedBytecode,
-        };
-        tokenWrappedImplementationObject.storage = await zkEVMDB.dumpStorage(
-            precalculatedAddressTokenWrappedImplementation,
-        );
-        tokenWrappedImplementationObject.storage = Object.entries(tokenWrappedImplementationObject.storage).reduce(
-            (acc, [key, value]) => {
-                acc[key] = padTo32Bytes(value);
-                return acc;
-            },
-            {},
-        );
+        tokenWrappedImplementationObject = tokenWrappedImplementationObjectNew;
         genesis.genesis.push(tokenWrappedImplementationObject);
     } else {
-        tokenWrappedImplementationObject.address = precalculatedAddressTokenWrappedImplementation;
+        // modify the reference in genesis.genesis
+        Object.assign(tokenWrappedImplementationObject, tokenWrappedImplementationObjectNew);
         // Check bytecode of the TokenWrappedImplementation contract
-        expect(tokenWrappedImplementationObject.bytecode).to.equal(
-            `0x${await zkEVMDB.getBytecode(precalculatedAddressTokenWrappedImplementation)}`,
-        );
+        expect(tokenWrappedImplementationObject.bytecode).to.equal(tokenWrappedImplementationDeployedBytecode);
     }
 
+    /// ///////////////////////
+    // BridgeLib contract
+    /// ///////////////////////
+    // Compute the address of the bridgeLib contract deployed by the deployed sovereign bridge with nonce 2
+    const precalculatedAddressBridgeLib = ethers.getCreateAddress({
+        from: sovereignBridgeAddress,
+        nonce: 2,
+    });
+
+    // Check nonce is 4
+    const bridgeState = await zkEVMDB.getCurrentAccountState(sovereignBridgeAddress);
+    expect(Number(bridgeState.nonce)).to.equal(3);
+
+    // Replace it with deployed bridgeLib contract
+    const bridgeLibImplementationDeployedBytecode = `0x${await zkEVMDB.getBytecode(precalculatedAddressBridgeLib)}`;
+    const bridgeLibImplementationState = await zkEVMDB.getCurrentAccountState(precalculatedAddressBridgeLib);
+    const bridgeLibImplementationObjectNew = {
+        contractName: GENESIS_CONTRACT_NAMES.BRIDGE_LIB,
+        balance: bridgeLibImplementationState.balance.toString(),
+        nonce: bridgeLibImplementationState.nonce.toString(),
+        address: precalculatedAddressBridgeLib,
+        bytecode: bridgeLibImplementationDeployedBytecode,
+    };
+    bridgeLibImplementationObjectNew.storage = await zkEVMDB.dumpStorage(precalculatedAddressBridgeLib);
+    bridgeLibImplementationObjectNew.storage = Object.entries(bridgeLibImplementationObjectNew.storage).reduce(
+        (acc, [key, value]) => {
+            acc[key] = padTo32Bytes(value);
+            return acc;
+        },
+        {},
+    );
+
+    // Check if the genesis contains BridgeLib contract and replace it with deployed bridgeLib contract, or add it if not present
+    let bridgeLibImplementationObject = genesis.genesis.find(function (obj) {
+        return obj.contractName === GENESIS_CONTRACT_NAMES.BRIDGE_LIB;
+    });
+
+    // If it's not contained add it to the genesis
+    if (typeof bridgeLibImplementationObject === 'undefined') {
+        bridgeLibImplementationObject = bridgeLibImplementationObjectNew;
+        genesis.genesis.push(bridgeLibImplementationObject);
+    } else {
+        // modify the reference in genesis.genesis
+        Object.assign(bridgeLibImplementationObject, bridgeLibImplementationObjectNew);
+        // Check bytecode of the BridgeLib contract
+        expect(bridgeLibImplementationObject.bytecode).to.equal(bridgeLibImplementationDeployedBytecode);
+    }
+
+    /// ///////////////////////
+    // GER contract
+    /// ///////////////////////
+
     const oldGer = genesis.genesis.find(function (obj) {
-        return supportedGERManagers.includes(obj.contractName);
+        return SUPPORT_GER_MANAGER_IMPLEMENTATION.includes(obj.contractName);
     });
     oldGer.contractName = GENESIS_CONTRACT_NAMES.GER_L2_SOVEREIGN_IMPLEMENTATION;
     oldGer.bytecode = `0x${await zkEVMDB.getBytecode(GERAddress)}`;
@@ -221,35 +256,11 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         return acc;
     }, {});
 
-    // Setup a second zkEVM to initialize both contracts
-    const zkEVMDB2 = await ZkEVMDB.newZkEVM(
-        new MemDB(F),
-        poseidon,
-        genesisRoot,
-        accHashInput,
-        genesis.genesis,
-        null,
-        null,
-        chainID,
-    );
-    const batch2 = await zkEVMDB2.buildBatch(
-        1000, // limitTimestamp
-        ethers.ZeroAddress, // trustedSequencer
-        smtUtils.stringToH4(ethers.ZeroHash), // l1InfoRoot
-        ethers.ZeroHash, // Forced block hash
-        undefined,
-        {
-            vcmConfig: {
-                skipCounters: true,
-            },
-        },
-    );
-    // Add changeL2Block tx
-    batch2.addRawTx(`0x${rawChangeL2BlockTx}`);
-    const gerProxy = genesis.genesis.find(function (obj) {
-        return obj.contractName === GENESIS_CONTRACT_NAMES.GER_L2_PROXY;
-    });
     // Initialize bridge
+    const gerProxy = genesis.genesis.find(function (obj) {
+        return SUPPORT_GER_MANAGER_PROXY.includes(obj.contractName);
+    });
+
     const {
         rollupID,
         gasTokenAddress,
@@ -258,7 +269,6 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         bridgeManager,
         sovereignWETHAddress,
         sovereignWETHAddressIsNotMintable,
-        globalExitRootUpdater,
         globalExitRootRemover,
         emergencyBridgePauser,
         emergencyBridgeUnpauser,
@@ -285,11 +295,119 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     injectedTx.data = initializeData;
     injectedTx.gasPrice = 0;
     txObject = ethers.Transaction.from(injectedTx);
+    // replace deployer from bridge bytecode
+    const bridgeInitializer = txObject.from?.toLowerCase();
+    expect(oldBridge.bytecode).to.include(bridgeDeployer?.slice(2));
+    // replace deployer in bytecode
+    const bridgeBytecodeWithInitializerAsDeployer = oldBridge.bytecode.replace(
+        bridgeDeployer?.slice(2),
+        bridgeInitializer?.slice(2),
+    );
+    expect(bridgeBytecodeWithInitializerAsDeployer).to.include(bridgeInitializer?.slice(2));
+    oldBridge.bytecode = bridgeBytecodeWithInitializerAsDeployer;
+    // Setup a second zkEVM to initialize both contracts
+    const zkEVMDB2 = await ZkEVMDB.newZkEVM(
+        new MemDB(F),
+        poseidon,
+        genesisRoot,
+        accHashInput,
+        genesis.genesis,
+        null,
+        null,
+        chainID,
+    );
+    const batch2 = await zkEVMDB2.buildBatch(
+        1000, // limitTimestamp
+        ethers.ZeroAddress, // trustedSequencer
+        smtUtils.stringToH4(ethers.ZeroHash), // l1InfoRoot
+        ethers.ZeroHash, // Forced block hash
+        undefined,
+        {
+            vcmConfig: {
+                skipCounters: true,
+            },
+        },
+    );
+    // Add changeL2Block tx
+    batch2.addRawTx(`0x${rawChangeL2BlockTx}`);
+
     const txInitializeBridge = processorUtils.rawTxToCustomRawTx(txObject.serialized);
     // Check ecrecover
     expect(txObject.from).to.equal(ethers.recoverAddress(txObject.unsignedHash, txObject.signature as any));
     batch2.addRawTx(txInitializeBridge);
 
+    // deploy aggOracle if necessary
+    let globalExitRootUpdater;
+    let aggOracleImplementationAddress;
+    if (initializeParams.useAggOracleCommittee === true) {
+        const aggOracleCommitteeFactory = await ethers.getContractFactory('AggOracleCommittee');
+        // Get deploy transaction for agg oracle commitee
+        const deployAggOracle = await aggOracleCommitteeFactory.getDeployTransaction(gerProxy.address);
+
+        injectedTx.to = null;
+        injectedTx.data = deployAggOracle.data;
+        const txObjectDeployAggOracleImpl = ethers.Transaction.from(injectedTx);
+        expect(txObjectDeployAggOracleImpl.from).to.equal(
+            ethers.recoverAddress(
+                txObjectDeployAggOracleImpl.unsignedHash,
+                txObjectDeployAggOracleImpl.signature as any,
+            ),
+        );
+
+        const txDeployAggORacleCommitee = processorUtils.rawTxToCustomRawTx(txObjectDeployAggOracleImpl.serialized);
+        batch2.addRawTx(txDeployAggORacleCommitee);
+        aggOracleImplementationAddress = getContractAddress({
+            from: txObjectDeployAggOracleImpl.from,
+            nonce: txObjectDeployAggOracleImpl.nonce,
+        });
+
+        // Deploy proxy
+        /*
+         * deploy aggORacle proxy and initialize
+         */
+        const transparentProxyFactory = await ethers.getContractFactory(
+            '@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy',
+        );
+
+        // create initialize transaction
+        // Initialize aggOracle Manager
+        const initializeAggOracleCommittee = aggOracleCommitteeFactory.interface.encodeFunctionData('initialize', [
+            initializeParams.aggOracleOwner,
+            initializeParams.aggOracleCommittee,
+            initializeParams.quorum,
+        ]);
+
+        const proxyAdminAddress = genesis.genesis.find(function (obj) {
+            return obj.contractName === GENESIS_CONTRACT_NAMES.PROXY_ADMIN;
+        }).address;
+        const deployAggOracleProxy = (
+            await transparentProxyFactory.getDeployTransaction(
+                aggOracleImplementationAddress as string, // must have bytecode
+                proxyAdminAddress as string,
+                initializeAggOracleCommittee,
+            )
+        ).data;
+
+        // Update injectedTx to initialize AggOracleProxy
+        injectedTx.to = null;
+        injectedTx.data = deployAggOracleProxy;
+
+        const txDeployAggOracleProxy = ethers.Transaction.from(injectedTx);
+        const txDeployProxyAggORacle = processorUtils.rawTxToCustomRawTx(txDeployAggOracleProxy.serialized);
+        expect(txDeployAggOracleProxy.from).to.equal(
+            ethers.recoverAddress(txDeployAggOracleProxy.unsignedHash, txDeployAggOracleProxy.signature as any),
+        );
+        batch2.addRawTx(txDeployProxyAggORacle);
+
+        const aggOracleAddress = getContractAddress({
+            from: txDeployAggOracleProxy.from,
+            nonce: txDeployAggOracleProxy.nonce,
+        });
+        globalExitRootUpdater = aggOracleAddress;
+    } else {
+        checkParams(initializeParams, ['globalExitRootUpdater']);
+        globalExitRootUpdater = initializeParams.globalExitRootUpdater;
+    }
     // Initialize GER Manager
     const initializeGERData = gerFactory.interface.encodeFunctionData('initialize', [
         globalExitRootUpdater,
@@ -307,7 +425,48 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
 
     // Execute batch
     await batch2.executeTxs();
+
     await zkEVMDB2.consolidate(batch2);
+
+    if (initializeParams.useAggOracleCommittee === true) {
+        // add aggOracleCommitee implementation to genesis file
+        const aggOracleImplStorage = Object.entries(await zkEVMDB2.dumpStorage(aggOracleImplementationAddress)).reduce(
+            (acc, [key, value]) => {
+                acc[key] = padTo32Bytes(value);
+                return acc;
+            },
+            {},
+        );
+
+        const aggOracleCommiteeImplObject = {
+            contractName: GENESIS_CONTRACT_NAMES.AGG_ORACLE_IMPL,
+            balance: '0',
+            nonce: '1',
+            address: aggOracleImplementationAddress,
+            storage: aggOracleImplStorage,
+            bytecode: `0x${await zkEVMDB2.getBytecode(aggOracleImplementationAddress)}`,
+        };
+        genesis.genesis.push(aggOracleCommiteeImplObject);
+
+        // add aggOracleCommitee proxy to genesis file
+        const aggOracleStorage = Object.entries(await zkEVMDB2.dumpStorage(globalExitRootUpdater)).reduce(
+            (acc, [key, value]) => {
+                acc[key] = padTo32Bytes(value);
+                return acc;
+            },
+            {},
+        );
+
+        const aggOracleCommiteeObject = {
+            contractName: GENESIS_CONTRACT_NAMES.AGG_ORACLE_PROXY,
+            balance: '0',
+            nonce: '1',
+            address: globalExitRootUpdater,
+            storage: aggOracleStorage,
+            bytecode: `0x${await zkEVMDB2.getBytecode(globalExitRootUpdater)}`,
+        };
+        genesis.genesis.push(aggOracleCommiteeObject);
+    }
 
     // Update bridgeProxy storage and nonce
     bridgeProxy.contractName = GENESIS_CONTRACT_NAMES.SOVEREIGN_BRIDGE_PROXY;
@@ -359,6 +518,8 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
 
     // CHECK tokenWrappedImplementationObject STORAGE
     // Storage slot for initialize contract
+    // - keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
+    // - bytes32 private constant INITIALIZABLE_STORAGE = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
     expect(
         tokenWrappedImplementationObject.storage['0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00'],
     ).to.equal('0x000000000000000000000000000000000000000000000000ffffffffffffffff');
@@ -414,11 +575,11 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         gerProxy.address.toLowerCase().slice(2),
     );
 
-    // Check bridge implementation bytecode contains bytecodeStorer contract address
-    expect(oldBridge.bytecode).to.include(precalculatedAddressBytecodeStorer.toLowerCase().slice(2));
-
     // Check bridge implementation bytecode contains tokenWrappedImplementation contract address
     expect(oldBridge.bytecode).to.include(precalculatedAddressTokenWrappedImplementation.toLowerCase().slice(2));
+
+    // Check bridge implementation bytecode contains bridgeLib contract address
+    expect(oldBridge.bytecode).to.include(precalculatedAddressBridgeLib.toLowerCase().slice(2));
 
     // Check bridge implementation has initializer disabled
     expect(oldBridge.storage['0x0000000000000000000000000000000000000000000000000000000000000000'].slice(-2)).to.equal(
@@ -588,6 +749,70 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
     expect(polygonDeployerObj.storage['0x0000000000000000000000000000000000000000000000000000000000000000']).to.include(
         deployerAddressObj.address.toLowerCase().slice(2),
     );
+
+    // Additional storage slot checks for agg oracle
+    const sovereignContractObj = genesis.genesis.find(function (obj) {
+        return obj.contractName === GENESIS_CONTRACT_NAMES.AGG_ORACLE_PROXY;
+    });
+
+    if (sovereignContractObj) {
+        // Storage value of proxy implementation
+        expect(
+            sovereignContractObj.storage['0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'],
+        ).to.include(aggOracleImplementationAddress.toLowerCase().slice(2));
+
+        // Admin slot check (TransparentUpgradeableProxy pattern)
+        expect(
+            sovereignContractObj.storage['0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103'],
+        ).to.include(proxyAdminObject.address.toLowerCase().slice(2));
+
+        // Initialized slot check
+        expect(
+            sovereignContractObj.storage['0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00'],
+        ).to.equal('0x0000000000000000000000000000000000000000000000000000000000000001');
+
+        // Storage slot 0 check
+        expect(
+            sovereignContractObj.storage['0x0000000000000000000000000000000000000000000000000000000000000000'],
+        ).to.equal(toPaddedHex32(initializeParams.aggOracleCommittee.length));
+
+        // Storage slot 1 check
+        expect(
+            sovereignContractObj.storage['0x0000000000000000000000000000000000000000000000000000000000000001'],
+        ).to.equal(toPaddedHex32(initializeParams.quorum));
+
+        // Check aggOracleMembers array storage slots
+        if (initializeParams.aggOracleCommittee && Array.isArray(initializeParams.aggOracleCommittee)) {
+            // The dynamic array is stored at slot 0 (aggOracleMembers)
+            // Length is at slot 0, elements start at keccak256(0)
+            const keccakSlot0 = ethers.keccak256(ethers.zeroPadValue('0x00', 32));
+            for (let i = 0; i < initializeParams.aggOracleCommittee.length; i++) {
+                const memberAddress = initializeParams.aggOracleCommittee[i];
+                // Compute slot: keccak256(0) + i
+                const slot = ethers.toBeHex(BigInt(keccakSlot0) + BigInt(i), 32);
+                expect(sovereignContractObj.storage[slot]).to.include(memberAddress.toLowerCase().slice(2));
+            }
+
+            // Storage slot 2: mapping(address => bytes32) public addressToLastProposedGER;
+            // For each address, the mapping slot is keccak256(pad32(address) ++ pad32(2))
+            // All should point to INITIAL_PROPOSED_GER = bytes32(uint256(1))
+            const INITIAL_PROPOSED_GER = ethers.zeroPadValue('0x01', 32);
+            for (let i = 0; i < initializeParams.aggOracleCommittee.length; i++) {
+                const memberAddress = initializeParams.aggOracleCommittee[i];
+                // mapping(address => bytes32) at slot 2: keccak256(pad32(address) ++ pad32(2))
+                const paddedAddress = ethers.zeroPadValue(memberAddress, 32);
+                const paddedSlot = ethers.zeroPadValue('0x02', 32);
+                const mappingSlot = ethers.keccak256(ethers.concat([paddedAddress, paddedSlot]));
+                expect(sovereignContractObj.storage[mappingSlot]).to.equal(INITIAL_PROPOSED_GER);
+            }
+        }
+
+        // Storage slot 0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300 check
+        // Owner slot OZ
+        expect(
+            sovereignContractObj.storage['0x9016d09d72d40fdae2fd8ceac6b6234c7706214fd39c1cd1e609a0528c199300'],
+        ).to.include(toPaddedHex32(initializeParams.aggOracleOwner));
+    }
 
     // Create a new zkEVM to generate a genesis an empty system address storage
     const zkEVMDB3 = await ZkEVMDB.newZkEVM(

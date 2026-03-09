@@ -1,0 +1,12 @@
+{
+    "bridgeL2": "0x..",
+    "gerL2": "0x..",
+    "ger_initializationParameters": {
+        "globalExitRootUpdater": "0x..",
+        "globalExitRootRemover": "0x.."
+    },
+    "forkParams": {
+        "rpc": "rpc url",
+        "timelockAdminAddress": "0x.."
+    }
+}

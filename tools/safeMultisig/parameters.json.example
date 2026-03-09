@@ -1,0 +1,21 @@
+{
+    "_comment": "Example parameters for Safe Multisig tools. Copy to parameters.json and modify.",
+
+    "safeAddress": "0x242daE44F5d8fb54B198D03a94dA45B5a4413e21",
+
+    "_section_manageOwners": "=== Parameters for manageOwners.ts ===",
+    "ownersToAdd": [
+        "0xNewOwner1Address",
+        "0xNewOwner2Address"
+    ],
+    "ownersToRemove": [
+        "0xOldOwnerToRemove"
+    ],
+    "newThreshold": 2,
+
+    "_section_prepareTransaction": "=== Parameters for prepareTransaction.ts ===",
+    "to": "0xTargetContractAddress",
+    "data": "0x...",
+    "value": 0,
+    "description": "Custom transaction description"
+}

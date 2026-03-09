@@ -6,9 +6,9 @@ import { setCode } from '@nomicfoundation/hardhat-network-helpers';
 import {
     VerifierRollupHelperMock,
     ERC20PermitMock,
-    PolygonRollupManagerMock,
-    PolygonZkEVMGlobalExitRootV2,
-    PolygonZkEVMBridgeV2,
+    AgglayerManagerMock,
+    AgglayerGER,
+    AgglayerBridge,
     Address,
     PolygonPessimisticConsensus,
 } from '../../typechain-types';
@@ -20,6 +20,21 @@ import {
     computeRandomBytes,
 } from '../../src/pessimistic-utils';
 import { encodeInitializeBytesLegacy } from '../../src/utils-common-aggchain';
+import {
+    DEFAULT_ADMIN_ROLE,
+    ADD_ROLLUP_TYPE_ROLE,
+    OBSOLETE_ROLLUP_TYPE_ROLE,
+    CREATE_ROLLUP_ROLE,
+    ADD_EXISTING_ROLLUP_ROLE,
+    UPDATE_ROLLUP_ROLE,
+    TRUSTED_AGGREGATOR_ROLE,
+    TRUSTED_AGGREGATOR_ROLE_ADMIN,
+    TWEAK_PARAMETERS_ROLE,
+    SET_FEE_ROLE,
+    STOP_EMERGENCY_ROLE,
+    EMERGENCY_COUNCIL_ROLE,
+    EMERGENCY_COUNCIL_ADMIN,
+} from '../../src/constants';
 
 describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
     let deployer: any;
@@ -31,10 +46,10 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
     let beneficiary: any;
 
     let verifierContract: VerifierRollupHelperMock;
-    let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
+    let polygonZkEVMBridgeContract: AgglayerBridge;
     let polTokenContract: ERC20PermitMock;
-    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2;
-    let rollupManagerContract: PolygonRollupManagerMock;
+    let polygonZkEVMGlobalExitRoot: AgglayerGER;
+    let rollupManagerContract: AgglayerManagerMock;
     let PolygonPPConsensusContract: PolygonPessimisticConsensus;
 
     const polTokenName = 'POL Token';
@@ -44,21 +59,6 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
     // Bridge constants
     const networkIDMainnet = 0;
     let firstDeployment = true;
-
-    // roles
-    const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
-    const ADD_ROLLUP_TYPE_ROLE = ethers.id('ADD_ROLLUP_TYPE_ROLE');
-    const OBSOLETE_ROLLUP_TYPE_ROLE = ethers.id('OBSOLETE_ROLLUP_TYPE_ROLE');
-    const CREATE_ROLLUP_ROLE = ethers.id('CREATE_ROLLUP_ROLE');
-    const ADD_EXISTING_ROLLUP_ROLE = ethers.id('ADD_EXISTING_ROLLUP_ROLE');
-    const UPDATE_ROLLUP_ROLE = ethers.id('UPDATE_ROLLUP_ROLE');
-    const TRUSTED_AGGREGATOR_ROLE = ethers.id('TRUSTED_AGGREGATOR_ROLE');
-    const TRUSTED_AGGREGATOR_ROLE_ADMIN = ethers.id('TRUSTED_AGGREGATOR_ROLE_ADMIN');
-    const TWEAK_PARAMETERS_ROLE = ethers.id('TWEAK_PARAMETERS_ROLE');
-    const SET_FEE_ROLE = ethers.id('SET_FEE_ROLE');
-    const STOP_EMERGENCY_ROLE = ethers.id('STOP_EMERGENCY_ROLE');
-    const EMERGENCY_COUNCIL_ROLE = ethers.id('EMERGENCY_COUNCIL_ROLE');
-    const EMERGENCY_COUNCIL_ADMIN = ethers.id('EMERGENCY_COUNCIL_ADMIN');
 
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
@@ -90,9 +90,9 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
             firstDeployment = false;
         }
 
-        // deploy AggLayerGateway
-        const AggLayerGatewayFactory = await ethers.getContractFactory('AggLayerGateway');
-        const aggLayerGatewayContract = await upgrades.deployProxy(AggLayerGatewayFactory, [], {
+        // deploy AgglayerGateway
+        const AgglayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway');
+        const aggLayerGatewayContract = await upgrades.deployProxy(AgglayerGatewayFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor'],
         });
@@ -113,21 +113,21 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
         firstDeployment = false;
 
         // deploy globalExitRoot
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2');
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('AgglayerGER');
         polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             constructorArgs: [precalculateRollupManagerAddress, precalculateBridgeAddress],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
         });
 
         // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge');
         polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
         });
 
         // deploy polygon rollup manager mock
-        const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManagerMock');
+        const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManagerMock');
 
         rollupManagerContract = (await upgrades.deployProxy(PolygonRollupManagerFactory, [], {
             initializer: false,
@@ -138,7 +138,7 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
                 aggLayerGatewayContract.target,
             ],
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call', 'state-variable-immutable'],
-        })) as unknown as PolygonRollupManagerMock;
+        })) as unknown as AgglayerManagerMock;
 
         await rollupManagerContract.waitForDeployment();
 

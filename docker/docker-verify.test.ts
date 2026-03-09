@@ -2,8 +2,9 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import fs from 'fs';
 import path from 'path';
-import { PolygonRollupManager, PolygonZkEVMGlobalExitRootV2, AggchainFEP } from '../typechain-types';
+import { AgglayerManager, AgglayerGER, AggchainFEP } from '../typechain-types';
 
+import { TRUSTED_AGGREGATOR_ROLE } from '../src/constants';
 import { computeRandomBytes } from '../src/pessimistic-utils';
 import { encodeAggchainDataFEP } from '../src/utils-aggchain-FEP';
 
@@ -30,18 +31,18 @@ describe('Docker verifyProof test', () => {
         const { rollupID } = dockerCreateRollupOutput;
 
         // Load contracts
-        const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager');
+        const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager');
         const rollupManagerContract = PolygonRollupManagerFactory.attach(
             dockerDeploymentOutput.polygonRollupManagerAddress,
-        ) as PolygonRollupManager;
+        ) as AgglayerManager;
         await rollupManagerContract.connect(trustedAggregator);
 
         expect(rollupManagerContract.target).to.equal(dockerDeploymentOutput.polygonRollupManagerAddress);
 
-        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2');
+        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory('AgglayerGER');
         const polygonZkEVMGlobalExitRoot = PolygonZkEVMGlobalExitRootV2Factory.attach(
             dockerDeploymentOutput.polygonZkEVMGlobalExitRootAddress,
-        ) as PolygonZkEVMGlobalExitRootV2;
+        ) as AgglayerGER;
 
         expect(polygonZkEVMGlobalExitRoot.target).to.equal(dockerDeploymentOutput.polygonZkEVMGlobalExitRootAddress);
 
@@ -69,7 +70,6 @@ describe('Docker verifyProof test', () => {
         );
 
         // check Role
-        const TRUSTED_AGGREGATOR_ROLE = ethers.id('TRUSTED_AGGREGATOR_ROLE');
         expect(await rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE, trustedAggregator.address)).to.be.equal(
             true,
         );

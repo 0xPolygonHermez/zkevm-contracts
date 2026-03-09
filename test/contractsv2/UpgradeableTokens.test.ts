@@ -4,8 +4,8 @@ import { ethers, upgrades } from 'hardhat';
 import { takeSnapshot } from '@nomicfoundation/hardhat-network-helpers';
 import {
     ERC20PermitMock,
-    GlobalExitRootManagerL2SovereignChain,
-    BridgeL2SovereignChain,
+    AgglayerGERL2,
+    AgglayerBridgeL2,
     BridgeL2SovereignChainPessimistic,
     TokenWrappedBridgeUpgradeable,
     TokenWrappedTransparentProxy,
@@ -25,7 +25,7 @@ describe('Upgradeable Tokens', () => {
     let gasTokenBridgeContract: any;
     let polTokenContract: ERC20PermitMock;
     let polTokenContractUpgradeable: ERC20PermitMock;
-    let sovereignGERContract: GlobalExitRootManagerL2SovereignChain;
+    let sovereignGERContract: AgglayerGERL2;
 
     const networkIDMainnet = 0;
     const networkIDRollup = 1;
@@ -68,10 +68,10 @@ describe('Upgradeable Tokens', () => {
         gasTokenBridgeContract = (await upgrades.deployProxy(sovBridgePessimisticFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as BridgeL2SovereignChain;
+        })) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager
-        const sovGERFactory = await ethers.getContractFactory('GlobalExitRootManagerL2SovereignChain');
+        const sovGERFactory = await ethers.getContractFactory('AgglayerGERL2');
         sovereignGERContract = (await upgrades.deployProxy(
             sovGERFactory,
             [deployer.address, deployer.address], // Initializer params
@@ -80,7 +80,7 @@ describe('Upgradeable Tokens', () => {
                 constructorArgs: [sovereignBridgeContract.target], // Constructor arguments
                 unsafeAllow: ['constructor', 'state-variable-immutable'],
             },
-        )) as unknown as GlobalExitRootManagerL2SovereignChain;
+        )) as unknown as AgglayerGERL2;
 
         await sovereignBridgeContract.initialize(
             networkIDRollup,
@@ -160,7 +160,7 @@ describe('Upgradeable Tokens', () => {
                 fn: 'initialize(bytes32[],uint256[],address,address)',
                 args: [[], [], emergencyBridgePauser.address, proxiedTokensManager.address],
             },
-        })) as unknown as BridgeL2SovereignChain;
+        })) as unknown as AgglayerBridgeL2;
 
         gasTokenBridgeContract = (await upgrades.upgradeProxy(gasTokenBridgeContract.target, sovBridgeFactory, {
             unsafeAllow: ['constructor', 'missing-initializer-call', 'missing-initializer'],
@@ -168,7 +168,7 @@ describe('Upgradeable Tokens', () => {
                 fn: 'initialize(bytes32[],uint256[],address,address)',
                 args: [[], [], emergencyBridgePauser.address, proxiedTokensManager.address],
             },
-        })) as unknown as BridgeL2SovereignChain;
+        })) as unknown as AgglayerBridgeL2;
     });
 
     it('Should migrate from a legacy token to a new upgradeable token, make a claim and migrate legacy tokens', async () => {
@@ -265,7 +265,7 @@ describe('Upgradeable Tokens', () => {
 
     it('Should deploy a bridge and claim asset in different chains with different arguments and check address is the same', async () => {
         // Deploy bridge 1 with upgradeable tokens
-        const sovBridgeFactory = await ethers.getContractFactory('BridgeL2SovereignChain');
+        const sovBridgeFactory = await ethers.getContractFactory('AgglayerBridgeL2');
         sovereignBridgeContract = (await upgrades.deployProxy(sovBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
@@ -386,7 +386,7 @@ describe('Upgradeable Tokens', () => {
         sovereignBridgeContract = (await upgrades.upgradeProxy(sovereignBridgeContract.target, sovBridgeFactory, {
             unsafeAllow: ['constructor', 'missing-initializer-call', 'missing-initializer'],
             redeployImplementation: 'always',
-        })) as unknown as BridgeL2SovereignChain;
+        })) as unknown as AgglayerBridgeL2;
 
         const bridgeImplementationAddress2 = await upgrades.erc1967.getImplementationAddress(
             sovereignBridgeContract.target,

@@ -74,6 +74,7 @@ async function main() {
                 deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
                 deployOutputParameters.polTokenAddress,
                 deployOutputParameters.polygonZkEVMBridgeAddress,
+                deployOutputParameters.aggLayerGatewayAddress,
             ],
         });
     } catch (error) {
@@ -166,6 +167,22 @@ async function main() {
                     deployOutputParameters.polTokenAddress,
                     deployOutputParameters.polygonZkEVMBridgeAddress,
                     deployOutputParameters.polygonRollupManagerAddress,
+                ],
+            });
+        } catch (error) {
+            // expect(error.message.toLowerCase().includes('proxyadmin')).to.be.equal(true);
+        }
+    } else if (createRollupOutputParameters.consensusContract === 'AggchainECDSAMultisig') {
+        try {
+            await hre.run('verify:verify', {
+                contract: 'contracts/v2/aggchains/AggchainECDSAMultisig.sol:AggchainECDSAMultisig',
+                address: createRollupOutputParameters.rollupAddress,
+                constructorArguments: [
+                    deployOutputParameters.polygonZkEVMGlobalExitRootAddress,
+                    deployOutputParameters.polTokenAddress,
+                    deployOutputParameters.polygonZkEVMBridgeAddress,
+                    deployOutputParameters.polygonRollupManagerAddress,
+                    deployOutputParameters.aggLayerGatewayAddress,
                 ],
             });
         } catch (error) {

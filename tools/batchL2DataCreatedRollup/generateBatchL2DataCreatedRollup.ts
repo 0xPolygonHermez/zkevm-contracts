@@ -2,12 +2,12 @@
 import hre from 'hardhat';
 import fs from 'fs';
 import input from './input.json';
-import { PolygonZkEVMBridgeV2 } from '../../typechain-types';
+import { AgglayerBridge } from '../../typechain-types';
 
 async function main() {
     // --network <input>
-    const bridgeFactory = await hre.ethers.getContractFactory('PolygonZkEVMBridgeV2');
-    const polygonZkEVMBridgeContract = bridgeFactory.attach(input.bridgeAddress) as PolygonZkEVMBridgeV2;
+    const bridgeFactory = await hre.ethers.getContractFactory('AgglayerBridge');
+    const polygonZkEVMBridgeContract = bridgeFactory.attach(input.bridgeAddress) as AgglayerBridge;
     const gasTokenMetadata = await polygonZkEVMBridgeContract.getTokenMetadata(input.gasTokenAddress);
 
     // switch network hardhat

@@ -14,7 +14,7 @@ const pathPolygonZkEVMBridge = '../artifacts/contracts/PolygonZkEVMBridge.sol/Po
 const pathTransparentProxyOZUpgradeDep = '../node_modules/@openzeppelin/upgrades-core/artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json';
 const pathProxyAdmin = '../artifacts/@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json';
 const pathTransparentProxy = '../artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json';
-const pathPolygonZkEVMTimelock = '../artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json';
+const pathPolygonZkEVMTimelock = '../artifacts/contracts/AgglayerTimelock.sol/AgglayerTimelock.json';
 const pathPolygonZkEVM = '../artifacts/contracts/PolygonZkEVM.sol/PolygonZkEVM.json';
 const pathPolygonZkEVMGlobalExitRoot = '../artifacts/contracts/PolygonZkEVMGlobalExitRoot.sol/PolygonZkEVMGlobalExitRoot.json';
 

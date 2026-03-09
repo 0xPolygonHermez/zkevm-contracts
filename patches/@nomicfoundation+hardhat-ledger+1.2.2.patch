@@ -1,0 +1,37 @@
+diff --git a/node_modules/@nomicfoundation/hardhat-ledger/dist/src/provider.js b/node_modules/@nomicfoundation/hardhat-ledger/dist/src/provider.js
+index 84c0433..e0b80f7 100644
+--- a/node_modules/@nomicfoundation/hardhat-ledger/dist/src/provider.js
++++ b/node_modules/@nomicfoundation/hardhat-ledger/dist/src/provider.js
+@@ -102,7 +102,20 @@ class LedgerProvider extends chainId_1.ProviderWrapperWithChainId {
+             return this._setOutputEnabled(params);
+         }
+         if (args.method === "eth_accounts") {
+-            const accounts = (await this._wrappedProvider.request(args));
++            // -- const accounts = (await this._wrappedProvider.request(args));
++
++            let accounts;
++            // some rpcs return "the method has been deprecated: eth_accounts" error
++            try {
++                accounts = (await this._wrappedProvider.request(args));
++            } catch (error) {
++                if (error.message.includes("eth_accounts")) {
++                    accounts = [];
++                } else {
++                    throw error;
++                }
++            }
++
+             return [...accounts, ...this.options.accounts];
+         }
+         if (this._methodRequiresSignature(args.method)) {
+@@ -241,6 +254,10 @@ class LedgerProvider extends chainId_1.ProviderWrapperWithChainId {
+         if (txRequest.data !== undefined) {
+             baseTx.data = (0, utils_1.toHex)(txRequest.data);
+         }
++        // force legacy tx type if EIP-1559 fields are not present
++        if (!hasEip1559Fields) {
++            baseTx.type = 0;
++        }        
+         const txToSign = ethers_1.ethers.Transaction.from(baseTx).unsignedSerialized.substring(2);
+         const resolution = await hw_app_eth_1.ledgerService.resolveTransaction(txToSign, {}, {});
+         const signature = await this._withConfirmation(() => this.eth.signTransaction(path, txToSign, resolution));

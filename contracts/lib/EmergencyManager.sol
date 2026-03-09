@@ -2,20 +2,12 @@
 
 pragma solidity ^0.8.20;
 
+import {IEmergencyManager} from "../interfaces/IEmergencyManager.sol";
+
 /**
  * @dev Contract helper responsible to manage the emergency state
  */
-contract EmergencyManager {
-    /**
-     * @dev Thrown when emergency state is active, and the function requires otherwise
-     */
-    error OnlyNotEmergencyState();
-
-    /**
-     * @dev Thrown when emergency state is not active, and the function requires otherwise
-     */
-    error OnlyEmergencyState();
-
+contract EmergencyManager is IEmergencyManager {
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
@@ -25,16 +17,6 @@ contract EmergencyManager {
 
     // Indicates whether the emergency state is active or not
     bool public isEmergencyState;
-
-    /**
-     * @dev Emitted when emergency state is activated
-     */
-    event EmergencyStateActivated();
-
-    /**
-     * @dev Emitted when emergency state is deactivated
-     */
-    event EmergencyStateDeactivated();
 
     /**
      * @notice Only allows a function to be callable if emergency state is unactive

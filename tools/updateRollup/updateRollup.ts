@@ -5,9 +5,10 @@ import fs = require('fs');
 
 import * as dotenv from 'dotenv';
 import { ethers, network } from 'hardhat';
-import { PolygonRollupManager } from '../../typechain-types';
+import { AgglayerManager } from '../../typechain-types';
 import { transactionTypes, genOperation } from '../utils';
 import '../../deployment/helpers/utils';
+import { UPDATE_ROLLUP_ROLE } from '../../src/constants';
 import updateRollupsParameters from './updateRollup.json';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -95,10 +96,8 @@ async function main() {
     const { polygonRollupManagerAddress } = updateRollupsParameters;
 
     // Load Rollup manager
-    const PolgonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager', deployer);
-    const rollupManagerContract = PolgonRollupManagerFactory.attach(
-        polygonRollupManagerAddress,
-    ) as PolygonRollupManager;
+    const PolgonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager', deployer);
+    const rollupManagerContract = PolgonRollupManagerFactory.attach(polygonRollupManagerAddress) as AgglayerManager;
 
     const outputsJson = [] as any;
 
@@ -139,7 +138,6 @@ async function main() {
 
             if (updateRollupsParameters.type === transactionTypes.EOA) {
                 // Check role
-                const UPDATE_ROLLUP_ROLE = ethers.id('UPDATE_ROLLUP_ROLE');
                 if ((await rollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, deployer.address)) === false) {
                     // log that address has no role
                     throw new Error(`Address ${deployer.address} does not have the UPDATE_ROLLUP_ROLE role`);

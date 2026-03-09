@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
-import { ERC20PermitMock, GlobalExitRootManagerL2SovereignChain, BridgeL2SovereignChain } from '../../typechain-types';
+import { ERC20PermitMock, AgglayerGERL2, AgglayerBridgeL2, BridgeLib } from '../../typechain-types';
 import {
     createPermitSignature,
     ifacePermit,
@@ -16,9 +16,10 @@ const { verifyMerkleProof, getLeafValue } = mtBridgeUtils;
 describe('SovereignBridge Contract', () => {
     upgrades.silenceWarnings();
 
-    let sovereignChainBridgeContract: BridgeL2SovereignChain;
+    let sovereignChainBridgeContract: AgglayerBridgeL2;
     let polTokenContract: ERC20PermitMock;
-    let sovereignChainGlobalExitRootContract: GlobalExitRootManagerL2SovereignChain;
+    let sovereignChainGlobalExitRootContract: AgglayerGERL2;
+    let bridgeLibContract: BridgeLib;
 
     let deployer: any;
     let rollupManager: any;
@@ -43,16 +44,14 @@ describe('SovereignBridge Contract', () => {
         [deployer, rollupManager, , emergencyBridgePauser, proxiedTokensManager] = await ethers.getSigners();
 
         // deploy PolygonZkEVMBridge
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('BridgeL2SovereignChain');
+        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
         sovereignChainBridgeContract = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as BridgeL2SovereignChain;
+        })) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager
-        const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory(
-            'GlobalExitRootManagerL2SovereignChain',
-        );
+        const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory('AgglayerGERL2');
         sovereignChainGlobalExitRootContract = await GlobalExitRootManagerL2SovereignChainFactory.deploy(
             sovereignChainBridgeContract.target,
         );
@@ -71,6 +70,10 @@ describe('SovereignBridge Contract', () => {
             emergencyBridgePauser.address,
             proxiedTokensManager.address,
         );
+
+        // get bridge lib instance
+        const bridgeLibAddress = await sovereignChainBridgeContract.bridgeLib();
+        bridgeLibContract = await ethers.getContractAt('BridgeLib', bridgeLibAddress);
 
         // deploy token
         const maticTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
@@ -472,7 +475,7 @@ describe('SovereignBridge Contract', () => {
                 true,
                 ethers.ZeroHash,
             ),
-        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'NotValidSignature');
+        ).to.be.revertedWithCustomError(bridgeLibContract, 'NotValidSignature');
 
         const dataPermit = ifacePermit.encodeFunctionData('permit', [
             deployer.address,
@@ -521,9 +524,6 @@ describe('SovereignBridge Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
     });
 
     it('should PolygonZkEVMBridge with permit DAI type contracts', async () => {
@@ -634,9 +634,6 @@ describe('SovereignBridge Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
     });
 
     it('should PolygonZkEVMBridge with permit UNI type contracts', async () => {
@@ -752,8 +749,5 @@ describe('SovereignBridge Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
     });
 });

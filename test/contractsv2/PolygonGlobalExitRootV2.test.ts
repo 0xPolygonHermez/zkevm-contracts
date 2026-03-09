@@ -2,7 +2,7 @@
 import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge } from '@0xpolygonhermez/zkevm-commonjs';
-import { PolygonZkEVMGlobalExitRoot, PolygonZkEVMGlobalExitRootV2 } from '../../typechain-types';
+import { PolygonZkEVMGlobalExitRoot, AgglayerGER } from '../../typechain-types';
 
 const MerkleTreeBridge = MTBridge;
 
@@ -21,7 +21,7 @@ describe('Polygon Global exit root v2', () => {
     let bridge: any;
 
     let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRoot;
-    let polygonZkEVMGlobalExitRootV2: PolygonZkEVMGlobalExitRootV2;
+    let polygonZkEVMGlobalExitRootV2: AgglayerGER;
 
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
@@ -39,7 +39,7 @@ describe('Polygon Global exit root v2', () => {
 
         expect(await polygonZkEVMGlobalExitRoot.rollupAddress()).to.be.equal(rollupManager.address);
 
-        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2');
+        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory('AgglayerGER');
         await upgrades.upgradeProxy(polygonZkEVMGlobalExitRoot.target, PolygonZkEVMGlobalExitRootV2Factory, {
             constructorArgs: [rollupManager.address, bridge.address],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
@@ -47,7 +47,7 @@ describe('Polygon Global exit root v2', () => {
 
         polygonZkEVMGlobalExitRootV2 = (await PolygonZkEVMGlobalExitRootV2Factory.attach(
             polygonZkEVMGlobalExitRoot.target,
-        )) as PolygonZkEVMGlobalExitRootV2;
+        )) as AgglayerGER;
     });
 
     it('should check the initialized parameters', async () => {
@@ -58,6 +58,7 @@ describe('Polygon Global exit root v2', () => {
 
         expect(await polygonZkEVMGlobalExitRootV2.lastRollupExitRoot()).to.be.equal(ethers.ZeroHash);
         expect(await polygonZkEVMGlobalExitRootV2.lastMainnetExitRoot()).to.be.equal(ethers.ZeroHash);
+        expect(await polygonZkEVMGlobalExitRootV2.version()).to.be.equal('v1.0.0');
     });
 
     it('should update root and check global exit root', async () => {

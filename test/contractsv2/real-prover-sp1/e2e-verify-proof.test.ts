@@ -4,15 +4,34 @@ import { ethers, upgrades } from 'hardhat';
 import {
     SP1VerifierPlonk,
     ERC20PermitMock,
-    PolygonRollupManagerMock,
-    PolygonZkEVMGlobalExitRootV2Mock,
-    PolygonZkEVMBridgeV2,
+    AgglayerManagerMock,
+    AgglayerGERMock,
+    AgglayerBridge,
     PolygonPessimisticConsensus,
+    PolygonZkEVMEtrog,
+    VerifierRollupHelperMock,
+    AggchainECDSAMultisig,
 } from '../../../typechain-types';
 
 import { VerifierType, computeInputPessimisticBytes, computeConsensusHashEcdsa } from '../../../src/pessimistic-utils';
 import inputProof from './test-inputs/input.json';
+import inputZkevmMigration from './test-inputs/input-zkevm-migration.json';
 import { encodeInitializeBytesLegacy } from '../../../src/utils-common-aggchain';
+import {
+    DEFAULT_ADMIN_ROLE,
+    ADD_ROLLUP_TYPE_ROLE,
+    OBSOLETE_ROLLUP_TYPE_ROLE,
+    CREATE_ROLLUP_ROLE,
+    ADD_EXISTING_ROLLUP_ROLE,
+    UPDATE_ROLLUP_ROLE,
+    TRUSTED_AGGREGATOR_ROLE,
+    TRUSTED_AGGREGATOR_ROLE_ADMIN,
+    TWEAK_PARAMETERS_ROLE,
+    SET_FEE_ROLE,
+    STOP_EMERGENCY_ROLE,
+    EMERGENCY_COUNCIL_ROLE,
+    EMERGENCY_COUNCIL_ADMIN,
+} from '../../../src/constants';
 
 describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
     let deployer: any;
@@ -23,11 +42,13 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
     let admin: any;
 
     let verifierContract: SP1VerifierPlonk;
-    let polygonZkEVMBridgeContract: PolygonZkEVMBridgeV2;
+    let mockVerifierContract: VerifierRollupHelperMock;
+    let polygonZkEVMBridgeContract: AgglayerBridge;
     let polTokenContract: ERC20PermitMock;
-    let polygonZkEVMGlobalExitRoot: PolygonZkEVMGlobalExitRootV2Mock;
-    let rollupManagerContract: PolygonRollupManagerMock;
+    let polygonZkEVMGlobalExitRoot: AgglayerGERMock;
+    let rollupManagerContract: AgglayerManagerMock;
     let PolygonPPConsensusContract: PolygonPessimisticConsensus;
+    let aggLayerGatewayContract: any;
 
     const polTokenName = 'POL Token';
     const polTokenSymbol = 'POL';
@@ -38,30 +59,15 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
 
     let firstDeployment = true;
 
-    // roles
-    const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
-    const ADD_ROLLUP_TYPE_ROLE = ethers.id('ADD_ROLLUP_TYPE_ROLE');
-    const OBSOLETE_ROLLUP_TYPE_ROLE = ethers.id('OBSOLETE_ROLLUP_TYPE_ROLE');
-    const CREATE_ROLLUP_ROLE = ethers.id('CREATE_ROLLUP_ROLE');
-    const ADD_EXISTING_ROLLUP_ROLE = ethers.id('ADD_EXISTING_ROLLUP_ROLE');
-    const UPDATE_ROLLUP_ROLE = ethers.id('UPDATE_ROLLUP_ROLE');
-    const TRUSTED_AGGREGATOR_ROLE = ethers.id('TRUSTED_AGGREGATOR_ROLE');
-    const TRUSTED_AGGREGATOR_ROLE_ADMIN = ethers.id('TRUSTED_AGGREGATOR_ROLE_ADMIN');
-    const TWEAK_PARAMETERS_ROLE = ethers.id('TWEAK_PARAMETERS_ROLE');
-    const SET_FEE_ROLE = ethers.id('SET_FEE_ROLE');
-    const STOP_EMERGENCY_ROLE = ethers.id('STOP_EMERGENCY_ROLE');
-    const EMERGENCY_COUNCIL_ROLE = ethers.id('EMERGENCY_COUNCIL_ROLE');
-    const EMERGENCY_COUNCIL_ADMIN = ethers.id('EMERGENCY_COUNCIL_ADMIN');
-
     beforeEach('Deploy contract', async () => {
         upgrades.silenceWarnings();
 
         // load signers
         [deployer, trustedAggregator, admin, timelock, emergencyCouncil] = await ethers.getSigners();
         trustedSequencer = inputProof.signer;
-        // deploy mock verifier
-        const VerifierRollupHelperFactory = await ethers.getContractFactory('SP1VerifierPlonk');
-        verifierContract = await VerifierRollupHelperFactory.deploy();
+        // deploy SP1 verifier
+        const SP1VerifierFactory = await ethers.getContractFactory('SP1VerifierPlonk');
+        verifierContract = await SP1VerifierFactory.deploy();
 
         // deploy pol
         const polTokenFactory = await ethers.getContractFactory('ERC20PermitMock');
@@ -82,12 +88,26 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
             firstDeployment = false;
         }
 
-        // deploy AggLayerGateway
-        const AggLayerGatewayFactory = await ethers.getContractFactory('AggLayerGateway');
-        const aggLayerGatewayContract = await upgrades.deployProxy(AggLayerGatewayFactory, [], {
+        // deploy AgglayerGateway
+        const AgglayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway');
+        aggLayerGatewayContract = await upgrades.deployProxy(AgglayerGatewayFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor'],
         });
+
+        // Initialize AgglayerGateway with selector and vkey from input-zkevm-migration.json
+        await aggLayerGatewayContract.initialize(
+            admin.address, // defaultAdmin
+            admin.address, // aggchainVKey role
+            admin.address, // addPPRoute role
+            admin.address, // freezePPRoute role
+            inputZkevmMigration.selector, // ppVKeySelector
+            verifierContract.target, // verifier
+            inputZkevmMigration.vkey, // ppVKey
+            admin.address, // multisigRole
+            [], // signersToAdd (empty)
+            0, // newThreshold
+        );
 
         const nonceProxyBridge =
             Number(await ethers.provider.getTransactionCount(deployer.address)) + (firstDeployment ? 3 : 2);
@@ -105,21 +125,21 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
         firstDeployment = false;
 
         // deploy globalExitRoot
-        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2Mock');
-        polygonZkEVMGlobalExitRoot = await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
+        const PolygonZkEVMGlobalExitRootFactory = await ethers.getContractFactory('AgglayerGERMock');
+        polygonZkEVMGlobalExitRoot = (await upgrades.deployProxy(PolygonZkEVMGlobalExitRootFactory, [], {
             constructorArgs: [precalculateRollupManagerAddress, precalculateBridgeAddress],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
-        });
+        })) as unknown as AgglayerGERMock;
 
         // deploy PolygonZkEVMBridge
-        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
-        polygonZkEVMBridgeContract = await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
+        const polygonZkEVMBridgeFactory = await ethers.getContractFactory('AgglayerBridge');
+        polygonZkEVMBridgeContract = (await upgrades.deployProxy(polygonZkEVMBridgeFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        });
+        })) as unknown as AgglayerBridge;
 
         // deploy polygon rollup manager mock
-        const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManagerMock');
+        const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManagerMock');
 
         rollupManagerContract = (await upgrades.deployProxy(PolygonRollupManagerFactory, [], {
             initializer: false,
@@ -130,7 +150,7 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
                 aggLayerGatewayContract.target,
             ],
             unsafeAllow: ['constructor', 'state-variable-immutable'],
-        })) as unknown as PolygonRollupManagerMock;
+        })) as unknown as AgglayerManagerMock;
 
         await rollupManagerContract.waitForDeployment();
 
@@ -138,10 +158,10 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
         expect(precalculateBridgeAddress).to.be.equal(polygonZkEVMBridgeContract.target);
         expect(precalculateRollupManagerAddress).to.be.equal(rollupManagerContract.target);
 
-        await polygonZkEVMBridgeContract.initialize(
+        await polygonZkEVMBridgeContract['initialize(uint32,address,uint32,address,address,bytes)'](
             networkIDMainnet,
-            ethers.ZeroAddress, // zero for ether
-            ethers.ZeroAddress, // zero for ether
+            ethers.ZeroAddress, // Gas token address
+            ethers.ZeroAddress, // Gas token network
             polygonZkEVMGlobalExitRoot.target,
             rollupManagerContract.target,
             '0x',
@@ -161,7 +181,7 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
         await polTokenContract.transfer(trustedSequencer, ethers.parseEther('1000'));
     });
 
-    it('should check the initalized parameters', async () => {
+    it('should check the initialized parameters', async () => {
         expect(await rollupManagerContract.globalExitRootManager()).to.be.equal(polygonZkEVMGlobalExitRoot.target);
         expect(await rollupManagerContract.pol()).to.be.equal(polTokenContract.target);
         expect(await rollupManagerContract.bridgeAddress()).to.be.equal(polygonZkEVMBridgeContract.target);
@@ -337,5 +357,195 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
         ];
 
         expect(expectedRollupData).to.be.deep.equal(resRollupData);
+    });
+
+    it('should create rollup type zkevm etrog & migrate to ECDSA Multisig no bridges sequenced', async () => {
+        // deploy mock verifier for zkEVM rollups
+        const VerifierRollupHelperFactory = await ethers.getContractFactory('VerifierRollupHelperMock');
+        mockVerifierContract = await VerifierRollupHelperFactory.deploy();
+
+        // Validate upgrade for ECDSA Multisig
+        const PolygonZKEVMEtrogFactory = await ethers.getContractFactory('PolygonZkEVMEtrog');
+        const aggchainECDSAMultisigFactory = await ethers.getContractFactory('AggchainECDSAMultisig');
+
+        // Create constants
+        const FORCE_BATCH_TIMEOUT = 60 * 60 * 24 * 5; // 5 days
+
+        // Create etrog state transition chain
+        const urlSequencer = 'http://zkevm-json-rpc:8123';
+        const chainID = 1000;
+        const networkName = 'zkevm';
+        const forkID = 0;
+        const genesisRandom = '0x0000000000000000000000000000000000000000000000000000000000000001';
+        const rollupVerifierType = 0;
+        const description = 'zkevm test';
+        const programVKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+        const gasTokenAddress = '0x0000000000000000000000000000000000000000';
+
+        // Create zkEVM implementation
+        const PolygonZKEVMEtrogContract = await PolygonZKEVMEtrogFactory.deploy(
+            polygonZkEVMGlobalExitRoot.target,
+            polTokenContract.target,
+            polygonZkEVMBridgeContract.target,
+            rollupManagerContract.target,
+        );
+        await PolygonZKEVMEtrogContract.waitForDeployment();
+
+        // Create ECDSA Multisig rollup type for migration target
+        const aggchainECDSAMultisigContract = await aggchainECDSAMultisigFactory.deploy(
+            polygonZkEVMGlobalExitRoot.target,
+            polTokenContract.target,
+            polygonZkEVMBridgeContract.target,
+            rollupManagerContract.target,
+            aggLayerGatewayContract.target,
+        );
+
+        const rollupTypeIDECDSAMultisig = 1;
+        await rollupManagerContract.connect(timelock).addNewRollupType(
+            aggchainECDSAMultisigContract.target,
+            ethers.ZeroAddress, // verifier - not used for ECDSA
+            0, // forkID
+            VerifierType.ALGateway,
+            ethers.ZeroHash, // genesis
+            description,
+            ethers.ZeroHash, // programVKey
+        );
+
+        // Create new rollup type zkevm etrog
+        const newRollupTypeID = 2;
+        await expect(
+            rollupManagerContract.connect(timelock).addNewRollupType(
+                PolygonZKEVMEtrogContract.target,
+                mockVerifierContract.target, // Use mock verifier for zkEVM
+                forkID,
+                rollupVerifierType,
+                genesisRandom,
+                description,
+                programVKey,
+            ),
+        )
+            .to.emit(rollupManagerContract, 'AddNewRollupType')
+            .withArgs(
+                newRollupTypeID,
+                PolygonZKEVMEtrogContract.target,
+                mockVerifierContract.target,
+                forkID,
+                rollupVerifierType,
+                genesisRandom,
+                description,
+                programVKey,
+            );
+
+        // Create etrog rollup
+        const newCreatedRollupID = 1;
+        const newSequencedBatch = 1;
+        const initializeBytesLegacy = encodeInitializeBytesLegacy(
+            admin.address,
+            inputZkevmMigration.signer,
+            gasTokenAddress,
+            urlSequencer,
+            networkName,
+        );
+        const rollupAddress = ethers.getCreateAddress({
+            from: rollupManagerContract.target as string,
+            nonce: 1,
+        });
+        const zkevmContract = PolygonZKEVMEtrogFactory.attach(rollupAddress) as PolygonZkEVMEtrog;
+
+        await expect(
+            rollupManagerContract.connect(admin).attachAggchainToAL(newRollupTypeID, chainID, initializeBytesLegacy),
+        )
+            .to.emit(rollupManagerContract, 'CreateNewRollup')
+            .withArgs(newCreatedRollupID, newRollupTypeID, rollupAddress, chainID, gasTokenAddress)
+            .to.emit(zkevmContract, 'InitialSequenceBatches')
+            .to.emit(rollupManagerContract, 'OnSequenceBatches')
+            .withArgs(newCreatedRollupID, newSequencedBatch);
+
+        // Assert new rollup created
+        expect(await zkevmContract.admin()).to.be.equal(admin.address);
+        expect(await zkevmContract.trustedSequencer()).to.be.equal(ethers.getAddress(inputZkevmMigration.signer));
+        expect(await zkevmContract.trustedSequencerURL()).to.be.equal(urlSequencer);
+        expect(await zkevmContract.networkName()).to.be.equal(networkName);
+        expect(await zkevmContract.forceBatchTimeout()).to.be.equal(FORCE_BATCH_TIMEOUT);
+
+        // Verify the initial batch (required for migration)
+        const pendingState = 0;
+        const newLocalExitRoot = ethers.ZeroHash; // No bridge activity, so exit root is zero
+        const currentVerifiedBatch = 0;
+        const newVerifiedBatch = newSequencedBatch; // Verify batch 1 (the initial batch)
+        const zkProofFFlonk = new Array(24).fill(ethers.ZeroHash);
+        const newStateRoot = ethers.ZeroHash; // Simple state root for initial batch
+
+        await rollupManagerContract
+            .connect(trustedAggregator)
+            .verifyBatchesTrustedAggregator(
+                newCreatedRollupID,
+                pendingState,
+                currentVerifiedBatch,
+                newVerifiedBatch,
+                newLocalExitRoot,
+                newStateRoot,
+                trustedAggregator.address,
+                zkProofFFlonk,
+            );
+
+        // Migrate to ECDSA Multisig using initMigration
+        const upgradeData = aggchainECDSAMultisigFactory.interface.encodeFunctionData('migrateFromLegacyConsensus()');
+
+        await expect(
+            rollupManagerContract
+                .connect(timelock)
+                .initMigration(newCreatedRollupID, rollupTypeIDECDSAMultisig, upgradeData),
+        )
+            .to.emit(rollupManagerContract, 'InitMigration')
+            .withArgs(newCreatedRollupID, rollupTypeIDECDSAMultisig)
+            .to.emit(rollupManagerContract, 'UpdateRollup')
+            .withArgs(newCreatedRollupID, rollupTypeIDECDSAMultisig, newVerifiedBatch);
+
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(true);
+
+        // Access the contract as ECDSA Multisig after migration
+        const ecdsaMultisigContract = aggchainECDSAMultisigFactory.attach(rollupAddress) as AggchainECDSAMultisig;
+
+        // Verify migration completed successfully for ECDSA Multisig
+        // For ECDSA Multisig, verification is simpler - just verify the migration completed
+        const currentDepositCount = await polygonZkEVMGlobalExitRoot.depositCount();
+        const l1InfoTreeLeafCount = Number(currentDepositCount) + 1;
+        const newLER = ethers.ZeroHash; // For ECDSA multisig with no bridges
+        const newPPRoot = inputZkevmMigration.pp_inputs.new_pessimistic_root;
+        const proofPP = inputZkevmMigration.proof;
+        const l1InfoRoot = inputZkevmMigration.pp_inputs.l1_info_root;
+
+        // Mock selected GER for the migration
+        await polygonZkEVMGlobalExitRoot.injectGER(l1InfoRoot, l1InfoTreeLeafCount);
+
+        // Finalize the migration with verifyPessimisticTrustedAggregator (no bridges)
+        await expect(
+            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
+                newCreatedRollupID,
+                l1InfoTreeLeafCount,
+                newLER,
+                newPPRoot,
+                proofPP,
+                '0x', // aggchainData is empty for ECDSA multisig
+            ),
+        )
+            .to.emit(rollupManagerContract, 'CompletedMigration')
+            .withArgs(newCreatedRollupID)
+            .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
+            .withArgs(newCreatedRollupID, 0, ethers.ZeroHash, newLER, trustedAggregator.address);
+
+        expect(await rollupManagerContract.isRollupMigrating(newCreatedRollupID)).to.be.equal(false);
+
+        // Verify ECDSA Multisig specific properties after migration
+        expect(await ecdsaMultisigContract.aggchainManager()).to.be.equal(admin.address);
+        expect(await ecdsaMultisigContract.threshold()).to.be.equal(1);
+
+        // Verify trustedSequencer was added as signer with threshold 1
+        const signers = await ecdsaMultisigContract.getAggchainSigners();
+        expect(signers.length).to.be.equal(1);
+        expect(signers[0].toLowerCase()).to.be.equal(inputZkevmMigration.signer);
+        expect(await ecdsaMultisigContract.isSigner(inputZkevmMigration.signer)).to.be.equal(true);
     });
 });

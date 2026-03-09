@@ -10,14 +10,14 @@ import { ethers, hardhatArguments } from 'hardhat';
 // internal dependencies
 import { MemDB, ZkEVMDB, getPoseidon, smtUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import updateVanillaGenesis from '../../deployment/v2/utils/updateVanillaGenesis';
-import { PolygonRollupManager, PolygonZkEVMBridgeV2 } from '../../typechain-types';
+import { AgglayerManager, AgglayerBridge } from '../../typechain-types';
 import '../../deployment/helpers/utils';
 import { initializeTimelockStorage } from '../../src/genesis/genesis-helpers';
 import { checkParams, getGitInfo } from '../../src/utils';
 import { logger } from '../../src/logger';
 import { formatGenesis } from './helpers';
 import { checkBridgeAddress } from '../utils';
-import { GENESIS_CONTRACT_NAMES } from '../../src/utils-common-aggchain';
+import { GENESIS_CONTRACT_NAMES } from '../../src/constants';
 // read files
 import genesisBase from './genesis-base.json';
 import createGenesisSovereignParams from './create-genesis-sovereign-params.json';
@@ -43,13 +43,13 @@ async function main() {
         'gasTokenAddress',
         'sovereignWETHAddress',
         'sovereignWETHAddressIsNotMintable',
-        'globalExitRootUpdater',
         'globalExitRootRemover',
         'emergencyBridgePauser',
         'emergencyBridgeUnpauser',
         'proxiedTokensManager',
         'setPreMintAccounts',
         'setTimelockParameters',
+        'useAggOracleCommittee',
     ];
 
     // check global parameters
@@ -76,8 +76,65 @@ async function main() {
         });
     }
 
-    // check timelock parameters
+    if (createGenesisSovereignParams.useAggOracleCommittee === true) {
+        if (
+            createGenesisSovereignParams.aggOracleCommittee === undefined ||
+            createGenesisSovereignParams.aggOracleCommittee === ''
+        ) {
+            logger.error('useAggOracleCommittee is set to true but missing parameter aggOracleCommittee');
+            process.exit(1);
+        }
+        if (
+            createGenesisSovereignParams.globalExitRootUpdater !== undefined &&
+            createGenesisSovereignParams.globalExitRootUpdater !== '' &&
+            createGenesisSovereignParams.globalExitRootUpdater !== ethers.ZeroAddress
+        ) {
+            logger.error('globalExitRootUpdater should not be set if using aggOracleCommittee');
+            process.exit(1);
+        }
+
+        // Check all aggOracleCommittee parameters
+        const nullifierAddress = {} as any;
+
+        createGenesisSovereignParams.aggOracleCommittee.forEach((aggOracleCommittee) => {
+            if (ethers.isAddress(aggOracleCommittee) === false) {
+                logger.error(`aggOracleCommittees ${aggOracleCommittee}: not a valid address`);
+                process.exit(1);
+            } else {
+                // check if address is not duplicated
+                if (nullifierAddress[aggOracleCommittee] !== undefined) {
+                    logger.error(`aggOracleCommittees ${aggOracleCommittee}: duplicated address`);
+                    process.exit(1);
+                } else {
+                    nullifierAddress[aggOracleCommittee] = true;
+                }
+            }
+        });
+
+        if (createGenesisSovereignParams.quorum === undefined || createGenesisSovereignParams.quorum < 1) {
+            logger.error('quorum must exist and be bigger than 0');
+            process.exit(1);
+        }
+
+        if (createGenesisSovereignParams.quorum > createGenesisSovereignParams.aggOracleCommittee.length) {
+            logger.error(
+                `quorum must be smaller or equal than the number of aggOracleCommittee members (${createGenesisSovereignParams.aggOracleCommittee.length})`,
+            );
+            process.exit(1);
+        }
+        if (!ethers.isAddress(createGenesisSovereignParams.aggOracleOwner)) {
+            logger.error('aggOracleOwner must be set');
+            process.exit(1);
+        }
+    } else {
+        if (!ethers.isAddress(createGenesisSovereignParams.globalExitRootUpdater)) {
+            logger.error('globalExitRootUpdater must be set, even if it is zero address');
+            process.exit(1);
+        }
+    }
+
     if (createGenesisSovereignParams.setTimelockParameters === true) {
+        // check timelock parameters
         if (
             createGenesisSovereignParams.timelockParameters === undefined ||
             createGenesisSovereignParams.timelockParameters === ''
@@ -97,10 +154,10 @@ async function main() {
     logger.info('Check SovereignBridge requirements for its correct initialization');
 
     // Load Rollup manager
-    const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager');
+    const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager');
     const rollupManagerContract = PolygonRollupManagerFactory.attach(
         createGenesisSovereignParams.rollupManagerAddress,
-    ) as PolygonRollupManager;
+    ) as AgglayerManager;
 
     // Checks like in bridge contract
     if (
@@ -133,9 +190,9 @@ async function main() {
     let gasTokenMetadata;
 
     // Get bridge instance
-    const bridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+    const bridgeFactory = await ethers.getContractFactory('AgglayerBridge');
     const bridgeContractAddress = await rollupManagerContract.bridgeAddress();
-    const rollupBridgeContract = bridgeFactory.attach(bridgeContractAddress) as PolygonZkEVMBridgeV2;
+    const rollupBridgeContract = bridgeFactory.attach(bridgeContractAddress) as AgglayerBridge;
 
     // check bridge address is the same in genesisBase and on-chain
     checkBridgeAddress(genesisBase, bridgeContractAddress);
@@ -194,6 +251,10 @@ async function main() {
         emergencyBridgePauser: createGenesisSovereignParams.emergencyBridgePauser,
         emergencyBridgeUnpauser: createGenesisSovereignParams.emergencyBridgeUnpauser,
         proxiedTokensManager: createGenesisSovereignParams.proxiedTokensManager,
+        useAggOracleCommittee: createGenesisSovereignParams.useAggOracleCommittee,
+        aggOracleCommittee: createGenesisSovereignParams.aggOracleCommittee,
+        quorum: createGenesisSovereignParams.quorum,
+        aggOracleOwner: createGenesisSovereignParams.aggOracleOwner,
     };
 
     logger.info('Update genesis-base to the SovereignContracts');

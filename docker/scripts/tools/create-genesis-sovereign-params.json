@@ -1,0 +1,28 @@
+{
+    "rollupManagerAddress": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+    "rollupID": 1,
+    "chainID": 1001,
+    "gasTokenAddress": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+    "bridgeManager": "0xC7899Ff6A3aC2FF59261bD960A8C880DF06E1041",
+    "sovereignWETHAddress": "0x0000000000000000000000000000000000000000",
+    "sovereignWETHAddressIsNotMintable": false,
+    "globalExitRootUpdater": "0xB55B27Cca633A73108893985350bc26B8A00C43a",
+    "globalExitRootRemover": "0xB55B27Cca633A73108893985350bc26B8A00C43a",
+    "emergencyBridgePauser": "0xB55B27Cca633A73108893985350bc26B8A00C43a",
+    "emergencyBridgeUnpauser": "0xB55B27Cca633A73108893985350bc26B8A00C43a",
+    "proxiedTokensManager": "0xB55B27Cca633A73108893985350bc26B8A00C43a",
+    "setPreMintAccounts": true,
+    "preMintAccounts": [
+        {
+            "balance": "1000000000000000000",
+            "address": "0xB55B27Cca633A73108893985350bc26B8A00C43a"
+        }
+    ],
+    "setTimelockParameters": true,
+    "timelockParameters": {
+        "adminAddress": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+        "minDelay": 3600
+    },
+    "useAggOracleCommittee": false,
+    "formatGenesis": "geth"
+}

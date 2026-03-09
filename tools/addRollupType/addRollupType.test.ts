@@ -5,7 +5,7 @@ import path = require('path');
 import * as dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 import { time, reset, setBalance, mine } from '@nomicfoundation/hardhat-network-helpers';
-import { PolygonRollupManager, PolygonZkEVMTimelock } from '../../typechain-types';
+import { AgglayerManager, PolygonZkEVMTimelock } from '../../typechain-types';
 
 import { logger } from '../../src/logger';
 
@@ -57,8 +57,8 @@ describe('Should shallow fork network, add rollup type', () => {
         logger.info(`✓ Funded proposer account ${proposerRoleAddress}`);
 
         // Get contract
-        const rollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager');
-        const rollupManagerContract = rollupManagerFactory.attach(polygonRollupManagerAddress) as PolygonRollupManager;
+        const rollupManagerFactory = await ethers.getContractFactory('AgglayerManager');
+        const rollupManagerContract = rollupManagerFactory.attach(polygonRollupManagerAddress) as AgglayerManager;
 
         // Bridge prev params
         const rollupTypeCount = await rollupManagerContract.rollupTypeCount();

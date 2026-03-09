@@ -1,5 +1,5 @@
 # Update rollup
-Script to deploy call `updateRollup` function in the `PolygonRollupManager.sol` smart contract.
+Script to deploy call `updateRollup` function in the `AgglayerManager.sol` smart contract.
 
 ## Install
 ```
@@ -13,7 +13,7 @@ npm i
         - `EOA`: If creating the rollup from a wallet, the script will execute the creation of the rollup on the specified network
         - `Multisig`: If creating the rollup from a multisig, the script will output the calldata of the transaction to execute for creating the rollup
         - `Timelock`: If creating the rollup through a timelock, the script will output the execute and schedule data to send to the timelock contract
-  - `polygonRollupManagerAddress`: `PolygonRollupManager.sol` SC address
+  - `polygonRollupManagerAddress`: `AgglayerManager.sol` SC address
   - `timelockDelay (optional)`: at least it should be the minimum delay of the timelock smart contract
   - `deployerPvtKey`: private key deployer
     - First option will load `deployerPvtKey`. Otherwise, `process.env.MNEMONIC` will be loaded from the `.env` file

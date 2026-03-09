@@ -1,5 +1,5 @@
-# Add Pessimistic VKey Route (AggLayerGateway)
-Script to call `addPessimisticVKeyRoute` function (`AggLayerGateway` contract).
+# Add Pessimistic VKey Route (AgglayerGateway)
+Script to call `addPessimisticVKeyRoute` function (`AgglayerGateway` contract).
 
 ## Setup
 - install packages
@@ -25,7 +25,7 @@ cp ./tools/aggLayerGatewayTools/addPessimisticVKeyRoute/parameters.json.example 
         - `Multisig`: If creating the rollup from a multisig, the script will output the calldata of the transaction to execute for creating the rollup
         - `Timelock`: If creating the rollup through a timelock, the script will output the execute and schedule data to send to the timelock contract
     - `deployerPvtKey`: Not mandatory, used to send tx
-    - `aggLayerGatewayAddress`: Address AggLayerGateway contract
+    - `aggLayerGatewayAddress`: Address AgglayerGateway contract
     - `pessimisticVKeySelector`: The 4 bytes selector to add to the pessimistic verification keys
     - `verifier`: The address of the verifier contract
     - `pessimisticVKey`: New pessimistic program verification key

@@ -1,5 +1,5 @@
-# Unset Default Aggchain VKey (AggLayerGateway)
-Script to call `unsetDefaultAggchainVKey` function (`AggLayerGateway` contract).
+# Unset Default Aggchain VKey (AgglayerGateway)
+Script to call `unsetDefaultAggchainVKey` function (`AgglayerGateway` contract).
 
 ## Setup
 - install packages
@@ -25,7 +25,7 @@ cp ./tools/aggLayerGatewayTools/unsetDefaultAggchainVKey/parameters.json.example
         - `Multisig`: If creating the rollup from a multisig, the script will output the calldata of the transaction to execute for creating the rollup
         - `Timelock`: If creating the rollup through a timelock, the script will output the execute and schedule data to send to the timelock contract
     - `deployerPvtKey`: Not mandatory, used to send tx
-    - `aggLayerGatewayAddress`: Address AggLayerGateway contract
+    - `aggLayerGatewayAddress`: Address AgglayerGateway contract
     - `defaultAggchainSelector`: The 4 bytes selector to add to the default aggchain verification keys
     - `timelockDelay(optional)`: timelock delay
     - `timelockSalt(optional)`: timelock salt

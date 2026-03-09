@@ -1,0 +1,38 @@
+{
+    "type":"EOA",
+    "trustedSequencerURL": "http://zkevm-json-rpc:1111",
+    "networkName": "zkevm2",
+    "trustedSequencer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "chainID": 12,
+    "rollupAdminAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "consensusContractName": "AggchainFEP",
+    "gasTokenAddress": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": "",
+    "timelockDelay": 0,
+    "timelockSalt": "",
+    "rollupManagerAddress": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+    "aggchainParams": {
+        "aggchainManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+            "initParams": {
+                "l2BlockTime": 1,
+                "rollupConfigHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "startingOutputRoot": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "startingBlockNumber": 100,
+                "startingTimestamp": 7000000,
+                "submissionInterval": 5,
+                "optimisticModeManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+                "aggregationVkey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "rangeVkeyCommitment": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+        "useDefaultVkeys": false,
+        "useDefaultSigners": false,
+        "signers": [],
+        "threshold": 0,
+        "initOwnedAggchainVKey": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        "initAggchainVKeySelector": "0x12340001",
+        "vKeyManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    }
+}

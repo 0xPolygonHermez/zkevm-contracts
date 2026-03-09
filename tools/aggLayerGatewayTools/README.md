@@ -1,17 +1,17 @@
 # Tools list
 
 ## Add Default Aggchain VKey
-Script to call `addDefaultAggchainVKey` function (`AggLayerGateway` contract).
+Script to call `addDefaultAggchainVKey` function (`AgglayerGateway` contract).
 > Function to add an aggchain verification key
 
 ## Update Default Aggchain VKey
-Script to call `updateDefaultAggchainVKey` function (`AggLayerGateway` contract).
+Script to call `updateDefaultAggchainVKey` function (`AgglayerGateway` contract).
 > Function to update a default aggchain verification key from the mapping
 
 ## Add Pessimitic VKey Route
-Script to call `addPessimisticVKeyRoute` function (`AggLayerGateway` contract).
+Script to call `addPessimisticVKeyRoute` function (`AgglayerGateway` contract).
 > Function to add a pessimistic verification key route
 
 ## Freeze Pessimistic VKey Route
-Script to call `freezePessimisticVKeyRoute` function (`AggLayerGateway` contract).
+Script to call `freezePessimisticVKeyRoute` function (`AgglayerGateway` contract).
 > Function to freeze a pessimistic verification key route

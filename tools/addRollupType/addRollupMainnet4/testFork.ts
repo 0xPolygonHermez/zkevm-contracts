@@ -6,7 +6,7 @@ import path = require('path');
 import * as dotenv from 'dotenv';
 import { ethers } from 'hardhat';
 import { time, reset, setBalance } from '@nomicfoundation/hardhat-network-helpers';
-import { PolygonRollupManager, PolygonZkEVMTimelock } from '../../../typechain-types';
+import { AgglayerManager, PolygonZkEVMTimelock } from '../../../typechain-types';
 
 import deployOutputParameters from './deploy_output_mainnet.json';
 import updateOutput from './updateRollupOutput.json';
@@ -30,10 +30,10 @@ async function main() {
     const multisigSigner = await ethers.getSigner(timelockMultisig as any);
     await setBalance(timelockMultisig, 100n ** 18n);
 
-    const RollupMangerFactory = await ethers.getContractFactory('PolygonRollupManager');
+    const RollupMangerFactory = await ethers.getContractFactory('AgglayerManager');
     const rollupManager = (await RollupMangerFactory.attach(
         deployOutputParameters.polygonZkEVMAddress,
-    )) as PolygonRollupManager;
+    )) as AgglayerManager;
 
     // Set emergency state:
     const emergencyMultisig = '0x37c58Dfa7BF0A165C5AAEdDf3e2EdB475ac6Dcb6';

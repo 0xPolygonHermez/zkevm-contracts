@@ -1,56 +1,56 @@
 # ERC20InvalidMetadata
-[Git Source](https://github.com/agglayer/agglayer-contracts/blob/112a010b7c8b14335e5fe1a9bffc11bd2459df05/contracts/mocks/ERC20InvalidMetadata.sol)
+[Git Source](https://github.com/agglayer/agglayer-contracts/blob/c0e111af46ac2964bd5177034698d7e5e691f362/contracts/mocks/ERC20InvalidMetadata.sol)
 
-*Implementation of the ERC20 with weird metadata.*
+Implementation of the ERC20 with weird metadata.
 
 
 ## State Variables
 ### _balances
 
 ```solidity
-mapping(address => uint256) private _balances;
+mapping(address => uint256) private _balances
 ```
 
 
 ### _allowances
 
 ```solidity
-mapping(address => mapping(address => uint256)) private _allowances;
+mapping(address => mapping(address => uint256)) private _allowances
 ```
 
 
 ### _totalSupply
 
 ```solidity
-uint256 private _totalSupply;
+uint256 private _totalSupply
 ```
 
 
 ### _name
 
 ```solidity
-bytes32 internal _name;
+bytes32 internal _name
 ```
 
 
 ### _symbol
 
 ```solidity
-bytes internal _symbol;
+bytes internal _symbol
 ```
 
 
 ### _decimals
 
 ```solidity
-uint256 internal _decimals;
+uint256 internal _decimals
 ```
 
 
 ### isRevert
 
 ```solidity
-bool public isRevert;
+bool public isRevert
 ```
 
 
@@ -59,7 +59,7 @@ bool public isRevert;
 
 
 ```solidity
-constructor(bytes32 name_, bytes memory symbol_, uint256 decimals_);
+constructor(bytes32 name_, bytes memory symbol_, uint256 decimals_) ;
 ```
 
 ### setDecimals
@@ -106,7 +106,7 @@ function mint(address account, uint256 amount) public;
 
 ### totalSupply
 
-*See [IERC20-totalSupply](/contracts/mocks/ERC20WeirdMetadata.sol/contract.ERC20WeirdMetadata.md#totalsupply).*
+See [IERC20-totalSupply](/node_modules/@openzeppelin/contracts-upgradeable5/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md#totalsupply).
 
 
 ```solidity
@@ -115,7 +115,7 @@ function totalSupply() public view virtual returns (uint256);
 
 ### balanceOf
 
-*See [IERC20-balanceOf](/contracts/mocks/ERC20WeirdMetadata.sol/contract.ERC20WeirdMetadata.md#balanceof).*
+See [IERC20-balanceOf](/node_modules/@openzeppelin/contracts-upgradeable5/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md#balanceof).
 
 
 ```solidity
@@ -124,10 +124,10 @@ function balanceOf(address account) public view virtual returns (uint256);
 
 ### transfer
 
-*See [IERC20-transfer](/contracts/mocks/ERC20WeirdMetadata.sol/contract.ERC20WeirdMetadata.md#transfer).
+See [IERC20-transfer](/node_modules/@openzeppelin/contracts-upgradeable5/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md#transfer).
 Requirements:
 - `to` cannot be the zero address.
-- the caller must have a balance of at least `amount`.*
+- the caller must have a balance of at least `amount`.
 
 
 ```solidity
@@ -136,7 +136,7 @@ function transfer(address to, uint256 amount) public virtual returns (bool);
 
 ### allowance
 
-*See [IERC20-allowance](/contracts/mocks/ERC20WeirdMetadata.sol/contract.ERC20WeirdMetadata.md#allowance).*
+See [IERC20-allowance](/node_modules/@openzeppelin/contracts-upgradeable5/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md#allowance).
 
 
 ```solidity
@@ -145,11 +145,11 @@ function allowance(address owner, address spender) public view virtual returns (
 
 ### approve
 
-*See [IERC20-approve](/contracts/mocks/ERC20WeirdMetadata.sol/contract.ERC20WeirdMetadata.md#approve).
+See [IERC20-approve](/node_modules/@openzeppelin/contracts-upgradeable5/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md#approve).
 NOTE: If `amount` is the maximum `uint256`, the allowance is not updated on
 `transferFrom`. This is semantically equivalent to an infinite approval.
 Requirements:
-- `spender` cannot be the zero address.*
+- `spender` cannot be the zero address.
 
 
 ```solidity
@@ -158,8 +158,8 @@ function approve(address spender, uint256 amount) public virtual returns (bool);
 
 ### transferFrom
 
-*See [IERC20-transferFrom](/contracts/mocks/ERC20WeirdMetadata.sol/contract.ERC20WeirdMetadata.md#transferfrom).
-Emits an {Approval} event indicating the updated allowance. This is not
+See [IERC20-transferFrom](/node_modules/@openzeppelin/contracts-upgradeable5/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md#transferfrom).
+Emits an [Approval](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#approval) event indicating the updated allowance. This is not
 required by the EIP. See the note at the beginning of {ERC20}.
 NOTE: Does not update the allowance if the current allowance
 is the maximum `uint256`.
@@ -167,7 +167,7 @@ Requirements:
 - `from` and `to` cannot be the zero address.
 - `from` must have a balance of at least `amount`.
 - the caller must have allowance for ``from``'s tokens of at least
-`amount`.*
+`amount`.
 
 
 ```solidity
@@ -176,12 +176,12 @@ function transferFrom(address from, address to, uint256 amount) public virtual r
 
 ### increaseAllowance
 
-*Atomically increases the allowance granted to `spender` by the caller.
+Atomically increases the allowance granted to `spender` by the caller.
 This is an alternative to [approve](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#approve) that can be used as a mitigation for
-problems described in {IERC20-approve}.
-Emits an {Approval} event indicating the updated allowance.
+problems described in [IERC20-approve](/node_modules/@openzeppelin/contracts-upgradeable5/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md#approve).
+Emits an [Approval](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#approval) event indicating the updated allowance.
 Requirements:
-- `spender` cannot be the zero address.*
+- `spender` cannot be the zero address.
 
 
 ```solidity
@@ -190,14 +190,14 @@ function increaseAllowance(address spender, uint256 addedValue) public virtual r
 
 ### decreaseAllowance
 
-*Atomically decreases the allowance granted to `spender` by the caller.
+Atomically decreases the allowance granted to `spender` by the caller.
 This is an alternative to [approve](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#approve) that can be used as a mitigation for
-problems described in {IERC20-approve}.
-Emits an {Approval} event indicating the updated allowance.
+problems described in [IERC20-approve](/node_modules/@openzeppelin/contracts-upgradeable5/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md#approve).
+Emits an [Approval](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#approval) event indicating the updated allowance.
 Requirements:
 - `spender` cannot be the zero address.
 - `spender` must have allowance for the caller of at least
-`subtractedValue`.*
+`subtractedValue`.
 
 
 ```solidity
@@ -206,14 +206,14 @@ function decreaseAllowance(address spender, uint256 subtractedValue) public virt
 
 ### _transfer
 
-*Moves `amount` of tokens from `from` to `to`.
+Moves `amount` of tokens from `from` to `to`.
 This internal function is equivalent to [transfer](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#transfer), and can be used to
 e.g. implement automatic token fees, slashing mechanisms, etc.
-Emits a {Transfer} event.
+Emits a [Transfer](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#transfer) event.
 Requirements:
 - `from` cannot be the zero address.
 - `to` cannot be the zero address.
-- `from` must have a balance of at least `amount`.*
+- `from` must have a balance of at least `amount`.
 
 
 ```solidity
@@ -222,11 +222,11 @@ function _transfer(address from, address to, uint256 amount) internal virtual;
 
 ### _mint
 
-*Creates `amount` tokens and assigns them to `account`, increasing
+Creates `amount` tokens and assigns them to `account`, increasing
 the total supply.
 Emits a [Transfer](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#transfer) event with `from` set to the zero address.
 Requirements:
-- `account` cannot be the zero address.*
+- `account` cannot be the zero address.
 
 
 ```solidity
@@ -235,12 +235,12 @@ function _mint(address account, uint256 amount) internal virtual;
 
 ### _burn
 
-*Destroys `amount` tokens from `account`, reducing the
+Destroys `amount` tokens from `account`, reducing the
 total supply.
 Emits a [Transfer](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#transfer) event with `to` set to the zero address.
 Requirements:
 - `account` cannot be the zero address.
-- `account` must have at least `amount` tokens.*
+- `account` must have at least `amount` tokens.
 
 
 ```solidity
@@ -249,13 +249,13 @@ function _burn(address account, uint256 amount) internal virtual;
 
 ### _approve
 
-*Sets `amount` as the allowance of `spender` over the `owner` s tokens.
+Sets `amount` as the allowance of `spender` over the `owner` s tokens.
 This internal function is equivalent to `approve`, and can be used to
 e.g. set automatic allowances for certain subsystems, etc.
 Emits an [Approval](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#approval) event.
 Requirements:
 - `owner` cannot be the zero address.
-- `spender` cannot be the zero address.*
+- `spender` cannot be the zero address.
 
 
 ```solidity
@@ -264,10 +264,10 @@ function _approve(address owner, address spender, uint256 amount) internal virtu
 
 ### _spendAllowance
 
-*Updates `owner` s allowance for `spender` based on spent `amount`.
+Updates `owner` s allowance for `spender` based on spent `amount`.
 Does not update the allowance amount in case of infinite allowance.
 Revert if not enough allowance is available.
-Might emit an [Approval](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#approval) event.*
+Might emit an [Approval](/contracts/mocks/ERC20InvalidMetadata.sol/contract.ERC20InvalidMetadata.md#approval) event.
 
 
 ```solidity
@@ -276,7 +276,7 @@ function _spendAllowance(address owner, address spender, uint256 amount) interna
 
 ### _beforeTokenTransfer
 
-*Hook that is called before any transfer of tokens. This includes
+Hook that is called before any transfer of tokens. This includes
 minting and burning.
 Calling conditions:
 - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
@@ -284,7 +284,7 @@ will be transferred to `to`.
 - when `from` is zero, `amount` tokens will be minted for `to`.
 - when `to` is zero, `amount` of ``from``'s tokens will be burned.
 - `from` and `to` are never both zero.
-To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].*
+To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
 
 
 ```solidity
@@ -293,7 +293,7 @@ function _beforeTokenTransfer(address from, address to, uint256 amount) internal
 
 ### _afterTokenTransfer
 
-*Hook that is called after any transfer of tokens. This includes
+Hook that is called after any transfer of tokens. This includes
 minting and burning.
 Calling conditions:
 - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
@@ -301,7 +301,7 @@ has been transferred to `to`.
 - when `from` is zero, `amount` tokens have been minted for `to`.
 - when `to` is zero, `amount` of ``from``'s tokens have been burned.
 - `from` and `to` are never both zero.
-To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].*
+To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
 
 
 ```solidity

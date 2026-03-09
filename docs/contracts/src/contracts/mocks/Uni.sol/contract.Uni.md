@@ -1,5 +1,5 @@
 # Uni
-[Git Source](https://github.com/agglayer/agglayer-contracts/blob/112a010b7c8b14335e5fe1a9bffc11bd2459df05/contracts/mocks/Uni.sol)
+[Git Source](https://github.com/agglayer/agglayer-contracts/blob/c0e111af46ac2964bd5177034698d7e5e691f362/contracts/mocks/Uni.sol)
 
 
 ## State Variables
@@ -8,7 +8,7 @@ EIP-20 token name for this token
 
 
 ```solidity
-string public constant name = "Uniswap";
+string public constant name = "Uniswap"
 ```
 
 
@@ -17,7 +17,7 @@ EIP-20 token symbol for this token
 
 
 ```solidity
-string public constant symbol = "UNI";
+string public constant symbol = "UNI"
 ```
 
 
@@ -26,7 +26,7 @@ EIP-20 token decimals for this token
 
 
 ```solidity
-uint8 public constant decimals = 18;
+uint8 public constant decimals = 18
 ```
 
 
@@ -35,7 +35,7 @@ Total number of tokens in circulation
 
 
 ```solidity
-uint256 public totalSupply = 1_000_000_000e18;
+uint256 public totalSupply = 1_000_000_000e18
 ```
 
 
@@ -44,7 +44,7 @@ Address which may mint new tokens
 
 
 ```solidity
-address public minter;
+address public minter
 ```
 
 
@@ -53,7 +53,7 @@ The timestamp after which minting may occur
 
 
 ```solidity
-uint256 public mintingAllowedAfter;
+uint256 public mintingAllowedAfter
 ```
 
 
@@ -62,7 +62,7 @@ Minimum time between mints
 
 
 ```solidity
-uint32 public constant minimumTimeBetweenMints = 1 days * 365;
+uint32 public constant minimumTimeBetweenMints = 1 days * 365
 ```
 
 
@@ -71,7 +71,7 @@ Cap on the percentage of totalSupply that can be minted at each mint
 
 
 ```solidity
-uint8 public constant mintCap = 2;
+uint8 public constant mintCap = 2
 ```
 
 
@@ -80,7 +80,7 @@ Allowance amounts on behalf of others
 
 
 ```solidity
-mapping(address => mapping(address => uint96)) internal allowances;
+mapping(address => mapping(address => uint96)) internal allowances
 ```
 
 
@@ -89,7 +89,7 @@ Official record of token balances for each account
 
 
 ```solidity
-mapping(address => uint96) internal balances;
+mapping(address => uint96) internal balances
 ```
 
 
@@ -98,7 +98,7 @@ A record of each accounts delegate
 
 
 ```solidity
-mapping(address => address) public delegates;
+mapping(address => address) public delegates
 ```
 
 
@@ -107,7 +107,7 @@ A record of votes checkpoints for each account, by index
 
 
 ```solidity
-mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
+mapping(address => mapping(uint32 => Checkpoint)) public checkpoints
 ```
 
 
@@ -116,7 +116,7 @@ The number of checkpoints for each account
 
 
 ```solidity
-mapping(address => uint32) public numCheckpoints;
+mapping(address => uint32) public numCheckpoints
 ```
 
 
@@ -126,7 +126,7 @@ The EIP-712 typehash for the contract's domain
 
 ```solidity
 bytes32 public constant DOMAIN_TYPEHASH =
-    keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)")
 ```
 
 
@@ -135,7 +135,8 @@ The EIP-712 typehash for the delegation struct used by the contract
 
 
 ```solidity
-bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
+bytes32 public constant DELEGATION_TYPEHASH =
+    keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)")
 ```
 
 
@@ -145,7 +146,7 @@ The EIP-712 typehash for the permit struct used by the contract
 
 ```solidity
 bytes32 public constant PERMIT_TYPEHASH =
-    keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
 ```
 
 
@@ -154,7 +155,7 @@ A record of states for signing / validating signatures
 
 
 ```solidity
-mapping(address => uint256) public nonces;
+mapping(address => uint256) public nonces
 ```
 
 
@@ -233,8 +234,8 @@ function allowance(address account, address spender) external view returns (uint
 
 Approve `spender` to transfer up to `amount` from `src`
 
-*This will overwrite the approval amount for `spender`
-and is subject to issues noted [here](https://eips.ethereum.org/EIPS/eip-20#approve)*
+This will overwrite the approval amount for `spender`
+and is subject to issues noted [here](https://eips.ethereum.org/EIPS/eip-20#approve)
 
 
 ```solidity
@@ -402,7 +403,7 @@ function getCurrentVotes(address account) external view returns (uint96);
 
 Determine the prior number of votes for an account as of a block number
 
-*Block number must be a finalized block or else this function will revert to prevent misinformation.*
+Block number must be a finalized block or else this function will revert to prevent misinformation.
 
 
 ```solidity

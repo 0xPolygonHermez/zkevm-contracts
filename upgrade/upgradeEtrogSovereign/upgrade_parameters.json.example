@@ -1,0 +1,19 @@
+{
+    "unsafeMode": false,
+    "bridgeL2Address": "0x..",
+    "bridge_initParams": {
+        "bridgeManager": "0x..",
+        "proxiedTokensManagerAddress": "0x..",
+        "emergencyBridgePauserAddress": "0x..",
+        "emergencyBridgeUnpauserAddress": "0x.."
+    },
+    "ger_initParams": {
+        "globalExitRootUpdater": "0x..",
+        "globalExitRootRemover": "0x.."
+    },
+    "pathTokensJson": "",
+    "forkParams": {
+        "rpc": "rpc url",
+        "timelockAdminAddress": "0x.."
+    }
+}

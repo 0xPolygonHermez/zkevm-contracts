@@ -1,15 +1,17 @@
 import path = require('path');
 import fs = require('fs');
 
+import { ethers } from 'hardhat';
 import params from './parameters.json';
-import { AggLayerGateway } from '../../../typechain-types';
+import { AgglayerGateway } from '../../../typechain-types';
+import { DEFAULT_ADMIN_ROLE, AGGCHAIN_DEFAULT_VKEY_ROLE } from '../../../src/constants';
 import { transactionTypes, genOperation } from '../../utils';
 import { decodeScheduleData } from '../../../upgrade/utils';
 import { logger } from '../../../src/logger';
 import { checkParams } from '../../../src/utils';
 
 async function main() {
-    logger.info('Starting tool to update default vkey to AggLayerGateway contract');
+    logger.info('Starting tool to update default vkey to AgglayerGateway contract');
 
     /// //////////////////////////
     ///        CONSTANTS      ///
@@ -19,9 +21,6 @@ async function main() {
     const destPath = params.outputPath
         ? path.join(__dirname, params.outputPath)
         : path.join(__dirname, `update_default_vkey_output_${params.type}_${dateStr}.json`);
-
-    const AGGCHAIN_DEFAULT_VKEY_ROLE = ethers.id('AGGCHAIN_DEFAULT_VKEY_ROLE');
-    const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
 
     /// //////////////////////////
     ///   CHECK TOOL PARAMS   ///
@@ -103,11 +102,11 @@ async function main() {
     logger.info(`Using with: ${deployer.address}`);
 
     // --network <input>
-    logger.info('Load AggLayerGateway contract');
-    const AggLayerGatewayFactory = await ethers.getContractFactory('AggLayerGateway', deployer);
-    const aggLayerGateway = (await AggLayerGatewayFactory.attach(aggLayerGatewayAddress)) as AggLayerGateway;
+    logger.info('Load AgglayerGateway contract');
+    const AgglayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway', deployer);
+    const aggLayerGateway = (await AgglayerGatewayFactory.attach(aggLayerGatewayAddress)) as AgglayerGateway;
 
-    logger.info(`AggLayerGateway address: ${aggLayerGateway.target}`);
+    logger.info(`AgglayerGateway address: ${aggLayerGateway.target}`);
 
     if (type === transactionTypes.TIMELOCK) {
         logger.info('Creating timelock tx to update default vkey...');
@@ -117,7 +116,7 @@ async function main() {
         const operation = genOperation(
             aggLayerGatewayAddress,
             0, // value
-            AggLayerGatewayFactory.interface.encodeFunctionData('updateDefaultAggchainVKey', [
+            AgglayerGatewayFactory.interface.encodeFunctionData('updateDefaultAggchainVKey', [
                 defaultAggchainSelector,
                 newDefaultAggchainVKey,
             ]),
@@ -146,10 +145,10 @@ async function main() {
         outputJson.scheduleData = scheduleData;
         outputJson.executeData = executeData;
         // Decode the scheduleData for better readability
-        outputJson.decodedScheduleData = await decodeScheduleData(scheduleData, AggLayerGatewayFactory);
+        outputJson.decodedScheduleData = await decodeScheduleData(scheduleData, AgglayerGatewayFactory);
     } else if (type === transactionTypes.MULTISIG) {
         logger.info('Creating calldata to update default vkey from multisig...');
-        const txUpdateDefaultAggchainVKey = AggLayerGatewayFactory.interface.encodeFunctionData(
+        const txUpdateDefaultAggchainVKey = AgglayerGatewayFactory.interface.encodeFunctionData(
             'updateDefaultAggchainVKey',
             [defaultAggchainSelector, newDefaultAggchainVKey],
         );

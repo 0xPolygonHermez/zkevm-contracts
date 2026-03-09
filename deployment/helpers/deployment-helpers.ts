@@ -141,6 +141,10 @@ export async function getAddressInfo(address: string | Addressable) {
     const ADMIN_SLOT = '0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103' as any;
     const IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc' as any;
 
+    // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
+    // bytes32 private constant INITIALIZABLE_STORAGE = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
+    const INITIALIZABLE_STORAGE = '0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00' as any;
+
     const nonce = await ethers.provider.getTransactionCount(address);
     const bytecode = await ethers.provider.getCode(address);
 
@@ -162,6 +166,11 @@ export async function getAddressInfo(address: string | Addressable) {
     const valueImplementationSlot = await ethers.provider.getStorage(address, IMPLEMENTATION_SLOT);
     if (valueImplementationSlot !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
         storage[IMPLEMENTATION_SLOT] = valueImplementationSlot;
+    }
+
+    const valueInitializableStorage = await ethers.provider.getStorage(address, INITIALIZABLE_STORAGE);
+    if (valueInitializableStorage !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        storage[INITIALIZABLE_STORAGE] = valueInitializableStorage;
     }
 
     return { nonce, bytecode, storage };

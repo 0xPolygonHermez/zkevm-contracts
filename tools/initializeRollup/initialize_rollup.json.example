@@ -26,7 +26,19 @@
             "aggregationVkey": "0x1111111111111111111111111111111111111111111111111111111111111111",
             "rangeVkeyCommitment": "0x1111111111111111111111111111111111111111111111111111111111111111"
         },
-        "useDefaultGateway": true,
+        "useDefaultVkeys": false,
+        "useDefaultSigners": false,
+        "signers": [
+            {
+                "addr": "0x...",
+                "url": "https://example.com/signer1"
+            },
+            {
+                "addr": "0x...",
+                "url": "https://example.com/signer2"
+            }
+        ],
+        "threshold": 1,
         "initOwnedAggchainVKey": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         "initAggchainVKeySelector": "0x12340001",
         "vKeyManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"

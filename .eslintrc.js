@@ -42,6 +42,6 @@ module.exports = {
         'import/extensions': 'off',
         '@typescript-eslint/no-unused-vars': ['error'],
         '@typescript-eslint/explicit-function-return-type': 'off',
-        '@typescript-eslint/no-explicit-any': 'warn',
+        '@typescript-eslint/no-explicit-any': 'off',
     },
 };

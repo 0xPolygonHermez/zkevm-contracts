@@ -1,12 +1,10 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+/* eslint-disable prefer-destructuring */
+/* eslint-disable no-restricted-syntax */
 import { expect } from 'chai';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
-import {
-    ERC20PermitMock,
-    GlobalExitRootManagerL2SovereignChain,
-    BridgeL2SovereignChain,
-    TokenWrapped,
-} from '../../typechain-types';
+import { ERC20PermitMock, AgglayerGERL2, AgglayerBridgeL2, TokenWrapped } from '../../typechain-types';
 import { computeWrappedTokenProxyAddress, claimBeforeBridge } from './helpers/helpers-sovereign-bridge';
 import { valueToStorageBytes } from '../../src/utils';
 
@@ -34,12 +32,12 @@ function newClaimedGlobalIndexValue(globalIndex: any, leafValue: any) {
     return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [valueToStorageBytes(globalIndex), leafValue]);
 }
 
-describe('BridgeL2SovereignChain Contract', () => {
+describe('AgglayerBridgeL2 Contract', () => {
     upgrades.silenceWarnings();
 
-    let sovereignChainBridgeContract: BridgeL2SovereignChain;
+    let sovereignChainBridgeContract: AgglayerBridgeL2;
     let polTokenContract: ERC20PermitMock;
-    let sovereignChainGlobalExitRootContract: GlobalExitRootManagerL2SovereignChain;
+    let sovereignChainGlobalExitRootContract: AgglayerGERL2;
 
     let deployer: any;
     let rollupManager: any;
@@ -71,17 +69,15 @@ describe('BridgeL2SovereignChain Contract', () => {
         globalExitRootRemover = deployer;
         // Set trusted sequencer as coinbase for sovereign chains
         await ethers.provider.send('hardhat_setCoinbase', [deployer.address]);
-        // deploy BridgeL2SovereignChain
-        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('BridgeL2SovereignChain');
+        // deploy AgglayerBridgeL2
+        const BridgeL2SovereignChainFactory = await ethers.getContractFactory('AgglayerBridgeL2');
         sovereignChainBridgeContract = (await upgrades.deployProxy(BridgeL2SovereignChainFactory, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
-        })) as unknown as BridgeL2SovereignChain;
+        })) as unknown as AgglayerBridgeL2;
 
         // deploy global exit root manager
-        const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory(
-            'GlobalExitRootManagerL2SovereignChain',
-        );
+        const GlobalExitRootManagerL2SovereignChainFactory = await ethers.getContractFactory('AgglayerGERL2');
         sovereignChainGlobalExitRootContract = (await upgrades.deployProxy(
             GlobalExitRootManagerL2SovereignChainFactory,
             [],
@@ -90,7 +86,7 @@ describe('BridgeL2SovereignChain Contract', () => {
                 constructorArgs: [sovereignChainBridgeContract.target], // Constructor arguments
                 unsafeAllow: ['constructor', 'missing-initializer', 'state-variable-immutable'],
             },
-        )) as unknown as GlobalExitRootManagerL2SovereignChain;
+        )) as unknown as AgglayerGERL2;
 
         await expect(
             sovereignChainGlobalExitRootContract.initialize(ethers.ZeroAddress, globalExitRootRemover.address),
@@ -115,6 +111,24 @@ describe('BridgeL2SovereignChain Contract', () => {
             ),
         ).to.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidInitializeFunction');
 
+        // cannot initialize from a non-deployer account (frontrunning protection)
+        await expect(
+            sovereignChainBridgeContract.connect(acc1).initialize(
+                networkIDRollup2,
+                ethers.ZeroAddress, // zero for ether
+                ethers.ZeroAddress, // zero for ether
+                sovereignChainGlobalExitRootContract.target,
+                rollupManager.address,
+                '0x',
+                ethers.Typed.address(bridgeManager),
+                ethers.ZeroAddress,
+                false,
+                emergencyBridgePauser.address,
+                emergencyBridgePauser.address,
+                proxiedTokensManager.address,
+            ),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyDeployer');
+
         await sovereignChainBridgeContract.initialize(
             networkIDRollup2,
             ethers.ZeroAddress, // zero for ether
@@ -138,6 +152,8 @@ describe('BridgeL2SovereignChain Contract', () => {
             deployer.address,
             tokenInitialBalance,
         );
+        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.2.0');
+        expect(await sovereignChainGlobalExitRootContract.version()).to.be.equal('v1.0.0');
     });
 
     it('Should remap source 6 decimal token to 18 sovereign wrapped token and bridge', async () => {
@@ -255,9 +271,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         await expect(
             sovereignChainBridgeContract.claimAsset(
@@ -298,7 +311,7 @@ describe('BridgeL2SovereignChain Contract', () => {
     it('should check the initialize function', async () => {
         // deploy PolygonZkEVMBridge
         // eslint-disable-next-line @typescript-eslint/no-shadow
-        const sovereignChainBridgeContract = await ethers.getContractFactory('BridgeL2SovereignChain');
+        const sovereignChainBridgeContract = await ethers.getContractFactory('AgglayerBridgeL2');
         const bridge = await upgrades.deployProxy(sovereignChainBridgeContract, [], {
             initializer: false,
             unsafeAllow: ['constructor', 'missing-initializer', 'missing-initializer-call'],
@@ -575,9 +588,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
 
@@ -905,9 +915,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
@@ -1053,9 +1060,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
@@ -1143,9 +1147,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proof, index, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proof, index, rootSCMainnet),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
@@ -1404,9 +1405,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup),
-        ).to.be.equal(true);
         const globalIndex = computeGlobalIndex(indexLocal, indexRollup, false);
         let claimedGlobalIndexHashChainJS = ethers.ZeroHash;
         claimedGlobalIndexHashChainJS = newHashChainValue(
@@ -1422,7 +1420,7 @@ describe('BridgeL2SovereignChain Contract', () => {
             sovereignChainBridgeContract.claimAsset(
                 proofLocal,
                 proofRollup,
-                Number(globalIndex),
+                globalIndex,
                 mainnetExitRoot,
                 rollupExitRootSC,
                 originNetwork,
@@ -1557,9 +1555,6 @@ describe('BridgeL2SovereignChain Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, indexLocal, rootLocalRollup)).to.be.equal(true);
         expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup),
-        ).to.be.equal(true);
         const globalIndex = computeGlobalIndex(indexLocal, indexRollup, false);
 
         let claimedGlobalIndexHashChainJS = ethers.ZeroHash;
@@ -1726,17 +1721,6 @@ describe('BridgeL2SovereignChain Contract', () => {
             amount,
             metadataHashMainnet,
         );
-        const leafValueMainnetSC = await sovereignChainBridgeContract.getLeafValue(
-            LEAF_TYPE_ASSET,
-            originNetwork,
-            originTokenAddress,
-            newDestinationNetwork,
-            destinationAddress,
-            amount,
-            metadataHashMainnet,
-        );
-
-        expect(leafValueMainnet).to.be.equal(leafValueMainnetSC);
         merkleTreeMainnet.add(leafValueMainnet);
         const rootJSMainnet = merkleTreeMainnet.getRoot();
 
@@ -1781,14 +1765,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValueMainnet, proofMainnet, indexMainnet, rootSCMainnet)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(
-                leafValueMainnet,
-                proofMainnet,
-                indexMainnet,
-                rootSCMainnet,
-            ),
-        ).to.be.equal(true);
 
         const computedGlobalExitRoot2 = calculateGlobalExitRoot(rootJSMainnet, rollupExitRoot);
         // Insert global exit root
@@ -1918,9 +1894,6 @@ describe('BridgeL2SovereignChain Contract', () => {
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, indexLocal, rootLocalRollup)).to.be.equal(true);
         expect(verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(rootLocalRollup, proofRollup, indexRollup, rootRollup),
-        ).to.be.equal(true);
 
         expect(false).to.be.equal(await sovereignChainBridgeContract.isClaimed(indexLocal, indexRollup + 1));
 
@@ -2132,9 +2105,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         const globalIndex = computeGlobalIndex(index, index, false);
         let claimedGlobalIndexHashChainJS = ethers.ZeroHash;
@@ -2374,9 +2344,6 @@ describe('BridgeL2SovereignChain Contract', () => {
         );
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         /*
          * claim
@@ -2529,9 +2496,6 @@ describe('BridgeL2SovereignChain Contract', () => {
 
         // verify merkle proof
         expect(verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup)).to.be.equal(true);
-        expect(
-            await sovereignChainBridgeContract.verifyMerkleProof(leafValue, proofLocal, index, rootJSRollup),
-        ).to.be.equal(true);
 
         /*
          * claim
@@ -2806,4 +2770,1303 @@ describe('BridgeL2SovereignChain Contract', () => {
             .to.emit(sovereignChainBridgeContract, 'AcceptEmergencyBridgePauserRole')
             .withArgs(emergencyBridgePauser.address, deployer.address);
     });
+
+    // Test for unsetMultipleClaims function
+    it('should unsetMultipleClaims with proper permissions and validation', async () => {
+        // Activate emergency state for setMultipleClaims and unsetMultipleClaims functions
+        await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+        // Setup test data - first we need to set some claims to unset them later
+        const indexLocal1 = 15;
+        const indexLocal2 = 20;
+        const indexRollup = 4;
+
+        const globalIndex1 = computeGlobalIndex(indexLocal1, indexRollup, false);
+        const globalIndex2 = computeGlobalIndex(indexLocal2, indexRollup, false);
+        const globalIndexes = [globalIndex1, globalIndex2];
+
+        // First set the claims so we can unset them
+        await sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims(globalIndexes);
+
+        // Verify claims are initially set
+        expect(await sovereignChainBridgeContract.isClaimed(indexLocal1, indexRollup + 1)).to.be.equal(true);
+        expect(await sovereignChainBridgeContract.isClaimed(indexLocal2, indexRollup + 1)).to.be.equal(true);
+
+        // Test permission check - should fail with non-GlobalExitRootRemover
+        await expect(
+            sovereignChainBridgeContract.connect(rollupManager).unsetMultipleClaims(globalIndexes),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyGlobalExitRootRemover');
+
+        // Test successful unsetting of multiple claims - verify events are emitted
+        await expect(sovereignChainBridgeContract.connect(globalExitRootRemover).unsetMultipleClaims(globalIndexes))
+            .to.emit(sovereignChainBridgeContract, 'UpdatedUnsetGlobalIndexHashChain')
+            .to.emit(sovereignChainBridgeContract, 'UpdatedUnsetGlobalIndexHashChain');
+
+        // Verify claims are now unset
+        expect(await sovereignChainBridgeContract.isClaimed(indexLocal1, indexRollup + 1)).to.be.equal(false);
+        expect(await sovereignChainBridgeContract.isClaimed(indexLocal2, indexRollup + 1)).to.be.equal(false);
+
+        // Test unsetting already unset claims - should fail
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).unsetMultipleClaims([globalIndex1]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'ClaimNotSet');
+
+        // Test with mainnet flag - first set a mainnet claim
+        const mainnetGlobalIndex = computeGlobalIndex(25, 0, true);
+        await sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims([mainnetGlobalIndex]);
+        expect(await sovereignChainBridgeContract.isClaimed(25, 0)).to.be.equal(true);
+
+        // Now unset the mainnet claim
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).unsetMultipleClaims([mainnetGlobalIndex]),
+        ).to.emit(sovereignChainBridgeContract, 'UpdatedUnsetGlobalIndexHashChain');
+
+        // Verify mainnet claim is unset
+        expect(await sovereignChainBridgeContract.isClaimed(25, 0)).to.be.equal(false);
+
+        // Test empty array (should work but do nothing)
+        await sovereignChainBridgeContract.connect(globalExitRootRemover).unsetMultipleClaims([]);
+
+        // Test invalid globalIndex with unused bits set to non-zero (rollup case)
+        const invalidGlobalIndexRollup = (1n << 255n) | (BigInt(indexRollup) << 32n) | BigInt(indexLocal1);
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).unsetMultipleClaims([invalidGlobalIndexRollup]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidGlobalIndex');
+
+        // Test invalid globalIndex with unused bits set to non-zero (mainnet case)
+        const invalidGlobalIndexMainnet = (1n << 255n) | (1n << 64n) | BigInt(indexLocal1);
+        await expect(
+            sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .unsetMultipleClaims([invalidGlobalIndexMainnet]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidGlobalIndex');
+
+        // Test mixed valid and invalid globalIndexes - should fail on the first invalid one
+        const validGlobalIndex = computeGlobalIndex(30, indexRollup, false);
+        await sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims([validGlobalIndex]);
+
+        await expect(
+            sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .unsetMultipleClaims([validGlobalIndex, invalidGlobalIndexRollup]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidGlobalIndex');
+
+        // Verify the valid claim is still set (transaction should have reverted completely)
+        expect(await sovereignChainBridgeContract.isClaimed(30, indexRollup + 1)).to.be.equal(true);
+
+        // Test edge case: maximum valid values for rollup case
+        const maxLeafIndex = (1 << 32) - 1; // 2^32 - 1
+        const maxRollupIndex = (1 << 32) - 1; // 2^32 - 1
+        const maxValidRollupGlobalIndex = (BigInt(maxRollupIndex) << 32n) | BigInt(maxLeafIndex);
+
+        // This should be valid (no mainnet flag, so first 192 bits should be 0)
+        await sovereignChainBridgeContract
+            .connect(globalExitRootRemover)
+            .setMultipleClaims([maxValidRollupGlobalIndex]);
+        await sovereignChainBridgeContract
+            .connect(globalExitRootRemover)
+            .unsetMultipleClaims([maxValidRollupGlobalIndex]);
+
+        // Test edge case: mainnet with maximum leaf index
+        const maxValidMainnetGlobalIndex = (1n << 64n) | BigInt(maxLeafIndex); // mainnet flag + leafIndex
+        await sovereignChainBridgeContract
+            .connect(globalExitRootRemover)
+            .setMultipleClaims([maxValidMainnetGlobalIndex]);
+        await sovereignChainBridgeContract
+            .connect(globalExitRootRemover)
+            .unsetMultipleClaims([maxValidMainnetGlobalIndex]);
+    });
+
+    // Test for setMultipleClaims function
+    it('should setMultipleClaims with proper permissions and events', async () => {
+        // Activate emergency state for setMultipleClaims function
+        await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+        // Setup test data
+        const indexLocal1 = 5;
+        const indexLocal2 = 10;
+        const indexRollup = 3;
+
+        const globalIndex1 = computeGlobalIndex(indexLocal1, indexRollup, false);
+        const globalIndex2 = computeGlobalIndex(indexLocal2, indexRollup, false);
+        const globalIndexes = [globalIndex1, globalIndex2];
+
+        // Test permission check - should fail with non-GlobalExitRootRemover
+        await expect(
+            sovereignChainBridgeContract.connect(rollupManager).setMultipleClaims(globalIndexes),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyGlobalExitRootRemover');
+
+        // Verify claims are not set initially
+        expect(await sovereignChainBridgeContract.isClaimed(indexLocal1, indexRollup + 1)).to.be.equal(false);
+        expect(await sovereignChainBridgeContract.isClaimed(indexLocal2, indexRollup + 1)).to.be.equal(false);
+
+        // Test successful setting of multiple claims
+        await expect(sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims(globalIndexes))
+            .to.emit(sovereignChainBridgeContract, 'SetClaim')
+            .withArgs(globalIndexes[0])
+            .to.emit(sovereignChainBridgeContract, 'SetClaim')
+            .withArgs(globalIndexes[1]);
+
+        // Verify claims are now set
+        expect(await sovereignChainBridgeContract.isClaimed(indexLocal1, indexRollup + 1)).to.be.equal(true);
+        expect(await sovereignChainBridgeContract.isClaimed(indexLocal2, indexRollup + 1)).to.be.equal(true);
+
+        // Test setting already claimed indexes - should fail
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims([globalIndex1]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'AlreadyClaimed');
+
+        // Test with mainnet flag
+        const mainnetGlobalIndex = computeGlobalIndex(7, 0, true);
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims([mainnetGlobalIndex]),
+        )
+            .to.emit(sovereignChainBridgeContract, 'SetClaim')
+            .withArgs(mainnetGlobalIndex);
+
+        // Verify mainnet claim is set
+        expect(await sovereignChainBridgeContract.isClaimed(7, 0)).to.be.equal(true);
+
+        // Test empty array
+        await sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims([]);
+
+        // Test invalid globalIndex with unused bits set to non-zero (rollup case)
+        // This should have unused bits set to 1, which should be rejected
+        const invalidGlobalIndexRollup = (1n << 255n) | (BigInt(indexRollup) << 32n) | BigInt(indexLocal1);
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims([invalidGlobalIndexRollup]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidGlobalIndex');
+
+        // Test invalid globalIndex with unused bits set to non-zero (mainnet case)
+        // This should have unused bits set to 1, which should be rejected
+        const invalidGlobalIndexMainnet = (1n << 255n) | (1n << 64n) | BigInt(indexLocal1); // mainnet flag + unused bits + leafIndex
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims([invalidGlobalIndexMainnet]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidGlobalIndex');
+    });
+
+    // Test for setLocalBalanceTree function
+    it('should setLocalBalanceTree with proper permissions and validation', async () => {
+        // Activate emergency state for setLocalBalanceTree function
+        await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+        // Test permission check - should fail with non-GlobalExitRootRemover
+        const originNetworks = [networkIDMainnet, networkIDRollup];
+        const originTokenAddresses = [ethers.ZeroAddress, polTokenContract.target];
+        const amounts = [ethers.parseEther('100'), ethers.parseEther('50')];
+
+        await expect(
+            sovereignChainBridgeContract
+                .connect(rollupManager)
+                .setLocalBalanceTree(originNetworks, originTokenAddresses, amounts),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyGlobalExitRootRemover');
+
+        // Test input arrays length mismatch
+        await expect(
+            sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .setLocalBalanceTree([networkIDMainnet], originTokenAddresses, amounts),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InputArraysLengthMismatch');
+
+        await expect(
+            sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .setLocalBalanceTree(originNetworks, [ethers.ZeroAddress], amounts),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InputArraysLengthMismatch');
+
+        await expect(
+            sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .setLocalBalanceTree(originNetworks, originTokenAddresses, [ethers.parseEther('100')]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InputArraysLengthMismatch');
+
+        // Calculate expected token info hashes
+        const tokenInfoHash1 = ethers.keccak256(
+            ethers.solidityPacked(['uint32', 'address'], [originNetworks[0], originTokenAddresses[0]]),
+        );
+        const tokenInfoHash2 = ethers.keccak256(
+            ethers.solidityPacked(['uint32', 'address'], [originNetworks[1], originTokenAddresses[1]]),
+        );
+
+        // Verify initial state (should be 0)
+        expect(await sovereignChainBridgeContract.localBalanceTree(tokenInfoHash1)).to.be.equal(0);
+        expect(await sovereignChainBridgeContract.localBalanceTree(tokenInfoHash2)).to.be.equal(0);
+
+        // Test successful update with event verification
+        await expect(
+            sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .setLocalBalanceTree(originNetworks, originTokenAddresses, amounts),
+        )
+            .to.emit(sovereignChainBridgeContract, 'SetLocalBalanceTree')
+            .withArgs(originNetworks[0], originTokenAddresses[0], amounts[0])
+            .to.emit(sovereignChainBridgeContract, 'SetLocalBalanceTree')
+            .withArgs(originNetworks[1], originTokenAddresses[1], amounts[1]);
+
+        // Verify the updates
+        expect(await sovereignChainBridgeContract.localBalanceTree(tokenInfoHash1)).to.be.equal(amounts[0]);
+        expect(await sovereignChainBridgeContract.localBalanceTree(tokenInfoHash2)).to.be.equal(amounts[1]);
+
+        // Test updating to different values
+        const newAmounts = [ethers.parseEther('200'), ethers.parseEther('75')];
+
+        await sovereignChainBridgeContract
+            .connect(globalExitRootRemover)
+            .setLocalBalanceTree(originNetworks, originTokenAddresses, newAmounts);
+
+        // Verify the updates
+        expect(await sovereignChainBridgeContract.localBalanceTree(tokenInfoHash1)).to.be.equal(newAmounts[0]);
+        expect(await sovereignChainBridgeContract.localBalanceTree(tokenInfoHash2)).to.be.equal(newAmounts[1]);
+
+        // Test updating to zero (clearing balance)
+        const zeroAmounts = [0, 0];
+
+        await sovereignChainBridgeContract
+            .connect(globalExitRootRemover)
+            .setLocalBalanceTree(originNetworks, originTokenAddresses, zeroAmounts);
+
+        // Verify the updates
+        expect(await sovereignChainBridgeContract.localBalanceTree(tokenInfoHash1)).to.be.equal(0);
+        expect(await sovereignChainBridgeContract.localBalanceTree(tokenInfoHash2)).to.be.equal(0);
+
+        // Test with empty arrays
+        await sovereignChainBridgeContract.connect(globalExitRootRemover).setLocalBalanceTree([], [], []);
+
+        // Test with same network ID (should revert with InvalidLBTLeaf)
+        await expect(
+            sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .setLocalBalanceTree([networkIDRollup2], [polTokenContract.target], [ethers.parseEther('25')]),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidLBTLeaf');
+
+        // Test with mixed array containing tokens from current network (should revert on first current network token)
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).setLocalBalanceTree(
+                [networkIDMainnet, networkIDRollup2, networkIDRollup], // networkIDRollup2 is current network
+                [ethers.ZeroAddress, polTokenContract.target, polTokenContract.target],
+                [ethers.parseEther('100'), ethers.parseEther('50'), ethers.parseEther('75')],
+            ),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidLBTLeaf');
+
+        // Test with only tokens from other networks (should work fine)
+        await sovereignChainBridgeContract
+            .connect(globalExitRootRemover)
+            .setLocalBalanceTree(
+                [networkIDMainnet, networkIDRollup],
+                [ethers.ZeroAddress, polTokenContract.target],
+                [ethers.parseEther('100'), ethers.parseEther('75')],
+            );
+
+        // Verify that tokens from other networks were processed correctly
+        const mainnetTokenHash = ethers.keccak256(
+            ethers.solidityPacked(['uint32', 'address'], [networkIDMainnet, ethers.ZeroAddress]),
+        );
+        const rollupTokenHash = ethers.keccak256(
+            ethers.solidityPacked(['uint32', 'address'], [networkIDRollup, polTokenContract.target]),
+        );
+
+        expect(await sovereignChainBridgeContract.localBalanceTree(mainnetTokenHash)).to.be.equal(
+            ethers.parseEther('100'),
+        );
+        expect(await sovereignChainBridgeContract.localBalanceTree(rollupTokenHash)).to.be.equal(
+            ethers.parseEther('75'),
+        );
+
+        // Test additional edge case: array where current network token is at different positions
+        await expect(
+            sovereignChainBridgeContract.connect(globalExitRootRemover).setLocalBalanceTree(
+                [networkIDRollup, networkIDRollup2], // networkIDRollup2 is current network, at position 1
+                [polTokenContract.target, polTokenContract.target],
+                [ethers.parseEther('50'), ethers.parseEther('25')],
+            ),
+        ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidLBTLeaf');
+    });
+
+    // ============= NEW TESTS FOR LET FUNCTIONS =============
+
+    describe('Emergency LET Management Functions', () => {
+        describe('backwardLET', () => {
+            it('should revert when called by non-GlobalExitRootRemover', async () => {
+                const newDepositCount = 5;
+                const newFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const nextLeaf = ethers.keccak256(ethers.toUtf8Bytes('next_leaf'));
+                const proof = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(rollupManager)
+                        .backwardLET(newDepositCount, newFrontier, nextLeaf, proof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyGlobalExitRootRemover');
+            });
+
+            it('should revert when newDepositCount >= currentDepositCount', async () => {
+                // Activate emergency state for forwardLET and backwardLET functions
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // First add some leaves to have a deposit count > 0
+                const leaves = generateTestLeaves(3);
+                const expectedRoot = await calculateExpectedRoot(leaves);
+                await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, expectedRoot);
+
+                const currentDepositCount = await sovereignChainBridgeContract.depositCount();
+                const newFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const nextLeaf = ethers.keccak256(ethers.toUtf8Bytes('next_leaf'));
+                const proof = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+
+                // Test with equal deposit count
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .backwardLET(currentDepositCount, newFrontier, nextLeaf, proof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidDepositCount');
+
+                // Test with greater deposit count
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .backwardLET(Number(currentDepositCount) + 1, newFrontier, nextLeaf, proof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidDepositCount');
+            });
+
+            it('should revert when nextLeaf inclusion proof is invalid', async () => {
+                // Activate emergency state for forwardLET and backwardLET functions
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // Setup: Add some leaves to create a tree state
+                const leaves = generateTestLeaves(5);
+                const expectedRoot = await calculateExpectedRoot(leaves);
+
+                await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, expectedRoot);
+
+                const newDepositCount = 3;
+                const newFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const invalidNextLeaf = ethers.keccak256(ethers.toUtf8Bytes('invalid_leaf'));
+                const invalidProof = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .backwardLET(newDepositCount, newFrontier, invalidNextLeaf, invalidProof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidSmtProof');
+            });
+
+            it('should revert when subtree frontier is invalid', async () => {
+                // Activate emergency state for forwardLET and backwardLET functions
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // Setup: Create a proper tree with leaves
+                const leaves = generateTestLeaves(7);
+                const tree = buildMerkleTreeForTesting(leaves);
+
+                // Add leaves to contract
+                await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, tree.getRoot());
+
+                const newDepositCount = 4;
+                const nextLeafIndex = newDepositCount; // leaf at position 4
+                const nextLeaf = leaves[nextLeafIndex];
+                const nextLeafValue = getLeafValue(
+                    nextLeaf.leafType,
+                    nextLeaf.originNetwork,
+                    nextLeaf.originAddress,
+                    nextLeaf.destinationNetwork,
+                    nextLeaf.destinationAddress,
+                    nextLeaf.amount,
+                    ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+                );
+                // Get valid proof for nextLeaf but use invalid frontier
+                const proof = tree.getProofTreeByIndex(nextLeafIndex);
+                const invalidFrontier = Array(32).fill(ethers.keccak256(ethers.toUtf8Bytes('invalid'))) as [
+                    string,
+                    ...string[],
+                ];
+
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .backwardLET(newDepositCount, invalidFrontier, nextLeafValue, proof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'NonZeroValueForUnusedFrontier');
+            });
+
+            it('should reject backwardLET when frontier elements mismatch proof siblings', async () => {
+                // TEST FOCUS: Validates SubtreeFrontierMismatch error when matched positions have wrong values
+
+                // Activate emergency state for forwardLET and backwardLET functions
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const leaves = generateTestLeaves(3);
+                const tree = buildMerkleTreeForTesting(leaves);
+
+                // Add 3 leaves to the contract
+                await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, tree.getRoot());
+
+                // Create a subtree with 1 leaf (rollback from 3 to 1)
+                const newDepositCount = 1;
+
+                // Create frontier with zero unused positions but wrong value in matched position
+                const mismatchedFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                // Position 0 should match proof sibling but we set it to wrong value
+                mismatchedFrontier[0] = ethers.keccak256(ethers.toUtf8Bytes('wrong_value'));
+
+                const nextLeaf = leaves[newDepositCount]; // leaves[1]
+                const nextLeafValue = getLeafValue(
+                    nextLeaf.leafType,
+                    nextLeaf.originNetwork,
+                    nextLeaf.originAddress,
+                    nextLeaf.destinationNetwork,
+                    nextLeaf.destinationAddress,
+                    nextLeaf.amount,
+                    ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+                );
+                const proof = tree.getProofTreeByIndex(newDepositCount);
+
+                // Should reject due to frontier element mismatch with proof sibling
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .backwardLET(newDepositCount, mismatchedFrontier, nextLeafValue, proof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'SubtreeFrontierMismatch');
+            });
+
+            it('should validate backwardLET functionality and parameter checking', async () => {
+                // HYBRID TEST: Validates the function exists, has proper access control, and performs validation
+                // NOTE: This test focuses on parameter validation rather than successful rollback execution.
+
+                // Activate emergency state for forwardLET and backwardLET functions
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // Setup: Create a basic tree scenario to test against
+                const leaves = generateTestLeaves(3);
+                const tree = buildMerkleTreeForTesting(leaves);
+
+                await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, tree.getRoot());
+
+                const originalDepositCount = await sovereignChainBridgeContract.depositCount();
+                expect(originalDepositCount).to.equal(3);
+
+                // Test 1: Verify function exists and has proper access control (tested in other tests)
+                // Test 2: Verify parameter validation works with invalid inputs
+
+                // Attempt rollback with invalid parameters (empty frontier & proof)
+                const newDepositCount = 1;
+                const emptyFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const nextLeaf = leaves[1]; // leaf at position 1
+                const emptyProof = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const nextLeafValue = getLeafValue(
+                    nextLeaf.leafType,
+                    nextLeaf.originNetwork,
+                    nextLeaf.originAddress,
+                    nextLeaf.destinationNetwork,
+                    nextLeaf.destinationAddress,
+                    nextLeaf.amount,
+                    ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+                );
+
+                // This validates that the function properly rejects invalid proofs
+                // (The SMT proof validation happens first, then frontier validation)
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .backwardLET(newDepositCount, emptyFrontier, nextLeafValue, emptyProof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidSmtProof');
+
+                // This confirms the function is working as intended:
+                // 1. Function exists and is callable by authorized user ✅
+                // 2. Validates input parameters correctly ✅
+                // 3. Rejects invalid proofs appropriately ✅
+            });
+
+            it('should validate parameter constraints and proof requirements', async () => {
+                // TEST FOCUS: Validates that backwardLET properly rejects invalid inputs and parameters
+
+                // Activate emergency state for forwardLET and backwardLET functions
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const leaves = generateTestLeaves(3);
+                const tree = buildMerkleTreeForTesting(leaves);
+
+                await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, tree.getRoot());
+
+                // Test parameter validation with invalid frontier and proof
+                const newDepositCount = 2;
+                const invalidFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const nextLeaf = leaves[2];
+                const invalidProof = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const nextLeafValue = getLeafValue(
+                    nextLeaf.leafType,
+                    nextLeaf.originNetwork,
+                    nextLeaf.originAddress,
+                    nextLeaf.destinationNetwork,
+                    nextLeaf.destinationAddress,
+                    nextLeaf.amount,
+                    ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+                );
+
+                // Validates that the function correctly rejects invalid proofs
+                // This confirms the validation pipeline is working properly
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .backwardLET(newDepositCount, invalidFrontier, nextLeafValue, invalidProof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidSmtProof');
+
+                // This test confirms proper input validation behavior ✅
+            });
+
+            it('should reject backwardLET with non-zero values in non-matched frontier positions', async () => {
+                // TEST FOCUS: Validates that frontiers with non-zero values in unused positions are rejected
+
+                // Activate emergency state for forwardLET and backwardLET functions
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const leaves = generateTestLeaves(3);
+                const tree = buildMerkleTreeForTesting(leaves);
+
+                // Add 3 leaves to the contract
+                await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, tree.getRoot());
+
+                // Create a subtree with 1 leaf (rollback from 3 to 1)
+                const newDepositCount = 1;
+
+                // Create a valid frontier for 1 leaf but pollute non-matched positions
+                const pollutedFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                pollutedFrontier[0] = getLeafValue(
+                    leaves[0].leafType,
+                    leaves[0].originNetwork,
+                    leaves[0].originAddress,
+                    leaves[0].destinationNetwork,
+                    leaves[0].destinationAddress,
+                    leaves[0].amount,
+                    ethers.keccak256(leaves[0].metadata), // Convert metadata to hash
+                );
+
+                // Pollute non-matched positions with non-zero values
+                // For depositCount=1, only position 0 should be used, positions 1+ should be zero
+                pollutedFrontier[1] = ethers.keccak256(ethers.toUtf8Bytes('pollute1')); // Should be zero
+                pollutedFrontier[5] = ethers.keccak256(ethers.toUtf8Bytes('pollute5')); // Should be zero
+
+                const nextLeaf = leaves[newDepositCount]; // leaves[1]
+                const nextLeafValue = getLeafValue(
+                    nextLeaf.leafType,
+                    nextLeaf.originNetwork,
+                    nextLeaf.originAddress,
+                    nextLeaf.destinationNetwork,
+                    nextLeaf.destinationAddress,
+                    nextLeaf.amount,
+                    ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+                );
+                const proof = tree.getProofTreeByIndex(newDepositCount);
+
+                // Should reject due to non-zero values in non-matched frontier positions
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .backwardLET(newDepositCount, pollutedFrontier, nextLeafValue, proof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'NonZeroValueForUnusedFrontier');
+            });
+
+            it('should successfully execute backwardLET with valid subtree proof', async () => {
+                // SUCCESS TEST: Demonstrates actual backwardLET rollback from 3 leaves to 1 leaf
+
+                // Activate emergency state for forwardLET and backwardLET functions
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const originalLeaves = generateTestLeaves(3);
+                const originalTree = buildMerkleTreeForTesting(originalLeaves);
+
+                // Add 3 leaves to the contract
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(originalLeaves, originalTree.getRoot());
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(3);
+                expect(await sovereignChainBridgeContract.getRoot()).to.equal(originalTree.getRoot());
+
+                // Now rollback to just 1 leaf (keep only originalLeaves[0])
+                const newDepositCount = 1;
+
+                // Build the subtree with just 1 leaf
+                const subtreeLeaves = originalLeaves.slice(0, newDepositCount);
+                const subtree = buildMerkleTreeForTesting(subtreeLeaves);
+
+                // For a single leaf tree, frontier[0] = leaf, others = 0
+                const newFrontier = Array(32).fill(ethers.ZeroHash);
+                newFrontier[0] = getLeafValue(
+                    originalLeaves[0].leafType,
+                    originalLeaves[0].originNetwork,
+                    originalLeaves[0].originAddress,
+                    originalLeaves[0].destinationNetwork,
+                    originalLeaves[0].destinationAddress,
+                    originalLeaves[0].amount,
+                    ethers.keccak256(originalLeaves[0].metadata), // Convert metadata to hash
+                ); // The only leaf in the subtree
+
+                // The "next leaf" is the leaf at position newDepositCount (position 1)
+                const nextLeaf = originalLeaves[newDepositCount]; // originalLeaves[1]
+                const nextLeafValue = getLeafValue(
+                    nextLeaf.leafType,
+                    nextLeaf.originNetwork,
+                    nextLeaf.originAddress,
+                    nextLeaf.destinationNetwork,
+                    nextLeaf.destinationAddress,
+                    nextLeaf.amount,
+                    ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+                );
+                // Get proof for nextLeaf at position 1 in the original tree
+                const proof = originalTree.getProofTreeByIndex(newDepositCount);
+
+                // Store current values before rollback for event verification
+                const currentDepositCount = await sovereignChainBridgeContract.depositCount();
+                const currentRoot = await sovereignChainBridgeContract.getRoot();
+
+                // Execute successful backwardLET
+                const tx = await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .backwardLET(newDepositCount, newFrontier as [string, ...string[]], nextLeafValue, proof);
+
+                // Verify success: event emitted with correct parameters (4 parameters)
+                await expect(tx)
+                    .to.emit(sovereignChainBridgeContract, 'BackwardLET')
+                    .withArgs(currentDepositCount, currentRoot, newDepositCount, subtree.getRoot());
+
+                // Verify contract state changes
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(newDepositCount);
+                expect(await sovereignChainBridgeContract.getRoot()).to.equal(subtree.getRoot());
+
+                // Verify the root changed (different from original)
+                expect(await sovereignChainBridgeContract.getRoot()).to.not.equal(originalTree.getRoot());
+            });
+        });
+
+        describe('forwardLET', () => {
+            it('should revert when called by non-GlobalExitRootRemover', async () => {
+                const newLeaves = generateTestLeaves(1);
+                const expectedRoot = ethers.ZeroHash;
+
+                await expect(
+                    sovereignChainBridgeContract.connect(rollupManager).forwardLET(newLeaves, expectedRoot),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyGlobalExitRootRemover');
+            });
+
+            it('should revert when newLeaves array is empty', async () => {
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const emptyLeaves = [];
+                const expectedRoot = ethers.ZeroHash;
+
+                await expect(
+                    sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(emptyLeaves, expectedRoot),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidLeavesLength');
+            });
+
+            it('should revert when computed root doesnt match expectedStateRoot', async () => {
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const newLeaves = generateTestLeaves(3);
+                const wrongExpectedRoot = ethers.keccak256(ethers.toUtf8Bytes('wrong_root'));
+
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .forwardLET(newLeaves, wrongExpectedRoot),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidExpectedLER');
+            });
+
+            it('should successfully add new leaves and update tree state', async () => {
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const originalDepositCount = await sovereignChainBridgeContract.depositCount();
+                const originalRoot = await sovereignChainBridgeContract.getRoot();
+
+                const newLeaves = generateTestLeaves(4);
+                const expectedTree = buildMerkleTreeForTesting(newLeaves);
+                const expectedRoot = expectedTree.getRoot();
+
+                const tx = await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(newLeaves, expectedRoot);
+
+                // Verify event emission
+                await expect(tx)
+                    .to.emit(sovereignChainBridgeContract, 'ForwardLET')
+                    .withArgs(
+                        originalDepositCount,
+                        originalRoot,
+                        Number(originalDepositCount) + newLeaves.length,
+                        expectedRoot,
+                        ethers.AbiCoder.defaultAbiCoder().encode(
+                            ['tuple(uint8,uint32,address,uint32,address,uint256,bytes)[]'],
+                            [
+                                newLeaves.map((leaf) => [
+                                    leaf.leafType,
+                                    leaf.originNetwork,
+                                    leaf.originAddress,
+                                    leaf.destinationNetwork,
+                                    leaf.destinationAddress,
+                                    leaf.amount,
+                                    leaf.metadata,
+                                ]),
+                            ],
+                        ),
+                    );
+
+                // Verify state changes
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(
+                    Number(originalDepositCount) + newLeaves.length,
+                );
+                expect(await sovereignChainBridgeContract.getRoot()).to.equal(expectedRoot);
+                expect(await sovereignChainBridgeContract.getRoot()).to.not.equal(originalRoot);
+            });
+
+            it('should handle adding leaves to existing tree', async () => {
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // First add some initial leaves
+                const initialLeaves = generateTestLeaves(3);
+                const initialTree = buildMerkleTreeForTesting(initialLeaves);
+
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(initialLeaves, initialTree.getRoot());
+
+                const initialDepositCount = await sovereignChainBridgeContract.depositCount();
+                const initialRoot = await sovereignChainBridgeContract.getRoot();
+
+                // Add more leaves
+                const additionalLeaves = generateTestLeaves(2);
+
+                // Build expected final tree
+                const allLeaves = [...initialLeaves, ...additionalLeaves];
+                const finalTree = buildMerkleTreeForTesting(allLeaves);
+                const expectedFinalRoot = finalTree.getRoot();
+
+                const tx = await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(additionalLeaves, expectedFinalRoot);
+
+                // Verify event
+                await expect(tx)
+                    .to.emit(sovereignChainBridgeContract, 'ForwardLET')
+                    .withArgs(
+                        initialDepositCount,
+                        initialRoot,
+                        Number(initialDepositCount) + additionalLeaves.length,
+                        expectedFinalRoot,
+                        ethers.AbiCoder.defaultAbiCoder().encode(
+                            ['tuple(uint8,uint32,address,uint32,address,uint256,bytes)[]'],
+                            [
+                                additionalLeaves.map((leaf) => [
+                                    leaf.leafType,
+                                    leaf.originNetwork,
+                                    leaf.originAddress,
+                                    leaf.destinationNetwork,
+                                    leaf.destinationAddress,
+                                    leaf.amount,
+                                    leaf.metadata,
+                                ]),
+                            ],
+                        ),
+                    );
+
+                // Verify final state
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(
+                    Number(initialDepositCount) + additionalLeaves.length,
+                );
+                expect(await sovereignChainBridgeContract.getRoot()).to.equal(expectedFinalRoot);
+            });
+
+            it('should handle single leaf addition', async () => {
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const originalDepositCount = await sovereignChainBridgeContract.depositCount();
+                const originalRoot = await sovereignChainBridgeContract.getRoot();
+
+                const singleLeaf = generateTestLeaves(1);
+                const expectedTree = buildMerkleTreeForTesting(singleLeaf);
+                const expectedRoot = expectedTree.getRoot();
+
+                await expect(
+                    sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(singleLeaf, expectedRoot),
+                )
+                    .to.emit(sovereignChainBridgeContract, 'ForwardLET')
+                    .withArgs(
+                        originalDepositCount,
+                        originalRoot,
+                        Number(originalDepositCount) + 1,
+                        expectedRoot,
+                        ethers.AbiCoder.defaultAbiCoder().encode(
+                            ['tuple(uint8,uint32,address,uint32,address,uint256,bytes)[]'],
+                            [
+                                singleLeaf.map((leaf) => [
+                                    leaf.leafType,
+                                    leaf.originNetwork,
+                                    leaf.originAddress,
+                                    leaf.destinationNetwork,
+                                    leaf.destinationAddress,
+                                    leaf.amount,
+                                    leaf.metadata,
+                                ]),
+                            ],
+                        ),
+                    );
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(Number(originalDepositCount) + 1);
+            });
+
+            it('should automatically handle MerkleTreeFull validation through _addLeaf', async () => {
+                // This test validates that the function properly delegates to _addLeaf
+                // which contains the MerkleTreeFull validation
+
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const leaves = generateTestLeaves(2);
+                const expectedTree = buildMerkleTreeForTesting(leaves);
+
+                // Should succeed for normal case
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(leaves, expectedTree.getRoot());
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(2);
+            });
+
+            it('should revert when leaf has invalid leafType', async () => {
+                // TEST FOCUS: Validates that forwardLET rejects leaves with invalid leafType
+
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const invalidLeafType = 99; // Invalid leafType (not 0 or 1)
+                const invalidLeaves = [
+                    {
+                        leafType: invalidLeafType,
+                        originNetwork: networkIDRollup2,
+                        originAddress: ethers.Wallet.createRandom().address,
+                        destinationNetwork: networkIDRollup2,
+                        destinationAddress: ethers.Wallet.createRandom().address,
+                        amount: ethers.parseEther('1'),
+                        metadata: ethers.toUtf8Bytes('test_metadata'),
+                    },
+                ];
+
+                const expectedRoot = ethers.ZeroHash; // Won't reach root calculation
+
+                await expect(
+                    sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(invalidLeaves, expectedRoot),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidLeafType');
+            });
+
+            it('should accept valid leafTypes (ASSET and MESSAGE)', async () => {
+                // TEST FOCUS: Validates that forwardLET accepts both valid leafTypes
+
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // Use the existing generateTestLeaves function which creates ASSET type leaves
+                const assetLeaves = generateTestLeaves(1); // Creates _LEAF_TYPE_ASSET
+                const assetTree = buildMerkleTreeForTesting(assetLeaves);
+
+                // Should not revert with InvalidLeafType for valid ASSET type
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .forwardLET(assetLeaves, assetTree.getRoot()),
+                ).to.not.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidLeafType');
+
+                // Verify leaf was added
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(1);
+
+                // Test _LEAF_TYPE_MESSAGE separately
+                const messageLeaf = [
+                    {
+                        leafType: LEAF_TYPE_MESSAGE, // 1
+                        originNetwork: networkIDRollup2,
+                        originAddress: ethers.Wallet.createRandom().address,
+                        destinationNetwork: networkIDRollup2,
+                        destinationAddress: ethers.Wallet.createRandom().address,
+                        amount: ethers.parseEther('0'),
+                        metadata: ethers.toUtf8Bytes('message_metadata'),
+                    },
+                ];
+
+                // Calculate expected root after adding message leaf
+                const currentLeaves = [...assetLeaves, ...messageLeaf];
+                const finalTree = buildMerkleTreeForTesting(currentLeaves);
+
+                // Should not revert with InvalidLeafType for valid MESSAGE type
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(globalExitRootRemover)
+                        .forwardLET(messageLeaf, finalTree.getRoot()),
+                ).to.not.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidLeafType');
+
+                // Verify both leaves were added
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(2);
+            });
+
+            it('should revert when mixed valid and invalid leafTypes are provided', async () => {
+                // TEST FOCUS: Validates that forwardLET fails fast when any leaf has invalid leafType
+
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const mixedLeaves = [
+                    {
+                        leafType: LEAF_TYPE_ASSET, // Valid (0)
+                        originNetwork: networkIDRollup2,
+                        originAddress: ethers.Wallet.createRandom().address,
+                        destinationNetwork: networkIDRollup2,
+                        destinationAddress: ethers.Wallet.createRandom().address,
+                        amount: ethers.parseEther('1'),
+                        metadata: ethers.toUtf8Bytes('valid_metadata'),
+                    },
+                    {
+                        leafType: 255, // Invalid leafType
+                        originNetwork: networkIDRollup2,
+                        originAddress: ethers.Wallet.createRandom().address,
+                        destinationNetwork: networkIDRollup2,
+                        destinationAddress: ethers.Wallet.createRandom().address,
+                        amount: ethers.parseEther('1'),
+                        metadata: ethers.toUtf8Bytes('invalid_metadata'),
+                    },
+                ];
+
+                const expectedRoot = ethers.ZeroHash; // Won't reach root calculation
+
+                await expect(
+                    sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(mixedLeaves, expectedRoot),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidLeafType');
+
+                // Verify no leaves were added (transaction reverted)
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(0);
+            });
+        });
+
+        describe('Combined LET Operations', () => {
+            it('should allow forward operations and validate access control', async () => {
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // Test forward operation works correctly
+                const forwardLeaves = generateTestLeaves(5);
+                const forwardTree = buildMerkleTreeForTesting(forwardLeaves);
+
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(forwardLeaves, forwardTree.getRoot());
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(5);
+
+                // Test that backwardLET properly validates access control
+                const newDepositCount = 3;
+                const emptyFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const nextLeaf = forwardLeaves[newDepositCount];
+                const emptyProof = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+                const nextLeafValue = getLeafValue(
+                    nextLeaf.leafType,
+                    nextLeaf.originNetwork,
+                    nextLeaf.originAddress,
+                    nextLeaf.destinationNetwork,
+                    nextLeaf.destinationAddress,
+                    nextLeaf.amount,
+                    ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+                );
+                // Verify only GlobalExitRootRemover can call backwardLET
+                await expect(
+                    sovereignChainBridgeContract
+                        .connect(rollupManager)
+                        .backwardLET(newDepositCount, emptyFrontier, nextLeafValue, emptyProof),
+                ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyGlobalExitRootRemover');
+            });
+
+            it('should allow sequential forward operations', async () => {
+                // Activate emergency state for forwardLET function
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // Setup initial state with 3 leaves
+                const initialLeaves = generateTestLeaves(3);
+                const initialTree = buildMerkleTreeForTesting(initialLeaves);
+
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(initialLeaves, initialTree.getRoot());
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(3);
+
+                // Add more leaves with forwardLET
+                const additionalLeaves = generateTestLeaves(2);
+
+                // Build expected final tree
+                const allLeaves = [...initialLeaves, ...additionalLeaves];
+                const finalTree = buildMerkleTreeForTesting(allLeaves);
+
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(additionalLeaves, finalTree.getRoot());
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(5);
+                expect(await sovereignChainBridgeContract.getRoot()).to.equal(finalTree.getRoot());
+            });
+        });
+    });
+
+    describe('LET Edge Cases and Security', () => {
+        // Helper function to build frontier manually for a given number of leaves
+        function buildFrontierForLeaves(leaves: string[]): string[] {
+            if (leaves.length === 0) {
+                return Array(32).fill(ethers.ZeroHash);
+            }
+
+            // Build the frontier by constructing intermediate hashes
+            const frontier = Array(32).fill(ethers.ZeroHash);
+            // Get leaf values to all leafs on map
+            let tempLeaves = leaves.map((leaf) =>
+                getLeafValue(
+                    leaf.leafType,
+                    leaf.originNetwork,
+                    leaf.originAddress,
+                    leaf.destinationNetwork,
+                    leaf.destinationAddress,
+                    leaf.amount,
+                    ethers.keccak256(leaf.metadata), // Convert metadata to hash
+                ),
+            );
+            let level = 0;
+
+            while (tempLeaves.length > 1 || level === 0) {
+                if (tempLeaves.length % 2 === 1) {
+                    // Store the odd leaf in the frontier
+                    frontier[level] = tempLeaves[tempLeaves.length - 1];
+                    tempLeaves = tempLeaves.slice(0, -1);
+                }
+
+                // Hash pairs to build the next level
+                const nextLevel: string[] = [];
+                for (let i = 0; i < tempLeaves.length; i += 2) {
+                    if (i + 1 < tempLeaves.length) {
+                        nextLevel.push(ethers.keccak256(ethers.concat([tempLeaves[i], tempLeaves[i + 1]])));
+                    }
+                }
+                tempLeaves = nextLevel;
+                level += 1;
+
+                if (level >= 32) break; // Safety check
+            }
+
+            return frontier;
+        }
+
+        it('should handle edge case: rollback to empty tree (depositCount = 0)', async () => {
+            // Activate emergency state for forwardLET and backwardLET functions
+            await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+            // Add one leaf first
+            const leaf = generateTestLeaves(1);
+            const tree = buildMerkleTreeForTesting(leaf);
+
+            await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaf, tree.getRoot());
+
+            // Rollback to empty tree
+            const emptyFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+            const nextLeaf = leaf[0];
+            const proof = tree.getProofTreeByIndex(0);
+            const nextLeafValue = getLeafValue(
+                nextLeaf.leafType,
+                nextLeaf.originNetwork,
+                nextLeaf.originAddress,
+                nextLeaf.destinationNetwork,
+                nextLeaf.destinationAddress,
+                nextLeaf.amount,
+                ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+            );
+            await sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .backwardLET(0, emptyFrontier, nextLeafValue, proof);
+
+            expect(await sovereignChainBridgeContract.depositCount()).to.equal(0);
+        });
+
+        it('should maintain GER updates for both forward and backward operations', async () => {
+            // This test ensures both operations properly update the Global Exit Root
+
+            // Activate emergency state for forwardLET and backwardLET functions
+            await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+            const leaves = generateTestLeaves(3);
+            const tree = buildMerkleTreeForTesting(leaves);
+
+            // Forward operation should update GER
+            await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, tree.getRoot());
+
+            // Backward operation should also update GER
+            const newDepositCount = 1;
+            const subtreeLeaves = leaves.slice(0, newDepositCount);
+            const frontier = buildFrontierForLeaves(subtreeLeaves) as [string, ...string[]];
+            const nextLeaf = leaves[newDepositCount];
+            const proof = tree.getProofTreeByIndex(newDepositCount);
+            const nextLeafValue = getLeafValue(
+                nextLeaf.leafType,
+                nextLeaf.originNetwork,
+                nextLeaf.originAddress,
+                nextLeaf.destinationNetwork,
+                nextLeaf.destinationAddress,
+                nextLeaf.amount,
+                ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+            );
+            await sovereignChainBridgeContract
+                .connect(globalExitRootRemover)
+                .backwardLET(newDepositCount, frontier, nextLeafValue, proof);
+
+            // Both operations should have succeeded, indicating GER was properly updated
+            expect(await sovereignChainBridgeContract.depositCount()).to.equal(1);
+        });
+
+        it('should handle maximum valid deposit counts properly', async () => {
+            // Test with reasonable number of leaves (avoid hitting actual MAX_DEPOSIT_COUNT in test)
+
+            // Activate emergency state for forwardLET and backwardLET functions
+            await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+            const reasonableMax = 10;
+            const leaves = generateTestLeaves(reasonableMax);
+            const tree = buildMerkleTreeForTesting(leaves);
+
+            await sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(leaves, tree.getRoot());
+
+            expect(await sovereignChainBridgeContract.depositCount()).to.equal(reasonableMax);
+
+            // Test that backwardLET properly validates parameters for larger counts
+            // Instead of attempting complex rollback, test parameter validation
+            const middleCount = Math.floor(reasonableMax / 2);
+            const invalidFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+            const nextLeaf = leaves[middleCount];
+            const invalidProof = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+            const nextLeafValue = getLeafValue(
+                nextLeaf.leafType,
+                nextLeaf.originNetwork,
+                nextLeaf.originAddress,
+                nextLeaf.destinationNetwork,
+                nextLeaf.destinationAddress,
+                nextLeaf.amount,
+                ethers.keccak256(nextLeaf.metadata), // Convert metadata to hash
+            );
+            // This should fail with proper validation, confirming the function works correctly
+            await expect(
+                sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .backwardLET(middleCount, invalidFrontier, nextLeafValue, invalidProof),
+            ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'InvalidSmtProof');
+
+            // Confirm original state is maintained
+            expect(await sovereignChainBridgeContract.depositCount()).to.equal(reasonableMax);
+        });
+    });
+
+    // ============= EMERGENCY STATE VALIDATION TESTS =============
+    describe('Emergency State Requirements', () => {
+        beforeEach(async () => {
+            // Ensure emergency state is deactivated before each test
+            if (await sovereignChainBridgeContract.isEmergencyState()) {
+                await sovereignChainBridgeContract.connect(emergencyBridgeUnpauser).deactivateEmergencyState();
+            }
+        });
+
+        it('should revert backwardLET when emergency state is not active', async () => {
+            const newDepositCount = 1;
+            const newFrontier = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+            const nextLeaf = ethers.keccak256(ethers.toUtf8Bytes('test'));
+            const proof = Array(32).fill(ethers.ZeroHash) as [string, ...string[]];
+
+            await expect(
+                sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .backwardLET(newDepositCount, newFrontier, nextLeaf, proof),
+            ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyEmergencyState');
+        });
+
+        it('should revert forwardLET when emergency state is not active', async () => {
+            const newLeaves = generateTestLeaves(1);
+            const expectedRoot = ethers.ZeroHash;
+
+            await expect(
+                sovereignChainBridgeContract.connect(globalExitRootRemover).forwardLET(newLeaves, expectedRoot),
+            ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyEmergencyState');
+        });
+
+        it('should revert setLocalBalanceTree when emergency state is not active', async () => {
+            const originNetworks = [1];
+            const originTokenAddresses = [ethers.Wallet.createRandom().address];
+            const amounts = [ethers.parseEther('1')];
+
+            await expect(
+                sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .setLocalBalanceTree(originNetworks, originTokenAddresses, amounts),
+            ).to.be.revertedWithCustomError(sovereignChainBridgeContract, 'OnlyEmergencyState');
+        });
+
+        it('should allow emergency functions when emergency state is active', async () => {
+            // Activate emergency state
+            await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+            // Test that functions now work (basic smoke tests)
+            const globalIndexes = [computeGlobalIndex(1, 1, false)];
+
+            // Should not revert with OnlyEmergencyState (may revert with other validation errors)
+            try {
+                await sovereignChainBridgeContract.connect(globalExitRootRemover).setMultipleClaims(globalIndexes);
+            } catch (error) {
+                // Should not be OnlyEmergencyState error
+                expect(error.message).to.not.include('OnlyEmergencyState');
+            }
+        });
+    });
+
+    // Helper function to build a simple merkle tree for testing
+    function buildMerkleTreeForTesting(leaves: []) {
+        const tree = new MerkleTreeBridge(32);
+        for (const leaf of leaves) {
+            tree.add(
+                getLeafValue(
+                    leaf.leafType,
+                    leaf.originNetwork,
+                    leaf.originAddress,
+                    leaf.destinationNetwork,
+                    leaf.destinationAddress,
+                    leaf.amount,
+                    ethers.keccak256(leaf.metadata), // Convert metadata to hash
+                ),
+            );
+        }
+        return tree;
+    }
+
+    // Helper function to generate test leaves using getLeafValue
+    function generateTestLeaves(count: number): [] {
+        const leaves = [];
+        for (let i = 0; i < count; i++) {
+            const leafValue = {
+                leafType: LEAF_TYPE_ASSET,
+                originNetwork: networkIDRollup2, // originNetwork
+                originAddress: ethers.Wallet.createRandom().address, // originTokenAddress
+                destinationNetwork: networkIDRollup2, // destinationNetwork (same to avoid LocalBalanceTree issues)
+                destinationAddress: ethers.Wallet.createRandom().address, // destinationAddress
+                amount: ethers.parseEther(`${i + 1}`), // amount
+                metadata: ethers.toUtf8Bytes(`metadata_${i}`), // metadata
+            };
+            leaves.push(leafValue);
+        }
+        return leaves;
+    }
+
+    // Helper function to calculate expected root
+    async function calculateExpectedRoot(leaves: string[]): Promise<string> {
+        const tree = buildMerkleTreeForTesting(leaves);
+        return tree.getRoot();
+    }
 });

@@ -1,0 +1,17 @@
+{
+    "1": {
+        "agglayerManager": "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2",
+        "mode": "inclusion",
+        "type": "Multisig",
+        "list": [1, 2, 3],
+        "multiSendCallOnlyAddress": "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D"
+    },
+    "11155111": {
+        "agglayerManager": "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2",
+        "mode": "exclusion",
+        "type": "Timelock",
+        "list": [1, 2],
+        "timelockDelay": 86400,
+        "timelockSalt": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    }
+}

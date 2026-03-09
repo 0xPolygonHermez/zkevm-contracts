@@ -25,9 +25,10 @@
         "emergencyBridgeUnpauser": "0xB55B27Cca633A73108893985350bc26B8A00C43a",
         "proxiedTokensManager": "0xB55B27Cca633A73108893985350bc26B8A00C43a"
     },
-    "aggchainParams": {
-        "aggchainManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-        "initParams": {
+ "aggchainParams": {
+  "aggchainManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "aggchainManagerPvtKey": "",
+  "initParams": {
             "l2BlockTime": 1,
             "rollupConfigHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
             "startingOutputRoot": "0x1111111111111111111111111111111111111111111111111111111111111111",
@@ -38,9 +39,12 @@
             "aggregationVkey": "0x1111111111111111111111111111111111111111111111111111111111111111",
             "rangeVkeyCommitment": "0x1111111111111111111111111111111111111111111111111111111111111111"
         },
-        "useDefaultGateway": true,
+        "useDefaultVkeys": true,
+        "useDefaultSigners": false,
         "initOwnedAggchainVKey": "0x6666666666666666666666666666666666666666666666666666666666666666",
         "initAggchainVKeySelector": "0x12340001",
-        "vKeyManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        "vKeyManager": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "signers": [["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "testtest"]],
+        "threshold": 1
     }
 }

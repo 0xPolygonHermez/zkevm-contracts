@@ -9,17 +9,22 @@ import { ethers, upgrades } from 'hardhat';
 import { processorUtils, Constants } from '@0xpolygonhermez/zkevm-commonjs';
 import '../helpers/utils';
 
-import * as utilsECDSA from '../../src/utils-aggchain-ECDSA';
 import * as utilsFEP from '../../src/utils-aggchain-FEP';
 import * as utilsAggchain from '../../src/utils-common-aggchain';
+import {
+    GENESIS_CONTRACT_NAMES,
+    DEFAULT_ADMIN_ROLE,
+    ADD_ROLLUP_TYPE_ROLE,
+    CREATE_ROLLUP_ROLE,
+} from '../../src/constants';
 import * as utilsPP from '../../src/pessimistic-utils';
 import {
-    PolygonRollupManager,
+    AgglayerManager,
     PolygonZkEVMEtrog,
-    PolygonZkEVMBridgeV2,
+    AgglayerBridge,
     PolygonValidiumEtrog,
     PolygonPessimisticConsensus,
-    AggLayerGateway,
+    AgglayerGateway,
 } from '../../typechain-types';
 import createRollupParameters from './create_rollup_parameters.json';
 import deployOutput from './deploy_output.json';
@@ -92,8 +97,8 @@ async function main() {
         throw new Error(`Consensus contract not supported, supported contracts are: ${supportedConsensus}`);
     }
 
-    // if consensusContract is Aggchain, check isVanillaClient === true
-    if (arraySupportedAggchains.includes(consensusContract) && !isVanillaClient) {
+    // if consensusContract is AggchainFEP, check isVanillaClient === true
+    if (utilsAggchain.AGGCHAIN_CONTRACT_NAMES.FEP === consensusContract && !isVanillaClient) {
         throw new Error(`Consensus contract ${consensusContract} requires isVanillaClient === true`);
     } else if (arraySupportedAggchains.includes(consensusContract) && programVKey !== ethers.ZeroHash) {
         throw new Error(`Consensus contract ${consensusContract} requires programVKey === bytes32(0)`);
@@ -199,18 +204,17 @@ async function main() {
     }
 
     // Load Rollup manager
-    const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager', deployer);
+    const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager', deployer);
     const rollupManagerContract = PolygonRollupManagerFactory.attach(
         deployOutput.polygonRollupManagerAddress,
-    ) as PolygonRollupManager;
+    ) as AgglayerManager;
 
     // Load global exit root manager
-    const globalExitRootManagerFactory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2', deployer);
+    const globalExitRootManagerFactory = await ethers.getContractFactory('AgglayerGER', deployer);
     const globalExitRootManagerContract = globalExitRootManagerFactory.attach(
         deployOutput.polygonZkEVMGlobalExitRootAddress,
-    ) as PolygonRollupManager;
+    ) as AgglayerGER;
 
-    const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
     if ((await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)) === false) {
         throw new Error(
             `Deployer does not have admin role. Use the test flag on deploy_parameters if this is a test deployment`,
@@ -218,8 +222,6 @@ async function main() {
     }
 
     // Since it's a mock deployment deployer has all the rights
-    const ADD_ROLLUP_TYPE_ROLE = ethers.id('ADD_ROLLUP_TYPE_ROLE');
-    const CREATE_ROLLUP_ROLE = ethers.id('CREATE_ROLLUP_ROLE');
 
     // Check role:
     if ((await rollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, deployer.address)) === false)
@@ -257,10 +259,8 @@ async function main() {
     let gasTokenMetadata;
 
     // Get bridge instance
-    const bridgeFactory = await ethers.getContractFactory('PolygonZkEVMBridgeV2', deployer);
-    const polygonZkEVMBridgeContract = bridgeFactory.attach(
-        deployOutput.polygonZkEVMBridgeAddress,
-    ) as PolygonZkEVMBridgeV2;
+    const bridgeFactory = await ethers.getContractFactory('AgglayerBridge', deployer);
+    const polygonZkEVMBridgeContract = bridgeFactory.attach(deployOutput.polygonZkEVMBridgeAddress) as AgglayerBridge;
     if (
         createRollupParameters.gasTokenAddress &&
         createRollupParameters.gasTokenAddress !== '' &&
@@ -305,7 +305,7 @@ async function main() {
     let genesisFinal;
     let verifierAddress;
     let initializeBytesAggchainRollupManager;
-    let initializeBytesAggchain;
+    let aggchainInitParams;
 
     if (arraySupportedAggchains.includes(consensusContract)) {
         // If Aggchain
@@ -321,31 +321,33 @@ async function main() {
             createRollupParameters.aggchainParams.aggchainManager,
         );
 
-        if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.ECDSA) {
-            initializeBytesAggchain = utilsECDSA.encodeInitializeBytesAggchainECDSAv0(
-                createRollupParameters.aggchainParams.useDefaultGateway,
-                createRollupParameters.aggchainParams.initOwnedAggchainVKey,
-                createRollupParameters.aggchainParams.initAggchainVKeySelector,
-                createRollupParameters.aggchainParams.vKeyManager,
-                adminZkEVM,
-                trustedSequencer,
-                gasTokenAddress,
-                trustedSequencerURL,
-                networkName,
-            );
-        } else if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.FEP) {
-            initializeBytesAggchain = utilsFEP.encodeInitializeBytesAggchainFEPv0(
-                createRollupParameters.aggchainParams.initParams,
-                createRollupParameters.aggchainParams.useDefaultGateway,
-                createRollupParameters.aggchainParams.initOwnedAggchainVKey,
-                createRollupParameters.aggchainParams.initAggchainVKeySelector,
-                createRollupParameters.aggchainParams.vKeyManager,
-                adminZkEVM,
-                trustedSequencer,
-                gasTokenAddress,
-                trustedSequencerURL,
-                networkName,
-            );
+        // NOTE: Aggchain contracts now accept parameters directly in their initialize() functions
+        // The initializeBytesAggchain will be empty and initialization will be done directly after deployment
+
+        // Store initialization parameters for later use
+        aggchainInitParams = {
+            consensusContract,
+            useDefaultVkeys: createRollupParameters.aggchainParams.useDefaultVkeys,
+            useDefaultSigners: createRollupParameters.aggchainParams.useDefaultSigners || false,
+            initOwnedAggchainVKey: createRollupParameters.aggchainParams.initOwnedAggchainVKey,
+            initAggchainVKeySelector: createRollupParameters.aggchainParams.initAggchainVKeySelector,
+            aggchainManager: createRollupParameters.aggchainParams.aggchainManager,
+            adminZkEVM,
+            trustedSequencer,
+            gasTokenAddress,
+            trustedSequencerURL,
+            networkName,
+        };
+
+        if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.FEP) {
+            // Add FEP-specific parameters
+            aggchainInitParams.initParams = createRollupParameters.aggchainParams.initParams;
+            aggchainInitParams.signers = []; // No signers initially
+            aggchainInitParams.threshold = 0; // No threshold initially
+        } else if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.ECDSA) {
+            // Add ECDSA-specific parameters
+            aggchainInitParams.signers = createRollupParameters.aggchainParams.signers || [];
+            aggchainInitParams.threshold = createRollupParameters.aggchainParams.threshold || 0;
         } else {
             throw new Error(`Aggchain ${consensusContract} not supported`);
         }
@@ -447,14 +449,15 @@ async function main() {
     if (arraySupportedAggchains.includes(consensusContract)) {
         let aggchainType = utilsFEP.AGGCHAIN_TYPE_FEP;
         if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.ECDSA) {
-            aggchainType = utilsECDSA.AGGCHAIN_TYPE_ECDSA;
+            // ECDSA Multisig uses type 0x0000
+            aggchainType = '0x0000';
         }
 
         // Load aggLayerGateway
-        const aggLayerGatewayFactory = await ethers.getContractFactory('AggLayerGateway', deployer);
+        const aggLayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway', deployer);
         const aggLayerGateway = (await aggLayerGatewayFactory.attach(
             deployOutput.aggLayerGatewayAddress,
-        )) as AggLayerGateway;
+        )) as AgglayerGateway;
 
         // sanity check on the aggchainType
         const aggchainTypeParam = utilsAggchain.getAggchainTypeFromSelector(
@@ -473,7 +476,7 @@ async function main() {
         );
 
         console.log('#######################\n');
-        console.log(`New Default Aggchain VKey AggLayerGateway: ${deployOutput.aggLayerGatewayAddress}`);
+        console.log(`New Default Aggchain VKey AgglayerGateway: ${deployOutput.aggLayerGatewayAddress}`);
         console.log(`consensusContract: ${consensusContract}`);
         console.log(`defaultAggchainVKeySelector: ${createRollupParameters.aggchainParams.initAggchainVKeySelector}`);
         console.log(`newAggchainVKey: ${createRollupParameters.aggchainParams.initOwnedAggchainVKey}`);
@@ -486,9 +489,73 @@ async function main() {
 
         outputJson.defaultAggchainVKeyALGateway = defaultAggchainVKeyALGateway;
 
-        // initialize aggchain
+        // initialize aggchain with direct parameters
         const aggchainContract = await PolygonconsensusFactory.attach(newZKEVMAddress);
-        const txInitAggChain = await aggchainContract.initialize(initializeBytesAggchain);
+
+        // Get aggchainManager address and create signer for initialization
+        const aggchainManagerAddress = createRollupParameters.aggchainParams.aggchainManager;
+        const { aggchainManagerPvtKey } = createRollupParameters.aggchainParams;
+        console.log(`Using aggchainManager address: ${aggchainManagerAddress}`);
+
+        let aggchainManagerSigner;
+
+        if (aggchainManagerPvtKey && aggchainManagerPvtKey.trim() !== '') {
+            // Use provided private key for aggchainManager
+            console.log('Using provided aggchainManagerPvtKey...');
+            aggchainManagerSigner = new ethers.Wallet(aggchainManagerPvtKey, ethers.provider);
+
+            // Verify that the private key matches the expected address
+            if (aggchainManagerSigner.address.toLowerCase() !== aggchainManagerAddress.toLowerCase()) {
+                throw new Error(
+                    `Private key address (${aggchainManagerSigner.address}) does not match aggchainManager address (${aggchainManagerAddress})`,
+                );
+            }
+
+            console.log(`✓ AggchainManager private key verified for address: ${aggchainManagerAddress}`);
+        } else {
+            if (deployer.address.toLowerCase() !== aggchainManagerAddress.toLowerCase()) {
+                throw new Error(
+                    `Deployer (${deployer.address}) is not the aggchainManager (${aggchainManagerAddress}). Either provide aggchainManagerPvtKey or ensure the deployer is the aggchainManager.`,
+                );
+            }
+            aggchainManagerSigner = deployer;
+            console.log('Using deployer as aggchainManager');
+        }
+
+        // Connect contract with aggchainManager signer
+        const aggchainContractWithManager = aggchainContract.connect(aggchainManagerSigner);
+
+        let txInitAggChain;
+        if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.FEP) {
+            // Initialize FEP contract with direct parameters using aggchainManager
+            txInitAggChain = await aggchainContractWithManager.initialize(
+                aggchainInitParams.initParams,
+                aggchainInitParams.signers,
+                aggchainInitParams.threshold,
+                aggchainInitParams.useDefaultVkeys,
+                aggchainInitParams.useDefaultSigners,
+                aggchainInitParams.initOwnedAggchainVKey,
+                aggchainInitParams.initAggchainVKeySelector,
+                aggchainInitParams.adminZkEVM,
+                aggchainInitParams.trustedSequencer,
+                aggchainInitParams.gasTokenAddress,
+                aggchainInitParams.trustedSequencerURL,
+                aggchainInitParams.networkName,
+            );
+        } else if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.ECDSA) {
+            // Initialize ECDSA Multisig contract with direct parameters using aggchainManager
+            txInitAggChain = await aggchainContractWithManager.initialize(
+                aggchainInitParams.adminZkEVM,
+                aggchainInitParams.trustedSequencer,
+                aggchainInitParams.gasTokenAddress,
+                aggchainInitParams.trustedSequencerURL,
+                aggchainInitParams.networkName,
+                aggchainInitParams.useDefaultSigners,
+                aggchainInitParams.signers,
+                aggchainInitParams.threshold,
+            );
+        }
+
         await txInitAggChain.wait();
     }
 
@@ -587,17 +654,20 @@ async function main() {
                 !ethers.isAddress(sovereignParams.sovereignWETHAddress))
         ) {
             const wethObject = genesis.genesis.find(function (obj) {
-                return obj.contractName === utilsAggchain.GENESIS_CONTRACT_NAMES.WETH_PROXY;
+                return obj.contractName === GENESIS_CONTRACT_NAMES.WETH_PROXY;
             });
             outputJson.WETHProxyAddress = wethObject.address;
 
             const wethImpObject = genesis.genesis.find(function (obj) {
-                return obj.contractName === utilsAggchain.GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION;
+                return obj.contractName === GENESIS_CONTRACT_NAMES.TOKEN_WRAPPED_IMPLEMENTATION;
             });
             outputJson.WETHImplementationAddress = wethImpObject.address;
         }
     } else {
-        if (consensusContract === 'PolygonPessimisticConsensus') {
+        if (
+            consensusContract === 'PolygonPessimisticConsensus' ||
+            consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.ECDSA
+        ) {
             // Add the first batch of the created rollup
             const newZKEVMContract = (await PolygonconsensusFactory.attach(
                 newZKEVMAddress,

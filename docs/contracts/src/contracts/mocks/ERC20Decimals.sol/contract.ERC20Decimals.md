@@ -1,5 +1,5 @@
 # ERC20Decimals
-[Git Source](https://github.com/agglayer/agglayer-contracts/blob/112a010b7c8b14335e5fe1a9bffc11bd2459df05/contracts/mocks/ERC20Decimals.sol)
+[Git Source](https://github.com/agglayer/agglayer-contracts/blob/c0e111af46ac2964bd5177034698d7e5e691f362/contracts/mocks/ERC20Decimals.sol)
 
 **Inherits:**
 ERC20
@@ -9,14 +9,14 @@ ERC20
 ### _decimals
 
 ```solidity
-uint8 private _decimals;
+uint8 private _decimals
 ```
 
 
 ### nonces
 
 ```solidity
-mapping(address => uint256) public nonces;
+mapping(address => uint256) public nonces
 ```
 
 
@@ -24,28 +24,28 @@ mapping(address => uint256) public nonces;
 
 ```solidity
 bytes32 public constant PERMIT_TYPEHASH =
-    keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
 ```
 
 
 ### NAME_HASH
 
 ```solidity
-bytes32 public NAME_HASH;
+bytes32 public NAME_HASH
 ```
 
 
 ### VERSION_HASH
 
 ```solidity
-bytes32 public constant VERSION_HASH = 0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6;
+bytes32 public constant VERSION_HASH = 0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6
 ```
 
 
 ### EIP712DOMAIN_HASH
 
 ```solidity
-bytes32 public constant EIP712DOMAIN_HASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
+bytes32 public constant EIP712DOMAIN_HASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f
 ```
 
 
@@ -54,9 +54,13 @@ bytes32 public constant EIP712DOMAIN_HASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc7923
 
 
 ```solidity
-constructor(string memory name, string memory symbol, address initialAccount, uint256 initialBalance, uint8 decimals_)
-    payable
-    ERC20(name, symbol);
+constructor(
+    string memory name,
+    string memory symbol,
+    address initialAccount,
+    uint256 initialBalance,
+    uint8 decimals_
+) payable ERC20(name, symbol);
 ```
 
 ### decimals

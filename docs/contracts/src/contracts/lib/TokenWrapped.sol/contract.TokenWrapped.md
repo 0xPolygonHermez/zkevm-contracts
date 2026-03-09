@@ -1,5 +1,5 @@
 # TokenWrapped
-[Git Source](https://github.com/agglayer/agglayer-contracts/blob/112a010b7c8b14335e5fe1a9bffc11bd2459df05/contracts/lib/TokenWrapped.sol)
+[Git Source](https://github.com/agglayer/agglayer-contracts/blob/c0e111af46ac2964bd5177034698d7e5e691f362/contracts/lib/TokenWrapped.sol)
 
 **Inherits:**
 ERC20
@@ -10,7 +10,7 @@ ERC20
 
 ```solidity
 bytes32 public constant DOMAIN_TYPEHASH =
-    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
 ```
 
 
@@ -18,49 +18,49 @@ bytes32 public constant DOMAIN_TYPEHASH =
 
 ```solidity
 bytes32 public constant PERMIT_TYPEHASH =
-    keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
 ```
 
 
 ### VERSION
 
 ```solidity
-string public constant VERSION = "1";
+string public constant VERSION = "1"
 ```
 
 
 ### deploymentChainId
 
 ```solidity
-uint256 public immutable deploymentChainId;
+uint256 public immutable deploymentChainId
 ```
 
 
 ### _DEPLOYMENT_DOMAIN_SEPARATOR
 
 ```solidity
-bytes32 private immutable _DEPLOYMENT_DOMAIN_SEPARATOR;
+bytes32 private immutable _DEPLOYMENT_DOMAIN_SEPARATOR
 ```
 
 
 ### bridgeAddress
 
 ```solidity
-address public immutable bridgeAddress;
+address public immutable bridgeAddress
 ```
 
 
 ### _decimals
 
 ```solidity
-uint8 private immutable _decimals;
+uint8 private immutable _decimals
 ```
 
 
 ### nonces
 
 ```solidity
-mapping(address => uint256) public nonces;
+mapping(address => uint256) public nonces
 ```
 
 
@@ -69,7 +69,7 @@ mapping(address => uint256) public nonces;
 
 
 ```solidity
-modifier onlyBridge();
+modifier onlyBridge() ;
 ```
 
 ### constructor
@@ -125,7 +125,7 @@ function _calculateDomainSeparator(uint256 chainId) private view returns (bytes3
 
 ### DOMAIN_SEPARATOR
 
-*Return the DOMAIN_SEPARATOR.*
+Return the DOMAIN_SEPARATOR.
 
 
 ```solidity

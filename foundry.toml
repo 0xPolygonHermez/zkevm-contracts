@@ -1,7 +1,44 @@
 [profile.default]
-src = 'contracts'
-# *.ignore files are added to the .gitignore file
-out = 'folder.ignore'
-libs = ['node_modules']
+src = "contracts"
+out = "folder.ignore"
+libs = ["dependencies", "node_modules"]
 optimizer = true
+optimizer_runs = 999999
 via_ir = true
+ffi = true
+fs_permissions = [
+    { access = "read", path = "./artifacts" }, 
+    { access = "read", path = "./script/forge" }
+]
+
+remappings = ["forge-std/=dependencies/forge-std-1.10.0/src/"]
+
+[lint]
+lint_on_build = false
+
+[profile.coverage]
+src = "contracts"
+libs = ["dependencies", "node_modules"]
+# Skip problematic (stack too deep) files for coverage
+skip = [
+    "contracts/mocks/DaiMock.sol",
+    "contracts/mocks/Uni.sol",
+    "contracts/previousVersions/PolygonValidiumEtrogPrevious.sol",
+]
+
+[dependencies]
+forge-std = { version = "1.10.0" }
+
+[soldeer]
+remappings_generate = true
+remappings_version = false
+remappings_location = "config"
+
+[rpc_endpoints]
+mainnet = "https://mainnet.infura.io/v3/${INFURA_KEY}"
+sepolia = "https://sepolia.infura.io/v3/${INFURA_KEY}"
+ethereum = "https://ethereum-rpc.publicnode.com"
+
+[etherscan]
+mainnet = { key = "${ETHERSCAN_API_KEY}" }
+sepolia = { key = "${ETHERSCAN_API_KEY}" }

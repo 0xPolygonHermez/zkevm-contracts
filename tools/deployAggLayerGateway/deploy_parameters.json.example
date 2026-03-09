@@ -5,5 +5,8 @@
     "freezeRouteRoleAddress": "0x..",
     "verifierAddress": "0x...",
     "ppVKey": "0xac51a6a2e513d02e4f39ea51d4d133cec200b940805f1054eabbb6d6412c959f",
-    "ppVKeySelector": "0x00000001"
+    "ppVKeySelector": "0x00000001",
+    "multisigRoleAddress": "0x...",
+    "signersToAdd": [],
+    "newThreshold": 0
 }

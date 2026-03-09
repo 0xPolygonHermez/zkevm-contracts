@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.28;
 
-import "../PolygonZkEVMGlobalExitRoot.sol";
+import "../previousVersions/PolygonZkEVMGlobalExitRoot.sol";
 
 /**
  * Contract responsible for managing the exit roots across multiple networks

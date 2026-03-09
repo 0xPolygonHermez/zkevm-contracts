@@ -14,117 +14,6 @@ export const AGGCHAIN_TYPE_FEP = '0x0001';
 /// //////////////////////////////////
 
 /**
- * Function to sort the initParams object
- * @param {Object} initParams initialization parameters
- * @returns {Object} sorted initParams object
- */
-export function sortInitParamsAggchainFEP(initParams) {
-    const initParamsOrder = [
-        'l2BlockTime',
-        'rollupConfigHash',
-        'startingOutputRoot',
-        'startingBlockNumber',
-        'startingTimestamp',
-        'submissionInterval',
-        'optimisticModeManager',
-        'aggregationVkey',
-        'rangeVkeyCommitment',
-    ];
-    const sortedInitParams = {};
-    initParamsOrder.forEach((key) => {
-        if (key in initParams) {
-            sortedInitParams[key] = initParams[key];
-        } else {
-            throw new Error(`${key} not found in initParams`);
-        }
-    });
-    return sortedInitParams;
-}
-
-/**
- * Function to encode the initialize bytes for the custom chain (version 0 --> initializerVersion = 0)
- * @param {Object} initParams initialization parameters
- * @param {Boolean} useDefaultGateway use owned gateway
- * @param {String} initOwnedAggchainVKey initial owned aggchain Vkey
- * @param {String} initAggchainVKeySelector initial aggchain Vkey selector
- * @param {String} vKeyManager vkey manager address
- * @param {String} admin admin address
- * @param {String} trustedSequencer trusted sequencer address
- * @param {String} gasTokenAddress gas token address
- * @param {String} trustedSequencerURL trusted sequencer URL
- * @param {String} networkName network name
- * @returns {String} encoded value in hexadecimal string
- */
-export function encodeInitializeBytesAggchainFEPv0(
-    initParams,
-    useDefaultGateway,
-    initOwnedAggchainVKey,
-    initAggchainVKeySelector,
-    vKeyManager,
-    admin,
-    trustedSequencer,
-    gasTokenAddress,
-    trustedSequencerURL,
-    networkName,
-) {
-    // sort the initParams object
-    const sortedInitParams = sortInitParamsAggchainFEP(initParams);
-    return ethers.AbiCoder.defaultAbiCoder().encode(
-        [
-            'tuple(uint256, bytes32, bytes32, uint256, uint256, uint256, address, bytes32, bytes32)',
-            'bool',
-            'bytes32',
-            'bytes4',
-            'address',
-            'address',
-            'address',
-            'address',
-            'string',
-            'string',
-        ],
-        [
-            Object.values(sortedInitParams),
-            useDefaultGateway,
-            initOwnedAggchainVKey,
-            initAggchainVKeySelector,
-            vKeyManager,
-            admin,
-            trustedSequencer,
-            gasTokenAddress,
-            trustedSequencerURL,
-            networkName,
-        ],
-    );
-}
-
-/**
- * Function to encode the initialize bytes for the custom chain (version 1 --> initializerVersion = 1)
- * @param {Object} initParams initialization parameters
- * @param {Boolean} useDefaultGateway use owned gateway
- * @param {String} initOwnedAggchainVKey initial owned aggchain Vkey
- * @param {String} initAggchainVKeySelector initial aggchain Vkey version
- * @param {String} vKeyManager vkey manager address
- */
-export function encodeInitializeBytesAggchainFEPv1(
-    initParams,
-    useDefaultGateway,
-    initOwnedAggchainVKey,
-    initAggchainVKeySelector,
-    vKeyManager,
-) {
-    return ethers.AbiCoder.defaultAbiCoder().encode(
-        [
-            'tuple(uint256, bytes32, bytes32, uint256, uint256, uint256, address, bytes32, bytes32)',
-            'bool',
-            'bytes32',
-            'bytes4',
-            'address',
-        ],
-        [Object.values(initParams), useDefaultGateway, initOwnedAggchainVKey, initAggchainVKeySelector, vKeyManager],
-    );
-}
-
-/**
  * Function to encode the custom chain data for the `getAggchainHash` & `onVerifyPessimistic` functions
  * @param {String} aggchainVKeySelector aggchain vkey version
  * @param {String} outputRoot output root
@@ -139,7 +28,7 @@ export function encodeAggchainDataFEP(aggchainVKeySelector, outputRoot, l2BlockN
 }
 
 /**
- * Compute the aggchain Parameteres hash for FEP
+ * Compute the aggchain Parameters hash for FEP
  * @param {String} oldOutputRoot old output root
  * @param {String} newOutputRoot new output root
  * @param {BigInt} l2BlockNumber L2 block number
@@ -160,7 +49,7 @@ export function computeHashAggchainParamsFEP(
     rangeVkeyCommitment,
     aggregationVkey,
 ) {
-    // solidity lkeccak
+    // solidity keccak
     return ethers.solidityPackedKeccak256(
         ['bytes32', 'bytes32', 'uint256', 'uint256', 'bool', 'address', 'bytes32', 'bytes32'],
         [

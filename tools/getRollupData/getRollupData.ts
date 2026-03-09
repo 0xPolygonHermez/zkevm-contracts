@@ -5,7 +5,7 @@ import fs = require('fs');
 
 import * as dotenv from 'dotenv';
 import { ethers } from 'hardhat';
-import { PolygonRollupManager } from '../../typechain-types';
+import { AgglayerManager } from '../../typechain-types';
 import getRollupParams from './rollupDataParams.json';
 
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -14,11 +14,11 @@ const pathOutputJson = path.join(__dirname, './deploy_output.json');
 const pathCreateRollupOutput = path.join(__dirname, './create_rollup_output');
 
 async function main() {
-    const RollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager');
+    const RollupManagerFactory = await ethers.getContractFactory('AgglayerManager');
 
     const rollupManager = (await RollupManagerFactory.attach(
         getRollupParams.polygonRollupManagerAddress,
-    )) as PolygonRollupManager;
+    )) as AgglayerManager;
 
     const polygonZkEVMBridgeAddress = await rollupManager.bridgeAddress();
     const polygonZkEVMGlobalExitRootAddress = await rollupManager.globalExitRootManager();

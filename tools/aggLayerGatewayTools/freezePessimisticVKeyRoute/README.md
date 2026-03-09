@@ -1,5 +1,5 @@
-# Freeze Pessimistic VKey Route (AggLayerGateway)
-Script to call `freezePessimisticVKeyRoute` function (`AggLayerGateway` contract).
+# Freeze Pessimistic VKey Route (AgglayerGateway)
+Script to call `freezePessimisticVKeyRoute` function (`AgglayerGateway` contract).
 
 ## Setup
 - install packages
@@ -25,7 +25,7 @@ cp ./tools/aggLayerGatewayTools/freezePessimisticVKeyRoute/parameters.json.examp
         - `Multisig`: If creating the rollup from a multisig, the script will output the calldata of the transaction to execute for creating the rollup
         - `Timelock`: If creating the rollup through a timelock, the script will output the execute and schedule data to send to the timelock contract
     - `deployerPvtKey`: Not mandatory, used to send tx
-    - `aggLayerGatewayAddress`: Address AggLayerGateway contract
+    - `aggLayerGatewayAddress`: Address AgglayerGateway contract
     - `pessimisticVKeySelector`: The 4 bytes selector to freeze the pessimistic verification key route
     - `timelockDelay(optional)`: timelock delay
     - `timelockSalt(optional)`: timelock salt

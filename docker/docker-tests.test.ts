@@ -2,13 +2,14 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import fs from 'fs';
 import path from 'path';
+import { AgglayerManager, AgglayerGER, AgglayerBridge, AggchainFEP, AgglayerGateway } from '../typechain-types';
 import {
-    PolygonRollupManager,
-    PolygonZkEVMGlobalExitRootV2,
-    PolygonZkEVMBridgeV2,
-    AggchainFEP,
-    AggLayerGateway,
-} from '../typechain-types';
+    DEFAULT_ADMIN_ROLE,
+    AGGCHAIN_DEFAULT_VKEY_ROLE,
+    AL_ADD_PP_ROUTE_ROLE,
+    AL_FREEZE_PP_ROUTE_ROLE,
+    AL_MULTISIG_ROLE,
+} from '../src/constants';
 
 const deployOutput = JSON.parse(fs.readFileSync(path.join(__dirname, './deploymentOutput/deploy_output.json'), 'utf8'));
 const {
@@ -39,10 +40,10 @@ describe('Docker build tests Contract', () => {
     });
 
     it('should check RollupManager', async () => {
-        const PolygonRollupManagerFactory = await ethers.getContractFactory('PolygonRollupManager');
+        const PolygonRollupManagerFactory = await ethers.getContractFactory('AgglayerManager');
         const rollupManagerContract = PolygonRollupManagerFactory.attach(
             polygonRollupManagerAddress,
-        ) as PolygonRollupManager;
+        ) as AgglayerManager;
         expect(rollupManagerContract.target).to.equal(polygonRollupManagerAddress);
         expect(await rollupManagerContract.bridgeAddress()).to.equal(polygonZkEVMBridgeAddress);
         expect(await rollupManagerContract.globalExitRootManager()).to.equal(polygonZkEVMGlobalExitRootAddress);
@@ -50,10 +51,10 @@ describe('Docker build tests Contract', () => {
     });
 
     it('should check GlobalExitRootV2', async () => {
-        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory('PolygonZkEVMGlobalExitRootV2');
+        const PolygonZkEVMGlobalExitRootV2Factory = await ethers.getContractFactory('AgglayerGER');
         const PolygonZkEVMGlobalExitRootV2Contract = PolygonZkEVMGlobalExitRootV2Factory.attach(
             polygonZkEVMGlobalExitRootAddress,
-        ) as PolygonZkEVMGlobalExitRootV2;
+        ) as AgglayerGER;
         expect(PolygonZkEVMGlobalExitRootV2Contract.target).to.equal(polygonZkEVMGlobalExitRootAddress);
         expect(await PolygonZkEVMGlobalExitRootV2Contract.bridgeAddress()).to.equal(polygonZkEVMBridgeAddress);
         expect(await PolygonZkEVMGlobalExitRootV2Contract.rollupManager()).to.equal(polygonRollupManagerAddress);
@@ -63,11 +64,11 @@ describe('Docker build tests Contract', () => {
         );
     });
 
-    it('should check PolygonZkEVMBridgeV2', async () => {
-        const PolygonZkEVMBridgeV2Factory = await ethers.getContractFactory('PolygonZkEVMBridgeV2');
+    it('should check AgglayerBridge', async () => {
+        const PolygonZkEVMBridgeV2Factory = await ethers.getContractFactory('AgglayerBridge');
         const PolygonZkEVMBridgeV2Contract = PolygonZkEVMBridgeV2Factory.attach(
             polygonZkEVMBridgeAddress,
-        ) as PolygonZkEVMBridgeV2;
+        ) as AgglayerBridge;
         expect(PolygonZkEVMBridgeV2Contract.target).to.equal(polygonZkEVMBridgeAddress);
         expect(await PolygonZkEVMBridgeV2Contract.globalExitRootManager()).to.equal(polygonZkEVMGlobalExitRootAddress);
         expect(await PolygonZkEVMBridgeV2Contract.polygonRollupManager()).to.equal(polygonRollupManagerAddress);
@@ -84,17 +85,14 @@ describe('Docker build tests Contract', () => {
         ).to.be.revertedWith('Initializable: contract is already initialized');
     });
 
-    it('should check AggLayerGateway', async () => {
-        const AggLayerGatewayFactory = await ethers.getContractFactory('AggLayerGateway');
-        const AggLayerGatewayContract = AggLayerGatewayFactory.attach(aggLayerGatewayAddress) as AggLayerGateway;
-        expect(AggLayerGatewayContract.target).to.equal(aggLayerGatewayAddress);
-        const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
-        const AGGCHAIN_DEFAULT_VKEY_ROLE = ethers.id('AGGCHAIN_DEFAULT_VKEY_ROLE');
-        const AL_ADD_PP_ROUTE_ROLE = ethers.id('AL_ADD_PP_ROUTE_ROLE');
-        const AL_FREEZE_PP_ROUTE_ROLE = ethers.id('AL_FREEZE_PP_ROUTE_ROLE');
-        expect(await AggLayerGatewayContract.hasRole(DEFAULT_ADMIN_ROLE, admin)).to.be.equal(true);
-        expect(await AggLayerGatewayContract.hasRole(AGGCHAIN_DEFAULT_VKEY_ROLE, admin)).to.be.equal(true);
-        expect(await AggLayerGatewayContract.hasRole(AL_ADD_PP_ROUTE_ROLE, admin)).to.be.equal(true);
-        expect(await AggLayerGatewayContract.hasRole(AL_FREEZE_PP_ROUTE_ROLE, admin)).to.be.equal(true);
+    it('should check AgglayerGateway', async () => {
+        const AgglayerGatewayFactory = await ethers.getContractFactory('AgglayerGateway');
+        const AgglayerGatewayContract = AgglayerGatewayFactory.attach(aggLayerGatewayAddress) as AgglayerGateway;
+        expect(AgglayerGatewayContract.target).to.equal(aggLayerGatewayAddress);
+        expect(await AgglayerGatewayContract.hasRole(DEFAULT_ADMIN_ROLE, admin)).to.be.equal(true);
+        expect(await AgglayerGatewayContract.hasRole(AGGCHAIN_DEFAULT_VKEY_ROLE, admin)).to.be.equal(true);
+        expect(await AgglayerGatewayContract.hasRole(AL_ADD_PP_ROUTE_ROLE, admin)).to.be.equal(true);
+        expect(await AgglayerGatewayContract.hasRole(AL_FREEZE_PP_ROUTE_ROLE, admin)).to.be.equal(true);
+        expect(await AgglayerGatewayContract.hasRole(AL_MULTISIG_ROLE, admin)).to.be.equal(true);
     });
 });

@@ -1,5 +1,5 @@
 # DepositContractMock
-[Git Source](https://github.com/agglayer/agglayer-contracts/blob/112a010b7c8b14335e5fe1a9bffc11bd2459df05/contracts/mocks/DepositContractMock.sol)
+[Git Source](https://github.com/agglayer/agglayer-contracts/blob/c0e111af46ac2964bd5177034698d7e5e691f362/contracts/mocks/DepositContractMock.sol)
 
 **Inherits:**
 [DepositContract](/contracts/lib/DepositContract.sol/contract.DepositContract.md)
@@ -13,7 +13,7 @@ Based on the implementation of the deposit eth2.0 contract https://github.com/et
 
 
 ```solidity
-constructor();
+constructor() ;
 ```
 
 ### initialize

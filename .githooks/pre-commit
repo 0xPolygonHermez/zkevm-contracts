@@ -8,61 +8,62 @@ if npm run lint; then
 
     ## copy contracts ABI to be exposed
     ## V1 contracts
-    cp artifacts/contracts/PolygonZkEVMGlobalExitRootL2.sol/PolygonZkEVMGlobalExitRootL2.json compiled-contracts/
+    cp artifacts/contracts/LegacyAgglayerGERL2.sol/LegacyAgglayerGERL2.json compiled-contracts/
     cp artifacts/contracts/lib/TokenWrapped.sol/TokenWrapped.json compiled-contracts/
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
-    cp artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json compiled-contracts/
+    cp artifacts/contracts/AgglayerTimelock.sol/AgglayerTimelock.json compiled-contracts/
 
     ## Mocks
     cp artifacts/contracts/mocks/PolygonZkEVMBridgeMock.sol/PolygonZkEVMBridgeMock.json compiled-contracts/
     cp artifacts/contracts/mocks/ERC20PermitMock.sol/ERC20PermitMock.json compiled-contracts/
-    cp artifacts/contracts/mocks/PolygonZkEVMGlobalExitRootL2Mock.sol/PolygonZkEVMGlobalExitRootL2Mock.json compiled-contracts/
+    cp artifacts/contracts/mocks/LegacyAgglayerGERL2Mock.sol/LegacyAgglayerGERL2Mock.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZkEVMGlobalExitRootMock.sol/PolygonZkEVMGlobalExitRootMock.json compiled-contracts/
     cp artifacts/contracts/mocks/PolygonZkEVMMock.sol/PolygonZkEVMMock.json compiled-contracts/
     cp artifacts/contracts/mocks/VerifierRollupHelperMock.sol/VerifierRollupHelperMock.json compiled-contracts/
-    cp artifacts/contracts/v2/mocks/PolygonRollupManagerMock.sol/PolygonRollupManagerMock.json compiled-contracts/
+    cp artifacts/contracts/mocks/AgglayerManagerMock.sol/AgglayerManagerMock.json compiled-contracts/
 
     ## Verifiers
     cp artifacts/contracts/verifiers/FflonkVerifier_10.sol/FflonkVerifier_10.json compiled-contracts/FflonkVerifier.json
     cp artifacts/@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json compiled-contracts/
     cp artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
-    cp artifacts/contracts/verifiers/v4.0.0-rc.3/SP1VerifierPlonk.sol/SP1VerifierPlonk.json compiled-contracts/SP1VerifierPlonk.json
+    cp artifacts/contracts/verifiers/v5.0.0/SP1VerifierPlonk.sol/SP1VerifierPlonk.json compiled-contracts/SP1VerifierPlonk.json
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
-    cp artifacts/contracts/PolygonZkEVMTimelock.sol/PolygonZkEVMTimelock.json compiled-contracts/
 
     ## openzeppelin
     cp artifacts/@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json compiled-contracts/
     cp artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
 
     ## V2 General
-    cp artifacts/contracts/v2/PolygonRollupManager.sol/PolygonRollupManager.json compiled-contracts/
-    cp artifacts/contracts/v2/PolygonZkEVMBridgeV2.sol/PolygonZkEVMBridgeV2.json compiled-contracts/
-    cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
-    cp artifacts/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol/PolygonZkEVMGlobalExitRootV2.json compiled-contracts/
+    cp artifacts/contracts/AgglayerManager.sol/AgglayerManager.json compiled-contracts/
+    cp artifacts/contracts/AgglayerBridge.sol/AgglayerBridge.json compiled-contracts/
+    cp artifacts/contracts/AgglayerGER.sol/AgglayerGER.json compiled-contracts/
+    cp artifacts/contracts/AgglayerGER.sol/AgglayerGER.json compiled-contracts/
 
     ## V2 Consensus
-    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMEtrog.sol/PolygonZkEVMEtrog.json compiled-contracts/
-    cp artifacts/contracts/v2/consensus/zkEVM/PolygonZkEVMExistentEtrog.sol/PolygonZkEVMExistentEtrog.json compiled-contracts/
-    cp artifacts/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol/PolygonValidiumEtrog.json compiled-contracts/
-    cp artifacts/contracts/v2/consensus/validium/PolygonDataCommittee.sol/PolygonDataCommittee.json compiled-contracts/
-    cp artifacts/contracts/v2/consensus/pessimistic/PolygonPessimisticConsensus.sol/PolygonPessimisticConsensus.json compiled-contracts/
+    cp artifacts/contracts/consensus/zkEVM/PolygonZkEVMEtrog.sol/PolygonZkEVMEtrog.json compiled-contracts/
+    cp artifacts/contracts/consensus/zkEVM/PolygonZkEVMExistentEtrog.sol/PolygonZkEVMExistentEtrog.json compiled-contracts/
+    cp artifacts/contracts/consensus/validium/PolygonValidiumEtrog.sol/PolygonValidiumEtrog.json compiled-contracts/
+    cp artifacts/contracts/consensus/validium/PolygonDataCommittee.sol/PolygonDataCommittee.json compiled-contracts/
+    cp artifacts/contracts/consensus/pessimistic/PolygonPessimisticConsensus.sol/PolygonPessimisticConsensus.json compiled-contracts/
 
     ## V2 utils
-    cp artifacts/contracts/v2/periphery/ClaimCompressor.sol/ClaimCompressor.json compiled-contracts/
+    cp artifacts/contracts/periphery/ClaimCompressor.sol/ClaimCompressor.json compiled-contracts/
 
     ## al-v0.3.0
-    cp artifacts/contracts/v2/sovereignChains/GlobalExitRootManagerL2SovereignChain.sol/GlobalExitRootManagerL2SovereignChain.json compiled-contracts/
-    cp artifacts/contracts/v2/sovereignChains/BridgeL2SovereignChain.sol/BridgeL2SovereignChain.json compiled-contracts/
-    cp artifacts/contracts/v2/AggLayerGateway.sol/AggLayerGateway.json compiled-contracts/
-    cp artifacts/contracts/v2/lib/AggchainBase.sol/AggchainBase.json compiled-contracts/
-    cp artifacts/contracts/v2/aggchains/AggchainECDSA.sol/AggchainECDSA.json compiled-contracts/
-    cp artifacts/contracts/v2/aggchains/AggchainFEP.sol/AggchainFEP.json compiled-contracts/
+    cp artifacts/contracts/sovereignChains/AgglayerGERL2.sol/AgglayerGERL2.json compiled-contracts/
+    cp artifacts/contracts/sovereignChains/AgglayerBridgeL2.sol/AgglayerBridgeL2.json compiled-contracts/
+    cp artifacts/contracts/AgglayerGateway.sol/AgglayerGateway.json compiled-contracts/
+    cp artifacts/contracts/lib/AggchainBase.sol/AggchainBase.json compiled-contracts/
+    cp artifacts/contracts/aggchains/AggchainECDSAMultisig.sol/AggchainECDSAMultisig.json compiled-contracts/
+    cp artifacts/contracts/aggchains/AggchainFEP.sol/AggchainFEP.json compiled-contracts/
+    cp artifacts/contracts/sovereignChains/AgglayerBridgeL2FromEtrog.sol compiled-contracts/
 
     git add compiled-contracts
 
     ## Forge nightly version should be installed to properly parse transient storage
     ## 'foundryup --install nightly'
+    forge soldeer install
     forge selectors ls > docs/selectors.txt
     forge doc --out docs/contracts
     sh storage-layout.sh

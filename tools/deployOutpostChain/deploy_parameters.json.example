@@ -1,0 +1,32 @@
+{
+    "network": {
+        "chainID": 1001,
+        "rollupID": 1001,
+        "networkName": "OutpostChain",
+        "tokenName": "baseETH",
+        "tokenSymbol": "BETH",
+        "tokenDecimals": 18
+    },
+    "timelock": {
+        "timelockDelay": 3600,
+        "timelockAdminAddress": "0xYourTimelockAdminAddress"
+    },
+    "bridge": {
+        "bridgeManager": "0xYourBridgeManagerAddress",
+        "emergencyBridgePauser": "0xYourEmergencyPauserAddress",
+        "emergencyBridgeUnpauser": "0xYourEmergencyUnpauserAddress"
+    },
+    "globalExitRoot": {
+        "globalExitRootUpdater": "0xYourGlobalExitRootUpdaterAddress",
+        "globalExitRootRemover": "0xYourGlobalExitRootRemoverAddress"
+    },
+    "aggOracleCommittee": {
+        "useAggOracleCommittee": false,
+        "aggOracleOwner": "0xYourAggOracleOwnerAddress",
+        "aggOracleMembers": [
+            "0xYourOracleMember1Address",
+            "0xYourOracleMember2Address"
+        ],
+        "quorum": 1
+    }
+}

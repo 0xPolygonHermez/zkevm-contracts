@@ -11,31 +11,12 @@ export const CONSENSUS_TYPE = {
 };
 
 export const AGGCHAIN_CONTRACT_NAMES = {
-    ECDSA: 'AggchainECDSA',
+    ECDSA: 'AggchainECDSAMultisig',
     FEP: 'AggchainFEP',
 };
 
-export const ARRAY_AGGCHAIN_SUPPORTED_NAMES = ['AggchainECDSA', 'AggchainFEP'];
+export const ARRAY_AGGCHAIN_SUPPORTED_NAMES = ['AggchainECDSAMultisig', 'AggchainFEP'];
 
-export const GENESIS_CONTRACT_NAMES = {
-    WETH: 'WETH',
-    WETH_PROXY: 'WETH proxy',
-    TOKEN_WRAPPED_IMPLEMENTATION: 'TokenWrapped implementation',
-    SOVEREIGN_BRIDGE: 'BridgeL2SovereignChain',
-    SOVEREIGN_BRIDGE_IMPLEMENTATION: 'BridgeL2SovereignChain implementation',
-    SOVEREIGN_BRIDGE_PROXY: 'BridgeL2SovereignChain proxy',
-    BYTECODE_STORER: 'BytecodeStorer',
-    BRIDGE_V2: 'PolygonZkEVMBridgeV2',
-    GER_L2_SOVEREIGN: 'GlobalExitRootManagerL2SovereignChain',
-    GER_L2_SOVEREIGN_IMPLEMENTATION: 'GlobalExitRootManagerL2SovereignChain implementation',
-    GER_L2_SOVEREIGN_PROXY: 'GlobalExitRootManagerL2SovereignChain proxy',
-    GER_L2: 'PolygonZkEVMGlobalExitRootL2',
-    GER_L2_IMPLEMENTATION: 'PolygonZkEVMGlobalExitRootL2 implementation',
-    GER_L2_PROXY: 'PolygonZkEVMGlobalExitRootL2 proxy',
-    PROXY_ADMIN: 'ProxyAdmin',
-    POLYGON_TIMELOCK: 'PolygonZkEVMTimelock',
-    POLYGON_DEPLOYER: 'PolygonZkEVMDeployer',
-};
 /// //////////////////////////////
 /// // Functions for Aggchain ////
 /// //////////////////////////////
@@ -45,18 +26,19 @@ export const GENESIS_CONTRACT_NAMES = {
  * @param {Number|BigInt} aggchainType agg chain type (ECDSA: 0, FEP: 1)
  * @param {String} aggchainVKey aggchain verification key
  * @param {String} hashAggchainParams hash aggchain params
+ * @param {String} signersHash hash of the signers array (keccak256(abi.encodePacked(threshold, aggchainSigners)))
  * @returns compute aggchain hash
  */
-export function computeAggchainHash(aggchainType, aggchainVKey, hashAggchainParams) {
+export function computeAggchainHash(aggchainType, aggchainVKey, hashAggchainParams, signersHash) {
     // sanity check
     if (Number(aggchainType) !== CONSENSUS_TYPE.GENERIC) {
         throw new Error(`Invalid aggchain type for v0.3.0. Must be ${CONSENSUS_TYPE.GENERIC}`);
     }
 
-    // solidity keccak
+    // solidity keccak - now excludes threshold as requested
     return ethers.solidityPackedKeccak256(
-        ['uint32', 'bytes32', 'bytes32'],
-        [aggchainType, aggchainVKey, hashAggchainParams],
+        ['uint32', 'bytes32', 'bytes32', 'bytes32'],
+        [aggchainType, aggchainVKey, hashAggchainParams, signersHash],
     );
 }
 
@@ -93,7 +75,7 @@ export function getAggchainVKeySelector(_aggchainVKeyVersion, _aggchainType) {
  * @returns AggchainType
  */
 export function getAggchainTypeFromSelector(_aggchainVKeySelector) {
-    // remove "0x" if ot exist on aggchainVKeySelector with startWith method
+    // remove "0x" if it exist on aggchainVKeySelector with startWith method
     const aggchainVKeySelector = _aggchainVKeySelector.startsWith('0x')
         ? _aggchainVKeySelector.slice(2)
         : _aggchainVKeySelector;
@@ -148,4 +130,14 @@ export function encodeInitializeBytesLegacy(admin, sequencer, gasTokenAddress, s
  */
 export function encodeInitAggchainManager(aggchainManager) {
     return ethers.AbiCoder.defaultAbiCoder().encode(['address'], [aggchainManager]);
+}
+
+/**
+ * Compute the signers hash for aggchain contracts
+ * @param {Number|BigInt} threshold The threshold value for the multisig
+ * @param {String[]} signers Array of signer addresses
+ * @returns {String} Hash of the threshold and signers array
+ */
+export function computeSignersHash(threshold: number | bigint, signers: string[]): string {
+    return ethers.solidityPackedKeccak256(['uint256', 'address[]'], [threshold, signers]);
 }

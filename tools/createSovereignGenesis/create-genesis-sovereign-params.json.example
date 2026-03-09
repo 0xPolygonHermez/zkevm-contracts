@@ -6,7 +6,7 @@
     "bridgeManager": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
     "sovereignWETHAddress": "0x0000000000000000000000000000000000000000",
     "sovereignWETHAddressIsNotMintable": false,
-    "globalExitRootUpdater": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+    "globalExitRootUpdater": "",
     "globalExitRootRemover": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
     "emergencyBridgePauser": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
     "emergencyBridgeUnpauser": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
@@ -27,5 +27,9 @@
         "adminAddress": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
         "minDelay": 3600
     },
+    "useAggOracleCommittee": true,
+    "aggOracleCommittee": ["0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66", "0xb420EAAbFeFA05b39dE520f811325A463E023954"],
+    "quorum": 1,
+    "aggOracleOwner": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
     "formatGenesis": "geth"
 }

@@ -1,0 +1,120 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "LegacyAgglayerGERL2",
+  "sourceName": "contracts/LegacyAgglayerGERL2.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_bridgeAddress",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "GlobalExitRootAlreadySet",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "GlobalExitRootNotFound",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyAllowedContracts",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyGlobalExitRootRemover",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyGlobalExitRootUpdater",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyPendingGlobalExitRootRemover",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyPendingGlobalExitRootUpdater",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "bridgeAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "globalExitRootMap",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastRollupExitRoot",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "newRoot",
+          "type": "bytes32"
+        }
+      ],
+      "name": "updateExitRoot",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60a0604052348015600e575f5ffd5b5060405161022f38038061022f833981016040819052602b91603b565b6001600160a01b03166080526066565b5f60208284031215604a575f5ffd5b81516001600160a01b0381168114605f575f5ffd5b9392505050565b6080516101ab6100845f395f818160a3015261010201526101ab5ff3fe608060405234801561000f575f5ffd5b506004361061004a575f3560e01c806301fd90441461004e578063257b36321461006a57806333d6247d14610089578063a3c573eb1461009e575b5f5ffd5b61005760015481565b6040519081526020015b60405180910390f35b61005761007836600461015e565b5f6020819052908152604090205481565b61009c61009736600461015e565b6100ea565b005b6100c57f000000000000000000000000000000000000000000000000000000000000000081565b60405173ffffffffffffffffffffffffffffffffffffffff9091168152602001610061565b3373ffffffffffffffffffffffffffffffffffffffff7f00000000000000000000000000000000000000000000000000000000000000001614610159576040517fb49365dd00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b600155565b5f6020828403121561016e575f5ffd5b503591905056fea2646970667358221220fbd91ea9eaf44967c1036a6d6cca69117e78bf3efd67032bcff8d4a34606633e64736f6c634300081c0033",
+  "deployedBytecode": "0x608060405234801561000f575f5ffd5b506004361061004a575f3560e01c806301fd90441461004e578063257b36321461006a57806333d6247d14610089578063a3c573eb1461009e575b5f5ffd5b61005760015481565b6040519081526020015b60405180910390f35b61005761007836600461015e565b5f6020819052908152604090205481565b61009c61009736600461015e565b6100ea565b005b6100c57f000000000000000000000000000000000000000000000000000000000000000081565b60405173ffffffffffffffffffffffffffffffffffffffff9091168152602001610061565b3373ffffffffffffffffffffffffffffffffffffffff7f00000000000000000000000000000000000000000000000000000000000000001614610159576040517fb49365dd00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b600155565b5f6020828403121561016e575f5ffd5b503591905056fea2646970667358221220fbd91ea9eaf44967c1036a6d6cca69117e78bf3efd67032bcff8d4a34606633e64736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

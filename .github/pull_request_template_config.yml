@@ -1,0 +1,4 @@
+blank_issues_enabled: true
+pull_request_templates:
+  - name: Release PR
+    path: .github/PULL_REQUEST_TEMPLATE/release.md

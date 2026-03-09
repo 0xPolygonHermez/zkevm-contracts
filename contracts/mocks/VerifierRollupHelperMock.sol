@@ -3,7 +3,7 @@
 pragma solidity 0.8.28;
 
 import "../interfaces/IVerifierRollup.sol";
-import "../v2/interfaces/ISP1Verifier.sol";
+import "../interfaces/ISP1Verifier.sol";
 
 contract VerifierRollupHelperMock is IVerifierRollup, ISP1Verifier {
     function verifyProof(

@@ -1,0 +1,21 @@
+{
+    "target": "0xYourAgglayerManagerAddress",
+    "timelockDelay": 3600,
+    "roles": [
+        {
+            "action": "grant",
+            "roleName": "ADD_ROLLUP_TYPE_ROLE",
+            "account": "0xAccountAddress1"
+        },
+        {
+            "action": "grant",
+            "roleName": "UPDATE_ROLLUP_ROLE",
+            "account": "0xAccountAddress2"
+        },
+        {
+            "action": "revoke",
+            "roleName": "TRUSTED_AGGREGATOR_ROLE",
+            "account": "0xAccountAddress3"
+        }
+    ]
+}
