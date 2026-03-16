@@ -7,33 +7,17 @@ import {
     AgglayerManagerMock,
     AgglayerGERMock,
     AgglayerBridge,
-    PolygonPessimisticConsensus,
     PolygonZkEVMEtrog,
     VerifierRollupHelperMock,
     AggchainECDSAMultisig,
 } from '../../../typechain-types';
 
-import { VerifierType, computeInputPessimisticBytes, computeConsensusHashEcdsa } from '../../../src/pessimistic-utils';
+import { VerifierType } from '../../../src/pessimistic-utils';
 import inputProof from './test-inputs/input.json';
 import inputZkevmMigration from './test-inputs/input-zkevm-migration.json';
 import { encodeInitializeBytesLegacy } from '../../../src/utils-common-aggchain';
-import {
-    DEFAULT_ADMIN_ROLE,
-    ADD_ROLLUP_TYPE_ROLE,
-    OBSOLETE_ROLLUP_TYPE_ROLE,
-    CREATE_ROLLUP_ROLE,
-    ADD_EXISTING_ROLLUP_ROLE,
-    UPDATE_ROLLUP_ROLE,
-    TRUSTED_AGGREGATOR_ROLE,
-    TRUSTED_AGGREGATOR_ROLE_ADMIN,
-    TWEAK_PARAMETERS_ROLE,
-    SET_FEE_ROLE,
-    STOP_EMERGENCY_ROLE,
-    EMERGENCY_COUNCIL_ROLE,
-    EMERGENCY_COUNCIL_ADMIN,
-} from '../../../src/constants';
 
-describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
+describe('Polygon Rollup Manager with zkevm etrog migration to ECDSA Multisig with real prover', () => {
     let deployer: any;
     let timelock: any;
     let emergencyCouncil: any;
@@ -47,7 +31,6 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
     let polTokenContract: ERC20PermitMock;
     let polygonZkEVMGlobalExitRoot: AgglayerGERMock;
     let rollupManagerContract: AgglayerManagerMock;
-    let PolygonPPConsensusContract: PolygonPessimisticConsensus;
     let aggLayerGatewayContract: any;
 
     const polTokenName = 'POL Token';
@@ -179,184 +162,6 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
 
         // fund sequencer address with Matic tokens
         await polTokenContract.transfer(trustedSequencer, ethers.parseEther('1000'));
-    });
-
-    it('should check the initialized parameters', async () => {
-        expect(await rollupManagerContract.globalExitRootManager()).to.be.equal(polygonZkEVMGlobalExitRoot.target);
-        expect(await rollupManagerContract.pol()).to.be.equal(polTokenContract.target);
-        expect(await rollupManagerContract.bridgeAddress()).to.be.equal(polygonZkEVMBridgeContract.target);
-
-        expect(await rollupManagerContract.getBatchFee()).to.be.equal(ethers.parseEther('0.1'));
-        expect(await rollupManagerContract.getForcedBatchFee()).to.be.equal(ethers.parseEther('10'));
-        expect(await rollupManagerContract.calculateRewardPerBatch()).to.be.equal(0);
-
-        // Check roles
-        expect(await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, timelock.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, timelock.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(UPDATE_ROLLUP_ROLE, timelock.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(ADD_EXISTING_ROLLUP_ROLE, timelock.address)).to.be.equal(true);
-
-        expect(await rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE, trustedAggregator.address)).to.be.equal(
-            true,
-        );
-
-        expect(await rollupManagerContract.hasRole(OBSOLETE_ROLLUP_TYPE_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(TRUSTED_AGGREGATOR_ROLE_ADMIN, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(TWEAK_PARAMETERS_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(SET_FEE_ROLE, admin.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(STOP_EMERGENCY_ROLE, admin.address)).to.be.equal(true);
-
-        expect(await rollupManagerContract.hasRole(EMERGENCY_COUNCIL_ROLE, emergencyCouncil.address)).to.be.equal(true);
-        expect(await rollupManagerContract.hasRole(EMERGENCY_COUNCIL_ADMIN, emergencyCouncil.address)).to.be.equal(
-            true,
-        );
-    });
-
-    it('should verify pessimistic proof: pessimistic type, with a real verifier (not mock)', async () => {
-        // deploy consensus
-        // create polygonPessimisticConsensus implementation
-        const ppConsensusFactory = await ethers.getContractFactory('PolygonPessimisticConsensus');
-        PolygonPPConsensusContract = await ppConsensusFactory.deploy(
-            polygonZkEVMGlobalExitRoot.target,
-            polTokenContract.target,
-            polygonZkEVMBridgeContract.target,
-            rollupManagerContract.target,
-        );
-        await PolygonPPConsensusContract.waitForDeployment();
-
-        // Try to add a new rollup type
-        const forkID = 11; // just metadata for pessimistic consensus
-        const genesis = ethers.ZeroHash;
-        const description = 'new pessimistic consensus';
-        const programVKey = inputProof.vkey;
-        const rollupTypeID = 1;
-
-        // correct add new rollup via timelock
-        await rollupManagerContract
-            .connect(timelock)
-            .addNewRollupType(
-                PolygonPPConsensusContract.target,
-                verifierContract.target,
-                forkID,
-                VerifierType.Pessimistic,
-                genesis,
-                description,
-                programVKey,
-            );
-
-        // create new pessimistic: only admin
-        const chainID = 1;
-        const gasTokenAddress = ethers.ZeroAddress;
-        const urlSequencer = 'https://pessimistic:8545';
-        const networkName = 'testPessimistic';
-        const pessimisticRollupID = inputProof['pp-inputs']['origin-network'];
-        const initializeBytesAggchain = encodeInitializeBytesLegacy(
-            admin.address,
-            trustedSequencer,
-            gasTokenAddress,
-            urlSequencer,
-            networkName,
-        );
-        // create new pessimistic
-        const newZKEVMAddress = ethers.getCreateAddress({
-            from: rollupManagerContract.target as string,
-            nonce: 1,
-        });
-
-        await rollupManagerContract.connect(admin).attachAggchainToAL(rollupTypeID, chainID, initializeBytesAggchain);
-
-        // select not existent global exit root
-        const l1InfoTreeLeafCount = 2;
-        const newLER = inputProof['pp-inputs']['new-local-exit-root'];
-        const newPPRoot = inputProof['pp-inputs']['new-pessimistic-root'];
-        const proofPP = inputProof.proof;
-
-        // not trusted aggregator
-        await expect(
-            rollupManagerContract.verifyPessimisticTrustedAggregator(
-                pessimisticRollupID,
-                l1InfoTreeLeafCount,
-                newLER,
-                newPPRoot,
-                proofPP,
-                '0x', // aggchainData
-            ),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'AddressDoNotHaveRequiredRole');
-
-        // global exit root does not exist
-        await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                pessimisticRollupID,
-                l1InfoTreeLeafCount,
-                newLER,
-                newPPRoot,
-                proofPP,
-                '0x', // aggchainData
-            ),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'L1InfoTreeLeafCountInvalid');
-
-        const l1InfoRoot = inputProof['pp-inputs']['l1-info-root'];
-        // check JS function computeInputPessimisticBytes
-        const inputPessimisticBytes = await rollupManagerContract.getInputPessimisticBytes(
-            pessimisticRollupID,
-            l1InfoRoot,
-            inputProof['pp-inputs']['new-local-exit-root'],
-            inputProof['pp-inputs']['new-pessimistic-root'],
-            '0x', // aggchainData
-        );
-
-        const infoRollup = await rollupManagerContract.rollupIDToRollupDataV2(pessimisticRollupID);
-
-        const consensusHash = computeConsensusHashEcdsa(trustedSequencer);
-
-        const expectedInputPessimisticBytes = computeInputPessimisticBytes(
-            infoRollup[4],
-            infoRollup[10],
-            l1InfoRoot,
-            pessimisticRollupID,
-            consensusHash,
-            newLER,
-            newPPRoot,
-        );
-
-        expect(inputPessimisticBytes).to.be.equal(expectedInputPessimisticBytes);
-        // Mock selected GER
-        await polygonZkEVMGlobalExitRoot.injectGER(l1InfoRoot, l1InfoTreeLeafCount);
-
-        // verify pessimistic
-        await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                pessimisticRollupID,
-                l1InfoTreeLeafCount,
-                newLER,
-                newPPRoot,
-                proofPP,
-                '0x', // aggchainData
-            ),
-        )
-            .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
-            .withArgs(pessimisticRollupID, 0, ethers.ZeroHash, newLER, trustedAggregator.address);
-
-        // assert rollup data
-        const resRollupData = await rollupManagerContract.rollupIDToRollupDataV2(pessimisticRollupID);
-
-        const expectedRollupData = [
-            newZKEVMAddress,
-            chainID,
-            verifierContract.target,
-            forkID,
-            newLER,
-            0,
-            0,
-            0,
-            rollupTypeID,
-            VerifierType.Pessimistic,
-            newPPRoot,
-            programVKey,
-        ];
-
-        expect(expectedRollupData).to.be.deep.equal(resRollupData);
     });
 
     it('should create rollup type zkevm etrog & migrate to ECDSA Multisig no bridges sequenced', async () => {

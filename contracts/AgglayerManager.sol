@@ -14,7 +14,6 @@ import "./lib/PolygonTransparentProxy.sol";
 import "./lib/PolygonAccessControlUpgradeable.sol";
 import "./lib/LegacyZKEVMStateVariables.sol";
 import "./lib/PolygonConstantsBase.sol";
-import "./interfaces/IPolygonPessimisticConsensus.sol";
 import "./interfaces/ISP1Verifier.sol";
 import "./interfaces/IAgglayerManager.sol";
 import "./interfaces/IAggchainBase.sol";
@@ -528,10 +527,7 @@ contract AgglayerManager is
 
         uint32 rollupTypeID = ++rollupTypeCount;
 
-        if (rollupVerifierType == VerifierType.Pessimistic) {
-            // No genesis on pessimistic rollups
-            if (genesis != bytes32(0)) revert InvalidRollupType();
-        } else if (rollupVerifierType == VerifierType.ALGateway) {
+        if (rollupVerifierType == VerifierType.ALGateway) {
             // Those params should be zero for ALGateway rollup types
             if (
                 verifier != address(0) ||
@@ -778,14 +774,7 @@ contract AgglayerManager is
         rollup.rollupVerifierType = rollupVerifierType;
 
         // Check verifier type
-        if (rollupVerifierType == VerifierType.Pessimistic) {
-            rollup.programVKey = programVKey;
-            rollup.lastPessimisticRoot = initPessimisticRoot;
-            rollup.lastLocalExitRoot = initRoot;
-            if (verifier.code.length == 0) {
-                revert InvalidVerifierAddress();
-            }
-        } else if (rollupVerifierType == VerifierType.ALGateway) {
+        if (rollupVerifierType == VerifierType.ALGateway) {
             if (
                 verifier != address(0) ||
                 forkID != 0 ||
@@ -990,11 +979,11 @@ contract AgglayerManager is
             revert AllSequencedMustBeVerified();
         }
 
-        // NewRollupType must be pessimistic or ALGateway
+        // NewRollupType must be ALGateway
         require(
-            rollupTypeMap[newRollupTypeID].rollupVerifierType !=
-                VerifierType.StateTransition,
-            NewRollupTypeMustBePessimisticOrALGateway()
+            rollupTypeMap[newRollupTypeID].rollupVerifierType ==
+                VerifierType.ALGateway,
+            InvalidRollupType()
         );
 
         // Add rollupID to migration mapping
@@ -1312,14 +1301,6 @@ contract AgglayerManager is
             revert StateTransitionChainsNotAllowed();
         }
 
-        // Not aggchainData for VerifierType.Pessimistic
-        if (
-            rollup.rollupVerifierType == VerifierType.Pessimistic &&
-            aggchainData.length != 0
-        ) {
-            revert AggchainDataMustBeZeroForPessimisticVerifierType();
-        }
-
         // Check l1InfoTreeLeafCount has a valid l1InfoTreeRoot
         bytes32 l1InfoRoot = globalExitRootManager.l1InfoRootMap(
             l1InfoTreeLeafCount
@@ -1361,23 +1342,14 @@ contract AgglayerManager is
             aggchainData
         );
 
-        if (rollup.rollupVerifierType == VerifierType.ALGateway) {
-            // Verify proof. The pessimistic proof selector is attached at the first 4 bytes of the proof
-            // proof[0:4]: 4 bytes selector pp
-            // proof[4:8]: 4 bytes selector SP1 verifier
-            // proof[8:]: proof
-            aggLayerGateway.verifyPessimisticProof(
-                inputPessimisticBytes,
-                proof
-            );
-        } else {
-            // Verify proof
-            ISP1Verifier(rollup.verifier).verifyProof(
-                rollup.programVKey,
-                inputPessimisticBytes,
-                proof
-            );
-        }
+        // Verify proof. The pessimistic proof selector is attached at the first 4 bytes of the proof
+        // proof[0:4]: 4 bytes selector pp
+        // proof[4:8]: 4 bytes selector SP1 verifier
+        // proof[8:]: proof
+        aggLayerGateway.verifyPessimisticProof(
+            inputPessimisticBytes,
+            proof
+        );
 
         // Update aggregation parameters
         lastAggregationTimestamp = uint64(block.timestamp);
@@ -1413,13 +1385,11 @@ contract AgglayerManager is
             msg.sender
         );
 
-        if (rollup.rollupVerifierType == VerifierType.ALGateway) {
-            // Allow chains to manage customData
-            // Callback to the rollup address
-            IAggchainBase(rollup.rollupContract).onVerifyPessimistic(
-                aggchainData
-            );
-        }
+        // Allow chains to manage customData
+        // Callback to the rollup address
+        IAggchainBase(rollup.rollupContract).onVerifyPessimistic(
+            aggchainData
+        );
     }
 
     ////////////////////////
@@ -1660,35 +1630,18 @@ contract AgglayerManager is
         bytes32 newPessimisticRoot,
         bytes calldata aggchainData
     ) internal view returns (bytes memory inputPessimisticBytes) {
-        // Different consensusHash and encoding if the rollup is ALGateway or pessimistic
-        if (rollup.rollupVerifierType == VerifierType.ALGateway) {
-            bytes32 aggchainHash = IAggchainBase(rollup.rollupContract)
-                .getAggchainHash(aggchainData);
+        bytes32 aggchainHash = IAggchainBase(rollup.rollupContract)
+            .getAggchainHash(aggchainData);
 
-            inputPessimisticBytes = abi.encodePacked(
-                rollup.lastLocalExitRoot,
-                rollup.lastPessimisticRoot,
-                l1InfoTreeRoot,
-                rollupID,
-                aggchainHash,
-                newLocalExitRoot,
-                newPessimisticRoot
-            );
-        } else {
-            bytes32 consensusHash = IPolygonPessimisticConsensus(
-                address(rollup.rollupContract)
-            ).getConsensusHash();
-
-            inputPessimisticBytes = abi.encodePacked(
-                rollup.lastLocalExitRoot,
-                rollup.lastPessimisticRoot,
-                l1InfoTreeRoot,
-                rollupID,
-                consensusHash,
-                newLocalExitRoot,
-                newPessimisticRoot
-            );
-        }
+        inputPessimisticBytes = abi.encodePacked(
+            rollup.lastLocalExitRoot,
+            rollup.lastPessimisticRoot,
+            l1InfoTreeRoot,
+            rollupID,
+            aggchainHash,
+            newLocalExitRoot,
+            newPessimisticRoot
+        );
     }
 
     /**

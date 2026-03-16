@@ -10,7 +10,6 @@ import {
     AgglayerBridge,
     AggchainFEP,
     VerifierRollupHelperMock,
-    PolygonPessimisticConsensus,
 } from '../../typechain-types';
 
 import { VerifierType, computeRandomBytes } from '../../src/pessimistic-utils';
@@ -18,7 +17,6 @@ import { VerifierType, computeRandomBytes } from '../../src/pessimistic-utils';
 import {
     CONSENSUS_TYPE,
     encodeInitAggchainManager,
-    encodeInitializeBytesLegacy,
     computeAggchainHash,
     computeSignersHash,
 } from '../../src/utils-common-aggchain';
@@ -48,7 +46,6 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
     let aggLayerGatewayContract: AgglayerGateway;
     let aggchainFEPImplementationContract: AggchainFEP;
     let verifierContract: VerifierRollupHelperMock;
-    let PolygonPPConsensusContract: PolygonPessimisticConsensus;
     /// CONSTANTS
     const POL_TOKEN_NAME = 'POL Token';
     const POL_TOKEN_SYMBOL = 'POL';
@@ -117,35 +114,6 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
         await aggchainECDSAContract.connect(aggchainManager).updateSignersAndThreshold([], [], 0);
 
         return [Number(rollupsCount) + 1, precomputedAggchainFEPAddress];
-    }
-
-    async function createPessimisticRollupType() {
-        // Create rollup type for pessimistic
-        const lastRollupTypeID = await rollupManagerContract.rollupTypeCount();
-        await expect(
-            rollupManagerContract.connect(timelock).addNewRollupType(
-                PolygonPPConsensusContract.target,
-                verifierContract.target,
-                0, // fork id
-                VerifierType.Pessimistic,
-                ethers.ZeroHash, // genesis
-                '', // description
-                ethers.ZeroHash, // programVKey
-            ),
-        )
-            .to.emit(rollupManagerContract, 'AddNewRollupType')
-            .withArgs(
-                Number(lastRollupTypeID) + 1 /* rollupTypeID */,
-                PolygonPPConsensusContract.target,
-                verifierContract.target,
-                0, // fork id
-                VerifierType.Pessimistic,
-                ethers.ZeroHash, // genesis
-                '', // description
-                ethers.ZeroHash, // programVKey
-            );
-
-        return Number(lastRollupTypeID) + 1;
     }
     async function createFEPRollupType() {
         // Create rollup type for FEP
@@ -318,15 +286,6 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
             polygonZkEVMBridgeContract.target,
             rollupManagerContract.target,
             aggLayerGatewayContract.target,
-        );
-
-        // Deploy pessimistic consensus contract
-        const ppConsensusFactory = await ethers.getContractFactory('PolygonPessimisticConsensus');
-        PolygonPPConsensusContract = await ppConsensusFactory.deploy(
-            polygonZkEVMGlobalExitRoot.target,
-            polTokenContract.target,
-            polygonZkEVMBridgeContract.target,
-            rollupManagerContract.target,
         );
     });
 
@@ -633,234 +592,6 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
             .withArgs(newStateRoot, 1, newl2BlockNumber, blockDataTimestamp);
     });
 
-    it('should create a rollup with pessimistic consensus and upgrade it to aggchainFEP', async () => {
-        // Deploy pessimistic consensus contract
-        const ppConsensusFactory = await ethers.getContractFactory('PolygonPessimisticConsensus');
-
-        // Create new rollup type with pessimistic consensus
-        const pessimisticRollupTypeID = await createPessimisticRollupType();
-
-        // Create new rollup with pessimistic consensus
-        const precomputedRollupAddress = ethers.getCreateAddress({
-            from: rollupManagerContract.target as string,
-            nonce: await ethers.provider.getTransactionCount(rollupManagerContract.target),
-        });
-        const pessimisticRollupContract = ppConsensusFactory.attach(
-            precomputedRollupAddress,
-        ) as PolygonPessimisticConsensus;
-        const chainID = 5;
-        const gasTokenAddress = ethers.ZeroAddress;
-        const urlSequencer = 'https://pessimistic:8545';
-        const networkName = 'testPessimistic';
-        const pessimisticRollupID = 1; // Already aggchainFEP rollup created created
-        const initializeBytesPessimistic = encodeInitializeBytesLegacy(
-            admin.address,
-            trustedSequencer.address,
-            gasTokenAddress,
-            urlSequencer,
-            networkName,
-        );
-        await expect(
-            rollupManagerContract
-                .connect(admin)
-                .attachAggchainToAL(pessimisticRollupTypeID, chainID, initializeBytesPessimistic),
-        )
-            .to.emit(rollupManagerContract, 'CreateNewRollup')
-            .withArgs(pessimisticRollupID, pessimisticRollupTypeID, precomputedRollupAddress, chainID, gasTokenAddress);
-
-        // Verify pessimist proof with pessimistic rollup
-        // create a bridge to generate a new GER and add another value in the l1IfoRootMap
-        const tokenAddress = ethers.ZeroAddress;
-        const amount = ethers.parseEther('1');
-        await polygonZkEVMBridgeContract.bridgeAsset(
-            pessimisticRollupID,
-            polTokenContract.target,
-            amount,
-            tokenAddress,
-            true,
-            '0x',
-            {
-                value: amount,
-            },
-        );
-        // get last L1InfoTreeLeafCount
-        const lastL1InfoTreeLeafCount = await polygonZkEVMGlobalExitRoot.depositCount();
-
-        // check JS function computeInputPessimisticBytes
-        const newLER = '0x0000000000000000000000000000000000000000000000000000000000000001';
-        const newPPRoot = '0x0000000000000000000000000000000000000000000000000000000000000002';
-        const proofPP = '0x00';
-
-        // verify pessimistic from the created pessimistic rollup
-        await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                pessimisticRollupID,
-                lastL1InfoTreeLeafCount,
-                newLER,
-                newPPRoot,
-                proofPP,
-                '0x', // aggchainData
-            ),
-        )
-            .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
-            .withArgs(
-                pessimisticRollupID,
-                0, // numBatch
-                ethers.ZeroHash, // stateRoot
-                newLER,
-                trustedAggregator.address,
-            );
-
-        // Create rollup type FEP
-        const rollupTypeFEPId = await createFEPRollupType();
-        // Update the rollup to FEP and initialize the new rollup type
-        // Compute initialize upgrade data
-        const aggchainFEPFactory = await ethers.getContractFactory('AggchainFEP');
-
-        // Define the struct values
-        // eslint-disable-next-line @typescript-eslint/no-shadow
-        const initParams = {
-            l2BlockTime: 10,
-            rollupConfigHash: ethers.id('rollupConfigHash'),
-            startingOutputRoot: ethers.id('startingOutputRoot'),
-            startingBlockNumber: 100,
-            startingTimestamp: 0,
-            submissionInterval: 5,
-            optimisticModeManager: optModeManager.address,
-            aggregationVkey: ethers.id('aggregationVkey'),
-            rangeVkeyCommitment: ethers.id('rangeVkeyCommitment'),
-        };
-
-        // Initialize parameters will be passed directly to the contract
-        // Note: Wrong aggchain type will be tested with '0x00010002' selector
-
-        const upgradeData = aggchainFEPFactory.interface.encodeFunctionData('initAggchainManager(address)', [
-            aggchainManager.address,
-        ]);
-
-        await expect(
-            rollupManagerContract
-                .connect(timelock)
-                .updateRollup(pessimisticRollupContract.target, rollupTypeFEPId, upgradeData),
-        )
-            .to.emit(rollupManagerContract, 'UpdateRollup')
-            .withArgs(pessimisticRollupID, rollupTypeFEPId, 0 /* lastVerifiedBatch */);
-        const FEPRollupContract = aggchainFEPFactory.attach(pessimisticRollupContract.target);
-
-        const aggchainManagerSC = await FEPRollupContract.aggchainManager();
-        expect(aggchainManagerSC).to.be.equal(aggchainManager.address);
-
-        // initialize the FEP aggchain - test wrong aggchain type
-        await expect(
-            FEPRollupContract.connect(aggchainManager).initializeFromLegacyConsensus(
-                initParams,
-                false, // useDefaultVkeys (set to false to test aggchain type validation)
-                false, // useDefaultSigners
-                ethers.ZeroHash, // ownedAggchainVKey
-                '0x00010002', // aggchainVkeySelector (wrong type - should be 0x0001 for FEP)
-                [], // No signers to add initially
-                0, // Threshold of 0 initially
-            ),
-        ).to.be.revertedWithCustomError(FEPRollupContract, 'InvalidAggchainType');
-
-        await FEPRollupContract.connect(aggchainManager).initializeFromLegacyConsensus(
-            initParams,
-            false, // useDefaultVkeys (set to false to avoid needing gateway vkey)
-            false, // useDefaultSigners
-            ethers.id('ownedAggchainVKey'), // ownedAggchainVKey
-            '0x00010001', // aggchainVkeySelector (valid FEP selector)
-            [], // No signers to add initially
-            0, // Threshold of 0 initially
-        );
-
-        // Try update rollup by rollupAdmin but trigger UpdateToOldRollupTypeID
-        // Create a new pessimistic rollup type
-        await createPessimisticRollupType();
-
-        // Check rollup data deserialized
-        const resRollupData = await rollupManagerContract.rollupIDToRollupDataDeserialized(pessimisticRollupID);
-        const expectedRollupData = [
-            FEPRollupContract.target,
-            chainID,
-            ethers.ZeroAddress, // newVerifier address, for FEP is zero because it is internally replaced by aggLayerGateway address
-            0, // newForkID
-            newLER, // lastLocalExitRoot
-            0, // lastBatchSequenced
-            0, // lastBatchVerified
-            0, // _legacyLastPendingState
-            0, // _legacyLastPendingStateConsolidated
-            0, // lastVerifiedBatchBeforeUpgrade
-            rollupTypeFEPId,
-            VerifierType.ALGateway,
-        ];
-
-        expect(expectedRollupData).to.be.deep.equal(resRollupData);
-
-        // Check rollup data deserialized V2
-        const resRollupDataV2 = await rollupManagerContract.rollupIDToRollupDataV2Deserialized(pessimisticRollupID);
-        const expectedRollupDataV2 = [
-            FEPRollupContract.target,
-            chainID,
-            ethers.ZeroAddress, // newVerifier address, for FEP is zero because it is internally replaced by aggLayerGateway address
-            0, // newForkID
-            newLER, // lastLocalExitRoot
-            0, // lastBatchSequenced
-            0, // lastBatchVerified
-            0, // lastVerifiedBatchBeforeUpgrade
-            rollupTypeFEPId,
-            VerifierType.ALGateway,
-            newPPRoot, // lastPessimisticRoot
-            ethers.ZeroHash, // newProgramVKey
-        ];
-
-        expect(expectedRollupDataV2).to.be.deep.equal(resRollupDataV2);
-
-        // Verify pessimist proof with the new FEP rollup
-        const randomNewLocalExitRoot = computeRandomBytes(32);
-        const randomNewPessimisticRoot = computeRandomBytes(32);
-        const randomProof = computeRandomBytes(128);
-        // append first 4 bytes to the proof to select the pessimistic vkey
-        const proofWithSelector = `${PESSIMISTIC_SELECTOR}${randomProof.slice(2)}`;
-        // Should revert due to aggchain vkey not found (0x12340001 doesn't match the initialized 0x00010001)
-        await expect(
-            rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                pessimisticRollupID, // rollupID
-                lastL1InfoTreeLeafCount, // l1InfoTreeCount
-                randomNewLocalExitRoot,
-                randomNewPessimisticRoot,
-                proofWithSelector,
-                CUSTOM_DATA_FEP,
-            ),
-        ).to.be.revertedWithCustomError(FEPRollupContract, 'AggchainVKeyNotFound');
-
-        // Initialize signers hash with empty signers to move past the signers hash check
-        await FEPRollupContract.connect(aggchainManager).updateSignersAndThreshold([], [], 0);
-
-        // Create CUSTOM_DATA_FEP with the correct selector that was used during initialization
-        const correctSelector = '0x00010001'; // This matches what was used in initializeFromLegacyConsensus
-        const CUSTOM_DATA_FEP_CORRECT = encodeAggchainDataFEP(correctSelector, newStateRoot, newl2BlockNumber);
-
-        // verify pessimist proof with the new FEP rollup
-        const onVerifyPessimisticTx = await rollupManagerContract
-            .connect(trustedAggregator)
-            .verifyPessimisticTrustedAggregator(
-                pessimisticRollupID, // rollupID
-                lastL1InfoTreeLeafCount, // l1InfoTreeCount
-                randomNewLocalExitRoot,
-                randomNewPessimisticRoot,
-                proofWithSelector,
-                CUSTOM_DATA_FEP_CORRECT,
-            );
-
-        const lastBlock = await ethers.provider.getBlock('latest');
-        const blockDataTimestamp = lastBlock?.timestamp;
-
-        await expect(onVerifyPessimisticTx)
-            .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
-            .to.emit(FEPRollupContract, 'OutputProposed')
-            .withArgs(newStateRoot, 1, newl2BlockNumber, blockDataTimestamp);
-    });
-
     it('should add existing rollup to FEP', async () => {
         // add existing rollup
         const rollupAddress = '0xAa000000000000000000000000000000000000Bb';
@@ -934,60 +665,5 @@ describe('Polygon rollup manager aggregation layer v3: FEP', () => {
                 programVKey,
                 initPessimisticRoot,
             );
-    });
-
-    it('should throw reverts UpdateToOldRollupTypeID and  UpdateNotCompatible', async () => {
-        // create two pessimistic rollup types
-        const pessimisticRollupTypeID1 = await createPessimisticRollupType();
-        const pessimisticRollupTypeID2 = await createPessimisticRollupType();
-
-        const rollupManagerNonce = await ethers.provider.getTransactionCount(rollupManagerContract.target);
-        const pessimisticRollupAddress = ethers.getCreateAddress({
-            from: rollupManagerContract.target as string,
-            nonce: rollupManagerNonce,
-        });
-        // Create pessimistic rollup
-        const initializeBytesAggchain = encodeInitializeBytesLegacy(
-            admin.address,
-            trustedSequencer.address,
-            ethers.ZeroAddress,
-            '',
-            '',
-        );
-        await rollupManagerContract.connect(admin).attachAggchainToAL(
-            pessimisticRollupTypeID2,
-            2, // chainID
-            initializeBytesAggchain,
-        );
-        expect(await rollupManagerContract.rollupAddressToID(pessimisticRollupAddress)).to.be.equal(1);
-
-        // Try to upgrade from rollupType1 to rollupType2 should revert (lowest rollup typed id)
-        await expect(
-            rollupManagerContract
-                .connect(admin)
-                .updateRollupByRollupAdmin(pessimisticRollupAddress, pessimisticRollupTypeID1),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'UpdateToOldRollupTypeID');
-
-        // Try to upgrade to a rollup type with different verifier type, should revert
-        const rollupTypeFEP = await createFEPRollupType();
-        await expect(
-            rollupManagerContract.connect(admin).updateRollupByRollupAdmin(pessimisticRollupAddress, rollupTypeFEP),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'UpdateNotCompatible');
-
-        // Try to upgrade to a pessimistic from an fep rollup type, should revert
-        const [, rollupFEPAddress] = await createFEPRollup(rollupTypeFEP);
-        await expect(
-            rollupManagerContract
-                .connect(timelock)
-                .updateRollup(rollupFEPAddress as string, pessimisticRollupTypeID1, '0x'),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'UpdateNotCompatible');
-
-        // Trigger OnlyStateTransitionChains from onSequenceBatches
-        await ethers.provider.send('hardhat_setBalance', [pessimisticRollupAddress, '0x100000000000000']);
-        await ethers.provider.send('hardhat_impersonateAccount', [pessimisticRollupAddress]);
-        const pessimisticRollupContract = await ethers.getSigner(pessimisticRollupAddress);
-        await expect(
-            rollupManagerContract.connect(pessimisticRollupContract).onSequenceBatches(3, computeRandomBytes(32)),
-        ).to.be.revertedWithCustomError(rollupManagerContract, 'OnlyStateTransitionChains');
     });
 });
