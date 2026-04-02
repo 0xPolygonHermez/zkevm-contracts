@@ -9,6 +9,10 @@ import "./AgglayerBridgeL2FromEtrog.sol";
  * Contract responsible to manage the token interactions with other networks
  */
 contract AgglayerBridgeL2NativeBlockedFromEtrog is AgglayerBridgeL2FromEtrog {
+    // Current bridge version
+    string internal constant BRIDGE_SOVEREIGN_NATIVE_BLOCKED_VERSION =
+        "v1.3.0-blockGasToken";
+
     error NativeTokenBridgeBlocked();
 
     /**
@@ -84,6 +88,6 @@ contract AgglayerBridgeL2NativeBlockedFromEtrog is AgglayerBridgeL2FromEtrog {
      * @return version of the contract.
      */
     function version() external pure virtual override returns (string memory) {
-        return "v1.3.0-blockGasToken";
+        return BRIDGE_SOVEREIGN_NATIVE_BLOCKED_VERSION;
     }
 }
