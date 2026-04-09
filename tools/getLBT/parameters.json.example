@@ -7,5 +7,6 @@
         "concurrencyLimit": 100,
         "printTokens": true,
         "blockNumber": "latest",
+        "initNativeSupply": "200000000000000000000000000"
     }
 }

@@ -20,6 +20,8 @@ export interface GetLBTOptions {
     blockNumber?: number | 'latest';
     blockRange?: number;
     concurrencyLimit?: number;
+    /** Wei at block 0 for the bridge (decimal or 0x hex). If set, skips archive RPC getBalance(bridge, 0). */
+    initNativeSupply?: string;
 }
 
 export interface GetLBTResult {
@@ -140,8 +142,15 @@ export async function getLBTData(
         });
     }
 
-    // Get initial native supply
-    const initNativeSupply = await provider.getBalance(bridgeAddress, 0);
+    // Initial native balance at block 0 (archive). Optional override avoids getBalance(..., 0).
+    let initNativeSupply: bigint;
+    if (options?.initNativeSupply !== undefined && String(options.initNativeSupply).trim() !== '') {
+        initNativeSupply = ethers.getUint(String(options.initNativeSupply).trim(), 'initNativeSupply');
+        logger.info('Using initNativeSupply from options (skipping archive getBalance at block 0)');
+    } else {
+        initNativeSupply = await provider.getBalance(bridgeAddress, 0);
+    }
+
     const currentNativeSupply = await provider.getBalance(bridgeAddress, blockNumber);
     const currentNativeUnlocked = initNativeSupply - currentNativeSupply;
 
@@ -170,7 +179,7 @@ export async function getLBTData(
 
     return {
         LBTObject,
-        initNativeSupply: initNativeSupply.toString(),
+        initNativeSupply: initNativeSupply.toString(), // value used (from options or chain)
         tokenAddresses,
     };
 }
@@ -210,6 +219,7 @@ async function main() {
         blockNumber,
         blockRange: options?.blockRange,
         concurrencyLimit: options?.concurrencyLimit,
+        initNativeSupply: options?.initNativeSupply,
     });
 
     // Write events file if requested
@@ -223,7 +233,7 @@ async function main() {
             wrappedTokenAddress: entry.wrappedTokenAddress,
             totalSupply: entry.balance,
         }));
-        fs.writeFileSync(path.join(__dirname, `events.json`), JSON.stringify(eventsWithSupply, null, 2));
+        fs.writeFileSync(path.join(__dirname, `events-${dateStr}.json`), JSON.stringify(eventsWithSupply, null, 2));
     }
 
     // Write tokens file if requested

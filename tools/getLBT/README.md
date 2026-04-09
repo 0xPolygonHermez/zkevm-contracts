@@ -62,6 +62,7 @@ Update `parameters.json` with your settings:
 | `options.printEvents`      | No       | If `true`, writes event data with totalSupply to `events.json`                                                       |
 | `options.printTokens`      | No       | If `true`, writes token addresses array to `WTokens-{date}.json`                                                     |
 | `options.blockNumber`      | No       | Block number for `totalSupply` query. Use `"latest"` or a specific block number                                      |
+| `options.initNativeSupply` | No       | Bridge native balance at block **0** in wei (decimal string or `0x` hex). If set, skips `getBalance(bridge, 0)` (no archive node needed for that call) |
 
 ### 5. Run the script
 
@@ -82,6 +83,7 @@ const result: GetLBTResult = await getLBTData(ethers.provider, bridgeAddress, {
     blockNumber: 12345678, // optional: specific block or 'latest'
     blockRange: 100000, // optional: blocks per query batch
     concurrencyLimit: 10, // optional: max parallel RPC requests
+    initNativeSupply: '1234567890000000000', // optional: wei at block 0; skips archive getBalance(bridge, 0)
 });
 
 // Access the results
@@ -104,6 +106,7 @@ interface GetLBTOptions {
     blockNumber?: number | 'latest';
     blockRange?: number;
     concurrencyLimit?: number;
+    initNativeSupply?: string;
 }
 
 interface GetLBTResult {
