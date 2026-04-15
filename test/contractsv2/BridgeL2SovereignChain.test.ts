@@ -3435,6 +3435,57 @@ describe('AgglayerBridgeL2 Contract', () => {
                 // Verify the root changed (different from original)
                 expect(await sovereignChainBridgeContract.getRoot()).to.not.equal(originalTree.getRoot());
             });
+
+            it('should update lastUpdatedDepositCount after backwardLET', async () => {
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                const originalLeaves = generateTestLeaves(3);
+                const originalTree = buildMerkleTreeForTesting(originalLeaves);
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(originalLeaves, originalTree.getRoot());
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(3);
+
+                // Deactivate emergency, sync lastUpdatedDepositCount via updateGlobalExitRoot, re-activate
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).deactivateEmergencyState();
+                await sovereignChainBridgeContract.updateGlobalExitRoot();
+                expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.equal(3);
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                // Rollback to 1 leaf
+                const newDepositCount = 1;
+
+                const newFrontier = Array(32).fill(ethers.ZeroHash);
+                newFrontier[0] = getLeafValue(
+                    originalLeaves[0].leafType,
+                    originalLeaves[0].originNetwork,
+                    originalLeaves[0].originAddress,
+                    originalLeaves[0].destinationNetwork,
+                    originalLeaves[0].destinationAddress,
+                    originalLeaves[0].amount,
+                    ethers.keccak256(originalLeaves[0].metadata),
+                );
+
+                const nextLeaf = originalLeaves[newDepositCount];
+                const nextLeafValue = getLeafValue(
+                    nextLeaf.leafType,
+                    nextLeaf.originNetwork,
+                    nextLeaf.originAddress,
+                    nextLeaf.destinationNetwork,
+                    nextLeaf.destinationAddress,
+                    nextLeaf.amount,
+                    ethers.keccak256(nextLeaf.metadata),
+                );
+                const proof = originalTree.getProofTreeByIndex(newDepositCount);
+
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .backwardLET(newDepositCount, newFrontier as [string, ...string[]], nextLeafValue, proof);
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(1);
+                expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.equal(1);
+            });
         });
 
         describe('forwardLET', () => {
@@ -3744,6 +3795,22 @@ describe('AgglayerBridgeL2 Contract', () => {
 
                 // Verify no leaves were added (transaction reverted)
                 expect(await sovereignChainBridgeContract.depositCount()).to.equal(0);
+            });
+
+            it('should update lastUpdatedDepositCount after forwardLET', async () => {
+                await sovereignChainBridgeContract.connect(emergencyBridgePauser).activateEmergencyState();
+
+                expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.equal(0);
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(0);
+
+                const newLeaves = generateTestLeaves(3);
+                const expectedTree = buildMerkleTreeForTesting(newLeaves);
+                await sovereignChainBridgeContract
+                    .connect(globalExitRootRemover)
+                    .forwardLET(newLeaves, expectedTree.getRoot());
+
+                expect(await sovereignChainBridgeContract.depositCount()).to.equal(3);
+                expect(await sovereignChainBridgeContract.lastUpdatedDepositCount()).to.equal(3);
             });
         });
 
