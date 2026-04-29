@@ -2,6 +2,7 @@
 src = "contracts"
 out = "folder.ignore"
 libs = ["dependencies", "node_modules"]
+allow_paths = ["../LayerZero-v2/packages"]
 optimizer = true
 optimizer_runs = 999999
 via_ir = true
@@ -11,7 +12,18 @@ fs_permissions = [
     { access = "read", path = "./script/forge" }
 ]
 
-remappings = ["forge-std/=dependencies/forge-std-1.10.0/src/"]
+remappings = [
+    "@layerzerolabs/lz-evm-messagelib-v2/=../LayerZero-v2/packages/layerzero-v2/evm/messagelib/",
+    "@layerzerolabs/lz-evm-oapp-v2/=../LayerZero-v2/packages/layerzero-v2/evm/oapp/",
+    "@layerzerolabs/lz-evm-protocol-v2/=../LayerZero-v2/packages/layerzero-v2/evm/protocol/",
+    "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/",
+    "@openzeppelin/contracts4/=node_modules/@openzeppelin/contracts4/",
+    "@openzeppelin/contracts5/=node_modules/@openzeppelin/contracts5/",
+    "@openzeppelin/contracts52/=node_modules/@openzeppelin/contracts52/",
+    "@openzeppelin/contracts-upgradeable4/=node_modules/@openzeppelin/contracts-upgradeable4/",
+    "@openzeppelin/contracts-upgradeable5/=node_modules/@openzeppelin/contracts-upgradeable5/",
+    "forge-std/=dependencies/forge-std-1.10.0/src/",
+]
 
 [lint]
 lint_on_build = false
