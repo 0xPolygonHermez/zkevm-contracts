@@ -473,29 +473,16 @@ contract AgglayerOFTAdapter is OFTAdapter, IAggLayerOFTReceiver {
         address _executor,
         bytes calldata _extraData
     ) internal virtual override {
-        // Detect AggLayer-wrapped messages by attempting to decode the magic.
-        // Use a try-decode approach: if the first 4 bytes (after abi.decode
-        // alignment) match MAGIC, it is an AggLayer payload.
-        // AggLayerOFTPayloadCodec.encode uses abi.encode(struct), so the
-        // layout is: [magic(32), version(32), oftMessage_offset(32),
-        // globalIndex(32), oftMessage_length(32), oftMessage_data...].
-        // We check the magic field (first word of the ABI tuple).
-        // Detect AggLayer-wrapped messages by checking for the magic bytes.
-        // AggLayerOFTPayloadCodec.encode produces abi.encode(struct) where the
-        // struct has a dynamic field (bytes oftMessage), causing abi.encode to
-        // prepend a 32-byte outer offset (0x20). The actual struct data starts
-        // at byte 32. The first field of the struct is bytes4 magic, right-padded
-        // to 32 bytes (bytes 32-63). So the magic "ALO1" lives at bytes 32-35.
-        bool isAggLayerMessage = false;
-        if (
-            _message.length >= 64 &&
-            _message[32] == 0x41 && // 'A'
-            _message[33] == 0x4c && // 'L'
-            _message[34] == 0x4f && // 'O'
-            _message[35] == 0x31    // '1'
-        ) {
-            isAggLayerMessage = true;
-        }
+        // Detect AggLayer-wrapped messages by checking magic at the start.
+        // AggLayerOFTPayloadCodec.encode uses flat abi.encode(magic, version, oftMessage, globalIndex),
+        // so bytes4 magic (right-padded to 32 bytes) occupies bytes 0-3 of the encoded payload.
+        bool isAggLayerMessage = (
+            _message.length >= 32 &&
+            _message[0] == 0x41 && // 'A'
+            _message[1] == 0x4c && // 'L'
+            _message[2] == 0x4f && // 'O'
+            _message[3] == 0x31    // '1'
+        );
 
         if (!isAggLayerMessage) {
             // Standard OFT message — delegate to base implementation.

@@ -35,14 +35,9 @@ library AggLayerOFTPayloadCodec {
         bytes memory oftMessage,
         uint256 globalIndex
     ) internal pure returns (bytes memory) {
-        return abi.encode(
-            AggLayerOFTPayloadV1({
-                magic: MAGIC,
-                version: VERSION,
-                oftMessage: oftMessage,
-                globalIndex: globalIndex
-            })
-        );
+        // Flat 4-arg encoding — matches the Go codec's flat abi.Arguments layout.
+        // abi.encode(struct) would add an outer offset word; abi.encode(f1,f2,f3,f4) does not.
+        return abi.encode(MAGIC, VERSION, oftMessage, globalIndex);
     }
 
     /**
@@ -54,15 +49,13 @@ library AggLayerOFTPayloadCodec {
     function decode(
         bytes memory payload
     ) internal pure returns (AggLayerOFTPayloadV1 memory) {
-        AggLayerOFTPayloadV1 memory decoded = abi.decode(
-            payload,
-            (AggLayerOFTPayloadV1)
-        );
+        (bytes4 magic_, uint16 version_, bytes memory msg_, uint256 gi_) =
+            abi.decode(payload, (bytes4, uint16, bytes, uint256));
 
-        if (decoded.magic != MAGIC || decoded.version != VERSION) {
-            revert InvalidMagicOrVersion(decoded.magic, decoded.version);
+        if (magic_ != MAGIC || version_ != VERSION) {
+            revert InvalidMagicOrVersion(magic_, version_);
         }
 
-        return decoded;
+        return AggLayerOFTPayloadV1({magic: magic_, version: version_, oftMessage: msg_, globalIndex: gi_});
     }
 }
