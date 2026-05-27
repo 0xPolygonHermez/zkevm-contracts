@@ -4,8 +4,6 @@ on:
   release:
     types: [created, published]
   workflow_dispatch:
-  pull_request:
-    types: [opened, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
