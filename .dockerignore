@@ -1,0 +1,4 @@
+.git
+docker/gethData
+docker/deploymentOutput
+**/*.swp

@@ -1,0 +1,31 @@
+# Kurtosis-consumable agglayer-contracts tooling image for the cdk-payments flavor.
+#
+# The kurtosis cdk contract-deploy step (kurtosis-cdk src/contracts/agglayer.star)
+# runs this image as a long-lived helper and execs the hardhat deploy scripts
+# (deployment/v2/3_deployContracts.ts, 4_createRollup.ts, ...) that live at
+# /opt/agglayer-contracts, plus a gunicorn json2http server. We therefore reuse
+# the published v12.2.3 tooling image (node v22 + python + gunicorn + hardhat)
+# as the system base, and replace the repo checkout with this branch
+# (feat/aggchain-payments), which adds contracts/aggchains/AggchainPayments.sol
+# and the payments create-rollup handling in deployment/v2/4_createRollup.ts.
+#
+# Build (from the worktree root):
+#   docker build -t agglayer-contracts:payments-local -f Dockerfile.kurtosis .
+
+FROM europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/agglayer-contracts:v12.2.3
+
+# The base image defaults to the unprivileged `node` user; the repo lives at
+# root-owned /opt. kurtosis runs the helper as uid 0 anyway (agglayer.star).
+USER root
+
+# Swap the published repo for this branch's checkout (its own node_modules,
+# artifacts, typechain-types, and AggchainPayments sources travel with it, so
+# the hardhat runtime and the compiled artifacts stay self-consistent).
+RUN rm -rf /opt/agglayer-contracts
+COPY . /opt/agglayer-contracts
+WORKDIR /opt/agglayer-contracts
+
+# Recompile so AggchainPayments artifacts/typechain are present and current.
+RUN npx hardhat compile
+
+WORKDIR /opt/agglayer-contracts
