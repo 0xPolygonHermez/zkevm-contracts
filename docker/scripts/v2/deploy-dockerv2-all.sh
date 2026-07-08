@@ -38,6 +38,12 @@ cp ./docker/scripts/v2/create_rollup_parameters_docker-v0.3.0-ecdsa.json ./deplo
 npx hardhat run ./deployment/v2/4_createRollup.ts --network localhost
 # move rollup output to output folder
 mv ./deployment/v2/create_rollup_output_*.json ./docker/deploymentOutput/create_rollup_output_v0.3.0-ecdsa.json
+# copy new create rollup parameters (Payments) to docker scripts to create new rollup Payments
+cp ./docker/scripts/v2/create_rollup_parameters_docker-payments.json ./deployment/v2/create_rollup_parameters.json
+# create new rollup Payments
+npx hardhat run ./deployment/v2/4_createRollup.ts --network localhost
+# move rollup output to output folder
+mv ./deployment/v2/create_rollup_output_*.json ./docker/deploymentOutput/create_rollup_output_payments.json
 # copy new create rollup parameters (PolygonZkEVMEtrog) to docker scripts to create new rollup PolygonZkEVMEtrog
 cp ./docker/scripts/v2/create_rollup_parameters_docker-fork12.json ./deployment/v2/create_rollup_parameters.json
 # create new rollup PolygonZkEVMEtrog

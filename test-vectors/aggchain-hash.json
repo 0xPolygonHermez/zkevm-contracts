@@ -1,0 +1,48 @@
+{
+    "description": "AggchainPayments.getAggchainHash byte-composition vector. aggchain_params = keccak256(abi.encodePacked(bytes32 lastStateRoot, bytes32 newStateRoot, uint256 endBlock)). aggchain_hash = keccak256(abi.encodePacked(uint32 CONSENSUS_TYPE, bytes32 aggchainVKey, bytes32 aggchain_params, bytes32 multisigHash)). multisigHash = keccak256(abi.encodePacked(uint256 threshold, address[] signers)).",
+    "aggchainType": "0x0001",
+    "consensusType": 1,
+    "aggchainVKeySelector": "0x10000001",
+    "inputs": {
+        "lastStateRoot": "0x11112222333344445555666677778888999900001111222233334444aaaabbbb",
+        "startingBlockNumber": 100,
+        "newStateRoot": "0xaaaabbbbccccddddeeeeffff0000111122223333444455556666777788889999",
+        "endBlock": 200,
+        "aggchainVKey": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        "threshold": 1,
+        "signers": [
+            "0x1111111111111111111111111111111111111111"
+        ],
+        "aggchainData": "0x1000000100000000000000000000000000000000000000000000000000000000aaaabbbbccccddddeeeeffff000011112222333344445555666677778888999900000000000000000000000000000000000000000000000000000000000000c8"
+    },
+    "paramsComposition": {
+        "encoding": "abi.encodePacked(bytes32 lastStateRoot, bytes32 newStateRoot, uint256 endBlock)",
+        "fields": [
+            "bytes32 lastStateRoot",
+            "bytes32 newStateRoot",
+            "uint256 endBlock"
+        ],
+        "preimageBytes": 96,
+        "hash": "keccak256"
+    },
+    "hashComposition": {
+        "encoding": "abi.encodePacked(uint32 CONSENSUS_TYPE, bytes32 aggchainVKey, bytes32 aggchain_params, bytes32 multisigHash)",
+        "fields": [
+            "uint32 CONSENSUS_TYPE (=1, 4 bytes big-endian)",
+            "bytes32 aggchainVKey",
+            "bytes32 aggchain_params",
+            "bytes32 multisigHash"
+        ],
+        "preimageBytes": 100,
+        "hash": "keccak256"
+    },
+    "intermediate": {
+        "aggchainParams": "0xa9168c30912a11b6790455f81eb57869812bf7020f62a7514700794106b9f4e9",
+        "multisigHash": "0xe0c7a9983a810c24cb2fe92669f4f7e99cdccb534b2d47678b3ca9b9c903bb11"
+    },
+    "expected": {
+        "aggchainVKey": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        "aggchainParams": "0xa9168c30912a11b6790455f81eb57869812bf7020f62a7514700794106b9f4e9",
+        "aggchainHash": "0x3ed93795f99133ea89755f4a40e4c3ef57c3566722725998f204f2b116f8d968"
+    }
+}

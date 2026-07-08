@@ -171,6 +171,38 @@ async function main() {
                 trustedSequencerURL,
                 networkName,
             );
+        } else if (consensusContractName === AGGCHAIN_CONTRACT_NAMES.PAYMENTS) {
+            if (type === transactionTypes.EOA && deployer.address !== aggchainManager) {
+                throw new Error(
+                    `Caller ${deployer.address} is not the aggchainManager ${aggchainManager}, cannot initialize from EOA`,
+                );
+            }
+
+            // check mandatory params in aggchainParams
+            const mandatoryAggchainParams = [
+                'startingBlockNumber',
+                'startingStateRoot',
+                'signers',
+                'threshold',
+                'initOwnedAggchainVKey',
+                'initAggchainVKeySelector',
+            ];
+            checkParams(aggchainParams, mandatoryAggchainParams);
+
+            // Initialize Payments with direct parameters
+            initializeTx = await aggchainContract.initialize.populateTransaction(
+                aggchainParams.startingBlockNumber,
+                aggchainParams.startingStateRoot,
+                aggchainParams.signers,
+                aggchainParams.threshold,
+                aggchainParams.initOwnedAggchainVKey,
+                aggchainParams.initAggchainVKeySelector,
+                rollupAdminAddress,
+                trustedSequencer,
+                gasTokenAddress,
+                trustedSequencerURL,
+                networkName,
+            );
         } else {
             throw new Error(`Aggchain ${consensusContractName} not supported`);
         }

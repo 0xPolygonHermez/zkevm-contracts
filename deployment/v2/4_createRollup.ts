@@ -348,6 +348,13 @@ async function main() {
             // Add ECDSA-specific parameters
             aggchainInitParams.signers = createRollupParameters.aggchainParams.signers || [];
             aggchainInitParams.threshold = createRollupParameters.aggchainParams.threshold || 0;
+        } else if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.PAYMENTS) {
+            // Add Payments-specific parameters
+            aggchainInitParams.startingBlockNumber = createRollupParameters.aggchainParams.startingBlockNumber || 0;
+            aggchainInitParams.startingStateRoot =
+                createRollupParameters.aggchainParams.startingStateRoot || ethers.ZeroHash;
+            aggchainInitParams.signers = createRollupParameters.aggchainParams.signers || [];
+            aggchainInitParams.threshold = createRollupParameters.aggchainParams.threshold || 0;
         } else {
             throw new Error(`Aggchain ${consensusContract} not supported`);
         }
@@ -553,6 +560,21 @@ async function main() {
                 aggchainInitParams.useDefaultSigners,
                 aggchainInitParams.signers,
                 aggchainInitParams.threshold,
+            );
+        } else if (consensusContract === utilsAggchain.AGGCHAIN_CONTRACT_NAMES.PAYMENTS) {
+            // Initialize Payments contract with direct parameters using aggchainManager
+            txInitAggChain = await aggchainContractWithManager.initialize(
+                aggchainInitParams.startingBlockNumber,
+                aggchainInitParams.startingStateRoot,
+                aggchainInitParams.signers,
+                aggchainInitParams.threshold,
+                aggchainInitParams.initOwnedAggchainVKey,
+                aggchainInitParams.initAggchainVKeySelector,
+                aggchainInitParams.adminZkEVM,
+                aggchainInitParams.trustedSequencer,
+                aggchainInitParams.gasTokenAddress,
+                aggchainInitParams.trustedSequencerURL,
+                aggchainInitParams.networkName,
             );
         }
 
