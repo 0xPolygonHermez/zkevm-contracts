@@ -24,6 +24,7 @@ Tools will be documented as they are used. If you use a tool, update this file w
 | `deployPolygonDataCommittee/` | Deploy data committee for validium |
 | `deploySovereignTest/` | Deploy sovereign chain for testing |
 | `deployAggOracleCommittee/` | Deploy oracle committee |
+| `erc7786/` | Deploy AgglayerERC7786Gateway (ERC-7786 adapter for the bridge) on L1 and/or L2, with optional remote network registration |
 | `checkRollupVersions/` | Check rollup version info |
 | `getRollupData/` | Get rollup data from contracts |
 | `getBridgeEvents/` | Get bridge events |

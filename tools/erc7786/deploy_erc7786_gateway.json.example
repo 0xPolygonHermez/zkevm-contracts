@@ -1,0 +1,15 @@
+{
+    "bridgeAddress": "0xaddress",
+    "owner": "",
+    "remoteNetworks": [
+        {
+            "chainId": 1101,
+            "networkID": 1,
+            "gateway": "0xaddress"
+        }
+    ],
+    "deployerPvtKey": "",
+    "maxFeePerGas": "",
+    "maxPriorityFeePerGas": "",
+    "multiplierGas": ""
+}
