@@ -7,16 +7,15 @@ import {
     AgglayerManagerMock,
     AgglayerGERMock,
     AgglayerBridge,
-    PolygonPessimisticConsensus,
     PolygonZkEVMEtrog,
     VerifierRollupHelperMock,
     AggchainECDSAMultisig,
 } from '../../../typechain-types';
 
-import { VerifierType, computeInputPessimisticBytes, computeConsensusHashEcdsa } from '../../../src/pessimistic-utils';
+import { VerifierType, computeInputPessimisticBytes } from '../../../src/pessimistic-utils';
 import inputProof from './test-inputs/input.json';
 import inputZkevmMigration from './test-inputs/input-zkevm-migration.json';
-import { encodeInitializeBytesLegacy } from '../../../src/utils-common-aggchain';
+import { encodeInitializeBytesLegacy, encodeInitAggchainManager } from '../../../src/utils-common-aggchain';
 import {
     DEFAULT_ADMIN_ROLE,
     ADD_ROLLUP_TYPE_ROLE,
@@ -33,7 +32,15 @@ import {
     EMERGENCY_COUNCIL_ADMIN,
 } from '../../../src/constants';
 
-describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
+// PP route selector under which inputProof.vkey is registered on the AgglayerGateway.
+// Any unused 4-byte value works; pinned for stability across test runs.
+const PP_ROUTE_SELECTOR = '0x5a093a2f';
+// Separate PP route selector for the migration proof, which is generated against a different
+// SP1 program (different vkey) than the regular ECDSA pessimistic proof.
+// Any unused 4-byte value works; pinned for stability across test runs.
+const MIGRATION_PP_ROUTE_SELECTOR = '0x5a093a30';
+
+describe('Polygon Rollup Manager with AggchainECDSAMultisig (real SP1 verifier)', () => {
     let deployer: any;
     let timelock: any;
     let emergencyCouncil: any;
@@ -47,7 +54,6 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
     let polTokenContract: ERC20PermitMock;
     let polygonZkEVMGlobalExitRoot: AgglayerGERMock;
     let rollupManagerContract: AgglayerManagerMock;
-    let PolygonPPConsensusContract: PolygonPessimisticConsensus;
     let aggLayerGatewayContract: any;
 
     const polTokenName = 'POL Token';
@@ -95,19 +101,26 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
             unsafeAllow: ['constructor'],
         });
 
-        // Initialize AgglayerGateway with selector and vkey from input-zkevm-migration.json
+        // Initialize AgglayerGateway with the v6 PP route used by the ECDSA pessimistic test.
         await aggLayerGatewayContract.initialize(
             admin.address, // defaultAdmin
             admin.address, // aggchainVKey role
             admin.address, // addPPRoute role
             admin.address, // freezePPRoute role
-            inputZkevmMigration.selector, // ppVKeySelector
+            PP_ROUTE_SELECTOR, // ppVKeySelector
             verifierContract.target, // verifier
-            inputZkevmMigration.vkey, // ppVKey
+            inputProof.vkey, // ppVKey
             admin.address, // multisigRole
             [], // signersToAdd (empty)
             0, // newThreshold
         );
+
+        // Register a second PP route for the migration proof — it uses a different SP1
+        // program (different vkey) than the regular ECDSA pessimistic proof, so it can't
+        // share the route registered above.
+        await aggLayerGatewayContract
+            .connect(admin)
+            .addPessimisticVKeyRoute(MIGRATION_PP_ROUTE_SELECTOR, verifierContract.target, inputZkevmMigration.vkey);
 
         const nonceProxyBridge =
             Number(await ethers.provider.getTransactionCount(deployer.address)) + (firstDeployment ? 3 : 2);
@@ -213,69 +226,79 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
         );
     });
 
-    it('should verify pessimistic proof: pessimistic type, with a real verifier (not mock)', async () => {
-        // deploy consensus
-        // create polygonPessimisticConsensus implementation
-        const ppConsensusFactory = await ethers.getContractFactory('PolygonPessimisticConsensus');
-        PolygonPPConsensusContract = await ppConsensusFactory.deploy(
+    it('should verify pessimistic proof: AggchainECDSAMultisig with a real verifier (not mock)', async () => {
+        // The v6 input.json was generated against an AggchainECDSAMultisig with a single
+        // signer = inputProof.signer and threshold = 1, empty aggchainData. We mirror that
+        // setup and route the proof through the AgglayerGateway path (VerifierType.ALGateway).
+        // The PP route is registered in beforeEach.
+
+        // Deploy AggchainECDSAMultisig implementation and register it as a rollup type.
+        const aggchainECDSAMultisigFactory = await ethers.getContractFactory('AggchainECDSAMultisig');
+        const aggchainECDSAMultisigImpl = await aggchainECDSAMultisigFactory.deploy(
             polygonZkEVMGlobalExitRoot.target,
             polTokenContract.target,
             polygonZkEVMBridgeContract.target,
             rollupManagerContract.target,
+            aggLayerGatewayContract.target,
         );
-        await PolygonPPConsensusContract.waitForDeployment();
+        await aggchainECDSAMultisigImpl.waitForDeployment();
 
-        // Try to add a new rollup type
-        const forkID = 11; // just metadata for pessimistic consensus
-        const genesis = ethers.ZeroHash;
-        const description = 'new pessimistic consensus';
-        const programVKey = inputProof.vkey;
         const rollupTypeID = 1;
-
-        // correct add new rollup via timelock
-        await rollupManagerContract
-            .connect(timelock)
-            .addNewRollupType(
-                PolygonPPConsensusContract.target,
-                verifierContract.target,
-                forkID,
-                VerifierType.Pessimistic,
-                genesis,
-                description,
-                programVKey,
-            );
-
-        // create new pessimistic: only admin
-        const chainID = 1;
-        const gasTokenAddress = ethers.ZeroAddress;
-        const urlSequencer = 'https://pessimistic:8545';
-        const networkName = 'testPessimistic';
-        const pessimisticRollupID = inputProof['pp-inputs']['origin-network'];
-        const initializeBytesAggchain = encodeInitializeBytesLegacy(
-            admin.address,
-            trustedSequencer,
-            gasTokenAddress,
-            urlSequencer,
-            networkName,
+        await rollupManagerContract.connect(timelock).addNewRollupType(
+            aggchainECDSAMultisigImpl.target,
+            ethers.ZeroAddress, // verifier - not used for ALGateway
+            0, // forkID
+            VerifierType.ALGateway,
+            ethers.ZeroHash, // genesis
+            'aggchain ecdsa multisig',
+            ethers.ZeroHash, // programVKey
         );
-        // create new pessimistic
-        const newZKEVMAddress = ethers.getCreateAddress({
+
+        // Attach a new chain. attachAggchainToAL only sets the aggchainManager;
+        // full initialization happens in the next step.
+        const chainID = 1;
+        const aggchainRollupID = inputProof['pp-inputs']['origin-network'];
+        const initBytesInitAggchainManager = encodeInitAggchainManager(admin.address);
+        const rollupAddress = ethers.getCreateAddress({
             from: rollupManagerContract.target as string,
             nonce: 1,
         });
+        await rollupManagerContract
+            .connect(admin)
+            .attachAggchainToAL(rollupTypeID, chainID, initBytesInitAggchainManager);
 
-        await rollupManagerContract.connect(admin).attachAggchainToAL(rollupTypeID, chainID, initializeBytesAggchain);
+        // Initialize as the aggchainManager: 1 signer = inputProof.signer, threshold = 1.
+        const ecdsaMultisig = aggchainECDSAMultisigFactory.attach(rollupAddress) as AggchainECDSAMultisig;
+        await ecdsaMultisig
+            .connect(admin)
+            ['initialize(address,address,address,string,string,bool,(address,string)[],uint256)'](
+                admin.address,
+                inputProof.signer,
+                ethers.ZeroAddress,
+                '',
+                '',
+                false, // useDefaultSigners
+                [{ addr: inputProof.signer, url: 'NO_URL' }],
+                1,
+            );
 
-        // select not existent global exit root
-        const l1InfoTreeLeafCount = 2;
+        // Sanity: getAggchainHash for empty aggchainData must match the value the proof was
+        // generated against. If this fails, the chain config doesn't match the prover's setup.
+        const onChainAggchainHash = await ecdsaMultisig.getAggchainHash('0x');
+        expect(onChainAggchainHash).to.be.equal(inputProof['pp-inputs']['aggchain-hash']);
+
+        const l1InfoRoot = inputProof['pp-inputs']['l1-info-root'];
+        const l1InfoTreeLeafCount = 1;
         const newLER = inputProof['pp-inputs']['new-local-exit-root'];
         const newPPRoot = inputProof['pp-inputs']['new-pessimistic-root'];
-        const proofPP = inputProof.proof;
+        // Prepend the PP route selector (registered in beforeEach) so the gateway routes to
+        // the right vkey.
+        const proofPP = PP_ROUTE_SELECTOR + inputProof.proof.slice(2);
 
-        // not trusted aggregator
+        // Not trusted aggregator
         await expect(
             rollupManagerContract.verifyPessimisticTrustedAggregator(
-                pessimisticRollupID,
+                aggchainRollupID,
                 l1InfoTreeLeafCount,
                 newLER,
                 newPPRoot,
@@ -284,10 +307,10 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
             ),
         ).to.be.revertedWithCustomError(rollupManagerContract, 'AddressDoNotHaveRequiredRole');
 
-        // global exit root does not exist
+        // Global exit root does not exist (GER not yet injected at this leaf count)
         await expect(
             rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                pessimisticRollupID,
+                aggchainRollupID,
                 l1InfoTreeLeafCount,
                 newLER,
                 newPPRoot,
@@ -296,38 +319,33 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
             ),
         ).to.be.revertedWithCustomError(rollupManagerContract, 'L1InfoTreeLeafCountInvalid');
 
-        const l1InfoRoot = inputProof['pp-inputs']['l1-info-root'];
-        // check JS function computeInputPessimisticBytes
+        // Check JS helper computeInputPessimisticBytes against on-chain getInputPessimisticBytes.
+        // For ALGateway, the 5th packed field is the aggchainHash.
         const inputPessimisticBytes = await rollupManagerContract.getInputPessimisticBytes(
-            pessimisticRollupID,
+            aggchainRollupID,
             l1InfoRoot,
-            inputProof['pp-inputs']['new-local-exit-root'],
-            inputProof['pp-inputs']['new-pessimistic-root'],
+            newLER,
+            newPPRoot,
             '0x', // aggchainData
         );
-
-        const infoRollup = await rollupManagerContract.rollupIDToRollupDataV2(pessimisticRollupID);
-
-        const consensusHash = computeConsensusHashEcdsa(trustedSequencer);
-
+        const infoRollup = await rollupManagerContract.rollupIDToRollupDataV2(aggchainRollupID);
         const expectedInputPessimisticBytes = computeInputPessimisticBytes(
-            infoRollup[4],
-            infoRollup[10],
+            infoRollup[4], // lastLocalExitRoot
+            infoRollup[10], // lastPessimisticRoot
             l1InfoRoot,
-            pessimisticRollupID,
-            consensusHash,
+            aggchainRollupID,
+            onChainAggchainHash,
             newLER,
             newPPRoot,
         );
-
         expect(inputPessimisticBytes).to.be.equal(expectedInputPessimisticBytes);
-        // Mock selected GER
+
+        // Mock selected GER and verify pessimistic
         await polygonZkEVMGlobalExitRoot.injectGER(l1InfoRoot, l1InfoTreeLeafCount);
 
-        // verify pessimistic
         await expect(
             rollupManagerContract.connect(trustedAggregator).verifyPessimisticTrustedAggregator(
-                pessimisticRollupID,
+                aggchainRollupID,
                 l1InfoTreeLeafCount,
                 newLER,
                 newPPRoot,
@@ -336,26 +354,24 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
             ),
         )
             .to.emit(rollupManagerContract, 'VerifyBatchesTrustedAggregator')
-            .withArgs(pessimisticRollupID, 0, ethers.ZeroHash, newLER, trustedAggregator.address);
+            .withArgs(aggchainRollupID, 0, ethers.ZeroHash, newLER, trustedAggregator.address);
 
-        // assert rollup data
-        const resRollupData = await rollupManagerContract.rollupIDToRollupDataV2(pessimisticRollupID);
-
+        // Assert rollup data post-verify
+        const resRollupData = await rollupManagerContract.rollupIDToRollupDataV2(aggchainRollupID);
         const expectedRollupData = [
-            newZKEVMAddress,
+            rollupAddress,
             chainID,
-            verifierContract.target,
-            forkID,
+            ethers.ZeroAddress, // verifier - not used for ALGateway
+            0, // forkID
             newLER,
-            0,
-            0,
-            0,
+            0, // lastBatchSequenced
+            0, // lastVerifiedBatch
+            0, // _legacyLastPendingState
             rollupTypeID,
-            VerifierType.Pessimistic,
+            VerifierType.ALGateway,
             newPPRoot,
-            programVKey,
+            ethers.ZeroHash, // programVKey
         ];
-
         expect(expectedRollupData).to.be.deep.equal(resRollupData);
     });
 
@@ -377,11 +393,11 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
         const networkName = 'zkevm';
         const forkID = 0;
         const genesisRandom = '0x0000000000000000000000000000000000000000000000000000000000000001';
-        const rollupVerifierType = 0;
+        const rollupVerifierType = VerifierType.StateTransition;
         const description = 'zkevm test';
-        const programVKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const programVKey = ethers.ZeroHash;
 
-        const gasTokenAddress = '0x0000000000000000000000000000000000000000';
+        const gasTokenAddress = ethers.ZeroAddress;
 
         // Create zkEVM implementation
         const PolygonZKEVMEtrogContract = await PolygonZKEVMEtrogFactory.deploy(
@@ -508,14 +524,19 @@ describe('Polygon Rollup Manager with Polygon Pessimistic Consensus', () => {
         // Access the contract as ECDSA Multisig after migration
         const ecdsaMultisigContract = aggchainECDSAMultisigFactory.attach(rollupAddress) as AggchainECDSAMultisig;
 
-        // Verify migration completed successfully for ECDSA Multisig
-        // For ECDSA Multisig, verification is simpler - just verify the migration completed
+        // The proof must encode newLER == lastLER (== 0 here, since etrog phase had no bridges).
         const currentDepositCount = await polygonZkEVMGlobalExitRoot.depositCount();
         const l1InfoTreeLeafCount = Number(currentDepositCount) + 1;
-        const newLER = ethers.ZeroHash; // For ECDSA multisig with no bridges
+        const newLER = inputZkevmMigration.pp_inputs.new_local_exit_root;
         const newPPRoot = inputZkevmMigration.pp_inputs.new_pessimistic_root;
-        const proofPP = inputZkevmMigration.proof;
+        // Prepend the migration PP route selector (registered in beforeEach) so the gateway
+        // routes to the migration vkey.
+        const proofPP = MIGRATION_PP_ROUTE_SELECTOR + inputZkevmMigration.proof.slice(2);
         const l1InfoRoot = inputZkevmMigration.pp_inputs.l1_info_root;
+
+        // Sanity: chain config must match what the proof was generated against.
+        const onChainAggchainHash = await ecdsaMultisigContract.getAggchainHash('0x');
+        expect(onChainAggchainHash).to.be.equal(inputZkevmMigration.pp_inputs.aggchain_hash);
 
         // Mock selected GER for the migration
         await polygonZkEVMGlobalExitRoot.injectGER(l1InfoRoot, l1InfoTreeLeafCount);

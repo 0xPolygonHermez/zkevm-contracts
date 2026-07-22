@@ -79,7 +79,7 @@ These are deployed on the sovereign chain itself (L2), not on L1:
 
 FflonkVerifier contracts are **deprecated**. Do not modify or reference them.
 
-The SP1VerifierPlonk in `v5.0.0/` is used by AggchainFEP via AgglayerGateway.
+The SP1VerifierPlonk in `v6.1.0/` is used by AggchainFEP via AgglayerGateway.
 
 ## Mocks (`mocks/`)
 

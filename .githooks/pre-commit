@@ -27,7 +27,7 @@ if npm run lint; then
     cp artifacts/@openzeppelin/contracts4/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json compiled-contracts/
     cp artifacts/@openzeppelin/contracts4/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json compiled-contracts/
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
-    cp artifacts/contracts/verifiers/v5.0.0/SP1VerifierPlonk.sol/SP1VerifierPlonk.json compiled-contracts/SP1VerifierPlonk.json
+    cp artifacts/contracts/verifiers/v6.1.0/SP1VerifierPlonk.sol/SP1VerifierPlonk.json compiled-contracts/SP1VerifierPlonk.json
     cp artifacts/contracts/deployment/PolygonZkEVMDeployer.sol/PolygonZkEVMDeployer.json compiled-contracts/
 
     ## openzeppelin

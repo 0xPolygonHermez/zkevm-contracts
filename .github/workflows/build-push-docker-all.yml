@@ -3,6 +3,7 @@ name: Push Docker all image
 on:
   release:
     types: [created, published]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
