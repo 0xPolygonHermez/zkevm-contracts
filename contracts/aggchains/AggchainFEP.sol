@@ -441,6 +441,17 @@ contract AggchainFEP is AggchainBase {
     }
 
     /**
+     * @notice Cleans up the l2Outputs array by setting the length to 0
+     * @custom:security Meant to be used when migration from FEP to ECDSA. By resetting the array, we make
+     * sure that if in the future we migrate back to FEP, the l2Outputs array is empty.
+     */
+    function reinitializel2Outputs() onlyAggchainManager external {
+        // Clear the array. delete sets length to 0
+        delete l2Outputs;
+    }
+
+
+    /**
      * @notice Initialize function for upgrade from AggchainECDSAMultisig to AggchainFEP
      * @custom:security Only initializes FEP specific parameters, assumes base and consensus are already initialized
      * @dev Used when transitioning from ECDSA multisig to FEP verification

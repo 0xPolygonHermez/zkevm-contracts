@@ -604,7 +604,7 @@ describe('AggchainECDSAMultisig', () => {
 
     it('should check constants and version', async () => {
         expect(await aggchainECDSAMultisigContract.AGGCHAIN_TYPE()).to.be.equal('0x0000');
-        expect(await aggchainECDSAMultisigContract.AGGCHAIN_ECDSA_MULTISIG_VERSION()).to.be.equal('v1.0.0');
+        expect(await aggchainECDSAMultisigContract.AGGCHAIN_ECDSA_MULTISIG_VERSION()).to.be.equal('v1.0.1');
     });
 
     it('should check invalid initializer scenarios', async () => {
@@ -1050,7 +1050,7 @@ describe('AggchainECDSAMultisig', () => {
 
         // Test the version() function (covers line 210)
         const version = await aggchainECDSAMultisigContract.version();
-        expect(version).to.equal('v1.0.0');
+        expect(version).to.equal('v1.0.1');
         expect(version).to.equal(await aggchainECDSAMultisigContract.AGGCHAIN_ECDSA_MULTISIG_VERSION());
     });
 });

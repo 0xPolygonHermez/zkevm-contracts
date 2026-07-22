@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import "../lib/AggchainBase.sol";
+import "../lib/MigrationFEPToECDSASlots.sol";
 
 /**
  * @title AggchainECDSAMultisig
@@ -10,7 +11,7 @@ import "../lib/AggchainBase.sol";
  * transitions on the pessimistic trees (local_exit_tree, local_balance_tree, nullifier_tree & height).
  * The addresses and threshold are managed by the aggchainManager.
  */
-contract AggchainECDSAMultisig is AggchainBase {
+contract AggchainECDSAMultisig is AggchainBase, MigrationFEPToECDSASlots {
     ////////////////////////////////////////////////////////////
     //                  Transient Storage                     //
     ////////////////////////////////////////////////////////////
@@ -23,7 +24,7 @@ contract AggchainECDSAMultisig is AggchainBase {
     bytes2 public constant AGGCHAIN_TYPE = 0x0000;
 
     /// @notice Aggchain version
-    string public constant AGGCHAIN_ECDSA_MULTISIG_VERSION = "v1.0.0";
+    string public constant AGGCHAIN_ECDSA_MULTISIG_VERSION = "v1.0.1";
 
     ////////////////////////////////////////////////////////////
     //                         Errors                         //

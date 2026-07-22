@@ -249,7 +249,7 @@ describe('UpgradeAggchains', () => {
         expect(await upgradedECDSA.threshold()).to.equal(2);
 
         // Verify version
-        expect(await upgradedECDSA.version()).to.equal('v1.0.0');
+        expect(await upgradedECDSA.version()).to.equal('v1.0.1');
     });
 
     it('should upgrade from previous AggchainFEP to current AggchainFEP', async () => {
