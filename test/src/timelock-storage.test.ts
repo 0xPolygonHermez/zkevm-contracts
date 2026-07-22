@@ -3,7 +3,7 @@ import { ethers } from 'hardhat';
 import lodash from 'lodash';
 
 import { initializeTimelockStorage } from '../../src/genesis/genesis-helpers';
-import { getStorageWrites } from '../../src/utils';
+import { getTraceStorageWrites } from '../../src/utils';
 
 describe('Timelock storage util', () => {
     it('Verify genesis util: initializeTimelockStorage', async () => {
@@ -20,20 +20,9 @@ describe('Timelock storage util', () => {
         );
         const tx = await timelockContract.deploymentTransaction();
 
-        const trace = await ethers.provider.send('debug_traceTransaction', [
-            tx.hash,
-            {
-                enableMemory: false,
-                disableStack: false,
-                disableStorage: false,
-                enableReturnData: false,
-            },
-        ]);
-
         // Get utils storage and compare with the one computed
-        const computedTimelockStorage = getStorageWrites(trace);
+        const computedTimelockStorage = await getTraceStorageWrites(tx.hash, timelockContract.target);
         const utilsTimelockStorage = initializeTimelockStorage(minDelay, timelockAdminAddress, timelockContract.target);
-
         expect(lodash.isEqual(computedTimelockStorage, utilsTimelockStorage)).to.be.equal(true);
     });
 });

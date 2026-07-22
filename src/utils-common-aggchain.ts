@@ -17,6 +17,34 @@ export const AGGCHAIN_CONTRACT_NAMES = {
 
 export const ARRAY_AGGCHAIN_SUPPORTED_NAMES = ['AggchainECDSAMultisig', 'AggchainFEP'];
 
+export const GENESIS_CONTRACT_NAMES = {
+    WETH: 'WETH',
+    WETH_PROXY: 'WETH proxy',
+    TOKEN_WRAPPED_IMPLEMENTATION: 'TokenWrapped implementation',
+    SOVEREIGN_BRIDGE: 'AgglayerBridgeL2',
+    SOVEREIGN_BRIDGE_IMPLEMENTATION: 'AgglayerBridgeL2 implementation',
+    SOVEREIGN_BRIDGE_PROXY: 'AgglayerBridgeL2 proxy',
+    BYTECODE_STORER: 'BytecodeStorer',
+    BRIDGE_V2: 'AgglayerBridge',
+    GER_L2_SOVEREIGN: 'AgglayerGERL2',
+    GER_L2_SOVEREIGN_IMPLEMENTATION: 'AgglayerGERL2 implementation',
+    GER_L2_SOVEREIGN_PROXY: 'AgglayerGERL2 proxy',
+    GER_L2: 'LegacyAgglayerGERL2',
+    GER_L2_IMPLEMENTATION: 'LegacyAgglayerGERL2 implementation',
+    GER_L2_PROXY: 'LegacyAgglayerGERL2 proxy',
+    PROXY_ADMIN: 'ProxyAdmin',
+    POLYGON_TIMELOCK: 'PolygonZkEVMTimelock',
+    AGGLAYER_TIMELOCK: 'AgglayerTimelock',
+    POLYGON_DEPLOYER: 'PolygonZkEVMDeployer',
+    BRIDGE_LIB: `BridgeLib`,
+    AGG_ORACLE: 'AggOracleCommittee',
+    AGG_ORACLE_PROXY: 'AggOracleCommittee proxy',
+    AGG_ORACLE_IMPL: 'AggOracleCommittee implementation',
+    ROLLUP_MANAGER_IMPLEMENTATION: 'AgglayerManager implementation',
+    AGGLAYER_GATEWAY_IMPLEMENTATION: 'AgglayerGateway implementation',
+    GER_IMPLEMENTATION: 'AgglayerGER implementation',
+    DEPLOYER: 'deployer',
+};
 /// //////////////////////////////
 /// // Functions for Aggchain ////
 /// //////////////////////////////

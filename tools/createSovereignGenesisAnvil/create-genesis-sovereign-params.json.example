@@ -1,0 +1,46 @@
+{
+    "network": {
+        "rollupID": 40
+    },
+    "rollupManagerAddress": "0xE2EF6215aDc132Df6913C8DD16487aBF118d1764",
+    "globalExitRoot": {
+        "globalExitRootUpdater": "",
+        "globalExitRootRemover": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66"
+    },
+    "bridge": {
+        "gasTokenAddress": "0xaA2F25a18Baf478782b41CbcFdFd664111F9d686",
+        "bridgeManager": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+        "sovereignWETHAddress": "0x0000000000000000000000000000000000000000",
+        "sovereignWETHAddressIsNotMintable": false,
+        "emergencyBridgePauser": "0xb420EAAbFeFA05b39dE520f811325A463E023954",
+        "emergencyBridgeUnpauser": "0x3b25741Bf4E0cFdaD4a78F592053AFA644716B22",
+        "proxiedTokensManager": "0xB55B27Cca633A73108893985350bc26B8A00C43a"
+    },
+    "preMintAccounts": {
+        "setPreMintAccounts": true,
+        "accounts": [
+            {
+                "balance": "1000000000000000000",
+                "address": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66"
+            },
+            {
+                "balance": "1000000000000000000",
+                "address": "0xb420EAAbFeFA05b39dE520f811325A463E023954"
+            }
+        ]
+    },
+    "timelock": {
+        "adminAddress": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+        "minDelay": 3600
+    },
+    "aggOracleCommittee": {
+        "useAggOracleCommittee": true,
+        "aggOracleOwner": "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+        "aggOracleMembers": [
+            "0x8576158a89648aA88B6036f47B8b74Fc0C2b5c66",
+            "0xb420EAAbFeFA05b39dE520f811325A463E023954"
+        ],
+        "quorum": 1
+    },
+    "anvilPort": 8546
+}

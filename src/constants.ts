@@ -95,6 +95,7 @@ export const GENESIS_CONTRACT_NAMES = {
     ROLLUP_MANAGER_IMPLEMENTATION: 'AgglayerManager implementation',
     AGGLAYER_GATEWAY_IMPLEMENTATION: 'AgglayerGateway implementation',
     GER_IMPLEMENTATION: 'AgglayerGER implementation',
+    DEPLOYER: 'deployer',
 };
 
 // The following contract names came from the genesis creation from different tags of agglayer-contracts repository.

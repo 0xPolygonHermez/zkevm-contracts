@@ -121,23 +121,127 @@ export function valueToStorageBytes(_value) {
  * Scan all SSTORE opcodes in a trace
  * Does not take into account revert operations neither depth
  * @param {Object} trace
- * @returns {Object} - storage writes: {"key": "value"}
+ * @param {Object} addressInfo Object {address, nonce} depth = 1
+ * @returns {Object} - storage writes: depth: {"key": "value"}
  */
-export function getStorageWrites(trace) {
-    const writes = trace.structLogs
-        .filter((log) => log.op === 'SSTORE')
-        .map((log) => {
-            const [newValue, slot] = log.stack.slice(-2);
-            return { newValue, slot };
-        });
+export async function getStorageWrites(trace, addressInfo) {
+    const addresses: { [address: string]: any } = {};
+    addresses[addressInfo.address] = addressInfo.nonce;
+    const stackAddressesStorage = [addressInfo.address];
+    const logs = trace.structLogs.filter(
+        (log) =>
+            log.op === 'CALL' ||
+            log.op === 'CALLCODE' ||
+            log.op === 'DELEGATECALL' ||
+            log.op === 'STATICCALL' ||
+            log.op === 'CREATE' ||
+            log.op === 'CREATE2' ||
+            log.op === 'RETURN' ||
+            log.op === 'REVERT' ||
+            log.op === 'STOP' ||
+            log.op === 'SELFDESTRUCT' ||
+            log.op === 'SSTORE',
+    );
 
-    // print all storage writes in an object fashion style
-    const writeObject = {};
-    writes.forEach((write) => {
-        writeObject[`0x${write.slot}`] = `0x${write.newValue}`;
-    });
+    const writeObject: { [address: string]: any } = {};
+    // eslint-disable-next-line no-restricted-syntax
+    for (const log of logs) {
+        if (log.op === 'CALL' || log.op === 'STATICCALL') {
+            // Get address from stack
+            const addressStack = `0x${log.stack.slice(-2)[0].slice(-40)}`;
+            // eslint-disable-next-line no-await-in-loop
+            addresses[addressStack] = await ethers.provider.getTransactionCount(addressStack);
+            // Update address stack
+            stackAddressesStorage.push(addressStack);
+        } else if (log.op === 'DELEGATECALL' || log.op === 'CALLCODE') {
+            // Update address stack
+            stackAddressesStorage.push(stackAddressesStorage[stackAddressesStorage.length - 1]);
+        } else if (log.op === 'CREATE') {
+            // Get actual address (create is with this address)
+            const actualAddress = stackAddressesStorage[stackAddressesStorage.length - 1];
+            // Calculate with actual address and nonce
+            const calculatedAddress = ethers.getCreateAddress({
+                from: actualAddress,
+                nonce: addresses[actualAddress],
+            });
+            // Add new address and nonce
+            addresses[calculatedAddress] = 1;
+            // Update nonce actual address
+            addresses[actualAddress] += 1;
+            // Update actual address
+            stackAddressesStorage.push(calculatedAddress);
+        } else if (log.op === 'CREATE2') {
+            // Get actual address (create is with this address)
+            const actualAddress = stackAddressesStorage[stackAddressesStorage.length - 1];
+            const parameters = log.stack.slice(-4);
+            const memHex = `${log.memory.join('')}`;
+            const salt = `0x${parameters[0]}`;
+            const size = Number(`0x${parameters[1]}`);
+            const offset = Number(`0x${parameters[2]}`);
+            const start = offset * 2;
+            const end = start + size * 2;
+            const initCodeHex = `0x${memHex.slice(start, end)}`;
+            const initCodeHash = ethers.solidityPackedKeccak256(['bytes'], [initCodeHex]);
+            const calculatedAddress = ethers.getCreate2Address(actualAddress, salt, initCodeHash);
+            // Add new address and nonce
+            addresses[calculatedAddress] = 1;
+            // Update nonce actual address
+            addresses[actualAddress] += 1;
+            // Update actual address
+            stackAddressesStorage.push(calculatedAddress);
+        } else if (log.op === 'SSTORE') {
+            const [newValue, slot] = log.stack.slice(-2);
+            const address = stackAddressesStorage[stackAddressesStorage.length - 1].toLowerCase();
+            if (!writeObject[address]) {
+                writeObject[address] = {};
+            }
+            writeObject[address][`0x${slot}`] = `0x${newValue}`;
+        } else if (
+            (log.op === 'RETURN' || log.op === 'REVERT' || log.op === 'STOP' || log.op === 'SELFDESTRUCT') &&
+            log.depth > 1
+        ) {
+            // Update actual address
+            stackAddressesStorage.pop();
+        }
+    }
 
     return writeObject;
+}
+
+/**
+ * Function to get the storage modifications of a tx from the txHash
+ * @param {string} txHash - transaction hash
+ * @param {string} address - (optional) storage address
+ * @returns {Object} - storage writes: { depth: {"key": "value"} }
+ */
+export async function getTraceStorageWrites(txHash: any, address = undefined) {
+    const infoTx = await ethers.provider.getTransaction(txHash);
+    if (!infoTx) {
+        throw new Error(`No info tx: ${txHash}`);
+    }
+    const addressInfo: { address?: string; sender?: string; nonce?: number } = {};
+    addressInfo.sender = infoTx.from.toLowerCase();
+    if (!infoTx.to) {
+        const receipt = await ethers.provider.getTransactionReceipt(txHash);
+        addressInfo.address = receipt?.contractAddress?.toLowerCase();
+        addressInfo.nonce = 1;
+    } else {
+        addressInfo.address = infoTx.to.toLowerCase();
+        addressInfo.nonce = await ethers.provider.getTransactionCount(addressInfo.address);
+    }
+
+    const trace = await ethers.provider.send('debug_traceTransaction', [
+        txHash,
+        {
+            enableMemory: false,
+            disableStack: false,
+            disableStorage: false,
+            enableReturnData: false,
+        },
+    ]);
+    const computedStorageWrites = await getStorageWrites(trace, addressInfo);
+    if (address) return computedStorageWrites[address.toLowerCase()];
+    return computedStorageWrites;
 }
 
 /**

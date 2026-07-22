@@ -744,7 +744,7 @@ async function updateVanillaGenesis(genesis, chainID, initializeParams) {
         return obj.contractName === GENESIS_CONTRACT_NAMES.POLYGON_DEPLOYER;
     });
     const deployerAddressObj = genesis.genesis.find(function (obj) {
-        return obj.accountName === 'deployer';
+        return obj.accountName === GENESIS_CONTRACT_NAMES.DEPLOYER;
     });
     expect(polygonDeployerObj.storage['0x0000000000000000000000000000000000000000000000000000000000000000']).to.include(
         deployerAddressObj.address.toLowerCase().slice(2),
