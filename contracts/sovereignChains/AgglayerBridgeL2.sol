@@ -774,8 +774,9 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
 
         depositCount = newDepositCount;
 
-        // Update LER
+        // Update LER & lastUpdatedDepositCount
         bytes32 newLER = getRoot();
+        lastUpdatedDepositCount = uint32(newDepositCount);
         globalExitRootManager.updateExitRoot(newLER);
 
         // emit event
@@ -837,7 +838,8 @@ contract AgglayerBridgeL2 is AgglayerBridge, IAgglayerBridgeL2 {
             revert InvalidExpectedLER();
         }
 
-        // Update GER
+        // Update LER & lastUpdatedDepositCount
+        lastUpdatedDepositCount = uint32(depositCount);
         globalExitRootManager.updateExitRoot(computedRoot);
 
         // emit event with the new deposit count
