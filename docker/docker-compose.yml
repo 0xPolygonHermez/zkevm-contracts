@@ -2,6 +2,7 @@ version: "3.3"
 services:
     geth:
         image: ethereum/client-go:v1.14.3
+        user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
         environment:
             - DEV_PERIOD
         ports:
