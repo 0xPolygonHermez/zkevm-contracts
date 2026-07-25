@@ -191,3 +191,71 @@ export function getGitInfo(criticalTooling = false): { commit: string; repo: str
         throw new Error(`getGitInfo: ${error}`);
     }
 }
+
+/**
+ * Calculates the global exit root for a given mainnet exit root and rollup exit root
+ * @param {String} mainnetExitRoot - the mainnet exit root
+ * @param {String} rollupExitRoot - the rollup exit root
+ * @returns {String} the global exit root
+ */
+export function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
+    return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
+}
+
+/**
+ * Calculates the global exit root leaf for a given global exit root, last block hash and timestamp
+ * @param {String} newGlobalExitRoot - the new global exit root
+ * @param {String} lastBlockHash - the last block hash
+ * @param {Number} timestamp - the timestamp
+ * @returns {String} the global exit root leaf
+ */
+export function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any, timestamp: any) {
+    return ethers.solidityPackedKeccak256(
+        ['bytes32', 'bytes32', 'uint64'],
+        [newGlobalExitRoot, lastBlockHash, timestamp],
+    );
+}
+
+/**
+ * Compute accumulateInputHash = Keccak256(oldAccInputHash, batchHashData, l1InfoTreeRoot, timestamp, seqAddress)
+ * @param {String} oldAccInputHash - old accumulateInputHash
+ * @param {String} batchHashData - Batch hash data
+ * @param {String} l1InfoTreeRoot - L1 info tree root
+ * @param {Number} timestamp - Block timestamp
+ * @param {String} sequencerAddress - Sequencer address
+ * @param {String} forcedBlockHash - Forced block hash
+ * @returns {String} - accumulateInputHash in hex encoding
+ */
+export function calculateAccInputHashetrog(
+    oldAccInputHash: any,
+    batchHashData: any,
+    l1InfoTreeRoot: any,
+    timestamp: any,
+    sequencerAddress: any,
+    forcedBlockHash: any,
+) {
+    const hashKeccak = ethers.solidityPackedKeccak256(
+        ['bytes32', 'bytes32', 'bytes32', 'uint64', 'address', 'bytes32'],
+        [oldAccInputHash, batchHashData, l1InfoTreeRoot, timestamp, sequencerAddress, forcedBlockHash],
+    );
+
+    return hashKeccak;
+}
+
+/**
+ * Computes the global index for a given index local and index rollup
+ * @param {Number} indexLocal - the index local
+ * @param {Number} indexRollup - the index rollup
+ * @param {Boolean} isMainnet - whether the index is for the mainnet
+ * @returns {BigInt} the global index
+ */
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const _GLOBAL_INDEX_MAINNET_FLAG = 2n ** 64n;
+
+export function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: boolean) {
+    if (isMainnet === true) {
+        return BigInt(indexLocal) + _GLOBAL_INDEX_MAINNET_FLAG;
+    }
+    return BigInt(indexLocal) + BigInt(indexRollup) * 2n ** 32n;
+}

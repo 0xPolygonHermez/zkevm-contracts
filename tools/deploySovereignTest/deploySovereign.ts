@@ -7,6 +7,7 @@ import * as dotenv from 'dotenv';
 import { ethers, upgrades } from 'hardhat';
 import { MTBridge, mtBridgeUtils } from '@0xpolygonhermez/zkevm-commonjs';
 import { AgglayerGERL2, AgglayerBridgeL2 } from '../../typechain-types';
+import { calculateGlobalExitRoot, calculateGlobalExitRootLeaf, computeGlobalIndex } from '../../src/utils';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const MerkleTreeBridge = MTBridge;
@@ -14,28 +15,8 @@ const { getLeafValue } = mtBridgeUtils;
 
 const pathOutput = path.join(__dirname, `./output__${new Date().toISOString()}.json`);
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const _GLOBAL_INDEX_MAINNET_FLAG = 2n ** 64n;
 const rollupID = 0;
 const networkIDMainnet = 0;
-
-function calculateGlobalExitRootLeaf(newGlobalExitRoot: any, lastBlockHash: any, timestamp: any) {
-    return ethers.solidityPackedKeccak256(
-        ['bytes32', 'bytes32', 'uint64'],
-        [newGlobalExitRoot, lastBlockHash, timestamp],
-    );
-}
-
-function calculateGlobalExitRoot(mainnetExitRoot: any, rollupExitRoot: any) {
-    return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [mainnetExitRoot, rollupExitRoot]);
-}
-
-function computeGlobalIndex(indexLocal: any, indexRollup: any, isMainnet: boolean) {
-    if (isMainnet === true) {
-        return BigInt(indexLocal) + _GLOBAL_INDEX_MAINNET_FLAG;
-    }
-    return BigInt(indexLocal) + BigInt(indexRollup) * 2n ** 32n;
-}
 
 function simulateGERWithEtherClaims(destinationAddress: any) {
     const LEAF_TYPE_ASSET = 0;
