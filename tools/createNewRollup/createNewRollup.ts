@@ -235,9 +235,14 @@ async function main() {
     }
 
     // Grant role CREATE_ROLLUP_ROLE to deployer
-    if ((await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, deployer.address)) === false)
-        await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, deployer.address);
-
+    const CREATE_ROLLUP_ROLE = ethers.id('CREATE_ROLLUP_ROLE');
+    if ((await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, deployer.address)) === false) {
+        logger.info(`Granting CREATE_ROLLUP_ROLE to deployer ${deployer.address}...`);
+        const grantTx = await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, deployer.address);
+        await grantTx.wait();
+        logger.info('CREATE_ROLLUP_ROLE granted to deployer');
+    }
+    
     // Get rollup address deterministically
     const nonce = await currentProvider.getTransactionCount(rollupManagerContract.target);
     const createdRollupAddress = ethers.getCreateAddress({
