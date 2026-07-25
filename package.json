@@ -34,7 +34,7 @@
         "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
         "@nomicfoundation/hardhat-ledger": "^1.2.2",
         "@nomicfoundation/hardhat-network-helpers": "^1.0.12",
-        "@nomicfoundation/hardhat-verify": "^1.1.1",
+        "@nomicfoundation/hardhat-verify": "^2.1.3",
         "@nomiclabs/hardhat-solhint": "^4.0.1",
         "@openzeppelin/contracts-upgradeable4": "npm:@openzeppelin/contracts-upgradeable@4.8.2",
         "@openzeppelin/contracts-upgradeable5": "npm:@openzeppelin/contracts-upgradeable@5.0.0",
@@ -69,6 +69,11 @@
         "ts-node": "^10.9.2",
         "typechain": "^8.3.2",
         "winston": "^3.17.0"
+    },
+    "overrides": {
+        "@openzeppelin/hardhat-upgrades": {
+            "@nomicfoundation/hardhat-verify": "$@nomicfoundation/hardhat-verify"
+        }
     },
     "scripts": {
         "saveDeployment:mainnet": "mkdir -p deployments/mainnet_$(date +%s) && cp -r deployment/v2/deploy_*.json deployments/mainnet_$(date +%s) && cp .openzeppelin/mainnet.json deployments/mainnet_$(date +%s) && cp deployment/v2/genesis.json deployments/mainnet_$(date +%s) && cp deployment/v2/create_rollup_output_*.json deployments/mainnet_$(date +%s)",

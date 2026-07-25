@@ -354,6 +354,10 @@ const config: HardhatUserConfig = {
         outputFile: process.env.REPORT_GAS_FILE ? './gas_report.md' : undefined,
         noColors: !!process.env.REPORT_GAS_FILE,
     },
+    sourcify: {
+        // Doesn't need an API key
+        enabled: true,
+    },
     etherscan: {
         apiKey: {
             polygonZKEVMTestnet: `${process.env.ETHERSCAN_ZKEVM_API_KEY}`,
