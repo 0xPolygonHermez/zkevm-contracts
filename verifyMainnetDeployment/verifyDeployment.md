@@ -16,7 +16,7 @@ node -v
 
 ## Download zkevm contracts repository
 
-DOwnload and install the zkevm-contracts repository and go to the specific commit
+Download and install the zkevm-contracts repository and go to the specific commit
 
 ```bash
 git clone https://github.com/0xPolygonHermez/zkevm-contracts
@@ -55,7 +55,7 @@ This script verifies the deployed bytecode of the address provided in `deploymen
 
 At the end of the previous script we also verify that the genesis provided in the`deploymentMainnet.json` matches the one in the `polygonZkEVM`
 
-In order to verify the genesis, you can the script to generate it. The script in a very similar behaviour of the last script, deploy locally the contracts and then copy the deployed btyecode into the corresponding address.
+In order to verify the genesis, you can run the script to generate it. The script has a very similar behaviour to the last script, deploy locally the contracts and then copy the deployed bytecode into the corresponding address.
 
 ```bash=
 node deployment/1_createGenesis.js --input ../verifyMainnetDeployment/mainnetDeployParameters.json --out ../verifyMainnetDeployment/genesis.json
@@ -63,3 +63,24 @@ node deployment/1_createGenesis.js --input ../verifyMainnetDeployment/mainnetDep
 
 Now a new file will be created in `verifyMainnetDeployment/genesis.json`
 Here you can check all the genesis information, and you can assert that the `root` generated matches the one on `mainnetDeployment.json`
+
+## Verifying Deployment Results
+
+After running the verification scripts, you should check the following:
+
+1. Ensure that all contract bytecodes match between your local compilation and the deployed contracts
+2. Verify that the genesis root matches between your generated genesis and the one in the deployment file
+3. Check that there are no errors or warnings in the verification output
+
+If all these checks pass, you can be confident that the deployed contracts match the expected code in this repository.
+
+## Troubleshooting
+
+If you encounter any issues during verification:
+
+1. Make sure you're using the exact versions of dependencies specified in this document
+2. Check that your environment variables are set correctly
+3. Ensure you have sufficient permissions to access the Ethereum network
+4. Try running the verification script with verbose logging for more detailed output
+
+For additional help, please open an issue in the repository with details about the problem you're experiencing.
