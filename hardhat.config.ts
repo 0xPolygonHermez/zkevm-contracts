@@ -169,6 +169,16 @@ const config: HardhatUserConfig = {
                     evmVersion: 'shanghai',
                 }, // try yul optimizer
             },
+            'contracts/sovereignChains/AgglayerBridgeL2Module.sol': {
+                version: '0.8.28',
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 9,
+                    },
+                    evmVersion: 'shanghai',
+                },
+            },
             'contracts/sovereignChains/AgglayerBridgeL2FromEtrog.sol': {
                 version: '0.8.28',
                 settings: {

@@ -1,9 +1,0 @@
-{
-    "bridgeL2Address": "0x..",
-    "forceImport": false,
-    "unsafeMode": true,
-    "forkParams": {
-        "rpc": "https://rpc..",
-        "timelockAdminAddress": "0x..."
-    }
-}

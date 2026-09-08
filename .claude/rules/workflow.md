@@ -24,5 +24,5 @@
 
 ## Upgrades
 - Mainnet timelock: 3 days delay (0 during emergency state)
-- Active L2 upgrade scripts: `upgrade/upgradeEtrogSovereign/`, `upgrade/upgradeSovereignBridge/`
+- Active L2 upgrade scripts: `upgrade/upgradeEtrogSovereign/`, `upgrade/upgradeSovereignBridge-v1.2.0/`
 - Chain contract upgrades: via `AgglayerManager.updateRollup()`

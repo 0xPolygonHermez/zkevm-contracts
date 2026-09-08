@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-import "./lib/DepositContractV2.sol";
+import "./lib/AgglayerBridgeStorage.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IBaseLegacyAgglayerGER.sol";
 import "./interfaces/IBridgeMessageReceiver.sol";
@@ -18,20 +18,10 @@ import {IVersion} from "./interfaces/IVersion.sol";
 /**
  * PolygonZkEVMBridge that will be deployed on Ethereum and all Polygon rollups
  * Contract responsible to manage the token interactions with other networks
+ * @dev Shared storage preserves the previous layout, including all slots, packing, and reserved gaps.
  */
-contract AgglayerBridge is
-    DepositContractV2,
-    EmergencyManager,
-    IAgglayerBridge,
-    IVersion
-{
+contract AgglayerBridge is AgglayerBridgeStorage, IAgglayerBridge, IVersion {
     using SafeERC20 for ITokenWrappedBridgeUpgradeable;
-
-    // Wrapped Token information struct
-    struct TokenInformation {
-        uint32 originNetwork;
-        address originTokenAddress;
-    }
 
     /// Instance of the BridgeLib contract deployed for bytecode optimization
     /// Also contains the bytecode to deploy wrapped tokens, upgradeable tokens and the code of the transparent proxy
@@ -43,133 +33,11 @@ contract AgglayerBridge is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address internal immutable wrappedTokenBridgeImplementation;
 
-    // Mainnet identifier
-    uint32 internal constant _MAINNET_NETWORK_ID = 0;
-
     // ZkEVM identifier
     uint32 private constant _ZKEVM_NETWORK_ID = 1;
 
-    // Leaf type asset
-    uint8 internal constant _LEAF_TYPE_ASSET = 0;
-
-    // Leaf type message
-    uint8 internal constant _LEAF_TYPE_MESSAGE = 1;
-
-    // Nullifier offset
-    uint256 internal constant _MAX_LEAFS_PER_NETWORK = 2 ** 32;
-
-    // Indicate where's the mainnet flag bit in the global index
-    uint256 internal constant _GLOBAL_INDEX_MAINNET_FLAG = 2 ** 64;
-
     // Current bridge version
     string internal constant BRIDGE_VERSION = "v1.1.0";
-
-    // Network identifier
-    uint32 public networkID;
-
-    // Global Exit Root address
-    IBaseLegacyAgglayerGER public globalExitRootManager;
-
-    // Last updated deposit count to the global exit root manager
-    uint32 public lastUpdatedDepositCount;
-
-    // Leaf index --> claimed bit map
-    mapping(uint256 => uint256) public claimedBitMap;
-
-    // keccak256(OriginNetwork || tokenAddress) --> Wrapped token address
-    mapping(bytes32 => address) public tokenInfoToWrappedToken;
-
-    // Wrapped token Address --> Origin token information
-    mapping(address => TokenInformation) public wrappedTokenToTokenInfo;
-
-    // Rollup manager address, previously PolygonZkEVM
-    /// @custom:oz-renamed-from polygonZkEVMaddress
-    address public polygonRollupManager;
-
-    // Native address
-    address public gasTokenAddress;
-
-    // Native address
-    uint32 public gasTokenNetwork;
-
-    // Gas token metadata
-    bytes public gasTokenMetadata;
-
-    // WETH address
-    // @note WETH address will only be present  when the native token is not ether, but another gasToken.
-    // This variable is set at the initialization of the contract in case there's a gas token different than ether, (gasTokenAddress != address(0) ) so a new wrapped Token will be deployed to handle ether that came from other networks
-    ITokenWrappedBridgeUpgradeable public WETHToken;
-
-    // Address of the proxied tokens manager, is the admin of proxied wrapped tokens
-    address internal proxiedTokensManager;
-
-    //  This account will be able to accept the proxiedTokensManager role
-    address public pendingProxiedTokensManager;
-
-    // @notice Value to detect if the contract has been initialized previously.
-    ///         This mechanism is used to properly select the initializer
-    uint8 internal _initializerVersion;
-
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     */
-    uint256[48] private __gap;
-
-    /**
-     * @dev Emitted when bridge assets or messages to another network
-     */
-    event BridgeEvent(
-        uint8 leafType,
-        uint32 originNetwork,
-        address originAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes metadata,
-        uint32 depositCount
-    );
-
-    /**
-     * @dev Emitted when a claim is done from another network
-     */
-    event ClaimEvent(
-        uint256 globalIndex,
-        uint32 originNetwork,
-        address originAddress,
-        address destinationAddress,
-        uint256 amount
-    );
-
-    /**
-     * @dev Emitted when a new wrapped token is created
-     */
-    event NewWrappedToken(
-        uint32 originNetwork,
-        address originTokenAddress,
-        address wrappedTokenAddress,
-        bytes metadata
-    );
-
-    /**
-     * @notice Emitted when the pending ProxiedTokensManager accepts the ProxiedTokensManager role.
-     * @param oldProxiedTokensManager The previous ProxiedTokensManager.
-     * @param newProxiedTokensManager The new ProxiedTokensManager.
-     */
-    event AcceptProxiedTokensManagerRole(
-        address oldProxiedTokensManager,
-        address newProxiedTokensManager
-    );
-
-    /**
-     * @notice Emitted when the proxiedTokensManager starts the two-step transfer role setting a new pending proxiedTokensManager.
-     * @param currentProxiedTokensManager The current proxiedTokensManager.
-     * @param newProxiedTokensManager The new pending proxiedTokensManager.
-     */
-    event TransferProxiedTokensManagerRole(
-        address currentProxiedTokensManager,
-        address newProxiedTokensManager
-    );
 
     /// @dev Modifier to retrieve initializer version value previous on using the reinitializer modifier, its used in the initialize function.
     modifier getInitializedVersion() {
@@ -852,38 +720,6 @@ contract AgglayerBridge is
     }
 
     /**
-     * @notice Function to add a new leaf to the bridge merkle tree
-     * @param leafType leaf type
-     * @param originNetwork Origin network
-     * @param originAddress Origin address
-     * @param destinationNetwork Destination network
-     * @param destinationAddress Destination address
-     * @param amount Amount of tokens
-     * @param metadataHash Metadata hash
-     */
-    function _addLeafBridge(
-        uint8 leafType,
-        uint32 originNetwork,
-        address originAddress,
-        uint32 destinationNetwork,
-        address destinationAddress,
-        uint256 amount,
-        bytes32 metadataHash
-    ) internal virtual {
-        _addLeaf(
-            getLeafValue(
-                leafType,
-                originNetwork,
-                originAddress,
-                destinationNetwork,
-                destinationAddress,
-                amount,
-                metadataHash
-            )
-        );
-    }
-
-    /**
      * @notice Verify leaf and extract source network information
      * @dev This function verifies the merkle proofs but does NOT set the claimed nullifier
      * @param smtProofLocalExitRoot Smt proof
@@ -1101,66 +937,6 @@ contract AgglayerBridge is
     ) internal virtual {
         // Mint tokens
         tokenWrapped.mint(destinationAddress, amount);
-    }
-
-    /**
-     * @notice Function decode an index into a wordPos and bitPos
-     * @param index Index
-     */
-    function _bitmapPositions(
-        uint256 index
-    ) internal pure returns (uint256 wordPos, uint256 bitPos) {
-        wordPos = uint248(index >> 8);
-        bitPos = uint8(index);
-    }
-
-    /**
-     * @notice Internal function to validate and decode global index
-     * @dev Validates global index format and extracts leafIndex, indexRollup, and sourceBridgeNetwork
-     * @param globalIndex The global index to validate and decode, defined as:
-     * | 191 bits |    1 bit     |   32 bits   |     32 bits    |
-     * |    0     |  mainnetFlag | rollupIndex | localRootIndex |
-     * @return leafIndex The leaf index extracted from global index
-     * @return indexRollup The rollup index extracted from global index (0 for mainnet)
-     * @return sourceBridgeNetwork The source bridge network (0 for mainnet, indexRollup + 1 for rollups)
-     */
-    function _validateAndDecodeGlobalIndex(
-        uint256 globalIndex
-    )
-        internal
-        pure
-        returns (
-            uint32 leafIndex,
-            uint32 indexRollup,
-            uint32 sourceBridgeNetwork
-        )
-    {
-        // Last 32 bits are leafIndex
-        leafIndex = uint32(globalIndex);
-
-        // Get origin network from global index
-        if (globalIndex & _GLOBAL_INDEX_MAINNET_FLAG != 0) {
-            // The network is mainnet
-            indexRollup = 0;
-            sourceBridgeNetwork = 0;
-
-            // Reconstruct global index to assert that all unused bits are 0
-            require(
-                _GLOBAL_INDEX_MAINNET_FLAG + uint256(leafIndex) == globalIndex,
-                InvalidGlobalIndex()
-            );
-        } else {
-            // The network is a rollup
-            indexRollup = uint32(globalIndex >> 32);
-            sourceBridgeNetwork = indexRollup + 1;
-
-            // Reconstruct global index to assert that all unused bits are 0
-            require(
-                (uint256(indexRollup) << uint256(32)) + uint256(leafIndex) ==
-                    globalIndex,
-                InvalidGlobalIndex()
-            );
-        }
     }
 
     /**

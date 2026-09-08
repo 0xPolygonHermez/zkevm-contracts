@@ -152,7 +152,7 @@ describe('AgglayerBridgeL2 Contract', () => {
             deployer.address,
             tokenInitialBalance,
         );
-        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.2.0');
+        expect(await sovereignChainBridgeContract.version()).to.be.equal('v1.3.0');
         expect(await sovereignChainGlobalExitRootContract.version()).to.be.equal('v1.0.0');
     });
 

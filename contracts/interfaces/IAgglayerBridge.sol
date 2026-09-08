@@ -2,8 +2,9 @@
 
 pragma solidity ^0.8.20;
 import "./IBaseLegacyAgglayerGER.sol";
+import "./IAgglayerBridgeState.sol";
 
-interface IAgglayerBridge {
+interface IAgglayerBridge is IAgglayerBridgeState {
     /**
      * @dev Thrown when the destination network is invalid
      */
@@ -113,10 +114,6 @@ interface IAgglayerBridge {
      * @dev Thrown when the global index has any unused bits set to 1
      */
     error InvalidGlobalIndex();
-
-    function wrappedTokenToTokenInfo(
-        address destinationAddress
-    ) external view returns (uint32, address);
 
     function updateGlobalExitRoot() external;
 

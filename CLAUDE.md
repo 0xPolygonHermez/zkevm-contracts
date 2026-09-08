@@ -186,7 +186,7 @@ Three OZ versions coexist for backwards compatibility (breaking changes between 
 
 ## Sovereign Chains
 
-The `contracts/sovereignChains/` directory contains **L2 contracts** for sovereign chains (AgglayerBridgeL2, AgglayerGERL2, AggOracleCommittee). These are deployed on the sovereign chain itself, not on L1. Current active upgrade scripts for sovereign chains: `upgrade/upgradeEtrogSovereign/` and `upgrade/upgradeSovereignBridge/`.
+The `contracts/sovereignChains/` directory contains **L2 contracts** for sovereign chains (AgglayerBridgeL2, AgglayerGERL2, AggOracleCommittee). These are deployed on the sovereign chain itself, not on L1. Current active upgrade scripts for sovereign chains: `upgrade/upgradeEtrogSovereign/` and `upgrade/upgradeSovereignBridge-v1.2.0/`.
 
 ## Workflow
 
@@ -208,7 +208,7 @@ To register a new chain, use the `tools/createNewRollup/` tool.
 - `PolygonZkEVMDeployer` -- deprecated
 - `PolygonZkEVMEtrog`, `PolygonPessimisticConsensus` consensus types -- deprecated
 - `contracts/previousVersions/` -- old versions kept for testing only, unused
-- Most `upgrade/` directories are historical; current ones are `upgradeEtrogSovereign/` and `upgradeSovereignBridge/`
+- Most `upgrade/` directories are historical; current ones are `upgradeEtrogSovereign/` and `upgradeSovereignBridge-v1.2.0/`
 
 ## Mainnet Verification
 

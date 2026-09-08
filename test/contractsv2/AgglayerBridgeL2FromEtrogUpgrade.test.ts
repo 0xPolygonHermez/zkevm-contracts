@@ -24,7 +24,7 @@ describe('PolygonZkEVMBridgeV2Pessimistic upgrade -> AgglayerBridgeL2FromEtrog',
     let bridgeContract: AgglayerBridgeL2FromEtrog;
     let gerContract: AgglayerGERL2;
 
-    const BRIDGE_SOVEREIGN_VERSION = 'v1.2.0';
+    const BRIDGE_SOVEREIGN_VERSION = 'v1.3.0';
     const GER_VERSION = 'v1.0.0';
 
     let rollupManager: any;

@@ -4,10 +4,10 @@ Upgrade scripts for Agglayer contracts. Each subdirectory targets a specific ver
 
 ## Current (Active) Upgrade Scripts
 
-| Directory | Target |
-|---|---|
-| `upgradeEtrogSovereign/` | Etrog to Sovereign chain upgrade (L2 contracts) |
-| `upgradeSovereignBridge/` | Sovereign bridge upgrade (L2 contracts) |
+| Directory                        | Target                                          |
+| -------------------------------- | ----------------------------------------------- |
+| `upgradeEtrogSovereign/`         | Etrog to Sovereign chain upgrade (L2 contracts) |
+| `upgradeSovereignBridge-v1.2.0/` | Sovereign bridge v1.2.0 to modular v1.3.0 (L2)  |
 
 Most other directories are historical and should be cleaned up.
 
@@ -21,6 +21,8 @@ These are kept for reference but are not actively used:
 
 - `utils.ts` -- Shared upgrade utilities
 - `arguments.js` -- Upgrade constructor arguments
+- `bridgeUpgradeUtils.ts`, `bridgeFork.ts` -- Checked proxy/timelock preparation and local fork execution
+- `previousVersions/bridge/` -- Frozen Solidity sources and compiler snapshots used by bridge upgrade tests
 
 ## Proxy Pattern
 
@@ -33,15 +35,17 @@ AgglayerTimelock is NOT upgradeable.
 ## Storage Layout Preservation
 
 Upgradeable contracts inherit legacy storage base contracts to preserve slot positions from previous contracts deployed at the same addresses:
+
 - `LegacyZKEVMStateVariables` -- for AgglayerManager
 - `LegacyAgglayerGERBaseStorage` -- for AgglayerGER
 
 Storage layouts can be inspected:
+
 - `forge inspect <ContractName> storage`
 - `sh storage-layout.sh` (output: `docs/storage_layout.txt`)
 
 ## Notes
 
-- L1 core contract upgrades (AgglayerManager, AgglayerBridge) have dedicated upgrade scripts
+- The bridge shared-storage refactor preserves the L1 layout; no L1 bridge upgrade is required
 - L2 sovereign chain contract upgrades use the active scripts listed above
 - Upgrades go through the AgglayerTimelock (3 days delay on mainnet, 0 during emergency)

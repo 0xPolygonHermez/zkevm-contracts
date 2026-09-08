@@ -3,29 +3,32 @@ name: upgrade-l2
 description: Upgrade L2 sovereign chain contracts (bridge and/or GER). Helps configure parameters, choose the right script, and run the upgrade.
 user-invocable: true
 allowed-tools: Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion
-argument-hint: "[network-name or chain-rpc-url]"
+argument-hint: '[network-name or chain-rpc-url]'
 ---
 
 # Upgrade L2 Sovereign Chain Contracts
 
-You are helping the user upgrade L2 (sovereign chain) contracts. There are exactly **2 active upgrade scripts** -- all others in `upgrade/` are deprecated.
+You are helping the user upgrade L2 (sovereign chain) contracts. There are **2 active L2 upgrade paths** below. The shared-storage refactor preserves the L1 bridge layout and does not require an L1 upgrade.
 
 ## Step 1: Determine which upgrade script to use
 
 Ask the user (or determine from context) which situation applies:
 
-### Option A: `upgradeSovereignBridge` (simpler)
-- **When**: The L2 bridge is already on a recent sovereign version (`v1.0.0`, `v1.1.0`, `v1.2.0`, or legacy `v10.1.2`)
-- **What it does**: Upgrades `BridgeL2SovereignChain` -> `AgglayerBridgeL2`
+### Option A: `upgradeSovereignBridge-v1.2.0`
+
+- **When**: The L2 bridge is on the archived `v1.2.0` build; both version and implementation bytecode are verified
+- **What it does**: Upgrades `AgglayerBridgeL2 v1.2.0` to the ABI/storage-compatible modular `v1.3.0`
+- Other older versions or different builds with the same version string require their own validated migration; do not bypass the bytecode check
 - **Only upgrades the bridge** (not the GER)
-- Script: `upgrade/upgradeSovereignBridge/upgradeSovereignBridge.ts`
-- README: `upgrade/upgradeSovereignBridge/README.md`
+- Script: `upgrade/upgradeSovereignBridge-v1.2.0/upgradeSovereignBridge.ts`
+- README: `upgrade/upgradeSovereignBridge-v1.2.0/README.md`
 
 ### Option B: `upgradeEtrogSovereign` (more complex)
+
 - **When**: The L2 comes from Etrog (previous/legacy version)
 - **What it does**: Upgrades BOTH contracts:
-  - `PolygonZkEVMBridgeV2` (Etrog) -> `AgglayerBridgeL2FromEtrog`
-  - `PolygonZkEVMGlobalExitRootL2` (Etrog) -> `AgglayerGERL2`
+    - `PolygonZkEVMBridgeV2` (Etrog) -> `AgglayerBridgeL2FromEtrog`
+    - `PolygonZkEVMGlobalExitRootL2` (Etrog) -> `AgglayerGERL2`
 - Requires manifest generation from a git tag
 - Requires more initialization parameters (bridge roles, GER roles, token data)
 - Script: `upgrade/upgradeEtrogSovereign/upgradeEtrogToSovereign.ts`
@@ -39,12 +42,14 @@ Use `$ARGUMENTS` if provided (network name or RPC URL). Otherwise ask.
 ### Known networks and their contract addresses
 
 **Cardona (Agglayer testnet, on Sepolia):**
+
 - AgglayerManager: `0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff`
 - AgglayerBridge (L1): `0x528e26b25a34a4A5d0dbDa1d57D318153d2ED582`
 - AgglayerGER: `0xAd1490c248c5d3CbAE399Fd529b79B42984277DF`
 - AgglayerGateway: `0xaA8103640A6C92af48A97D720168011E9f3Ec697`
 
 **Mainnet (Ethereum L1):**
+
 - AgglayerManager: `0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2`
 - AgglayerBridge (L1): `0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe`
 - AgglayerGER: `0x580bda1e7A0CFAe92Fa7F6c20A3794F169CE3CFb`
@@ -59,46 +64,58 @@ You MUST ask the user for anything you cannot determine automatically:
 1. **L2 RPC URL** -- always needed. Ask: "What is the L2 RPC URL for this sovereign chain?"
 2. **bridgeL2Address** -- the bridge proxy address on L2. If not known, ask.
 3. **DEPLOYER_PRIVATE_KEY** -- remind them to set it in `.env`. Never ask for the actual key.
+4. **expectedChainId** -- required for Option A; determine with a read-only RPC query.
 
 ### Additional parameters for `upgradeEtrogSovereign` only:
+
 4. **bridge_initParams** -- Ask who should hold these roles (can be same address):
-   - `bridgeManager`
-   - `proxiedTokensManagerAddress`
-   - `emergencyBridgePauserAddress`
-   - `emergencyBridgeUnpauserAddress`
+    - `bridgeManager`
+    - `proxiedTokensManagerAddress`
+    - `emergencyBridgePauserAddress`
+    - `emergencyBridgeUnpauserAddress`
 5. **ger_initParams** -- Ask who should hold these roles:
-   - `globalExitRootUpdater`
-   - `globalExitRootRemover`
+    - `globalExitRootUpdater`
+    - `globalExitRootRemover`
 6. **Git tag** for manifest generation (e.g. `v4.0.0-fork.7`). Ask: "Which git tag should be used for the OZ manifest? (default: v4.0.0-fork.7)"
 
 ### For shadow fork testing (optional but recommended):
+
 7. **forkParams.rpc** -- same as L2 RPC URL typically
 8. **forkParams.timelockAdminAddress** -- address with PROPOSER_ROLE and EXECUTOR_ROLE on the L2 timelock
+9. **forkParams.blockNumber** -- pinned positive source block for the full Option A fork/deploy/upgrade rehearsal
 
 ## Step 4: Generate the upgrade_parameters.json
 
 Write the config to the appropriate path:
-- `upgrade/upgradeSovereignBridge/upgrade_parameters.json` for Option A
+
+- `upgrade/upgradeSovereignBridge-v1.2.0/upgrade_parameters.json` for Option A
 - `upgrade/upgradeEtrogSovereign/upgrade_parameters.json` for Option B
 
 ### Template for upgradeSovereignBridge:
+
 ```json
 {
     "bridgeL2Address": "<bridge-proxy-address-on-L2>",
-    "forceImport": false,
-    "unsafeMode": true,
+    "expectedChainId": "<L2-chain-id>",
+    "expectedBridgeVersion": "v1.2.0",
+    "deployImplementation": false,
+    "unsafeMode": false,
     "forkParams": {
         "rpc": "<L2-RPC-URL>",
+        "blockNumber": 123456,
         "timelockAdminAddress": "<address-with-proposer-and-executor-role>"
     }
 }
 ```
 
 Notes:
-- Set `forceImport: true` if contract was deployed in L2 genesis (no OZ manifest exists)
-- `unsafeMode` is always `true` (bypasses git tag check, which we don't need)
+
+- Replace the example block number with a real pinned block where the proxy exists.
+- No `forceImport` is required: the archived bytecode and storage layout are validated directly.
+- Keep `unsafeMode: false` for production. The default run is read-only; set `deployImplementation: true` only after explicit deployment approval.
 
 ### Template for upgradeEtrogSovereign:
+
 ```json
 {
     "unsafeMode": true,
@@ -122,40 +139,49 @@ Notes:
 ```
 
 Notes:
+
 - Leave `pathTokensJson` empty to auto-fetch token data from the bridge contract
 - All role addresses CAN be the same address (common in testnets)
 
 ## Step 5: Ensure .env is configured
 
 Check that `.env` exists and remind the user to set:
+
 - `DEPLOYER_PRIVATE_KEY` (or `MNEMONIC`)
 - `CUSTOM_PROVIDER` = the L2 RPC URL (for custom network)
 
 ## Step 6: Run the upgrade
 
 ### For upgradeSovereignBridge:
+
 ```bash
-npx hardhat run ./upgrade/upgradeSovereignBridge/upgradeSovereignBridge.ts --network custom
+npx hardhat run ./upgrade/upgradeSovereignBridge-v1.2.0/upgradeSovereignBridge.ts --network custom
 ```
 
+This performs read-only preflight by default. With explicit approval and `deployImplementation: true`, it deploys the implementation and module but never schedules or executes a live upgrade.
+
 ### For upgradeEtrogSovereign (all-in-one):
+
 ```bash
 ./upgrade/upgradeEtrogSovereign/upgrade_etrog_to_sovereign.sh --old-tag <git-tag> --url <L2-RPC-URL>
 ```
 
 Or step by step:
+
 1. Generate manifest: `./tools/importOZInfoFromTag/import_oz_info_from_tag.sh --tag <tag> --url <rpc>`
 2. Copy manifest to `.openzeppelin/`
 3. Run: `npx hardhat run ./upgrade/upgradeEtrogSovereign/upgradeEtrogToSovereign.ts --network custom`
 
 ## Step 7: Post-deployment
 
-After the script runs, `upgrade_output.json` is created with:
+After an approved deployment run, `upgrade_output.json` is created with:
+
 - `scheduleData`: Transaction data to schedule the upgrade in the timelock
 - `executeData`: Transaction data to execute the upgrade after delay
 - Implementation addresses and block numbers
 
 Remind the user:
+
 1. Send `scheduleData` to the timelock (requires PROPOSER_ROLE)
 2. Wait for the timelock delay
 3. Send `executeData` to the timelock (requires EXECUTOR_ROLE)
@@ -165,11 +191,21 @@ Remind the user:
 Run the shadow fork test before executing on mainnet:
 
 ### For upgradeSovereignBridge:
+
 ```bash
-npx hardhat run ./upgrade/upgradeSovereignBridge/test/shadowForkUpgrade.test.ts
+npm run fork:upgrade-l2-bridge
+```
+
+This forks the pinned RPC block, deploys only locally, executes the timelock upgrade, and checks storage. It requires no live deployment output or private key. Requires Hardhat 2.28.4 or compatible newer 2.x for the fork-reset fix.
+
+To validate a previously prepared live deployment output instead:
+
+```bash
+npx hardhat run ./upgrade/upgradeSovereignBridge-v1.2.0/test/shadowForkUpgrade.test.ts
 ```
 
 ### For upgradeEtrogSovereign:
+
 ```bash
 npx hardhat run ./upgrade/upgradeEtrogSovereign/test/shadowForkUpgrade.test.ts
 ```

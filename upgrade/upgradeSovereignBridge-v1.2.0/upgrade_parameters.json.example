@@ -1,0 +1,13 @@
+{
+    "bridgeL2Address": "0x..",
+    "expectedChainId": "REPLACE_WITH_L2_CHAIN_ID",
+    "expectedBridgeVersion": "v1.2.0",
+    "deployImplementation": false,
+    "unsafeMode": false,
+    "forkParams": {
+        "rpc": "https://rpc..",
+        "blockNumber": "REPLACE_WITH_BLOCK_NUMBER",
+        "timelockAdminAddress": "0x...",
+        "storageSlots": []
+    }
+}

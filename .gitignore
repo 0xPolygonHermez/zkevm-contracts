@@ -1,6 +1,7 @@
 coverage.json
 .env
 cache
+/edr-cache/
 build
 yarn.lock
 node_modules
